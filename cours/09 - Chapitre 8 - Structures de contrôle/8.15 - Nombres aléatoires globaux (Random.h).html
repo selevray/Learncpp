@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.15 — Nombres aléatoires globaux (Random.h)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="815-nombres-aléatoires-globaux-randomh">8.15 — Nombres aléatoires globaux (Random.h)</h1>
+<p>Que se passe-t-il si nous voulons utiliser un générateur de nombres aléatoires dans plusieurs fonctions ou fichiers ? Une solution consiste à créer (et initialiser) notre PRNG dans la fonction <code>main()</code>, puis à le passer partout où nous en avons besoin. Mais cela représente beaucoup de passages de paramètres pour quelque chose que nous n'utilisons peut-être que de façon sporadique, et à de nombreux endroits différents. Faire transiter un tel objet dans tout notre code encombrerait fortement celui-ci.</p>
+<p>Autre possibilité : créer une variable locale <code>static</code> de type <code>std::mt19937</code> dans chaque fonction qui en a besoin (<code>static</code> pour qu'elle ne soit initialisée qu'une seule fois). Cependant, il est excessif que chaque fonction utilisant un générateur aléatoire définisse et initialise son propre générateur local, et le faible nombre d'appels à chaque générateur peut dégrader la qualité des résultats.</p>
+<p>Ce que nous voulons vraiment, c'est un unique objet PRNG que nous puissions partager et utiliser partout, dans toutes nos fonctions et tous nos fichiers. La meilleure option consiste à créer un objet générateur de nombres aléatoires global (à l'intérieur d'un espace de noms !). Vous vous souvenez que nous vous avons conseillé d'éviter les variables globales non <code>const</code> ? Ce cas constitue une exception.</p>
+<p>Voici une solution simple, uniquement constituée d'un en-tête, que vous pouvez <code>#include</code> dans tout fichier de code ayant besoin d'accéder à un <code>std::mt19937</code> aléatoire et initialisé automatiquement :</p>
+<p>Random.h :</p>
+<pre><code class="language-cpp">#ifndef RANDOM_MT_H
+#define RANDOM_MT_H
+
+#include &lt;chrono&gt;
+#include &lt;random&gt;
+
+// This header-only Random namespace implements a self-seeding Mersenne Twister.
+// Requires C++17 or newer.
+// It can be #included into as many code files as needed (The inline keyword avoids ODR violations)
+// Freely redistributable, courtesy of learncpp.com (https://www.learncpp.com/cpp-tutorial/global-random-numbers-random-h/)
+namespace Random
+{
+    // Returns a seeded Mersenne Twister
+    // Note: we'd prefer to return a std::seed_seq (to initialize a std::mt19937), but std::seed can't be copied, so it can't be returned by value.
+    // Instead, we'll create a std::mt19937, seed it, and then return the std::mt19937 (which can be copied).
+    inline std::mt19937 generate()
+    {
+        std::random_device rd{};
+
+        // Create seed_seq with clock and 7 random numbers from std::random_device
+        std::seed_seq ss{
+            static_cast&lt;std::seed_seq::result_type&gt;(std::chrono::steady_clock::now().time_since_epoch().count()),
+                rd(), rd(), rd(), rd(), rd(), rd(), rd() };
+
+        return std::mt19937{ ss };
+    }
+
+    // Here's our global std::mt19937 object.
+    // The inline keyword means we only have one global instance for our whole program.
+    inline std::mt19937 mt{ generate() }; // generates a seeded std::mt19937 and copies it into our global object
+
+    // Generate a random int between [min, max] (inclusive)
+        // * also handles cases where the two arguments have different types but can be converted to int
+    inline int get(int min, int max)
+    {
+        return std::uniform_int_distribution{min, max}(mt);
+    }
+
+    // The following function templates can be used to generate random numbers in other cases
+
+    // See https://www.learncpp.com/cpp-tutorial/function-template-instantiation/
+    // You can ignore these if you don't understand them
+
+    // Generate a random value between [min, max] (inclusive)
+    // * min and max must have the same type
+    // * return value has same type as min and max
+    // * Supported types:
+    // *    short, int, long, long long
+    // *    unsigned short, unsigned int, unsigned long, or unsigned long long
+    // Sample call: Random::get(1L, 6L);             // returns long
+    // Sample call: Random::get(1u, 6u);             // returns unsigned int
+    template &lt;typename T&gt;
+    T get(T min, T max)
+    {
+        return std::uniform_int_distribution&lt;T&gt;{min, max}(mt);
+    }
+
+    // Generate a random value between [min, max] (inclusive)
+    // * min and max can have different types
+        // * return type must be explicitly specified as a template argument
+    // * min and max will be converted to the return type
+    // Sample call: Random::get&lt;std::size_t&gt;(0, 6);  // returns std::size_t
+    // Sample call: Random::get&lt;std::size_t&gt;(0, 6u); // returns std::size_t
+    // Sample call: Random::get&lt;std::int&gt;(0, 6u);    // returns int
+    template &lt;typename R, typename S, typename T&gt;
+    R get(S min, T max)
+    {
+        return get&lt;R&gt;(static_cast&lt;R&gt;(min), static_cast&lt;R&gt;(max));
+    }
+}
+
+#endif
+</code></pre>
+<h2 id="utiliser-randomh">Utiliser Random.h</h2>
+<p>Générer des nombres aléatoires avec ce fichier est aussi simple que de suivre ces trois étapes :</p>
+<ol>
+<li>Copiez/collez le code ci-dessus dans un fichier nommé <code>Random.h</code> dans le répertoire de votre projet, puis enregistrez-le. Vous pouvez éventuellement ajouter Random.h à votre projet.</li>
+<li>Écrivez <code>#include "Random.h"</code> dans tout fichier .cpp de votre projet qui a besoin de générer des nombres aléatoires.</li>
+<li>Appelez <code>Random::get(min, max)</code> pour générer un nombre aléatoire compris entre <code>min</code> et <code>max</code> (inclus). Aucune initialisation ni configuration n'est nécessaire.</li>
+</ol>
+<p>Voici un programme d'exemple illustrant différentes utilisations de Random.h :</p>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;Random.h&quot; // defines Random::mt, Random::get(), and Random::generate()
+#include &lt;cstddef&gt; // for std::size_t
+#include &lt;iostream&gt;
+
+int main()
+{
+    // We can call Random::get() to generate random integral values
+    // If the two arguments have the same type, the returned value will have that same type.
+    std::cout &lt;&lt; Random::get(1, 6) &lt;&lt; '\n';   // returns int between 1 and 6
+    std::cout &lt;&lt; Random::get(1u, 6u) &lt;&lt; '\n'; // returns unsigned int between 1 and 6
+
+        // In cases where we have two arguments with different types
+        // and/or if we want the return type to be different than the argument types
+        // We must specify the return type using a template type argument (between the angled brackets)
+    // See https://www.learncpp.com/cpp-tutorial/function-template-instantiation/
+    std::cout &lt;&lt; Random::get&lt;std::size_t&gt;(1, 6u) &lt;&lt; '\n'; // returns std::size_t between 1 and 6
+
+    // If we have our own distribution, we can access Random::mt directly
+
+    // Let's create a reusable random number generator that generates uniform numbers between 1 and 6
+    std::uniform_int_distribution die6{ 1, 6 }; // for C++14, use std::uniform_int_distribution&lt;&gt; die6{ 1, 6 };
+    for (int count{ 1 }; count &lt;= 10; ++count)
+    {
+        std::cout &lt;&lt; die6(Random::mt) &lt;&lt; '\t'; // generate a roll of the die here
+    }
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<h2 id="quelques-remarques-sur-limplémentation-de-randomh-facultatif">Quelques remarques sur l'implémentation de Random.h <em>(facultatif)</em></h2>
+<p>Normalement, définir des variables et des fonctions dans un fichier d'en-tête provoquerait des violations de la règle de définition unique (ODR) lorsque cet en-tête est inclus dans plusieurs fichiers source. Cependant, nous avons déclaré <code>inline</code> notre variable <code>mt</code> ainsi que les fonctions qui la soutiennent. Cela nous permet d'avoir des définitions dupliquées sans violer l'ODR, tant que toutes ces définitions sont identiques. Comme nous <code>#include</code>ons ces définitions depuis un fichier d'en-tête (plutôt que de les saisir manuellement ou de les copier/coller), nous pouvons garantir qu'elles sont identiques. Les fonctions et variables <code>inline</code> ont été ajoutées au langage principalement pour rendre possible ce type de fonctionnalité uniquement constituée d'en-têtes.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons les fonctions et variables <code>inline</code> dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.9%20-%20Fonctions%20et%20variables%20inline.html">7.9 -- Fonctions et variables inline</a>.</p>
+</div>
+<p>L'autre difficulté à surmonter concerne l'initialisation de notre objet global <code>Random::mt</code>, car nous voulons qu'il s'initialise automatiquement, afin de ne pas avoir à penser à appeler explicitement une fonction d'initialisation pour qu'il fonctionne correctement. Notre initialiseur doit être une expression. Or, pour initialiser un <code>std::mt19937</code>, nous avons besoin de plusieurs objets auxiliaires (un <code>std::random_device</code> et un <code>std::seed_seq</code>), qui doivent être définis sous forme d'instructions. C'est là qu'une fonction auxiliaire s'avère utile. Un appel de fonction est une expression, nous pouvons donc utiliser la valeur de retour d'une fonction comme initialiseur. Et à l'intérieur même de la fonction, nous pouvons employer toute combinaison d'instructions nécessaire. Ainsi, notre fonction <code>generate()</code> crée et renvoie un objet <code>std::mt19937</code> entièrement initialisé (à partir de l'horloge système et de <code>std::random_device</code>), que nous utilisons comme initialiseur de notre objet global <code>Random::mt</code>.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/global-random-numbers-random-h/">https://www.learncpp.com/cpp-tutorial/global-random-numbers-random-h/</a></em></p>
+</main>
+</body>
+</html>

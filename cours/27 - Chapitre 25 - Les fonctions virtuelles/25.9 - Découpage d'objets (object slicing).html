@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25.9 — Découpage d&#x27;objets (object slicing)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="259-découpage-dobjets-object-slicing">25.9 — Découpage d'objets (object slicing)</h1>
+<p>Revenons sur un exemple vu précédemment :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class Base
+{
+protected:
+    int m_value{};
+
+public:
+    Base(int value)
+        : m_value{ value }
+    {
+    }
+
+    virtual ~Base() = default;
+
+    virtual std::string_view getName() const { return &quot;Base&quot;; }
+    int getValue() const { return m_value; }
+};
+
+class Derived: public Base
+{
+public:
+    Derived(int value)
+        : Base{ value }
+    {
+    }
+
+   std::string_view getName() const override { return &quot;Derived&quot;; }
+};
+
+int main()
+{
+    Derived derived{ 5 };
+    std::cout &lt;&lt; &quot;derived is a &quot; &lt;&lt; derived.getName() &lt;&lt; &quot; and has value &quot; &lt;&lt; derived.getValue() &lt;&lt; '\n';
+
+    Base&amp; ref{ derived };
+    std::cout &lt;&lt; &quot;ref is a &quot; &lt;&lt; ref.getName() &lt;&lt; &quot; and has value &quot; &lt;&lt; ref.getValue() &lt;&lt; '\n';
+
+    Base* ptr{ &amp;derived };
+    std::cout &lt;&lt; &quot;ptr is a &quot; &lt;&lt; ptr-&gt;getName() &lt;&lt; &quot; and has value &quot; &lt;&lt; ptr-&gt;getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>ref</code> est une référence et <code>ptr</code> un pointeur, tous deux vers <code>derived</code>, qui possède une partie <code>Base</code> et une partie <code>Derived</code>. Comme <code>ref</code> et <code>ptr</code> sont de type <code>Base</code>, ils ne peuvent voir que la partie <code>Base</code> de <code>derived</code> : la partie <code>Derived</code> existe toujours, mais elle n'est tout simplement pas visible à travers <code>ref</code> ou <code>ptr</code>. Cependant, grâce aux fonctions virtuelles, on peut accéder à la version la plus dérivée d'une fonction. Par conséquent, le programme ci-dessus affiche :</p>
+<pre><code>
+derived is a Derived and has value 5
+ref is a Derived and has value 5
+ptr is a Derived and has value 5
+</code></pre>
+<p>Mais que se passe-t-il si, au lieu d'initialiser une référence ou un pointeur de type <code>Base</code> avec un objet <code>Derived</code>, on <em>affecte</em> directement un objet <code>Derived</code> à un objet <code>Base</code> ?</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived derived{ 5 };
+    Base base{ derived }; // que se passe-t-il ici ?
+    std::cout &lt;&lt; &quot;base is a &quot; &lt;&lt; base.getName() &lt;&lt; &quot; and has value &quot; &lt;&lt; base.getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Rappelez-vous que <code>derived</code> possède une partie <code>Base</code> et une partie <code>Derived</code>. Lorsque l'on affecte un objet <code>Derived</code> à un objet <code>Base</code>, seule la partie <code>Base</code> de l'objet <code>Derived</code> est copiée, pas la partie <code>Derived</code>. Dans l'exemple ci-dessus, <code>base</code> reçoit une copie de la partie <code>Base</code> de <code>derived</code>, mais pas de sa partie <code>Derived</code>. Cette partie <code>Derived</code> a été effectivement « découpée » (sliced off). C'est pourquoi l'affectation d'un objet de classe <code>Derived</code> à un objet de classe <code>Base</code> est appelée <strong>découpage d'objets</strong> (object slicing), ou simplement <em>slicing</em>.</p>
+<p>Comme <code>base</code> était et reste un simple <code>Base</code>, le pointeur virtuel de <code>base</code> pointe toujours vers <code>Base</code>. Ainsi, <code>base.getName()</code> se résout en <code>Base::getName()</code>.</p>
+<p>L'exemple ci-dessus affiche :</p>
+<pre><code>
+base is a Base and has value 5
+</code></pre>
+<p>Utilisé à bon escient, le découpage peut être sans conséquence. Mais employé à tort, il peut provoquer des résultats inattendus de plusieurs façons. Examinons quelques-uns de ces cas.</p>
+<h2 id="découpage-et-fonctions">Découpage et fonctions</h2>
+<p>Vous pensez peut-être que l'exemple ci-dessus est un peu absurde. Après tout, pourquoi affecter <code>derived</code> à <code>base</code> de cette façon ? Vous ne le feriez probablement pas. Cependant, le découpage se produit beaucoup plus facilement, et souvent par accident, avec les fonctions.</p>
+<p>Considérons la fonction suivante :</p>
+<pre><code class="language-cpp">void printName(const Base base) // note : base passé par valeur, et non par référence
+{
+    std::cout &lt;&lt; &quot;I am a &quot; &lt;&lt; base.getName() &lt;&lt; '\n';
+}
+</code></pre>
+<p>Il s'agit d'une fonction assez simple, dont le paramètre <code>base</code> est un objet <code>const</code> passé par valeur. Si nous appelons cette fonction de la façon suivante :</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived d{ 5 };
+    printName(d); // oups, je n'ai pas remarqué que c'était un passage par valeur côté appelant
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque vous avez écrit ce programme, vous n'avez peut-être pas remarqué que <code>base</code> est un paramètre par valeur, et non par référence. Par conséquent, lors de l'appel <code>printName(d)</code>, alors que l'on pourrait s'attendre à ce que <code>base.getName()</code> appelle la fonction virtuelle <code>getName()</code> et affiche « I am a Derived », ce n'est pas ce qui se produit. L'objet <code>Derived</code> <code>d</code> est découpé et seule la partie <code>Base</code> est copiée dans le paramètre <code>base</code>. Lorsque <code>base.getName()</code> s'exécute, même si <code>getName()</code> est virtuelle, il n'existe plus de partie <code>Derived</code> à laquelle la résolution pourrait se rattacher. Par conséquent, ce programme affiche :</p>
+<pre><code class="language-cpp">I am a Base
+</code></pre>
+<p>Dans ce cas, ce qui s'est passé est assez évident, mais si vos fonctions n'affichent pas d'informations permettant de les identifier de cette façon, la recherche de l'erreur peut se révéler difficile.</p>
+<p>Bien sûr, dans cet exemple, le découpage peut être facilement évité en faisant du paramètre de fonction une référence plutôt qu'un passage par valeur (une raison supplémentaire de toujours passer les classes par référence plutôt que par valeur).</p>
+<pre><code class="language-cpp">void printName(const Base&amp; base) // note : base est maintenant passé par référence
+{
+    std::cout &lt;&lt; &quot;I am a &quot; &lt;&lt; base.getName() &lt;&lt; '\n';
+}
+
+int main()
+{
+    Derived d{ 5 };
+    printName(d);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+I am a Derived
+</code></pre>
+<h2 id="découpage-et-vecteurs">Découpage et vecteurs</h2>
+<p>Autre domaine où les programmeurs débutants rencontrent des difficultés avec le découpage : la tentative d'implémenter le polymorphisme avec <code>std::vector</code>. Considérons le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;Base&gt; v{};
+    v.push_back(Base{ 5 });    // ajoute un objet Base à notre vecteur
+    v.push_back(Derived{ 6 }); // ajoute un objet Derived à notre vecteur
+
+        // Affiche tous les éléments de notre vecteur
+    for (const auto&amp; element : v)
+        std::cout &lt;&lt; &quot;I am a &quot; &lt;&lt; element.getName() &lt;&lt; &quot; with value &quot; &lt;&lt; element.getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme compile sans problème. Mais à l'exécution, il affiche :</p>
+<pre><code>
+I am a Base with value 5
+I am a Base with value 6
+</code></pre>
+<p>Comme dans les exemples précédents, parce que <code>std::vector</code> a été déclaré comme un vecteur de type <code>Base</code>, lorsque <code>Derived{ 6 }</code> a été ajouté au vecteur, il a été découpé.</p>
+<p>Corriger ce problème est un peu plus délicat. Beaucoup de programmeurs débutants essaient de créer un <code>std::vector</code> de références vers un objet, comme ceci :</p>
+<pre><code class="language-cpp">std::vector&lt;Base&amp;&gt; v{};
+</code></pre>
+<p>Malheureusement, cela ne compile pas. Les éléments d'un <code>std::vector</code> doivent être affectables, alors qu'une référence ne peut pas être réaffectée (seulement initialisée).</p>
+<p>Une façon de résoudre ce problème consiste à créer un vecteur de pointeurs :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;Base*&gt; v{};
+
+    Base b{ 5 }; // b et d ne peuvent pas être des objets anonymes
+    Derived d{ 6 };
+
+    v.push_back(&amp;b); // ajoute un objet Base à notre vecteur
+    v.push_back(&amp;d); // ajoute un objet Derived à notre vecteur
+
+    // Affiche tous les éléments de notre vecteur
+    for (const auto* element : v)
+        std::cout &lt;&lt; &quot;I am a &quot; &lt;&lt; element-&gt;getName() &lt;&lt; &quot; with value &quot; &lt;&lt; element-&gt;getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+I am a Base with value 5
+I am a Derived with value 6
+</code></pre>
+<p>ce qui fonctionne ! Quelques remarques à ce sujet. Premièrement, <code>nullptr</code> est maintenant une valeur possible, ce qui peut être souhaitable ou non. Deuxièmement, il faut maintenant gérer la sémantique des pointeurs, ce qui peut être pénible. Mais l'avantage est que l'utilisation de pointeurs permet de placer dans le vecteur des objets alloués dynamiquement (n'oubliez simplement pas de les supprimer explicitement avec <code>delete</code>).</p>
+<p>Une autre option consiste à utiliser <code>std::reference_wrapper</code>, une classe qui imite une référence réaffectable :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt; // pour std::reference_wrapper
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+class Base
+{
+protected:
+    int m_value{};
+
+public:
+    Base(int value)
+        : m_value{ value }
+    {
+    }
+    virtual ~Base() = default;
+
+    virtual std::string_view getName() const { return &quot;Base&quot;; }
+    int getValue() const { return m_value; }
+};
+
+class Derived : public Base
+{
+public:
+    Derived(int value)
+        : Base{ value }
+    {
+    }
+
+    std::string_view getName() const override { return &quot;Derived&quot;; }
+};
+
+int main()
+{
+    std::vector&lt;std::reference_wrapper&lt;Base&gt;&gt; v{}; // un vecteur de références réaffectables vers Base
+
+    Base b{ 5 }; // b et d ne peuvent pas être des objets anonymes
+    Derived d{ 6 };
+
+    v.push_back(b); // ajoute un objet Base à notre vecteur
+    v.push_back(d); // ajoute un objet Derived à notre vecteur
+
+    // Affiche tous les éléments de notre vecteur
+    // on utilise .get() pour extraire l'élément du std::reference_wrapper
+    for (const auto&amp; element : v) // element a le type const std::reference_wrapper&lt;Base&gt;&amp;
+        std::cout &lt;&lt; &quot;I am a &quot; &lt;&lt; element.get().getName() &lt;&lt; &quot; with value &quot; &lt;&lt; element.get().getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<h2 id="le-frankenobjet">Le Frankenobjet</h2>
+<p>Dans les exemples précédents, nous avons vu des cas où le découpage a conduit à un mauvais résultat parce que la partie dérivée avait été supprimée. Examinons maintenant un autre cas dangereux, où l'objet dérivé existe encore !</p>
+<p>Considérons le code suivant :</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived d1{ 5 };
+    Derived d2{ 6 };
+    Base&amp; b{ d2 };
+
+    b = d1; // cette ligne pose problème
+
+    return 0;
+}
+</code></pre>
+<p>Les trois premières lignes de la fonction sont assez directes : on crée deux objets <code>Derived</code> et on fait pointer une référence de type <code>Base</code> vers le second.</p>
+<p>C'est à la quatrième ligne que les choses se gâtent. Comme <code>b</code> référence <code>d2</code> et que nous affectons <code>d1</code> à <code>b</code>, on pourrait penser que <code>d1</code> serait copié dans <code>d2</code>, et ce serait effectivement le cas si <code>b</code> était un <code>Derived</code>. Mais <code>b</code> est un <code>Base</code>, et l'opérateur <code>operator=</code> que C++ fournit pour les classes n'est pas virtuel par défaut. Par conséquent, c'est l'opérateur d'affectation qui copie un <code>Base</code> qui est invoqué, et seule la partie <code>Base</code> de <code>d1</code> est copiée dans <code>d2</code>.</p>
+<p>Le résultat est que <code>d2</code> contient maintenant la partie <code>Base</code> de <code>d1</code> et la partie <code>Derived</code> de <code>d2</code>. Dans cet exemple particulier, ce n'est pas un problème (puisque la classe <code>Derived</code> n'a pas de données propres), mais dans la plupart des cas, vous aurez créé un Frankenobjet, composé de morceaux de plusieurs objets.</p>
+<p>Pire encore, il n'existe pas de moyen simple d'empêcher cela (à part éviter autant que possible ce genre d'affectations).</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Si la classe <code>Base</code> n'est pas conçue pour être instanciée seule (par exemple, s'il s'agit simplement d'une classe d'interface), on peut éviter le découpage en rendant la classe <code>Base</code> non copiable (en supprimant le constructeur de copie et l'opérateur d'affectation de <code>Base</code>).</p>
+</div>
+<h2 id="conclusion">Conclusion</h2>
+<p>Bien que C++ permette d'affecter des objets dérivés à des objets de base par découpage, cela ne produit en général que des ennuis, et il faut donc éviter autant que possible le découpage. Veillez à ce que les paramètres de vos fonctions soient des références (ou des pointeurs), et évitez tout passage par valeur lorsqu'il s'agit de classes dérivées.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/object-slicing/">https://www.learncpp.com/cpp-tutorial/object-slicing/</a></em></p>
+</main>
+</body>
+</html>

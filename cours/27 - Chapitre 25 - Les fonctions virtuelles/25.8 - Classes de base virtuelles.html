@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25.8 — Classes de base virtuelles</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="258-classes-de-base-virtuelles">25.8 — Classes de base virtuelles</h1>
+<p>Dans le chapitre précédent, dans la leçon <a href="../26%20-%20Chapitre%2024%20-%20L%27h%C3%A9ritage/24.9%20-%20H%C3%A9ritage%20multiple.html">24.9 -- Héritage multiple</a>, nous avons laissé de côté le « problème du diamant ». Dans cette section, nous reprenons cette discussion.</p>
+<p>Note : cette section traite d'un sujet avancé. Vous pouvez la sauter ou la parcourir rapidement si vous le souhaitez.</p>
+<p><strong>Le problème du diamant</strong></p>
+<p>Voici notre exemple de la leçon précédente (avec quelques constructeurs) illustrant le problème du diamant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class PoweredDevice
+{
+public:
+    PoweredDevice(int power)
+    {
+        std::cout &lt;&lt; &quot;PoweredDevice: &quot; &lt;&lt; power &lt;&lt; '\n';
+    }
+};
+
+class Scanner: public PoweredDevice
+{
+public:
+    Scanner(int scanner, int power)
+        : PoweredDevice{ power }
+    {
+        std::cout &lt;&lt; &quot;Scanner: &quot; &lt;&lt; scanner &lt;&lt; '\n';
+    }
+};
+
+class Printer: public PoweredDevice
+{
+public:
+    Printer(int printer, int power)
+        : PoweredDevice{ power }
+    {
+        std::cout &lt;&lt; &quot;Printer: &quot; &lt;&lt; printer &lt;&lt; '\n';
+    }
+};
+
+class Copier: public Scanner, public Printer
+{
+public:
+    Copier(int scanner, int printer, int power)
+        : Scanner{ scanner, power }, Printer{ printer, power }
+    {
+    }
+};
+</code></pre>
+<p>Bien que vous puissiez vous attendre à un diagramme d'héritage de ce type :</p>
+<p><img alt="" src="../images/images_CppTutorial_Section11_PoweredDevice.gif" /></p>
+<p>si vous créez un objet de classe Copier, vous obtiendrez par défaut deux exemplaires de la classe PoweredDevice : un provenant de Printer et un provenant de Scanner. La structure obtenue est la suivante :</p>
+<p><img alt="" src="../images/images_CppTutorial_Section11_PoweredDevice2.gif" /></p>
+<p>Un court exemple permet de le constater :</p>
+<pre><code class="language-cpp">int main()
+{
+    Copier copier{ 1, 2, 3 };
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+PoweredDevice: 3
+Scanner: 1
+PoweredDevice: 3
+Printer: 2
+</code></pre>
+<p>Comme vous pouvez le voir, PoweredDevice a été construit deux fois.</p>
+<p>Ce comportement est parfois souhaité, mais il arrive aussi que vous vouliez qu'un seul exemplaire de PoweredDevice soit partagé par Scanner et Printer.</p>
+<p><strong>Classes de base virtuelles</strong></p>
+<p>Pour partager une classe de base, il suffit d'insérer le mot-clé « virtual » dans la liste d'héritage de la classe dérivée. On crée ainsi ce que l'on appelle une <strong>classe de base virtuelle</strong> (virtual base class), ce qui signifie qu'il n'existe qu'un seul objet de base. Cet objet de base est partagé par tous les objets de l'arbre d'héritage et n'est construit qu'une seule fois. Voici un exemple (sans constructeurs, par souci de simplicité) montrant comment utiliser le mot-clé virtual pour créer une classe de base partagée :</p>
+<pre><code class="language-cpp">class PoweredDevice
+{
+};
+
+class Scanner: virtual public PoweredDevice
+{
+};
+
+class Printer: virtual public PoweredDevice
+{
+};
+
+class Copier: public Scanner, public Printer
+{
+};
+</code></pre>
+<p>Désormais, lorsque vous créez un objet de classe Copier, vous n'obtenez qu'un seul exemplaire de PoweredDevice par Copier, partagé par Scanner et Printer.</p>
+<p>Cela pose toutefois un problème supplémentaire : si Scanner et Printer partagent une classe de base PoweredDevice, qui est responsable de sa création ? La réponse est Copier. C'est le constructeur de Copier qui est chargé de créer PoweredDevice. C'est donc l'un des rares cas où Copier est autorisée à appeler directement le constructeur d'une classe qui n'est pas son parent immédiat :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class PoweredDevice
+{
+public:
+    PoweredDevice(int power)
+    {
+        std::cout &lt;&lt; &quot;PoweredDevice: &quot; &lt;&lt; power &lt;&lt; '\n';
+    }
+};
+
+class Scanner: virtual public PoweredDevice // note : PoweredDevice est désormais une classe de base virtuelle
+{
+public:
+    Scanner(int scanner, int power)
+        : PoweredDevice{ power } // cette ligne est nécessaire pour créer des objets Scanner, mais elle est ignorée dans ce cas
+    {
+        std::cout &lt;&lt; &quot;Scanner: &quot; &lt;&lt; scanner &lt;&lt; '\n';
+    }
+};
+
+class Printer: virtual public PoweredDevice // note : PoweredDevice est désormais une classe de base virtuelle
+{
+public:
+    Printer(int printer, int power)
+        : PoweredDevice{ power } // cette ligne est nécessaire pour créer des objets Printer, mais elle est ignorée dans ce cas
+    {
+        std::cout &lt;&lt; &quot;Printer: &quot; &lt;&lt; printer &lt;&lt; '\n';
+    }
+};
+
+class Copier: public Scanner, public Printer
+{
+public:
+    Copier(int scanner, int printer, int power)
+        : PoweredDevice{ power }, // PoweredDevice est construit ici
+        Scanner{ scanner, power }, Printer{ printer, power }
+    {
+    }
+};
+</code></pre>
+<p>Cette fois, notre exemple précédent :</p>
+<pre><code class="language-cpp">int main()
+{
+    Copier copier{ 1, 2, 3 };
+
+    return 0;
+}
+</code></pre>
+<p>produit le résultat suivant :</p>
+<pre><code>
+PoweredDevice: 3
+Scanner: 1
+Printer: 2
+</code></pre>
+<p>Comme vous pouvez le voir, PoweredDevice n'est construit qu'une seule fois.</p>
+<p>Il reste quelques détails que nous aurions tort de passer sous silence.</p>
+<p>Premièrement, pour le constructeur de la classe la plus dérivée, les classes de base virtuelles sont toujours créées avant les classes de base non virtuelles, ce qui garantit que toutes les bases sont créées avant leurs classes dérivées.</p>
+<p>Deuxièmement, notez que les constructeurs de Scanner et de Printer contiennent toujours des appels au constructeur de PoweredDevice. Lors de la création d'une instance de Copier, ces appels sont simplement ignorés, car c'est Copier qui est responsable de la création de PoweredDevice, et non Scanner ni Printer. En revanche, si nous créons une instance de Scanner ou de Printer, ces appels sont utilisés et les règles d'héritage habituelles s'appliquent.</p>
+<p>Troisièmement, si une classe hérite d'une ou plusieurs classes ayant des parents virtuels, la classe la <em>plus</em> dérivée est responsable de la construction de la classe de base virtuelle. Dans le cas présent, Copier hérite de Printer et de Scanner, qui ont tous deux une classe de base virtuelle PoweredDevice. Copier, la classe la plus dérivée, est responsable de la création de PoweredDevice. Notez que cela reste vrai même dans le cas d'un héritage simple : si Copier héritait simplement de Printer, et que Printer héritait virtuellement de PoweredDevice, Copier serait tout de même responsable de la création de PoweredDevice.</p>
+<p>Quatrièmement, toutes les classes héritant d'une classe de base virtuelle possèdent une table virtuelle (virtual table), même si elles n'en auraient pas eu normalement, et les instances de ces classes sont donc plus grandes d'un pointeur.</p>
+<p>Comme Scanner et Printer dérivent virtuellement de PoweredDevice, Copier ne contient qu'un seul sous-objet PoweredDevice. Scanner et Printer doivent tous deux savoir comment trouver ce sous-objet PoweredDevice unique, afin de pouvoir accéder à ses membres (puisqu'ils en dérivent). Cela se fait généralement à l'aide d'un mécanisme de tables virtuelles (qui stocke essentiellement le décalage de chaque sous-classe vers le sous-objet PoweredDevice).</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/virtual-base-classes/">https://www.learncpp.com/cpp-tutorial/virtual-base-classes/</a></em></p>
+</main>
+</body>
+</html>

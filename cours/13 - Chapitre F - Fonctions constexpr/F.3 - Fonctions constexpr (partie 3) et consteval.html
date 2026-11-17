@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F.3 — Fonctions constexpr (partie 3) et consteval</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="f3-fonctions-constexpr-partie-3-et-consteval">F.3 — Fonctions constexpr (partie 3) et consteval</h1>
+<h2 id="forcer-lévaluation-dune-fonction-constexpr-à-la-compilation">Forcer l'évaluation d'une fonction constexpr à la compilation</h2>
+<p>Il n'existe aucun moyen d'indiquer au compilateur qu'une fonction constexpr doit, si possible, être évaluée à la compilation (par exemple lorsque la valeur de retour d'une fonction constexpr est utilisée dans une expression non constante).</p>
+<p>Cependant, nous pouvons forcer une fonction constexpr éligible à une évaluation à la compilation à être effectivement évaluée à la compilation, en veillant à ce que sa valeur de retour soit utilisée là où une expression constante est requise. Cela doit être fait appel par appel.</p>
+<p>La façon la plus courante de procéder consiste à utiliser la valeur de retour pour initialiser une variable constexpr (c'est pour cette raison que nous avons utilisé la variable <code>g</code> dans les exemples précédents). Malheureusement, cela oblige à introduire une nouvelle variable dans notre programme uniquement pour garantir l'évaluation à la compilation, ce qui est peu élégant et réduit la lisibilité du code.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Plusieurs astuces ont été proposées pour contourner le problème de la nécessité d'introduire une nouvelle variable constexpr à chaque fois que nous voulons forcer l'évaluation à la compilation. Voir <a href="https://quuxplusone.github.io/blog/2018/08/07/force-constexpr/">ici</a> et <a href="https://artificial-mind.net/blog/2020/11/14/cpp17-consteval">ici</a>.</p>
+</div>
+<p>Cependant, en C++20, il existe une meilleure solution à ce problème, que nous présentons dans un instant.</p>
+<h2 id="consteval-c20">Consteval <em>(C++20)</em></h2>
+<p>C++20 introduit le mot-clé <strong>consteval</strong>, utilisé pour indiquer qu'une fonction <em>doit</em> être évaluée à la compilation, sans quoi une erreur de compilation est produite. Ces fonctions sont appelées <strong>fonctions immédiates</strong> (immediate functions).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+consteval int greater(int x, int y) // la fonction est maintenant consteval
+{
+    return (x &gt; y ? x : y);
+}
+
+int main()
+{
+    constexpr int g { greater(5, 6) };              // ok : sera évaluée à la compilation
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    std::cout &lt;&lt; greater(5, 6) &lt;&lt; &quot; is greater!\n&quot;; // ok : sera évaluée à la compilation
+
+    int x{ 5 }; // non constexpr
+    std::cout &lt;&lt; greater(x, 6) &lt;&lt; &quot; is greater!\n&quot;; // erreur : les fonctions consteval doivent être évaluées à la compilation
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, les deux premiers appels à <code>greater()</code> seront évalués à la compilation. L'appel <code>greater(x, 6)</code> ne peut pas être évalué à la compilation, ce qui produit une erreur de compilation.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez <code>consteval</code> si vous avez une fonction qui doit impérativement être évaluée à la compilation pour une raison quelconque (par exemple parce qu'elle effectue une opération qui ne peut être réalisée qu'à la compilation).</p>
+</div>
+<p>Fait peut-être surprenant, les paramètres d'une fonction consteval ne sont pas constexpr (alors même que les fonctions consteval ne peuvent être évaluées qu'à la compilation). Cette décision a été prise par souci de cohérence.</p>
+<h2 id="déterminer-si-un-appel-de-fonction-constexpr-est-évalué-à-la-compilation-ou-à-lexécution">Déterminer si un appel de fonction constexpr est évalué à la compilation ou à l'exécution</h2>
+<p>Le C++ ne fournit actuellement aucun mécanisme fiable pour le faire.</p>
+<h2 id="quen-est-il-de-stdis_constant_evaluated-ou-de-if-consteval-avancé">Qu'en est-il de <code>std::is_constant_evaluated</code> ou de <code>if consteval</code> ? <em>(Avancé)</em></h2>
+<p>Ni l'une ni l'autre de ces fonctionnalités ne permet de savoir si un appel de fonction est évalué à la compilation ou à l'exécution.</p>
+<p><code>std::is_constant_evaluated()</code> (défini dans l'en-tête &lt;type_traits&gt;) renvoie un <code>bool</code> indiquant si la fonction courante s'exécute dans un contexte d'évaluation constante. Un <strong>contexte d'évaluation constante</strong> (appelé aussi <strong>contexte constant</strong>) est un contexte dans lequel une expression constante est requise (par exemple l'initialisation d'une variable constexpr). Ainsi, lorsque le compilateur est tenu d'évaluer une expression constante à la compilation, <code>std::is_constant_evaluated()</code> vaudra <code>true</code>, comme prévu.</p>
+<p>Cela permet d'écrire quelque chose comme ceci :</p>
+<pre><code class="language-cpp">#include &lt;type_traits&gt; // pour std::is_constant_evaluated()
+
+constexpr int someFunction()
+{
+    if (std::is_constant_evaluated()) // si l'évaluation se fait dans un contexte constant
+        doSomething();
+    else
+        doSomethingElse();
+}
+</code></pre>
+<p>Cependant, le compilateur peut également choisir d'évaluer une fonction constexpr à la compilation dans un contexte qui ne requiert pas d'expression constante. Dans ce cas, <code>std::is_constant_evaluated()</code> renverra <code>false</code> alors que la fonction a bien été évaluée à la compilation. Ainsi, <code>std::is_constant_evaluated()</code> signifie réellement « le compilateur est contraint d'évaluer ceci à la compilation », et non « ceci est évalué à la compilation ».</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Bien que cela puisse sembler étrange, il y a plusieurs raisons à cela :</p>
+<ol>
+<li>Comme l'indique <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0595r2.html">la proposition qui a introduit cette fonctionnalité</a>, la norme ne fait en réalité pas de distinction entre « temps de compilation » et « temps d'exécution ». Définir un comportement reposant sur cette distinction aurait représenté une modification plus importante.</li>
+<li>Les optimisations ne doivent pas modifier le comportement observable d'un programme (sauf si la norme l'autorise explicitement). Si <code>std::is_constant_evaluated()</code> renvoyait <code>true</code> chaque fois qu'une fonction est évaluée à la compilation, quelle qu'en soit la raison, la décision de l'optimiseur d'évaluer une fonction à la compilation plutôt qu'à l'exécution pourrait modifier le comportement observable de cette fonction. Votre programme pourrait alors se comporter très différemment selon le niveau d'optimisation utilisé à la compilation !</li>
+</ol>
+<p>Ce problème pourrait être résolu de diverses manières, mais celles-ci ajouteraient de la complexité à l'optimiseur et/ou limiteraient sa capacité à optimiser certains cas.</p>
+</div>
+<p>Introduit en C++23, <code>if consteval</code> remplace <code>if (std::is_constant_evaluated())</code> avec une syntaxe plus agréable et corrige d'autres problèmes. Il fonctionne cependant de la même manière.</p>
+<h2 id="utiliser-consteval-pour-forcer-lexécution-de-constexpr-à-la-compilation-c20">Utiliser consteval pour forcer l'exécution de constexpr à la compilation <em>(C++20)</em></h2>
+<p>L'inconvénient des fonctions consteval est qu'elles ne peuvent pas être évaluées à l'exécution, ce qui les rend moins souples que les fonctions constexpr, qui peuvent faire les deux. Il serait donc toujours utile de disposer d'un moyen pratique de forcer l'évaluation à la compilation de fonctions constexpr (même lorsque la valeur de retour est utilisée là où une expression constante n'est pas requise), afin de pouvoir imposer explicitement l'évaluation à la compilation lorsque c'est possible, et l'évaluation à l'exécution lorsque ce n'est pas le cas.</p>
+<p>Voici un exemple qui montre comment procéder :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+#define CONSTEVAL(...) [] consteval { return __VA_ARGS__; }()               // version C++20 selon Jan Scultke (https://stackoverflow.com/a/77107431/460250)
+#define CONSTEVAL11(...) [] { constexpr auto _ = __VA_ARGS__; return _; }() // version C++11 selon Justin (https://stackoverflow.com/a/63637573/460250)
+
+// Cette fonction renvoie le plus grand des deux nombres si elle s'exécute dans un contexte constant
+// et le plus petit des deux nombres sinon
+constexpr int compare(int x, int y) // la fonction est constexpr
+{
+    if (std::is_constant_evaluated())
+        return (x &gt; y ? x : y);
+    else
+        return (x &lt; y ? x : y);
+}
+
+int main()
+{
+    int x { 5 };
+    std::cout &lt;&lt; compare(x, 6) &lt;&lt; '\n';                  // s'exécute à l'exécution et renvoie 5
+
+    std::cout &lt;&lt; compare(5, 6) &lt;&lt; '\n';                  // peut ou non s'exécuter à la compilation, mais renverra toujours 5
+    std::cout &lt;&lt; CONSTEVAL(compare(5, 6)) &lt;&lt; '\n';       // s'exécutera toujours à la compilation et renverra 6
+
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Cet exemple utilise une macro préprocesseur variadique (le #define, <code>...</code> et <code>__VA_ARGS__</code>) pour définir une lambda consteval immédiatement invoquée (par les parenthèses finales).<br />
+Vous trouverez des informations sur les macros variadiques à l'adresse <a href="https://en.cppreference.com/w/cpp/preprocessor/replace">https://en.cppreference.com/w/cpp/preprocessor/replace</a>.<br />
+Nous abordons les lambdas dans la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.6%20-%20Introduction%20aux%20lambdas%20%28fonctions%20anonymes%29.html">20.6 -- Introduction aux lambdas (fonctions anonymes)</a>.</p>
+</div>
+<p>La solution suivante devrait également fonctionner (et elle est un peu plus propre, car elle n'utilise pas de macros du préprocesseur) :</p>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de gcc</p>
+<p>Un bogue présent dans GCC 14 et versions ultérieures fait produire à l'exemple suivant un mauvais résultat dès qu'un niveau d'optimisation quelconque est activé.</p>
+</div>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Utilise un modèle de fonction abrégé (C++20) et un type de retour `auto` pour rendre cette fonction utilisable avec n'importe quel type de valeur
+// Voir l'encadré « contenu associé » ci-dessous pour plus d'informations (il n'est pas nécessaire de comprendre leur fonctionnement pour utiliser cette fonction)
+// Nous avons choisi un nom en majuscules ici par cohérence avec l'exemple précédent, mais cela facilite aussi la lecture de l'appel
+consteval auto CONSTEVAL(auto value)
+{
+    return value;
+}
+
+// Cette fonction renvoie le plus grand des deux nombres si elle s'exécute dans un contexte constant
+// et le plus petit des deux nombres sinon
+constexpr int compare(int x, int y) // la fonction est constexpr
+{
+    if (std::is_constant_evaluated())
+        return (x &gt; y ? x : y);
+    else
+        return (x &lt; y ? x : y);
+}
+
+int main()
+{
+    std::cout &lt;&lt; CONSTEVAL(compare(5, 6)) &lt;&lt; '\n';       // s'exécutera à la compilation
+
+    return 0;
+}
+</code></pre>
+<p>Les arguments des fonctions consteval étant toujours évalués de manière manifestement constante, si nous appelons une fonction constexpr comme argument d'une fonction consteval, cette fonction constexpr doit être évaluée à la compilation ! La fonction consteval renvoie ensuite le résultat de la fonction constexpr comme sa propre valeur de retour, afin que l'appelant puisse l'utiliser.</p>
+<p>Notez que la fonction consteval renvoie sa valeur par copie. Bien que cela puisse être inefficace à l'exécution (si la valeur est d'un type coûteux à copier, par exemple <code>std::string</code>), dans un contexte de compilation cela n'a pas d'importance, car l'appel entier à la fonction consteval sera simplement remplacé par la valeur calculée.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Nous abordons les types de retour auto dans la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.9%20-%20D%C3%A9duction%20de%20type%20pour%20les%20fonctions.html">10.9 -- Déduction de type pour les fonctions</a>.<br />
+Nous abordons les modèles de fonctions abrégés (paramètres auto) dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.8%20-%20Mod%C3%A8les%20de%20fonctions%20avec%20plusieurs%20types%20de%20param%C3%A8tres.html">11.8 -- Modèles de fonctions avec plusieurs types de modèles</a>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/constexpr-functions-part-3-and-consteval/">https://www.learncpp.com/cpp-tutorial/constexpr-functions-part-3-and-consteval/</a></em></p>
+</main>
+</body>
+</html>

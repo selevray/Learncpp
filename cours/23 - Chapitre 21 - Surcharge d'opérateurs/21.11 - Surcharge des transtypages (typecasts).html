@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.11 — Surcharge des transtypages (typecasts)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="2111-surcharge-des-transtypages-typecasts">21.11 — Surcharge des transtypages (typecasts)</h1>
+<p>Dans la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.6%20-%20Conversion%20explicite%20de%20type%20%28cast%29%20et%20static_cast.html">10.6 -- Conversion explicite de types (transtypage) et static_cast</a>, vous avez appris que C++ permet de convertir un type de données en un autre. L'exemple suivant convertit un <code>int</code> en <code>double</code> :</p>
+<pre><code class="language-cpp">int n{ 5 };
+auto d{ static_cast&lt;double&gt;(n) }; // conversion de int en double
+</code></pre>
+<p>C++ sait déjà convertir entre les types de données fondamentaux. En revanche, par défaut, il ne sait pas convertir les classes que nous définissons nous-mêmes.</p>
+<p>Dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.16%20-%20Constructeurs%20de%20conversion%20et%20le%20mot-cl%C3%A9%20explicit.html">14.16 -- Constructeurs de conversion et le mot-clé explicit</a>, nous avons montré comment utiliser un constructeur de conversion pour créer un objet d'un type classe à partir d'un objet d'un autre type. Mais cela ne fonctionne que si le type de destination est une classe que l'on peut modifier pour y ajouter ce constructeur. Que faire si ce n'est pas le cas ?</p>
+<p>Examinons la classe suivante :</p>
+<pre><code class="language-cpp">class Cents
+{
+private:
+    int m_cents{};
+public:
+    Cents(int cents=0)
+        : m_cents{ cents }
+    {
+    }
+
+    int getCents() const { return m_cents; }
+    void setCents(int cents) { m_cents = cents; }
+};
+</code></pre>
+<p>Cette classe est assez simple : elle stocke un nombre de centimes sous forme d'entier et fournit des fonctions d'accès pour lire et modifier ce nombre. Elle fournit également un constructeur permettant de convertir un <code>int</code> en <code>Cents</code>.</p>
+<p>Si nous pouvons convertir un <code>int</code> en <code>Cents</code> (grâce à un constructeur), nous pourrions aussi vouloir fournir un moyen de convertir un <code>Cents</code> en <code>int</code>. Dans certains cas, ce n'est pas souhaitable, mais ici cela a du sens.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Un poème :</p>
+<p>Convertir nos int en quelques Cents<br />
+Demandera un constructeur consentant<br />
+Bien sûr, convertir Cents en int a aussi du sens<br />
+Mais le compilateur crie à l'erreur et s'y oppose.</p>
+<p>Pour autoriser ces conversions<br />
+Nous donnons notre accord au compilateur<br />
+Puis nous définissons comment, pour toutes les intentions,<br />
+Transformer ces types de contenus.</p>
+<p>Quelle est donc la syntaxe qui contourne<br />
+La défense de typage statique du compilateur ?<br />
+Nous le détaillerons très bientôt, et ainsi<br />
+Vous ne resterez plus dans le suspense.</p>
+</div>
+<p>Une solution peu satisfaisante consiste à utiliser une fonction de conversion. Dans cet exemple, nous utilisons la fonction membre <code>getCents()</code> pour « convertir » notre variable <code>Cents</code> en <code>int</code> afin de l'afficher avec <code>printInt()</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printInt(int value)
+{
+    std::cout &lt;&lt; value;
+}
+
+int main()
+{
+    Cents cents{ 7 };
+    printInt(cents.getCents()); // affiche 7
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Bien que cette fonction produise le résultat souhaité, il ne s'agit pas vraiment d'une conversion : le compilateur ne comprend pas qu'il doit utiliser cette fonction pour les transtypages ou les conversions implicites. De plus, si nous effectuons beaucoup de conversions de <code>Cents</code> vers <code>int</code>, notre code sera encombré d'appels à <code>getCents()</code>, ce qui est peu élégant.</p>
+<p>Que pouvons-nous faire d'autre ?</p>
+<h2 id="surcharger-un-transtypage">Surcharger un transtypage</h2>
+<p>C'est ici qu'intervient la surcharge des opérateurs de transtypage. Un tel transtypage peut être utilisé explicitement (via un cast) ou implicitement par le compilateur pour effectuer les conversions nécessaires.</p>
+<p>Montrons comment surcharger un transtypage pour définir une conversion de <code>Cents</code> vers <code>int</code> :</p>
+<pre><code class="language-cpp">class Cents
+{
+private:
+    int m_cents{};
+public:
+    Cents(int cents=0)
+        : m_cents{ cents }
+    {
+    }
+
+    // Transtypage int surchargé
+    operator int() const { return m_cents; }
+
+    int getCents() const { return m_cents; }
+    void setCents(int cents) { m_cents = cents; }
+};
+</code></pre>
+<p>Pour cela, nous avons écrit un nouvel opérateur surchargé nommé <code>operator int()</code>. Notez qu'il y a un espace entre le mot <code>operator</code> et le type vers lequel nous transtypons.</p>
+<p>Quelques points méritent d'être notés ici :</p>
+<ul>
+<li>Les transtypages surchargés doivent être des membres non statiques, et doivent être <code>const</code> afin de pouvoir être utilisés avec des objets constants.</li>
+<li>Les transtypages surchargés n'ont pas de paramètres explicites, car il n'existe aucun moyen de leur passer des arguments explicites. Ils ont tout de même un paramètre caché <code>*this</code>, qui pointe vers l'objet implicite (c'est-à-dire l'objet à convertir).</li>
+<li>Les transtypages surchargés ne déclarent pas de type de retour. Le nom de la conversion (par exemple <code>int</code>) sert de type de retour, car c'est le seul type de retour autorisé. Cela évite une redondance dans la déclaration.</li>
+</ul>
+<p>Dans notre exemple, nous pouvons maintenant appeler <code>printInt()</code> de cette façon :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Cents cents{ 7 };
+    printInt(cents); // affiche 7
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Le compilateur remarque d'abord que la fonction <code>printInt()</code> possède un paramètre de type <code>int</code>. Il constate ensuite que la variable <code>cents</code> n'est pas un <code>int</code>. Enfin, il vérifie si nous avons fourni un moyen de convertir un <code>Cents</code> en <code>int</code>. C'est le cas : il appelle donc notre fonction <code>operator int()</code>, qui renvoie un <code>int</code>, et ce <code>int</code> est passé à <code>printInt()</code>.</p>
+<p>De tels transtypages peuvent aussi être invoqués explicitement via <code>static_cast</code> :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; static_cast&lt;int&gt;(cents);
+</code></pre>
+<p>Vous pouvez fournir des transtypages surchargés pour tout type de données souhaité, y compris vos propres types définis par le programme !</p>
+<p>Voici une nouvelle classe appelée <code>Dollars</code> qui fournit une conversion surchargée vers <code>Cents</code> :</p>
+<pre><code class="language-cpp">class Dollars
+{
+private:
+    int m_dollars{};
+public:
+    Dollars(int dollars=0)
+        : m_dollars{ dollars }
+    {
+    }
+
+     // Permet de convertir Dollars en Cents
+     operator Cents() const { return Cents{ m_dollars * 100 }; }
+};
+</code></pre>
+<p>Cela nous permet de convertir directement un objet <code>Dollars</code> en objet <code>Cents</code> ! Vous pouvez donc écrire quelque chose comme ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents{};
+public:
+    Cents(int cents=0)
+        : m_cents{ cents }
+    {
+    }
+
+    // Transtypage int surchargé
+    operator int() const { return m_cents; }
+
+    int getCents() const { return m_cents; }
+    void setCents(int cents) { m_cents = cents; }
+};
+
+class Dollars
+{
+private:
+    int m_dollars{};
+public:
+    Dollars(int dollars=0)
+        : m_dollars{ dollars }
+    {
+    }
+
+    // Permet de convertir Dollars en Cents
+    operator Cents() const { return Cents { m_dollars * 100 }; }
+};
+
+void printCents(Cents cents)
+{
+    std::cout &lt;&lt; cents; // cents sera implicitement converti en int ici
+}
+
+int main()
+{
+    Dollars dollars{ 9 };
+    printCents(dollars); // dollars sera implicitement converti en Cents ici
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>En conséquence, ce programme affiche la valeur :</p>
+<pre><code>
+900
+</code></pre>
+<p>ce qui est logique, puisque 9 dollars valent 900 centimes !</p>
+<p>Bien que cela montre qu'une telle chose est possible, dans ce cas, ajouter à <code>Dollars</code> un constructeur de conversion (avec un paramètre de type <code>Cents</code>) est en réalité préférable. Nous expliquerons pourquoi plus bas.</p>
+<h2 id="transtypages-explicites">Transtypages explicites</h2>
+<p>De même que nous pouvons rendre les constructeurs <code>explicit</code> pour qu'ils ne soient pas utilisés pour des conversions implicites, nous pouvons aussi rendre explicites nos transtypages surchargés, pour la même raison. Les transtypages explicites ne peuvent être invoqués que par un cast (par exemple <code>static_cast</code>) ou par une forme d'initialisation directe (avec parenthèses ou accolades). Ils ne sont pas pris en compte lors d'une initialisation par copie.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents{};
+public:
+    Cents(int cents=0)
+        : m_cents{ cents }
+    {
+    }
+
+    explicit operator int() const { return m_cents; } // désormais marqué comme explicit
+
+    int getCents() const { return m_cents; }
+    void setCents(int cents) { m_cents = cents; }
+};
+
+class Dollars
+{
+private:
+    int m_dollars{};
+public:
+    Dollars(int dollars=0)
+        : m_dollars{ dollars }
+    {
+    }
+
+    operator Cents() const { return Cents { m_dollars * 100 }; }
+};
+
+void printCents(Cents cents)
+{
+//  std::cout &lt;&lt; cents;                   // ne fonctionne plus car cents ne se convertit plus implicitement en int
+    std::cout &lt;&lt; static_cast&lt;int&gt;(cents); // on peut utiliser à la place un transtypage explicite
+}
+
+int main()
+{
+    Dollars dollars{ 9 };
+    printCents(dollars); // conversion implicite de Dollars en Cents acceptable car elle n'est pas marquée explicit
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Les transtypages doivent en général être marqués comme explicit. Des exceptions peuvent être faites lorsque la conversion produit à moindre coût un type défini par l'utilisateur similaire. Notre <code>Dollars::operator Cents()</code> n'a pas été marqué explicit, car il n'y a aucune raison d'empêcher qu'un objet <code>Dollars</code> soit utilisé partout où un <code>Cents</code> est attendu.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>De même que les constructeurs de conversion à un seul paramètre doivent être marqués explicit, les transtypages doivent l'être, sauf lorsque le type vers lequel on convertit est essentiellement synonyme du type de destination.</p>
+</div>
+<h2 id="quand-utiliser-les-constructeurs-de-conversion-ou-les-transtypages-surchargés">Quand utiliser les constructeurs de conversion ou les transtypages surchargés</h2>
+<p>Les transtypages surchargés et les constructeurs de conversion remplissent des fonctions similaires :</p>
+<ul>
+<li>Un constructeur de conversion est une fonction membre du type classe B qui définit comment créer un B à partir d'un A.</li>
+<li>Un transtypage surchargé est une fonction membre du type classe A qui définit comment convertir un A en B.</li>
+</ul>
+<p>Dans les deux cas, on part d'un A et on obtient un B. La principale différence entre les deux réside dans le fait que c'est A ou B qui « possède » la manière dont la conversion s'effectue.</p>
+<p>Comme les deux approches nécessitent de définir une fonction membre, elles ne peuvent être utilisées que pour des types classe modifiables. Si A n'est pas un type classe modifiable, vous ne pouvez pas utiliser de transtypage surchargé. Si B n'est pas un type classe modifiable, vous ne pouvez pas utiliser de constructeur de conversion. Si aucun des deux n'est un type classe modifiable, vous devrez utiliser une fonction de conversion non membre à la place.</p>
+<p>Lorsque A et B sont tous deux des types classe modifiables, nous pourrions utiliser l'une ou l'autre approche. Mais comme un seul des deux est nécessaire, laquelle faut-il privilégier ?</p>
+<p>En général, un constructeur de conversion doit être préféré à un transtypage surchargé. À égalité par ailleurs, il est plus propre pour une classe de gérer elle-même sa construction, plutôt que de compter sur une autre classe pour la créer et l'initialiser.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Lorsque c'est possible, privilégiez les constructeurs de conversion et évitez les transtypages surchargés.</p>
+</div>
+<p>Il existe quelques cas où un transtypage surchargé est préférable :</p>
+<ul>
+<li>Lorsqu'on fournit une conversion vers un type fondamental (puisque vous ne pouvez pas définir de constructeurs pour ces types). Le plus souvent, on s'en sert pour fournir une conversion vers <code>bool</code>, lorsqu'il est pertinent de pouvoir utiliser un objet dans une instruction conditionnelle.</li>
+<li>Lorsque la conversion renvoie une référence ou une référence constante.</li>
+<li>Lorsqu'on fournit une conversion vers un type auquel on ne peut pas ajouter de membres (par exemple une conversion vers <code>std::vector</code>, puisque vous ne pouvez pas non plus définir de constructeurs pour ce type).</li>
+<li>Lorsque vous ne souhaitez pas que le type créé ait connaissance du type à partir duquel il est converti. Cela peut être utile pour éviter les dépendances circulaires.</li>
+</ul>
+<p>Pour illustrer ce dernier point, <code>std::string</code> possède un constructeur permettant de créer une <code>std::string</code> à partir d'une <code>std::string_view</code>. Cela signifie que <code>&lt;string&gt;</code> doit inclure <code>&lt;string_view&gt;</code>. Si <code>std::string_view</code> avait un constructeur permettant de créer une <code>std::string_view</code> à partir d'une <code>std::string</code>, alors <code>&lt;string_view&gt;</code> devrait inclure <code>&lt;string&gt;</code>, ce qui créerait une dépendance circulaire entre les en-têtes.</p>
+<p>À la place, <code>std::string</code> possède un transtypage surchargé qui gère la conversion de <code>std::string</code> vers <code>std::string_view</code> (ce qui ne pose pas de problème, puisqu'il inclut déjà <code>&lt;string_view&gt;</code>). <code>std::string_view</code> ne connaît pas du tout <code>std::string</code> et n'a donc pas besoin d'inclure <code>&lt;string&gt;</code>. Ainsi, la dépendance circulaire est évitée.</p>
+<p>Lorsqu'un constructeur de conversion et un transtypage surchargé sont tous deux définis pour la même conversion, les deux sont pris en compte lors de la résolution de surcharge. Selon que le transtypage surchargé est constant ou non, que l'objet converti est constant ou non, et selon le type de cast ou d'initialisation utilisé (par copie ou directe), l'une ou l'autre fonction peut être choisie (ce qui peut conduire à privilégier un transtypage plutôt qu'un constructeur de conversion), ou le résultat peut être ambigu (provoquant une erreur de compilation). Pour cette raison, évitez de définir à la fois un transtypage surchargé et un constructeur de conversion capables d'assurer la même conversion.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Lorsque vous devez définir comment convertir un type A en un type B :</p>
+<ul>
+<li>Si B est un type classe que vous pouvez modifier, privilégiez un constructeur de conversion de B créé à partir de A.</li>
+<li>Sinon, si A est un type classe que vous pouvez modifier, utilisez un transtypage surchargé pour convertir A en B.</li>
+<li>Sinon, utilisez une fonction non membre pour convertir A en B.</li>
+</ul>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-typecasts/">https://www.learncpp.com/cpp-tutorial/overloading-typecasts/</a></em></p>
+</main>
+</body>
+</html>

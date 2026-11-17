@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.10 — Surcharge de l&#x27;opérateur parenthèse</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="2110-surcharge-de-lopérateur-parenthèse">21.10 — Surcharge de l'opérateur parenthèse</h1>
+<p>Tous les opérateurs surchargés que vous avez vus jusqu'ici permettent de définir le type des paramètres de l'opérateur, mais pas leur nombre (qui est fixé par le type de l'opérateur). Par exemple, operator== prend toujours deux paramètres, alors que operator! en prend toujours un. L'opérateur parenthèse (operator()) est un opérateur particulièrement intéressant, car il permet de faire varier à la fois le type et le nombre de paramètres qu'il reçoit.</p>
+<p>Deux points sont à garder à l'esprit. Premièrement, l'opérateur parenthèse doit être implémenté comme une fonction membre. Deuxièmement, en C++ non orienté objet, l'opérateur () sert à appeler des fonctions. Dans le cas des classes, operator() est simplement un opérateur ordinaire qui appelle une fonction (nommée operator()), comme n'importe quel autre opérateur surchargé.</p>
+<h2 id="un-exemple">Un exemple</h2>
+<p>Prenons un exemple qui se prête à la surcharge de cet opérateur :</p>
+<pre><code class="language-cpp">class Matrix
+{
+private:
+    double data[4][4]{};
+};
+</code></pre>
+<p>Les matrices sont un élément clé de l'algèbre linéaire, et sont souvent utilisées pour la modélisation géométrique et l'infographie 3D. Dans ce cas, il vous suffit de reconnaître que la classe Matrix est un tableau bidimensionnel de doubles de taille 4 × 4.</p>
+<p>Dans la leçon sur <a href="https://www.learncpp.com/cpp-tutorial/98-overloading-the-subscript-operator/">la surcharge de l'opérateur crochet</a>, vous avez appris que l'on pouvait surcharger operator[] pour donner un accès direct à un tableau unidimensionnel privé. Cependant, ici, nous voulons accéder à un tableau bidimensionnel privé. Avant le C++23, operator[] est limité à un seul paramètre, et ne suffit donc pas pour indexer directement un tableau à deux dimensions.</p>
+<p>En revanche, comme l'opérateur () peut prendre autant de paramètres que nous le souhaitons, nous pouvons déclarer une version de operator() qui prend deux paramètres entiers d'indice, et l'utiliser pour accéder à notre tableau bidimensionnel. Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt; // pour assert()
+
+class Matrix
+{
+private:
+    double m_data[4][4]{};
+
+public:
+    double&amp; operator()(int row, int col);
+    double operator()(int row, int col) const; // pour les objets const
+};
+
+double&amp; Matrix::operator()(int row, int col)
+{
+    assert(row &gt;= 0 &amp;&amp; row &lt; 4);
+    assert(col &gt;= 0 &amp;&amp; col &lt; 4);
+
+    return m_data[row][col];
+}
+
+double Matrix::operator()(int row, int col) const
+{
+    assert(row &gt;= 0 &amp;&amp; row &lt; 4);
+    assert(col &gt;= 0 &amp;&amp; col &lt; 4);
+
+    return m_data[row][col];
+}
+</code></pre>
+<p>Nous pouvons maintenant déclarer une Matrix et accéder à ses éléments ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Matrix matrix;
+    matrix(1, 2) = 4.5;
+    std::cout &lt;&lt; matrix(1, 2) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>ce qui produit le résultat :</p>
+<pre><code>
+4.5
+</code></pre>
+<p>Surchargeons maintenant à nouveau l'opérateur (), cette fois sous une forme qui ne prend aucun paramètre :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt; // pour assert()
+class Matrix
+{
+private:
+    double m_data[4][4]{};
+
+public:
+    double&amp; operator()(int row, int col);
+    double operator()(int row, int col) const;
+    void operator()();
+};
+
+double&amp; Matrix::operator()(int row, int col)
+{
+    assert(row &gt;= 0 &amp;&amp; row &lt; 4);
+    assert(col &gt;= 0 &amp;&amp; col &lt; 4);
+
+    return m_data[row][col];
+}
+
+double Matrix::operator()(int row, int col) const
+{
+    assert(row &gt;= 0 &amp;&amp; row &lt; 4);
+    assert(col &gt;= 0 &amp;&amp; col &lt; 4);
+
+    return m_data[row][col];
+}
+
+void Matrix::operator()()
+{
+    // réinitialise tous les éléments de la matrice à 0.0
+    for (int row{ 0 }; row &lt; 4; ++row)
+    {
+        for (int col{ 0 }; col &lt; 4; ++col)
+        {
+            m_data[row][col] = 0.0;
+        }
+    }
+}
+</code></pre>
+<p>Et voici notre nouvel exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Matrix matrix{};
+    matrix(1, 2) = 4.5;
+    matrix(); // efface la matrice
+    std::cout &lt;&lt; matrix(1, 2) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>ce qui produit le résultat :</p>
+<pre><code>
+0
+</code></pre>
+<p>Comme l'opérateur () est si souple, on peut être tenté de l'utiliser à de nombreuses fins différentes. Cependant, cela est fortement déconseillé, car le symbole () ne donne aucune indication sur ce que fait l'opérateur. Dans notre exemple ci-dessus, il aurait mieux valu écrire la fonctionnalité d'effacement sous la forme d'une fonction nommée clear() ou erase(), car <code>matrix.erase()</code> est plus facile à comprendre que <code>matrix()</code> (qui pourrait faire n'importe quoi !).</p>
+<p>Remarque : depuis le C++23, vous pouvez utiliser <code>operator[]</code> avec plusieurs indices. Cela fonctionne exactement comme <code>operator()</code> ci-dessus.</p>
+<h2 id="le-plaisir-des-foncteurs">Le plaisir des foncteurs</h2>
+<p>L'opérateur () est aussi couramment surchargé pour implémenter des <strong>foncteurs</strong> (ou <strong>objets fonctions</strong>), c'est-à-dire des classes qui se comportent comme des fonctions. L'avantage d'un foncteur par rapport à une fonction ordinaire est que les foncteurs peuvent stocker des données dans des variables membres (puisqu'ce sont des classes).</p>
+<p>Voici un foncteur simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Accumulator
+{
+private:
+    int m_counter{ 0 };
+
+public:
+    int operator() (int i) { return (m_counter += i); }
+
+    void reset() { m_counter = 0; } // facultatif
+};
+
+int main()
+{
+    Accumulator acc{};
+    std::cout &lt;&lt; acc(1) &lt;&lt; '\n'; // affiche 1
+    std::cout &lt;&lt; acc(3) &lt;&lt; '\n'; // affiche 4
+
+    Accumulator acc2{};
+    std::cout &lt;&lt; acc2(10) &lt;&lt; '\n'; // affiche 10
+    std::cout &lt;&lt; acc2(20) &lt;&lt; '\n'; // affiche 30
+
+    return 0;
+}
+</code></pre>
+<p>Notez que l'utilisation de notre Accumulator ressemble à un appel de fonction ordinaire, mais que l'objet Accumulator conserve une valeur cumulée.</p>
+<p>L'avantage des foncteurs est que nous pouvons instancier autant d'objets foncteurs distincts que nécessaire, et les utiliser tous simultanément. Les foncteurs peuvent aussi avoir d'autres fonctions membres (par exemple <code>reset()</code>) qui rendent certains services pratiques.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>L'opérateur () est parfois surchargé avec deux paramètres pour indexer des tableaux multidimensionnels, ou pour extraire un sous-ensemble d'un tableau unidimensionnel (les deux paramètres définissant le sous-ensemble à renvoyer). Pour tout le reste, il vaut probablement mieux écrire une fonction membre dont le nom est plus explicite.</p>
+<p>L'opérateur () est aussi souvent surchargé pour créer des foncteurs. Bien que les foncteurs simples (comme l'exemple ci-dessus) soient assez faciles à comprendre, les foncteurs sont généralement utilisés dans des sujets plus avancés et méritent leur propre leçon.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Écrivez une classe nommée MyString qui contient un <code>std::string</code>. Surchargez <code>operator&lt;&lt;</code> pour afficher la chaîne. Surchargez <code>operator()</code> pour renvoyer la sous-chaîne qui commence à l'indice donné par le premier paramètre (sous forme de <code>MyString</code>). La longueur de la sous-chaîne est définie par le second paramètre.</p>
+<p>Le code suivant doit fonctionner :</p>
+<pre><code class="language-cpp">int main()
+{
+    MyString s { &quot;Hello, world!&quot; };
+    std::cout &lt;&lt; s(7, 5) &lt;&lt; '\n'; // commence à l'indice 7 et renvoie 5 caractères
+
+    return 0;
+}
+</code></pre>
+<p>Il doit afficher :</p>
+<pre><code>
+world
+</code></pre>
+<p>Indice : vous pouvez utiliser <a href="https://en.cppreference.com/w/cpp/string/basic_string/substr"><code>std::string::substr</code></a> pour obtenir une sous-chaîne d'un <code>std::string</code>.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class MyString
+{
+private:
+    std::string m_string{};
+
+public:
+    MyString(std::string_view string = {})
+        :m_string{ string }
+    {
+    }
+
+    MyString operator()(int start, int length)
+    {
+        assert(start &gt;= 0);
+        assert(start + length &lt;= static_cast&lt;int&gt;(m_string.length()) &amp;&amp; &quot;MyString::operator(int, int): Substring is out of range&quot;);
+
+        return MyString { m_string.substr(
+            static_cast&lt;std::string::size_type&gt;(start),
+            static_cast&lt;std::string::size_type&gt;(length)
+            )};
+    }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const MyString&amp; s)
+    {
+        out &lt;&lt; s.m_string;
+
+        return out;
+    }
+};
+
+int main()
+{
+    MyString s{ &quot;Hello, world!&quot; };
+    std::cout &lt;&lt; s(7, 5) &lt;&lt; '\n'; // commence à l'indice 7 et renvoie 5 caractères
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Cette question de quiz est bonus.</p>
+<h4 id="étape-n-1">&gt; Étape n° 1</h4>
+<p>Pourquoi le code ci-dessus est-il inefficace si nous n'avons pas besoin de modifier la sous-chaîne renvoyée ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Dans notre <code>operator()</code>, <code>std::string::substr</code> renvoie un <code>std::string</code>, ce qui signifie que lors de l'appel, nous faisons une copie d'une partie de la chaîne source. Notre <code>operator()</code> surchargé utilise cette copie pour construire un nouveau <code>MyString</code>, qui contient un membre <code>std::string</code>, ce qui réalise une autre copie. Nous renvoyons ensuite ce <code>MyString</code> à l'appelant, ce qui fait une troisième copie. Le compilateur supprimera probablement certaines de ces copies par optimisation, mais au moins un <code>std::string</code> (contenant la sous-chaîne résultante) doit être conservé.</p>
+<p>Nous n'avons besoin d'une copie de la sous-chaîne que si nous comptons la modifier, ou si elle doit survivre à la chaîne d'origine. Ce n'est généralement pas le cas, donc nous faisons des copies coûteuses dont nous n'avons typiquement pas besoin.</p>
+</details>
+<h4 id="étape-n-2">&gt; Étape n° 2</h4>
+<p>Que pourrions-nous faire à la place ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>std::string_view</code> permet de visualiser une sous-chaîne d'une chaîne existante sans en faire de copie. Si notre <code>operator()</code> renvoyait un <code>std::string_view</code>, l'appelant pourrait utiliser ce <code>std::string_view</code> lorsque cela suffit, ou le convertir en <code>std::string</code> ou <code>MyString</code> s'il doit modifier ou conserver la sous-chaîne.</p>
+</details>
+<h4 id="étape-n-3">&gt; Étape n° 3</h4>
+<p>Mettez à jour <code>operator()</code> de la solution de la question précédente pour qu'il renvoie la sous-chaîne sous forme de <code>std::string_view</code>.</p>
+<p>Indice : <code>std::string::substr()</code> renvoie un <code>std::string</code>. <code>std::string_view::substr()</code> renvoie un <code>std::string_view</code>. Faites très attention à ne pas renvoyer un <code>std::string_view</code> pendant (dangling) !</p>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : ne créez aucun temporaire <code>std::string</code>, car il serait détruit à la fin de la fonction, et tout <code>std::string_view</code> qui le référencerait deviendrait pendant.</p>
+</details>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : la création de temporaires <code>std::string_view</code> est acceptable, tant qu'ils sont des vues de <code>m_string</code>.</p>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class MyString
+{
+private:
+    std::string m_string{};
+
+public:
+    MyString(std::string_view string = {})
+        :m_string{ string }
+    {
+    }
+
+    std::string_view operator()(int start, int length)
+    {
+        assert(start &gt;= 0);
+        assert(start + length &lt;= static_cast&lt;int&gt;(m_string.length()) &amp;&amp; &quot;MyString::operator(int, int): Substring is out of range&quot;);
+
+        // Crée un std::string_view de m_string, pour pouvoir utiliser std::string_view::substr() au lieu de std::string::substr()
+        return std::string_view{ m_string }.substr(
+            static_cast&lt;std::string_view::size_type&gt;(start),
+            static_cast&lt;std::string_view::size_type&gt;(length)
+        );
+    }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const MyString&amp; s)
+    {
+        out &lt;&lt; s.m_string;
+
+        return out;
+    }
+};
+
+int main()
+{
+    MyString s{ &quot;Hello, world!&quot; };
+    std::cout &lt;&lt; s(7, 5) &lt;&lt; '\n'; // commence à l'indice 7 et renvoie 5 caractères
+
+    return 0;
+}
+</code></pre>
+<p>Examinons plus en détail <code>return std::string_view{ m_string }.substr();</code>. D'abord, nous créons un <code>std::string_view</code> temporaire de <code>m_string</code>, ce qui est peu coûteux et nous permet d'accéder aux fonctions membres de <code>std::string_view</code>. Ensuite, nous appelons <code>std::string_view::substr</code> sur ce temporaire pour obtenir notre sous-chaîne (une vue non terminée par un caractère nul de <code>m_string</code>). Nous renvoyons ensuite cette vue à l'appelant. Comme le <code>std::string_view</code> renvoyé reste une vue de <code>m_string</code> (qui reste dans sa portée), il ne pend pas.</p>
+<p>Au final, nous créons 3 <code>std::string_view</code> au lieu de 3 <code>std::string</code>, ce qui est plus efficace.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-the-parenthesis-operator/">https://www.learncpp.com/cpp-tutorial/overloading-the-parenthesis-operator/</a></em></p>
+</main>
+</body>
+</html>

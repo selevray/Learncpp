@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.10 — Redimensionnement et capacité de `std::vector`</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1610-redimensionnement-et-capacité-de-stdvector">16.10 — Redimensionnement et capacité de <code>std::vector</code></h1>
+<p>Dans les leçons précédentes de ce chapitre, nous avons présenté les conteneurs, les tableaux et <code>std::vector</code>. Nous avons aussi abordé la manière d'accéder aux éléments d'un tableau, d'obtenir sa longueur et de le parcourir. Bien que nous ayons utilisé <code>std::vector</code> dans nos exemples, les notions étudiées s'appliquent en général à tous les types de tableaux.</p>
+<p>Dans les leçons restantes de ce chapitre, nous allons nous concentrer sur ce qui distingue vraiment <code>std::vector</code> de la plupart des autres types de tableaux : la capacité à se redimensionner après sa création.</p>
+<h2 id="tableaux-de-taille-fixe-et-tableaux-dynamiques">Tableaux de taille fixe et tableaux dynamiques</h2>
+<p>La plupart des types de tableaux ont une limitation importante : la longueur du tableau doit être connue au moment de sa création, et elle ne peut ensuite plus être modifiée. Ces tableaux sont appelés <strong>tableaux de taille fixe</strong> (fixed-size arrays) ou <strong>tableaux de longueur fixe</strong> (fixed-length arrays). <code>std::array</code> et les tableaux de style C sont tous deux des types de tableaux de taille fixe. Nous les étudierons plus en détail dans le prochain chapitre.</p>
+<p>En revanche, <code>std::vector</code> est un tableau dynamique. Un <strong>tableau dynamique</strong> (aussi appelé <strong>tableau redimensionnable</strong>, resizable array) est un tableau dont la taille peut être modifiée après sa création. C'est cette capacité à être redimensionné qui rend <code>std::vector</code> si particulier.</p>
+<h2 id="redimensionner-un-stdvector-à-lexécution">Redimensionner un <code>std::vector</code> à l'exécution</h2>
+<p>Un <code>std::vector</code> peut être redimensionné après sa création en appelant la fonction membre <code>resize()</code> avec la nouvelle longueur souhaitée :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector v{ 0, 1, 2 }; // crée un vecteur de 3 éléments
+    std::cout &lt;&lt; &quot;The length is: &quot; &lt;&lt; v.size() &lt;&lt; '\n';
+
+    v.resize(5);              // redimensionne à 5 éléments
+    std::cout &lt;&lt; &quot;The length is: &quot; &lt;&lt; v.size() &lt;&lt; '\n';
+
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+The length is: 3
+The length is: 5
+0 1 2 0 0
+</code></pre>
+<p>Il y a deux points à noter ici. Premièrement, lorsque nous avons redimensionné le vecteur, les valeurs des éléments existants ont été conservées ! Deuxièmement, les nouveaux éléments sont initialisés par valeur (ce qui réalise une initialisation par défaut pour les types classe, et une initialisation à zéro pour les autres types). Ainsi, les deux nouveaux éléments de type <code>int</code> ont été initialisés à zéro, avec la valeur <code>0</code>.</p>
+<p>Un vecteur peut aussi être redimensionné à une taille plus petite :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printLength(const std::vector&lt;int&gt;&amp; v)
+{
+    std::cout &lt;&lt; &quot;The length is: &quot;  &lt;&lt; v.size() &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector v{ 0, 1, 2, 3, 4 }; // la longueur est initialement de 5
+    printLength(v);
+
+    v.resize(3);                    // redimensionne à 3 éléments
+    printLength(v);
+
+    for (int i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+The length is: 5
+The length is: 3
+0 1 2
+</code></pre>
+<h2 id="la-longueur-et-la-capacité-dun-stdvector">La longueur et la capacité d'un <code>std::vector</code></h2>
+<p>Considérons une rangée de 12 maisons. Nous dirions que le nombre de maisons (ou la longueur de la rangée) est de 12. Si nous voulions savoir lesquelles de ces maisons sont actuellement occupées, il faudrait le déterminer autrement (par exemple en sonnant à la porte pour voir si quelqu'un répond). Quand nous ne disposons que d'une longueur, nous savons seulement combien d'éléments existent.</p>
+<p>Considérons maintenant une boîte d'œufs qui contient actuellement 5 œufs. Nous dirions que le nombre d'œufs est de 5. Mais dans ce contexte, il existe une autre dimension qui nous intéresse : le nombre d'œufs que la boîte pourrait contenir si elle était pleine. Nous dirions que la capacité de la boîte est de 12. La boîte a de la place pour 12 œufs, et seuls 5 sont utilisés. Nous pourrions donc ajouter 7 œufs de plus sans déborder. Lorsque nous disposons à la fois d'une longueur et d'une capacité, nous pouvons distinguer le nombre d'éléments qui existent réellement du nombre d'éléments pour lesquels il y a de la place.</p>
+<p>Jusqu'ici, nous n'avons parlé que de la longueur d'un <code>std::vector</code>. Mais <code>std::vector</code> possède aussi une capacité. Dans le contexte d'un <code>std::vector</code>, la <strong>capacité</strong> (capacity) correspond au nombre d'éléments pour lesquels le <code>std::vector</code> a alloué de l'espace de stockage, et la <strong>longueur</strong> (length) correspond au nombre d'éléments actuellement utilisés.</p>
+<p>Un <code>std::vector</code> d'une capacité de 5 a alloué de la place pour 5 éléments. Si le vecteur contient 2 éléments réellement utilisés, sa longueur (size) est de 2. Les 3 éléments restants ont de la mémoire allouée, mais ils ne sont pas considérés comme étant en cours d'utilisation. Ils pourront être utilisés plus tard sans dépasser la capacité du vecteur.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La longueur d'un vecteur correspond au nombre d'éléments « en cours d'utilisation ».<br />
+La capacité d'un vecteur correspond au nombre d'éléments qui ont été alloués en mémoire.</p>
+</div>
+<h2 id="obtenir-la-capacité-dun-stdvector">Obtenir la capacité d'un <code>std::vector</code></h2>
+<p>Nous pouvons demander à un <code>std::vector</code> sa capacité grâce à la fonction membre <code>capacity()</code>.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printCapLen(const std::vector&lt;int&gt;&amp; v)
+{
+    std::cout &lt;&lt; &quot;Capacity: &quot; &lt;&lt; v.capacity() &lt;&lt; &quot; Length:&quot; &lt;&lt; v.size() &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector v{ 0, 1, 2 }; // la longueur est initialement de 3
+
+    printCapLen(v);
+
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    v.resize(5); // redimensionne à 5 éléments
+
+    printCapLen(v);
+
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme affiche le résultat suivant :</p>
+<pre><code>
+Capacity: 3  Length: 3
+0 1 2
+Capacity: 5  Length: 5
+0 1 2 0 0
+</code></pre>
+<p>Tout d'abord, nous avons initialisé le vecteur avec 3 éléments. Cela amène le vecteur à allouer de l'espace de stockage pour 3 éléments (capacité de 3), et les 3 éléments sont considérés comme étant en cours d'utilisation (longueur de 3).</p>
+<p>Nous appelons ensuite <code>resize(5)</code>, ce qui signifie que nous voulons maintenant un vecteur de longueur 5. Comme le vecteur n'a de l'espace que pour 3 éléments, alors qu'il en faut 5, il doit obtenir davantage de stockage pour contenir les éléments supplémentaires.</p>
+<p>Une fois l'appel à <code>resize()</code> terminé, nous constatons que le vecteur dispose désormais de la place pour 5 éléments (capacité de 5), et que les 5 éléments sont maintenant considérés comme utilisés (longueur de 5).</p>
+<p>La plupart du temps, vous n'aurez pas besoin d'utiliser la fonction <code>capacity()</code>, mais nous nous en servirons beaucoup dans les exemples suivants afin de voir ce qui se passe avec le stockage du vecteur.</p>
+<h2 id="réallocation-du-stockage-et-pourquoi-elle-est-coûteuse">Réallocation du stockage, et pourquoi elle est coûteuse</h2>
+<p>Lorsqu'un <code>std::vector</code> modifie la quantité de stockage qu'il gère, ce processus est appelé <strong>réallocation</strong> (reallocation). Informellement, le processus de réallocation se déroule à peu près ainsi :</p>
+<ul>
+<li>Le <code>std::vector</code> acquiert une nouvelle zone mémoire ayant la capacité nécessaire pour le nombre d'éléments souhaité. Ces éléments sont initialisés par valeur.</li>
+<li>Les éléments de l'ancienne zone mémoire sont copiés (ou déplacés, si c'est possible) dans la nouvelle. L'ancienne zone mémoire est ensuite rendue au système.</li>
+<li>La capacité et la longueur du <code>std::vector</code> sont fixées à leurs nouvelles valeurs.</li>
+</ul>
+<p>De l'extérieur, on a l'impression que le <code>std::vector</code> a été redimensionné. Mais en interne, la mémoire (et tous les éléments) ont en réalité été remplacés !</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Le processus d'acquisition de nouvelle mémoire à l'exécution s'appelle l'allocation dynamique de mémoire. Nous le traitons dans la leçon <a href="../21%20-%20Chapitre%2019%20-%20Allocation%20dynamique%20%28en%20construction%29/19.1%20-%20Allocation%20dynamique%20de%20m%C3%A9moire%20avec%20new%20et%20delete.html">19.1 -- Allocation dynamique de mémoire avec new et delete</a>.</p>
+</div>
+<p>Comme la réallocation exige généralement de copier chaque élément du tableau, elle est coûteuse. Il faut donc éviter autant que raisonnablement possible de réallouer la mémoire.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La réallocation est généralement coûteuse. Évitez les réallocations inutiles.</p>
+</div>
+<h2 id="pourquoi-distinguer-longueur-et-capacité">Pourquoi distinguer longueur et capacité ?</h2>
+<p>Un <code>std::vector</code> réalloue son stockage si nécessaire, mais, à l'image de Bartleby de Melville, il préfère éviter de le faire, car la réallocation est coûteuse en calcul.</p>
+<p>Si un <code>std::vector</code> ne gardait la trace que de sa longueur, chaque demande de <code>resize()</code> entraînerait une réallocation coûteuse vers la nouvelle longueur. Séparer longueur et capacité permet au <code>std::vector</code> d'être plus intelligent quant au moment où une réallocation est réellement nécessaire.</p>
+<p>L'exemple suivant l'illustre :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printCapLen(const std::vector&lt;int&gt;&amp; v)
+{
+    std::cout &lt;&lt; &quot;Capacity: &quot; &lt;&lt; v.capacity() &lt;&lt; &quot; Length:&quot; &lt;&lt; v.size() &lt;&lt; '\n';
+}
+
+int main()
+{
+    // Crée un vecteur de longueur 5
+    std::vector v{ 0, 1, 2, 3, 4 };
+    v = { 0, 1, 2, 3, 4 }; // correct, la longueur du tableau est de 5
+    printCapLen(v);
+
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    // Redimensionne le vecteur à 3 éléments
+    v.resize(3); // on pourrait aussi affecter une liste de 3 éléments ici
+    printCapLen(v);
+
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    // Redimensionne le vecteur à nouveau à 5 éléments
+    v.resize(5);
+    printCapLen(v);
+
+    for (auto i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+Capacity: 5  Length: 5
+0 1 2 3 4 
+Capacity: 5  Length: 3
+0 1 2 
+Capacity: 5  Length: 5
+0 1 2 0 0
+</code></pre>
+<p>Lorsque nous avons initialisé notre vecteur avec 5 éléments, la capacité a été fixée à 5, ce qui indique que notre vecteur a initialement alloué de la place pour 5 éléments. La longueur a elle aussi été fixée à 5, ce qui indique que tous ces éléments sont en cours d'utilisation.</p>
+<p>Après l'appel <code>v.resize(3)</code>, la longueur a été ramenée à 3 pour satisfaire notre demande de tableau plus petit. Notons toutefois que la capacité vaut toujours 5, ce qui signifie que le vecteur n'a pas effectué de réallocation !</p>
+<p>Enfin, nous avons appelé <code>v.resize(5)</code>. Comme le vecteur disposait déjà d'une capacité de 5, il n'a pas eu besoin de réallouer. Il a simplement rétabli la longueur à 5 et initialisé par valeur les deux derniers éléments.</p>
+<p>En séparant longueur et capacité, nous avons évité, dans cet exemple, 2 réallocations qui se seraient produites autrement. Dans la prochaine leçon, nous verrons des exemples où l'on ajoute des éléments à un vecteur un par un. Dans de tels cas, la capacité à ne pas réallouer à chaque changement de longueur est encore plus importante.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Suivre la capacité séparément de la longueur permet au <code>std::vector</code> d'éviter certaines réallocations lorsque la longueur change.</p>
+</div>
+<h2 id="lindexation-dun-vecteur-est-basée-sur-la-longueur-pas-sur-la-capacité">L'indexation d'un vecteur est basée sur la longueur, pas sur la capacité</h2>
+<p>Vous pourriez être surpris de constater que les indices valides pour l'opérateur d'indexation (<code>operator[]</code>) et la fonction membre <code>at()</code> sont basés sur la longueur du vecteur, et non sur sa capacité.</p>
+<p>Dans l'exemple ci-dessus, lorsque <code>v</code> a une capacité de 5 et une longueur de 3, seuls les indices allant de 0 à 2 sont valides. Bien que les éléments dont les indices vont de la longueur 3 (incluse) à la capacité 5 (exclue) existent, leurs indices sont considérés comme hors limites.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Un indice n'est valide que s'il est compris entre 0 et la longueur du vecteur (et non sa capacité) !</p>
+</div>
+<h2 id="réduire-un-stdvector">Réduire un <code>std::vector</code></h2>
+<p>Redimensionner un vecteur à une taille plus grande augmente sa longueur, et augmente aussi sa capacité si nécessaire. En revanche, redimensionner un vecteur à une taille plus petite ne fait que diminuer sa longueur, et non sa capacité.</p>
+<p>Réallouer un vecteur uniquement pour récupérer la mémoire occupée par un petit nombre d'éléments devenus inutiles est un mauvais choix. En revanche, si un vecteur contient un grand nombre d'éléments dont nous n'avons plus besoin, le gaspillage de mémoire peut devenir important.</p>
+<p>Pour répondre à cette situation, <code>std::vector</code> possède une fonction membre appelée <code>shrink_to_fit()</code>, qui demande au vecteur de réduire sa capacité pour qu'elle corresponde à sa longueur. Cette demande n'est pas contraignante : l'implémentation est libre de l'ignorer. Selon ce que l'implémentation juge le plus approprié, elle peut accéder à la demande, la satisfaire partiellement (par exemple en réduisant la capacité sans aller jusqu'au bout) ou l'ignorer complètement.</p>
+<p>Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printCapLen(const std::vector&lt;int&gt;&amp; v)
+{
+    std::cout &lt;&lt; &quot;Capacity: &quot; &lt;&lt; v.capacity() &lt;&lt; &quot; Length:&quot; &lt;&lt; v.size() &lt;&lt; '\n';
+}
+
+int main()
+{
+
+    std::vector&lt;int&gt; v(1000); // alloue de la place pour 1000 éléments
+    printCapLen(v);
+
+    v.resize(0); // redimensionne à 0 élément
+    printCapLen(v);
+
+    v.shrink_to_fit();
+    printCapLen(v);
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme produit le résultat suivant :</p>
+<pre><code>
+Capacity: 1000  Length: 1000
+Capacity: 1000  Length: 0
+Capacity: 0  Length: 0
+</code></pre>
+<p>Comme vous pouvez le voir, lorsque <code>v.shrink_to_fit()</code> a été appelée, le vecteur a réalloué sa capacité à 0, libérant ainsi la mémoire prévue pour 1000 éléments.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Que représentent la longueur et la capacité d'un std::vector ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>La longueur est le nombre d'éléments actuellement utilisés.<br />
+La capacité est le nombre d'éléments pour lesquels un espace de stockage a été alloué.</p>
+</details>
+<p>Pourquoi la longueur et la capacité sont-elles deux valeurs distinctes ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>La capacité est suivie séparément afin que le vecteur puisse éviter certaines réallocations lorsque la longueur change.</p>
+</details>
+<p>Les indices valides de <code>std::vector</code> sont-ils basés sur la longueur ou sur la capacité ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Sur la longueur.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdvector-resizing-and-capacity/">https://www.learncpp.com/cpp-tutorial/stdvector-resizing-and-capacity/</a></em></p>
+</main>
+</body>
+</html>

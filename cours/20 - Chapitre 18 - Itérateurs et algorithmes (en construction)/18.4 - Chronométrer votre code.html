@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>18.4 — Chronométrer votre code</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="184-chronométrer-votre-code">18.4 — Chronométrer votre code</h1>
+<p>Lorsque vous écrivez du code, il arrive que vous ne sachiez pas si une méthode sera plus performante qu'une autre. Comment le savoir ?</p>
+<p>Une solution simple consiste à chronométrer votre code pour mesurer le temps qu'il met à s'exécuter. C++11 fournit des fonctionnalités dans la bibliothèque chrono pour cela. Cependant, l'utilisation de la bibliothèque chrono est un peu ésotérique. La bonne nouvelle, c'est que nous pouvons facilement encapsuler toute la fonctionnalité de chronométrage dont nous avons besoin dans une classe, que nous pourrons ensuite utiliser dans nos propres programmes.</p>
+<p>Voici la classe :</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt; // pour les fonctions de std::chrono
+
+class Timer
+{
+private:
+    // Alias de type pour faciliter l'accès au type imbriqué
+    using Clock = std::chrono::steady_clock;
+    using Second = std::chrono::duration&lt;double, std::ratio&lt;1&gt; &gt;;
+
+    std::chrono::time_point&lt;Clock&gt; m_beg { Clock::now() };
+
+public:
+    void reset()
+    {
+        m_beg = Clock::now();
+    }
+
+    double elapsed() const
+    {
+        return std::chrono::duration_cast&lt;Second&gt;(Clock::now() - m_beg).count();
+    }
+};
+</code></pre>
+<p>C'est tout ! Pour l'utiliser, nous instancions un objet Timer en haut de notre fonction main (ou à l'endroit où nous voulons commencer le chronométrage), puis nous appelons la fonction membre elapsed() chaque fois que nous voulons savoir combien de temps le programme a mis à s'exécuter jusqu'à ce point.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Timer t;
+
+    // Le code à chronométrer se trouve ici
+
+    std::cout &lt;&lt; &quot;Time elapsed: &quot; &lt;&lt; t.elapsed() &lt;&lt; &quot; seconds\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Maintenant, utilisons cela dans un exemple concret où nous trions un tableau de 10000 éléments. Commençons par l'algorithme de tri par sélection que nous avons développé dans un chapitre précédent :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;chrono&gt; // pour les fonctions de std::chrono
+#include &lt;cstddef&gt; // pour std::size_t
+#include &lt;iostream&gt;
+#include &lt;numeric&gt; // pour std::iota
+
+const int g_arrayElements { 10000 };
+
+class Timer
+{
+private:
+    // Alias de type pour faciliter l'accès au type imbriqué
+    using Clock = std::chrono::steady_clock;
+    using Second = std::chrono::duration&lt;double, std::ratio&lt;1&gt; &gt;;
+
+    std::chrono::time_point&lt;Clock&gt; m_beg{ Clock::now() };
+
+public:
+
+    void reset()
+    {
+        m_beg = Clock::now();
+    }
+
+    double elapsed() const
+    {
+        return std::chrono::duration_cast&lt;Second&gt;(Clock::now() - m_beg).count();
+    }
+};
+
+void sortArray(std::array&lt;int, g_arrayElements&gt;&amp; array)
+{
+
+    // Parcourir chaque élément du tableau
+    // (sauf le dernier, qui sera déjà trié à ce moment-là)
+    for (std::size_t startIndex{ 0 }; startIndex &lt; (g_arrayElements - 1); ++startIndex)
+    {
+        // smallestIndex est l'indice du plus petit élément rencontré à cette itération
+        // On suppose d'abord que le plus petit élément est le premier élément de cette itération
+        std::size_t smallestIndex{ startIndex };
+
+        // Puis on cherche un élément plus petit dans le reste du tableau
+        for (std::size_t currentIndex{ startIndex + 1 }; currentIndex &lt; g_arrayElements; ++currentIndex)
+        {
+            // Si nous avons trouvé un élément plus petit que le plus petit trouvé précédemment
+            if (array[currentIndex] &lt; array[smallestIndex])
+            {
+                // alors on le mémorise
+                smallestIndex = currentIndex;
+            }
+        }
+
+        // smallestIndex est maintenant l'indice du plus petit élément du tableau restant
+        // on échange notre élément de départ avec le plus petit (ce qui le place à la bonne position)
+        std::swap(array[startIndex], array[smallestIndex]);
+    }
+}
+
+int main()
+{
+    std::array&lt;int, g_arrayElements&gt; array;
+    std::iota(array.rbegin(), array.rend(), 1); // remplit le tableau avec les valeurs de 10000 à 1
+
+    Timer t;
+
+    sortArray(array);
+
+    std::cout &lt;&lt; &quot;Time taken: &quot; &lt;&lt; t.elapsed() &lt;&lt; &quot; seconds\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, trois exécutions ont donné des temps de 0,0507, 0,0506 et 0,0498. On peut donc dire qu'il s'agit d'environ 0,05 seconde.</p>
+<p>Refaisons maintenant le même test avec std::sort de la bibliothèque standard.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::sort
+#include &lt;array&gt;
+#include &lt;chrono&gt; // pour les fonctions de std::chrono
+#include &lt;cstddef&gt; // pour std::size_t
+#include &lt;iostream&gt;
+#include &lt;numeric&gt; // pour std::iota
+
+const int g_arrayElements { 10000 };
+
+class Timer
+{
+private:
+    // Alias de type pour faciliter l'accès au type imbriqué
+    using Clock = std::chrono::steady_clock;
+    using Second = std::chrono::duration&lt;double, std::ratio&lt;1&gt; &gt;;
+
+    std::chrono::time_point&lt;Clock&gt; m_beg{ Clock::now() };
+
+public:
+
+    void reset()
+    {
+        m_beg = Clock::now();
+    }
+
+    double elapsed() const
+    {
+        return std::chrono::duration_cast&lt;Second&gt;(Clock::now() - m_beg).count();
+    }
+};
+
+int main()
+{
+    std::array&lt;int, g_arrayElements&gt; array;
+    std::iota(array.rbegin(), array.rend(), 1); // remplit le tableau avec les valeurs de 10000 à 1
+
+    Timer t;
+
+    std::ranges::sort(array); // Depuis C++20
+    // Si votre compilateur n'est pas compatible avec C++20
+    // std::sort(array.begin(), array.end());
+
+    std::cout &lt;&lt; &quot;Time taken: &quot; &lt;&lt; t.elapsed() &lt;&lt; &quot; seconds\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a donné les résultats suivants : 0,000693, 0,000692 et 0,000699. Soit à peu près 0,0007.</p>
+<p>Autrement dit, dans ce cas, std::sort est 100 fois plus rapide que le tri par sélection que nous avons écrit nous-mêmes !</p>
+<h2 id="ce-qui-peut-influencer-les-performances-de-votre-programme">Ce qui peut influencer les performances de votre programme</h2>
+<p>Chronométrer une exécution de votre programme est assez simple, mais vos résultats peuvent être sensiblement influencés par plusieurs facteurs. Il est important de savoir comment mesurer correctement et quels éléments peuvent perturber la mesure.</p>
+<p>Premièrement, assurez-vous d'utiliser une cible de compilation en mode release et non en mode debug. Les cibles en mode debug désactivent généralement l'optimisation, et cette optimisation peut avoir un impact important sur les résultats. Par exemple, avec une cible en mode debug, l'exemple ci-dessus utilisant std::sort a pris 0,0235 seconde sur la machine de l'auteur, soit 33 fois plus longtemps !</p>
+<p>Deuxièmement, vos résultats peuvent être influencés par d'autres tâches que votre système effectue en arrière-plan. Assurez-vous que votre système n'effectue aucune tâche intensive pour le processeur, la mémoire ou le disque dur (par exemple jouer à un jeu, rechercher un fichier, lancer une analyse antivirus ou installer une mise à jour en arrière-plan). Des éléments en apparence anodins, comme des navigateurs web inactifs, peuvent faire passer temporairement le processeur à 100 % d'utilisation lorsque l'onglet actif affiche une nouvelle bannière publicitaire et doit analyser beaucoup de code JavaScript. Plus vous fermez d'applications avant la mesure, moins vos résultats risquent de varier.</p>
+<p>Troisièmement, si votre programme utilise un générateur de nombres aléatoires, la séquence particulière de nombres générés peut influencer le temps d'exécution. Par exemple, si vous triez un tableau rempli de nombres aléatoires, les résultats varieront probablement d'une exécution à l'autre, car le nombre d'échanges nécessaires pour trier le tableau change à chaque fois. Pour obtenir des résultats plus cohérents d'une exécution à l'autre, vous pouvez initialiser temporairement votre générateur de nombres aléatoires avec une valeur littérale (plutôt qu'avec std::random_device ou l'horloge système), afin qu'il génère la même séquence de nombres à chaque exécution. Toutefois, si les performances de votre programme dépendent fortement de la séquence aléatoire particulière générée, cela peut aussi conduire à des résultats globalement trompeurs.</p>
+<p>Quatrièmement, assurez-vous de ne pas chronométrer l'attente d'une saisie utilisateur, car le temps que met l'utilisateur à saisir quelque chose ne doit pas faire partie de votre mesure. Si une saisie est nécessaire, envisagez d'ajouter un moyen de fournir cette saisie sans attendre l'utilisateur (par exemple en ligne de commande, depuis un fichier, ou via un chemin de code qui contourne la saisie).</p>
+<h2 id="mesurer-les-performances">Mesurer les performances</h2>
+<p>Lorsque vous mesurez les performances de votre programme, recueillez au moins 3 résultats. Si ces résultats sont tous semblables, ils représentent probablement les performances réelles de votre programme sur cette machine. Sinon, poursuivez les mesures jusqu'à obtenir un ensemble de résultats similaires (et identifiez les autres résultats qui sont des valeurs aberrantes). Il n'est pas rare d'avoir une ou plusieurs valeurs aberrantes, à cause de tâches effectuées par votre système en arrière-plan pendant certaines de ces exécutions.</p>
+<p>Si vos résultats présentent une forte dispersion (et ne se regroupent pas bien), votre programme est probablement fortement affecté par d'autres activités du système, ou par les effets de la randomisation dans votre application.</p>
+<p>Comme les mesures de performance sont influencées par de nombreux facteurs (en particulier la vitesse du matériel, mais aussi le système d'exploitation, les applications en cours d'exécution, etc.), les mesures de performance absolues (par exemple « le programme s'exécute en 10 secondes ») sont généralement peu utiles, sauf pour comprendre comment le programme se comporte sur une machine particulière qui vous intéresse. Sur une autre machine, ce même programme peut s'exécuter en 1 seconde, en 10 secondes ou en 1 minute. Il est difficile de le savoir sans mesurer réellement sur un éventail de matériels différents.</p>
+<p>En revanche, sur une même machine, les mesures de performance relatives peuvent être utiles. Nous pouvons recueillir les résultats de performance de plusieurs variantes d'un programme pour déterminer laquelle est la plus performante. Par exemple, si la variante 1 s'exécute en 10 secondes et la variante 2 en 8 secondes, la variante 2 sera probablement plus rapide sur toutes les machines similaires, quelle que soit la vitesse absolue de chaque machine.</p>
+<p>Après avoir mesuré la deuxième variante, une bonne vérification de cohérence consiste à mesurer à nouveau la première variante. Si les résultats de la première variante sont cohérents avec vos mesures initiales pour cette variante, alors les résultats des deux variantes sont raisonnablement comparables. Par exemple, si la variante 1 s'exécute en 10 secondes, la variante 2 en 8 secondes, puis que nous mesurons à nouveau la variante 1 et obtenons 10 secondes, nous pouvons raisonnablement conclure que les mesures des deux variantes sont correctes et que la variante 2 est plus rapide.</p>
+<p>En revanche, si les résultats de la première variante ne sont plus cohérents avec vos mesures initiales, cela signifie que quelque chose s'est produit sur la machine et affecte maintenant les performances. Il sera alors difficile de savoir si les différences de mesure sont dues à la variante ou à la machine elle-même. Dans ce cas, le mieux est d'abandonner les résultats existants et de recommencer les mesures.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/timing-your-code/">https://www.learncpp.com/cpp-tutorial/timing-your-code/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.13 — Copie superficielle et copie profonde</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="2113-copie-superficielle-et-copie-profonde">21.13 — Copie superficielle et copie profonde</h1>
+<h2 id="copie-superficielle">Copie superficielle</h2>
+<p>Comme C++ ne connaît pas grand-chose de votre classe, le constructeur de copie et les opérateurs d'affectation par défaut qu'il fournit utilisent une méthode de copie appelée copie membre à membre (également connue sous le nom de <strong>copie superficielle</strong>, ou <em>shallow copy</em>). Cela signifie que C++ copie chaque membre de la classe individuellement (en utilisant l'opérateur d'affectation pour operator= surchargé, et l'initialisation directe pour le constructeur de copie). Lorsque les classes sont simples (par exemple, lorsqu'elles ne contiennent aucune mémoire allouée dynamiquement), cela fonctionne très bien.</p>
+<p>Par exemple, examinons notre classe Fraction :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+
+class Fraction
+{
+private:
+    int m_numerator { 0 };
+    int m_denominator { 1 };
+
+public:
+    // Constructeur par défaut
+    Fraction(int numerator = 0, int denominator = 1)
+        : m_numerator{ numerator }
+        , m_denominator{ denominator }
+    {
+        assert(denominator != 0);
+    }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Fraction&amp; f1);
+};
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Fraction&amp; f1)
+{
+    out &lt;&lt; f1.m_numerator &lt;&lt; '/' &lt;&lt; f1.m_denominator;
+    return out;
+}
+</code></pre>
+<p>Le constructeur de copie et l'opérateur d'affectation par défaut fournis par le compilateur pour cette classe ressemblent à ceci :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+
+class Fraction
+{
+private:
+    int m_numerator { 0 };
+    int m_denominator { 1 };
+
+public:
+    // Constructeur par défaut
+    Fraction(int numerator = 0, int denominator = 1)
+        : m_numerator{ numerator }
+        , m_denominator{ denominator }
+    {
+        assert(denominator != 0);
+    }
+
+    // Implémentation possible du constructeur de copie implicite
+    Fraction(const Fraction&amp; f)
+        : m_numerator{ f.m_numerator }
+        , m_denominator{ f.m_denominator }
+    {
+    }
+
+    // Implémentation possible de l'opérateur d'affectation implicite
+    Fraction&amp; operator= (const Fraction&amp; fraction)
+    {
+        // garde contre l'auto-affectation
+        if (this == &amp;fraction)
+            return *this;
+
+        // effectue la copie
+        m_numerator = fraction.m_numerator;
+        m_denominator = fraction.m_denominator;
+
+        // renvoie l'objet existant afin de pouvoir enchaîner cet opérateur
+        return *this;
+    }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Fraction&amp; f1)
+    {
+    out &lt;&lt; f1.m_numerator &lt;&lt; '/' &lt;&lt; f1.m_denominator;
+    return out;
+    }
+};
+</code></pre>
+<p>Notez que, puisque ces versions par défaut fonctionnent parfaitement pour copier cette classe, il n'y a vraiment aucune raison d'écrire nos propres versions de ces fonctions dans ce cas.</p>
+<p>Cependant, lorsque l'on conçoit des classes qui gèrent de la mémoire allouée dynamiquement, la copie membre à membre (superficielle) peut nous attirer de sérieux ennuis ! En effet, la copie superficielle d'un pointeur se contente de copier l'adresse du pointeur : elle n'alloue aucune mémoire et ne copie pas le contenu pointé !</p>
+<p>Examinons un exemple :</p>
+<pre><code class="language-cpp">#include &lt;cstring&gt; // pour strlen()
+#include &lt;cassert&gt; // pour assert()
+
+class MyString
+{
+private:
+    char* m_data{};
+    int m_length{};
+
+public:
+    MyString(const char* source = &quot;&quot; )
+    {
+        assert(source); // vérifie que source n'est pas une chaîne nulle
+
+        // Calcule la longueur de la chaîne
+        // Plus un caractère pour le terminateur
+        m_length = std::strlen(source) + 1;
+
+        // Alloue un tampon de cette longueur
+        m_data = new char[m_length];
+
+        // Copie la chaîne passée en paramètre dans notre tampon interne
+        for (int i{ 0 }; i &lt; m_length; ++i)
+            m_data[i] = source[i];
+    }
+
+    ~MyString() // destructeur
+    {
+        // Nous devons libérer notre chaîne
+        delete[] m_data;
+    }
+
+    char* getString() { return m_data; }
+    int getLength() { return m_length; }
+};
+</code></pre>
+<p>La classe de chaîne ci-dessus est simple : elle alloue la mémoire nécessaire pour stocker une chaîne que nous lui passons. Notez que nous n'avons défini ni constructeur de copie ni opérateur d'affectation surchargé. Par conséquent, C++ fournira un constructeur de copie et un opérateur d'affectation par défaut qui effectuent une copie superficielle. Le constructeur de copie ressemblera à ceci :</p>
+<pre><code class="language-cpp">MyString::MyString(const MyString&amp; source)
+    : m_length { source.m_length }
+    , m_data { source.m_data }
+{
+}
+</code></pre>
+<p>Notez que m_data n'est qu'une copie superficielle du pointeur source.m_data : les deux pointeurs désignent désormais la même chose.</p>
+<p>Considérons maintenant le fragment de code suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    MyString hello{ &quot;Hello, world!&quot; };
+    {
+        MyString copy{ hello }; // utilise le constructeur de copie par défaut
+    } // copy est une variable locale, elle est donc détruite ici. Le destructeur supprime la chaîne de copy, ce qui laisse hello avec un pointeur pendant
+
+    std::cout &lt;&lt; hello.getString() &lt;&lt; '\n'; // ceci a un comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>Bien que ce code paraisse anodin, il contient un problème insidieux qui provoquera un comportement indéfini du programme !</p>
+<p>Détaillons cet exemple ligne par ligne :</p>
+<pre><code class="language-cpp">    MyString hello{ &quot;Hello, world!&quot; };
+</code></pre>
+<p>Cette ligne est tout à fait anodine. Elle appelle le constructeur de MyString, qui alloue de la mémoire, fait pointer hello.m_data vers cette mémoire, puis y copie la chaîne « Hello, world! ».</p>
+<pre><code class="language-cpp">    MyString copy{ hello }; // utilise le constructeur de copie par défaut
+</code></pre>
+<p>Cette ligne semble également anodine, mais c'est en réalité la source de notre problème ! Lors de l'évaluation de cette ligne, C++ utilise le constructeur de copie par défaut (puisque nous n'en avons pas fourni). Ce constructeur de copie effectue une copie superficielle, en initialisant copy.m_data avec la même adresse que hello.m_data. En conséquence, copy.m_data et hello.m_data désignent maintenant tous deux le même emplacement mémoire !</p>
+<pre><code class="language-cpp">} // copy est détruit ici
+</code></pre>
+<p>Lorsque copy sort de sa portée, le destructeur de MyString est appelé sur copy. Ce destructeur libère la mémoire allouée dynamiquement que copy.m_data et hello.m_data désignent tous deux ! Par conséquent, en supprimant copy, nous avons aussi (sans le vouloir) affecté hello. La variable copy est ensuite détruite, mais hello.m_data reste pointé vers une mémoire libérée (invalide) !</p>
+<pre><code class="language-cpp">    std::cout &lt;&lt; hello.getString() &lt;&lt; '\n'; // ceci a un comportement indéfini
+</code></pre>
+<p>On comprend maintenant pourquoi ce programme a un comportement indéfini : nous avons libéré la chaîne que hello désignait, et nous essayons maintenant d'afficher le contenu d'une mémoire qui n'est plus allouée.</p>
+<p>La cause de ce problème est la copie superficielle effectuée par le constructeur de copie : effectuer une copie superficielle de valeurs de pointeurs dans un constructeur de copie ou un opérateur d'affectation surchargé est presque toujours source de problèmes.</p>
+<h2 id="copie-profonde">Copie profonde</h2>
+<p>Une solution consiste à effectuer une copie profonde de tout pointeur non nul copié. Une <strong>copie profonde</strong> (<em>deep copy</em>) alloue de la mémoire pour la copie, puis copie la valeur réelle, de sorte que la copie réside dans une zone mémoire distincte de la source. Ainsi, la copie et la source sont distinctes et ne peuvent pas s'affecter mutuellement. Effectuer des copies profondes nécessite d'écrire nous-mêmes les constructeurs de copie et les opérateurs d'affectation surchargés.</p>
+<p>Montrons comment procéder pour notre classe MyString :</p>
+<pre><code class="language-cpp">// suppose que m_data est initialisé
+void MyString::deepCopy(const MyString&amp; source)
+{
+    // Nous devons d'abord libérer la valeur que cette chaîne contient !
+    delete[] m_data;
+
+    // Comme m_length n'est pas un pointeur, nous pouvons le copier superficiellement
+    m_length = source.m_length;
+
+    // m_data est un pointeur : nous devons le copier en profondeur s'il est non nul
+    if (source.m_data)
+    {
+        // alloue la mémoire pour notre copie
+        m_data = new char[m_length];
+
+        // effectue la copie
+        for (int i{ 0 }; i &lt; m_length; ++i)
+            m_data[i] = source.m_data[i];
+    }
+    else
+        m_data = nullptr;
+}
+
+// Constructeur de copie
+MyString::MyString(const MyString&amp; source)
+{
+    deepCopy(source);
+}
+</code></pre>
+<p>Comme vous le voyez, c'est nettement plus complexe qu'une simple copie superficielle ! Il faut d'abord vérifier que source contient bien une chaîne (ligne 11). Si c'est le cas, on alloue assez de mémoire pour contenir une copie de cette chaîne (ligne 14). Enfin, on copie la chaîne manuellement (lignes 17 et 18).</p>
+<p>Passons maintenant à l'opérateur d'affectation surchargé. Il est légèrement plus délicat :</p>
+<pre><code class="language-cpp">// Opérateur d'affectation
+MyString&amp; MyString::operator=(const MyString&amp; source)
+{
+    // vérifie l'auto-affectation
+    if (this != &amp;source)
+    {
+        // effectue maintenant la copie profonde
+        deepCopy(source);
+    }
+
+    return *this;
+}
+</code></pre>
+<p>Notez que notre opérateur d'affectation ressemble beaucoup à notre constructeur de copie, mais il présente trois différences majeures :</p>
+<ul>
+<li>Nous ajoutons une vérification d'auto-affectation.</li>
+<li>Nous renvoyons *this afin de pouvoir enchaîner l'opérateur d'affectation.</li>
+<li>Nous devons explicitement libérer toute valeur que la chaîne contient déjà (afin d'éviter une fuite mémoire lorsque m_data sera réalloué plus tard). Cela est géré à l'intérieur de deepCopy().</li>
+</ul>
+<p>Lorsque l'opérateur d'affectation surchargé est appelé, l'objet affecté peut déjà contenir une valeur précédente, que nous devons nettoyer avant d'allouer la mémoire pour les nouvelles valeurs. Pour les variables non allouées dynamiquement (de taille fixe), nous n'avons pas à nous en soucier, car la nouvelle valeur écrase simplement l'ancienne. En revanche, pour les variables allouées dynamiquement, nous devons libérer explicitement l'ancienne mémoire avant d'allouer la nouvelle. Si nous ne le faisons pas, le code ne plantera pas, mais nous aurons une fuite mémoire qui consommera peu à peu la mémoire libre à chaque affectation !</p>
+<h2 id="la-règle-des-trois">La règle des trois</h2>
+<p>Vous vous souvenez de la règle des trois ? Si une classe nécessite un destructeur, un constructeur de copie ou un opérateur d'affectation par copie défini par l'utilisateur, elle en nécessite probablement les trois. Voici pourquoi. Si nous définissons l'une de ces fonctions nous-mêmes, c'est probablement parce que nous manipulons une allocation dynamique de mémoire. Nous avons besoin du constructeur de copie et de l'affectation par copie pour réaliser les copies profondes, et du destructeur pour libérer la mémoire.</p>
+<h2 id="une-meilleure-solution">Une meilleure solution</h2>
+<p>Les classes de la bibliothèque standard qui gèrent la mémoire dynamiquement, comme std::string et std::vector, prennent en charge toute leur gestion mémoire et disposent de constructeurs de copie et d'opérateurs d'affectation surchargés qui effectuent correctement des copies profondes. Ainsi, au lieu de gérer vous-même la mémoire, vous pouvez simplement les initialiser ou les affecter comme des types fondamentaux ! Ces classes sont plus simples à utiliser, moins sujettes aux erreurs, et vous n'avez pas à perdre de temps à écrire vos propres fonctions surchargées !</p>
+<h2 id="résumé">Résumé</h2>
+<ul>
+<li>Le constructeur de copie et les opérateurs d'affectation par défaut effectuent des copies superficielles, ce qui convient pour les classes ne contenant aucune variable allouée dynamiquement.</li>
+<li>Les classes contenant des variables allouées dynamiquement doivent posséder un constructeur de copie et un opérateur d'affectation qui effectuent une copie profonde.</li>
+<li>Privilégiez l'utilisation des classes de la bibliothèque standard plutôt que la gestion manuelle de la mémoire.</li>
+</ul>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/shallow-vs-deep-copying/">https://www.learncpp.com/cpp-tutorial/shallow-vs-deep-copying/</a></em></p>
+</main>
+</body>
+</html>

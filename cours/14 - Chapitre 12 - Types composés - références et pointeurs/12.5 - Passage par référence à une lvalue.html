@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.5 — Passage par référence à une lvalue</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="125-passage-par-référence-à-une-lvalue">12.5 — Passage par référence à une lvalue</h1>
+<p>Dans les leçons précédentes, nous avons présenté les références lvalue (<a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.3%20-%20R%C3%A9f%C3%A9rences%20lvalue.html">12.3 -- Références lvalue</a>) et les références lvalue vers const (<a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.4%20-%20R%C3%A9f%C3%A9rences%20lvalue%20vers%20const.html">12.4 -- Références lvalue vers const</a>). Prises isolément, elles peuvent sembler peu utiles : pourquoi créer un alias vers une variable alors que vous pouvez utiliser la variable elle-même ?</p>
+<p>Dans cette leçon, nous allons enfin montrer ce qui rend les références utiles. À partir de la fin de ce chapitre, vous verrez les références utilisées régulièrement.</p>
+<p>Commençons par un peu de contexte. Dans la leçon <a href="../02%20-%20Chapitre%202%20-%20Les%20bases%20du%20C%2B%2B%20-%20fonctions%20et%20fichiers/2.4%20-%20Introduction%20aux%20param%C3%A8tres%20et%20arguments%20de%20fonction.html">2.4 -- Introduction aux paramètres et aux arguments de fonction</a>, nous avons présenté le <code>passage par valeur</code>, où un argument passé à une fonction est copié dans le paramètre de cette fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printValue(int y)
+{
+    std::cout &lt;&lt; y &lt;&lt; '\n';
+} // y est détruit ici
+
+int main()
+{
+    int x { 2 };
+
+    printValue(x); // x est passé par valeur (copié) dans le paramètre y (peu coûteux)
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, lors de l'appel <code>printValue(x)</code>, la valeur de <code>x</code> (<code>2</code>) est <em>copiée</em> dans le paramètre <code>y</code>. Puis, à la fin de la fonction, l'objet <code>y</code> est détruit.</p>
+<p>Cela signifie que, lors de l'appel, nous avons fait une copie de la valeur de l'argument, pour ne l'utiliser que brièvement avant de la détruire ! Heureusement, comme les types fondamentaux sont peu coûteux à copier, ce n'est pas un problème.</p>
+<h2 id="certains-objets-sont-coûteux-à-copier">Certains objets sont coûteux à copier</h2>
+<p>La plupart des types fournis par la bibliothèque standard (comme <code>std::string</code>) sont des types classe. Les types classe sont généralement coûteux à copier. Chaque fois que c'est possible, nous voulons éviter de faire des copies inutiles d'objets coûteux à copier, surtout lorsque nous allons détruire ces copies presque immédiatement.</p>
+<p>Considérez le programme suivant, qui illustre ce point :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+void printValue(std::string y)
+{
+    std::cout &lt;&lt; y &lt;&lt; '\n';
+} // y est détruit ici
+
+int main()
+{
+    std::string x { &quot;Hello, world!&quot; }; // x est un std::string
+
+    printValue(x); // x est passé par valeur (copié) dans le paramètre y (coûteux)
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Hello, world!
+</code></pre>
+<p>Bien que ce programme se comporte comme nous l'attendons, il est aussi inefficace. Exactement comme dans l'exemple précédent, lors de l'appel de <code>printValue()</code>, l'argument <code>x</code> est copié dans le paramètre <code>y</code> de <code>printValue()</code>. Cependant, dans cet exemple, l'argument est un <code>std::string</code> au lieu d'un <code>int</code>, et <code>std::string</code> est un type classe coûteux à copier. Et cette copie coûteuse est faite à chaque appel de <code>printValue()</code> !</p>
+<p>Nous pouvons faire mieux.</p>
+<h2 id="passage-par-référence">Passage par référence</h2>
+<p>Une façon d'éviter une copie coûteuse d'un argument lors de l'appel d'une fonction consiste à utiliser le <code>passage par référence</code> plutôt que le <code>passage par valeur</code>. Avec le <strong>passage par référence</strong>, nous déclarons un paramètre de fonction avec un type référence (ou un type référence vers const) plutôt qu'avec un type normal. Lors de l'appel de la fonction, chaque paramètre référence est lié à l'argument correspondant. Comme la référence agit comme un alias de l'argument, aucune copie de l'argument n'est faite.</p>
+<p>Voici le même exemple que précédemment, mais avec un passage par référence au lieu d'un passage par valeur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+void printValue(std::string&amp; y) // type changé en std::string&amp;
+{
+    std::cout &lt;&lt; y &lt;&lt; '\n';
+} // y est détruit ici
+
+int main()
+{
+    std::string x { &quot;Hello, world!&quot; };
+
+    printValue(x); // x est maintenant passé par référence dans le paramètre référence y (peu coûteux)
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme est identique au précédent, sauf que le type du paramètre <code>y</code> est passé de <code>std::string</code> à <code>std::string&amp;</code> (une référence lvalue). Désormais, lors de l'appel <code>printValue(x)</code>, le paramètre référence lvalue <code>y</code> est lié à l'argument <code>x</code>. Lier une référence est toujours peu coûteux, et aucune copie de <code>x</code> n'est nécessaire. Comme une référence agit comme un alias de l'objet référencé, lorsque <code>printValue()</code> utilise la référence <code>y</code>, elle accède à l'argument réel <code>x</code> (et non à une copie de <code>x</code>).</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Le passage par référence nous permet de transmettre des arguments à une fonction sans faire de copie de ces arguments à chaque appel de la fonction.</p>
+</div>
+<p>Le programme suivant montre qu'un paramètre passé par valeur est un objet distinct de l'argument, alors qu'un paramètre référence est traité comme s'il était l'argument lui-même :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printAddresses(int val, int&amp; ref)
+{
+    std::cout &lt;&lt; &quot;The address of the value parameter is: &quot; &lt;&lt; &amp;val &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;The address of the reference parameter is: &quot; &lt;&lt; &amp;ref &lt;&lt; '\n';   
+}
+
+int main()
+{
+    int x { 5 };
+    std::cout &lt;&lt; &quot;The address of x is: &quot; &lt;&lt; &amp;x &lt;&lt; '\n';
+    printAddresses(x, x);
+
+    return 0;
+}
+</code></pre>
+<p>Une exécution de ce programme a produit la sortie suivante :</p>
+<pre><code>
+The address of x is: 0x7ffd16574de0
+The address of the value parameter is: 0x7ffd16574de4
+The address of the reference parameter is: 0x7ffd16574de0
+</code></pre>
+<p>Nous constatons que l'argument a une adresse différente de celle du paramètre passé par valeur, ce qui signifie que ce paramètre est un objet différent. Comme ils ont des adresses mémoire distinctes, pour que le paramètre passé par valeur ait la même valeur que l'argument, la valeur de l'argument doit être copiée dans la mémoire occupée par le paramètre.</p>
+<p>En revanche, nous constatons que l'adresse du paramètre référence est identique à celle de l'argument. Cela signifie que le paramètre référence est traité comme s'il s'agissait du même objet que l'argument.</p>
+<h2 id="le-passage-par-référence-permet-de-modifier-la-valeur-dun-argument">Le passage par référence permet de modifier la valeur d'un argument</h2>
+<p>Lorsqu'un objet est passé par valeur, le paramètre de la fonction reçoit une copie de l'argument. Cela signifie que toute modification de la valeur du paramètre est faite sur la copie de l'argument, et non sur l'argument lui-même :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void addOne(int y) // y est une copie de x
+{
+    ++y; // ceci modifie la copie de x, et non l'objet x réel
+}
+
+int main()
+{
+    int x { 5 };
+
+    std::cout &lt;&lt; &quot;value = &quot; &lt;&lt; x &lt;&lt; '\n';
+
+    addOne(x);
+
+    std::cout &lt;&lt; &quot;value = &quot; &lt;&lt; x &lt;&lt; '\n'; // x n'a pas été modifié
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, comme le paramètre passé par valeur <code>y</code> est une copie de <code>x</code>, lorsque nous incrémentons <code>y</code>, cela n'affecte que <code>y</code>. Ce programme affiche :</p>
+<pre><code>
+value = 5
+value = 5
+</code></pre>
+<p>En revanche, comme une référence se comporte exactement comme l'objet référencé, avec le passage par référence, toute modification faite sur le paramètre référence <em>affectera</em> l'argument :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void addOne(int&amp; y) // y est lié à l'objet x réel
+{
+    ++y; // ceci modifie l'objet x réel
+}
+
+int main()
+{
+    int x { 5 };
+
+    std::cout &lt;&lt; &quot;value = &quot; &lt;&lt; x &lt;&lt; '\n';
+
+    addOne(x);
+
+    std::cout &lt;&lt; &quot;value = &quot; &lt;&lt; x &lt;&lt; '\n'; // x a été modifié
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+value = 5
+value = 6
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>x</code> vaut initialement <code>5</code>. Lors de l'appel <code>addOne(x)</code>, la référence paramètre <code>y</code> est liée à l'argument <code>x</code>. Lorsque la fonction <code>addOne()</code> incrémente la référence <code>y</code>, elle incrémente en réalité l'argument <code>x</code> de <code>5</code> à <code>6</code> (et non une copie de <code>x</code>). Cette valeur modifiée persiste même après la fin de l'exécution de <code>addOne()</code>.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Passer des valeurs par référence vers un non-const nous permet d'écrire des fonctions qui modifient la valeur des arguments transmis.</p>
+</div>
+<p>La capacité d'une fonction à modifier la valeur des arguments qu'elle reçoit peut être utile. Imaginez que vous avez écrit une fonction qui détermine si un monstre a réussi à attaquer le joueur. Si c'est le cas, le monstre doit infliger une certaine quantité de dégâts à la santé du joueur. Si vous passez l'objet joueur par référence, la fonction peut modifier directement la santé de l'objet joueur réel qui a été transmis. Si vous passez l'objet joueur par valeur, vous ne pourriez modifier que la santé d'une copie de cet objet, ce qui est moins utile.</p>
+<h2 id="le-passage-par-référence-naccepte-que-des-arguments-lvalue-modifiables">Le passage par référence n'accepte que des arguments lvalue modifiables</h2>
+<p>Une référence vers une valeur non-const ne peut se lier qu'à une lvalue modifiable (en pratique, une variable non-const). Cela signifie que le passage par référence vers un non-const ne fonctionne qu'avec des arguments qui sont des lvalues modifiables. Concrètement, cela limite nettement l'utilité du passage par référence vers un non-const, car nous ne pouvons pas passer de variables const ni de littéraux. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printValue(int&amp; y) // y n'accepte que des lvalues modifiables
+{
+    std::cout &lt;&lt; y &lt;&lt; '\n';
+}
+
+int main()
+{
+    int x { 5 };
+    printValue(x); // ok : x est une lvalue modifiable
+
+    const int z { 5 };
+    printValue(z); // erreur : z est une lvalue non modifiable
+
+    printValue(5); // erreur : 5 est une rvalue
+
+    return 0;
+}
+</code></pre>
+<p>Heureusement, il existe un moyen simple de contourner ce problème, que nous verrons dans la prochaine leçon. Nous examinerons aussi quand utiliser le passage par valeur et quand utiliser le passage par référence.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/pass-by-lvalue-reference/">https://www.learncpp.com/cpp-tutorial/pass-by-lvalue-reference/</a></em></p>
+</main>
+</body>
+</html>

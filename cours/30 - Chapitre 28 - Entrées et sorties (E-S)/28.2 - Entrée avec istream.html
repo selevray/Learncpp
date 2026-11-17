@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28.2 — Entrée avec istream</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="282-entrée-avec-istream">28.2 — Entrée avec istream</h1>
+<p>La bibliothèque iostream est assez complexe, nous ne pourrons donc pas la couvrir entièrement dans ces tutoriels. Nous présenterons toutefois les fonctionnalités les plus couramment utilisées. Dans cette section, nous examinerons différents aspects de la classe d'entrée (istream).</p>
+<p><strong>L'opérateur d'extraction</strong></p>
+<p>Comme vous l'avez vu dans de nombreuses leçons, nous pouvons utiliser l'opérateur d'extraction (&gt;&gt;) pour lire des informations depuis un flux d'entrée. C++ fournit des opérations d'extraction prédéfinies pour tous les types de données fondamentaux, et vous avez déjà vu comment <a href="https://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/">surcharger l'opérateur d'extraction</a> pour vos propres classes.</p>
+<p>Lorsqu'on lit des chaînes, un problème courant avec l'opérateur d'extraction est d'empêcher l'entrée de déborder de votre tampon. Prenons l'exemple suivant :</p>
+<pre><code class="language-cpp">char buf[10]{};
+std::cin &gt;&gt; buf;
+</code></pre>
+<p>Que se passe-t-il si l'utilisateur saisit 18 caractères ? Le tampon déborde, et de mauvaises choses arrivent. D'une manière générale, il est déconseillé de faire des hypothèses sur le nombre de caractères que l'utilisateur va saisir.</p>
+<p>Une façon de résoudre ce problème consiste à utiliser des manipulateurs (manipulators). Un <strong>manipulateur</strong> est un objet qui sert à modifier un flux lorsqu'il est utilisé avec l'opérateur d'extraction (&gt;&gt;) ou d'insertion (&lt;&lt;). Un manipulateur que vous avez déjà rencontré est « std::endl », qui écrit un caractère de saut de ligne et vide le tampon de sortie.
+C++ fournit un manipulateur appelé <strong>setw</strong> (dans l'en-tête iomanip) qui permet de limiter le nombre de caractères lus depuis un flux. Pour utiliser setw(), il suffit de fournir en paramètre le nombre maximum de caractères à lire, et de l'insérer dans votre instruction d'entrée comme suit :</p>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+char buf[10]{};
+std::cin &gt;&gt; std::setw(10) &gt;&gt; buf;
+</code></pre>
+<p>Ce programme ne lira désormais que les 9 premiers caractères du flux (en laissant de la place pour le caractère de fin de chaîne). Les caractères restants resteront dans le flux jusqu'à la prochaine extraction.</p>
+<p><strong>Extraction et espaces blancs</strong></p>
+<p>Pour rappel, l'opérateur d'extraction ignore les espaces blancs (espaces, tabulations et sauts de ligne).</p>
+<p>Examinez le programme suivant :</p>
+<pre><code class="language-cpp">int main()
+{
+    char ch{};
+    while (std::cin &gt;&gt; ch)
+        std::cout &lt;&lt; ch;
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque l'utilisateur saisit ceci :</p>
+<pre><code>
+Hello my name is Alex
+</code></pre>
+<p>L'opérateur d'extraction ignore les espaces et le saut de ligne. Par conséquent, la sortie est :</p>
+<pre><code>
+HellomynameisAlex
+</code></pre>
+<p>Il arrive souvent que vous souhaitiez récupérer la saisie de l'utilisateur sans ignorer les espaces blancs. Pour cela, la classe istream fournit de nombreuses fonctions qui servent à cet usage.</p>
+<p>L'une des plus utiles est la fonction <strong>get()</strong>, qui lit simplement un caractère depuis le flux d'entrée. Voici le même programme que précédemment, mais utilisant get() :</p>
+<pre><code class="language-cpp">int main()
+{
+    char ch{};
+    while (std::cin.get(ch))
+        std::cout &lt;&lt; ch;
+
+    return 0;
+}
+</code></pre>
+<p>Maintenant, avec la même saisie :</p>
+<pre><code>
+Hello my name is Alex
+</code></pre>
+<p>La sortie est :</p>
+<pre><code>
+Hello my name is Alex
+</code></pre>
+<p>get() possède aussi une version pour les chaînes, qui prend un nombre maximum de caractères à lire :</p>
+<pre><code class="language-cpp">int main()
+{
+    char strBuf[11]{};
+    std::cin.get(strBuf, 11);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Si nous saisissons :</p>
+<pre><code>
+Hello my name is Alex
+</code></pre>
+<p>La sortie est :</p>
+<pre><code>
+Hello my n
+</code></pre>
+<p>Notez que nous n'avons lu que les 10 premiers caractères (il fallait en laisser un pour le caractère de fin de chaîne). Les caractères restants sont restés dans le flux d'entrée.</p>
+<p>Un point important à noter à propos de get() est qu'il ne lit pas le caractère de saut de ligne ! Cela peut produire des résultats inattendus :</p>
+<pre><code class="language-cpp">int main()
+{
+    char strBuf[11]{};
+    // Lit jusqu'à 10 caractères
+    std::cin.get(strBuf, 11);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+
+    // Lit jusqu'à 10 caractères de plus
+    std::cin.get(strBuf, 11);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Si l'utilisateur saisit :</p>
+<pre><code>
+Hello!
+</code></pre>
+<p>Le programme affichera :</p>
+<pre><code>
+Hello!
+</code></pre>
+<p>puis se terminera ! Pourquoi ne demande-t-il pas 10 caractères de plus ? La réponse est que le premier get() a lu jusqu'au saut de ligne, puis s'est arrêté. Le second get() a constaté qu'il restait encore des données dans le flux cin et a tenté de les lire. Or le premier caractère était le saut de ligne, donc il s'est arrêté immédiatement.</p>
+<p>C'est pourquoi il existe une autre fonction, <strong>getline()</strong>, qui fonctionne de manière similaire à get(), mais extrait (et supprime) le délimiteur.</p>
+<pre><code class="language-cpp">int main()
+{
+    char strBuf[11]{};
+    // Lit jusqu'à 10 caractères
+    std::cin.getline(strBuf, 11);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+
+    // Lit jusqu'à 10 caractères de plus
+    std::cin.getline(strBuf, 11);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Ce code se comportera comme vous vous y attendez, même si l'utilisateur saisit une chaîne contenant un saut de ligne.</p>
+<p>Si vous devez savoir combien de caractères ont été extraits lors du dernier appel à getline(), utilisez <strong>gcount()</strong> :</p>
+<pre><code class="language-cpp">int main()
+{
+    char strBuf[100]{};
+    std::cin.getline(strBuf, 100);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+    std::cout &lt;&lt; std::cin.gcount() &lt;&lt; &quot; characters were read&quot; &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>gcount() comptabilise aussi les délimiteurs extraits et supprimés.</p>
+<p><strong>Une version particulière de getline() pour std::string</strong></p>
+<p>Il existe une version particulière de getline() qui n'appartient pas à la classe istream et sert à lire des variables de type std::string. Cette version n'est membre ni de ostream ni de istream, et figure dans l'en-tête string. Voici un exemple d'utilisation :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::string strBuf{};
+    std::getline(std::cin, strBuf);
+    std::cout &lt;&lt; strBuf &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p><strong>Quelques autres fonctions utiles de istream</strong></p>
+<p>Il existe encore quelques fonctions d'entrée utiles que vous pourriez vouloir utiliser :</p>
+<p><strong>ignore()</strong> supprime le premier caractère du flux.<br />
+<strong>ignore(int nCount)</strong> supprime les nCount premiers caractères.<br />
+<strong>peek()</strong> permet de lire un caractère du flux sans le retirer du flux.<br />
+<strong>unget()</strong> remet le dernier caractère lu dans le flux, afin qu'il puisse être lu à nouveau lors de l'appel suivant.<br />
+<strong>putback(char ch)</strong> permet de replacer dans le flux le caractère de votre choix, qui sera lu lors de l'appel suivant.</p>
+<p>istream contient de nombreuses autres fonctions et variantes des fonctions mentionnées ci-dessus, qui peuvent être utiles selon ce que vous devez faire. Vous pouvez les consulter sur un site de référence tel que <a href="https://en.cppreference.com/w/cpp/io/basic_istream">https://en.cppreference.com/w/cpp/io/basic_istream</a>.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/input-with-istream/">https://www.learncpp.com/cpp-tutorial/input-with-istream/</a></em></p>
+</main>
+</body>
+</html>

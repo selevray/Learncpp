@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.5 — Surcharge des opérateurs à l&#x27;aide de fonctions membres</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="215-surcharge-des-opérateurs-à-laide-de-fonctions-membres">21.5 — Surcharge des opérateurs à l'aide de fonctions membres</h1>
+<p>Dans la leçon <a href="../23%20-%20Chapitre%2021%20-%20Surcharge%20d%27op%C3%A9rateurs/21.2%20-%20Surcharge%20des%20op%C3%A9rateurs%20arithm%C3%A9tiques%20%C3%A0%20l%27aide%20de%20fonctions%20amies.html">21.2 -- Surcharge des opérateurs arithmétiques à l'aide de fonctions amies</a>, vous avez appris à surcharger les opérateurs arithmétiques à l'aide de fonctions amies. Vous avez également appris qu'il est possible de surcharger des opérateurs sous forme de fonctions ordinaires. De nombreux opérateurs peuvent être surchargés d'une autre manière : sous forme de fonction membre.</p>
+<p>Surcharger un opérateur à l'aide d'une fonction membre ressemble beaucoup à la surcharge à l'aide d'une fonction amie. Lorsque vous surchargez un opérateur à l'aide d'une fonction membre :</p>
+<ul>
+<li>L'opérateur surchargé doit être ajouté comme fonction membre de l'opérande de gauche.</li>
+<li>L'opérande de gauche devient l'objet *this implicite.</li>
+<li>Tous les autres opérandes deviennent des paramètres de la fonction.</li>
+</ul>
+<p>Pour rappel, voici comment nous avons surchargé operator+ à l'aide d'une fonction amie :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    Cents(int cents)
+        : m_cents { cents } { }
+
+    // Surcharge de Cents + int
+    friend Cents operator+(const Cents&amp; cents, int value);
+
+    int getCents() const { return m_cents; }
+};
+
+// remarque : cette fonction n'est pas une fonction membre !
+Cents operator+(const Cents&amp; cents, int value)
+{
+    return Cents(cents.m_cents + value);
+}
+
+int main()
+{
+    const Cents cents1 { 6 };
+    const Cents cents2 { cents1 + 2 };
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; cents2.getCents() &lt;&lt; &quot; cents.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Convertir une surcharge d'opérateur amie en surcharge membre est facile :</p>
+<ol>
+<li>L'opérateur surchargé est défini comme membre au lieu d'être amie (Cents::operator+ au lieu de friend operator+).</li>
+<li>Le paramètre de gauche est supprimé, car ce paramètre devient désormais l'objet *this implicite.</li>
+<li>Dans le corps de la fonction, toutes les références au paramètre de gauche peuvent être supprimées (par exemple, cents.m_cents devient m_cents, qui fait implicitement référence à l'objet *this).</li>
+</ol>
+<p>Voici maintenant le même opérateur surchargé à l'aide d'une fonction membre :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    Cents(int cents)
+        : m_cents { cents } { }
+
+    // Surcharge de Cents + int
+    Cents operator+(int value) const;
+
+    int getCents() const { return m_cents; }
+};
+
+// remarque : cette fonction est une fonction membre !
+// le paramètre cents de la version amie devient ici le paramètre implicite *this
+Cents Cents::operator+ (int value) const
+{
+    return Cents { m_cents + value };
+}
+
+int main()
+{
+    const Cents cents1 { 6 };
+    const Cents cents2 { cents1 + 2 };
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; cents2.getCents() &lt;&lt; &quot; cents.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Notez que l'utilisation de l'opérateur ne change pas (dans les deux cas, <code>cents1 + 2</code>) : nous avons simplement défini la fonction différemment. Notre fonction amie à deux paramètres devient une fonction membre à un paramètre, le paramètre le plus à gauche de la version amie (cents) devenant le paramètre implicite *this de la version membre.</p>
+<p>Examinons de plus près l'évaluation de l'expression <code>cents1 + 2</code>.</p>
+<p>Dans la version à fonction amie, l'expression <code>cents1 + 2</code> devient l'appel de fonction operator+(cents1, 2). Notez qu'il y a deux paramètres. C'est direct.</p>
+<p>Dans la version à fonction membre, l'expression <code>cents1 + 2</code> devient l'appel <code>cents1.operator+(2)</code>. Notez qu'il n'y a plus qu'un seul paramètre explicite, et que cents1 est devenu un préfixe d'objet. Cependant, dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.1%20-%20Le%20pointeur%20cach%C3%A9%20%C2%AB%20this%20%C2%BB%20et%20l%27encha%C3%AEnement%20des%20appels%20de%20fonctions%20membres.html">15.1 -- Le pointeur caché « this » et l'enchaînement des fonctions membres</a>, nous avons mentionné que le compilateur convertit implicitement un préfixe d'objet en un paramètre caché le plus à gauche nommé *this. En réalité, <code>cents1.operator+(2)</code> devient donc <code>operator+(&amp;cents1, 2)</code>, ce qui est presque identique à la version amie.</p>
+<p>Les deux cas produisent le même résultat, simplement par des moyens légèrement différents.</p>
+<p>Alors, si nous pouvons surcharger un opérateur sous forme de fonction amie ou de fonction membre, lequel faut-il choisir ? Pour répondre à cette question, il vous faut encore connaître quelques points.</p>
+<p><strong>Tout ne peut pas être surchargé sous forme de fonction amie</strong></p>
+<p>Les opérateurs d'affectation (=), d'indexation ([]), d'appel de fonction (()) et de sélection de membre (-&gt;) doivent être surchargés sous forme de fonctions membres, car le langage l'exige.</p>
+<p><strong>Tout ne peut pas être surchargé sous forme de fonction membre</strong></p>
+<p>Dans la leçon <a href="../23%20-%20Chapitre%2021%20-%20Surcharge%20d%27op%C3%A9rateurs/21.4%20-%20Surcharge%20des%20op%C3%A9rateurs%20d%27entr%C3%A9e%20et%20de%20sortie.html">21.4 -- Surcharge des opérateurs d'entrée/sortie</a>, nous avons surchargé operator&lt;&lt; pour notre classe Point à l'aide de la méthode de la fonction amie. Voici un rappel de la manière dont nous l'avons fait :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Point
+{
+private:
+    double m_x {};
+    double m_y {};
+    double m_z {};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0)
+        : m_x { x }, m_y { y }, m_z { z }
+    {
+    }
+
+    friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point);
+};
+
+std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point)
+{
+    // Comme operator&lt;&lt; est une amie de la classe Point, nous pouvons accéder directement à ses membres.
+    out &lt;&lt; &quot;Point(&quot; &lt;&lt; point.m_x &lt;&lt; &quot;, &quot; &lt;&lt; point.m_y &lt;&lt; &quot;, &quot; &lt;&lt; point.m_z &lt;&lt; &quot;)&quot;;
+
+    return out;
+}
+
+int main()
+{
+    Point point1 { 2.0, 3.0, 4.0 };
+
+    std::cout &lt;&lt; point1;
+
+    return 0;
+}
+</code></pre>
+<p>En revanche, nous ne pouvons pas surcharger operator&lt;&lt; sous forme de fonction membre. Pourquoi ? Parce que l'opérateur surchargé doit être ajouté comme membre de l'opérande de gauche. Ici, l'opérande de gauche est un objet de type std::ostream. std::ostream fait partie de la bibliothèque standard, et nous ne pouvons pas modifier sa déclaration de classe pour y ajouter la surcharge comme fonction membre.</p>
+<p>Cela impose de surcharger operator&lt;&lt; sous forme de fonction ordinaire (solution préférée) ou de fonction amie.</p>
+<p>De même, bien que nous puissions surcharger operator+(Cents, int) comme fonction membre (comme nous l'avons fait ci-dessus), nous ne pouvons pas surcharger operator+(int, Cents) comme fonction membre, car int n'est pas une classe à laquelle nous pouvons ajouter des membres.</p>
+<p>En règle générale, nous ne pourrons pas utiliser une surcharge membre si l'opérande de gauche n'est pas une classe (par exemple int), ou s'il s'agit d'une classe que nous ne pouvons pas modifier (par exemple std::ostream).</p>
+<p><strong>Quand utiliser une surcharge sous forme de fonction ordinaire, amie ou membre</strong></p>
+<p>Dans la plupart des cas, le langage vous laisse le choix entre la version ordinaire/amie et la version membre de la surcharge. Cependant, l'une des deux est généralement un meilleur choix que l'autre.</p>
+<p>Pour les opérateurs binaires qui ne modifient pas l'opérande de gauche (par exemple operator+), la version à fonction ordinaire ou amie est généralement préférée, car elle fonctionne pour tous les types de paramètres (même lorsque l'opérande de gauche n'est pas un objet de classe, ou qu'il s'agit d'une classe non modifiable). La version à fonction ordinaire ou amie présente en outre l'avantage de la « symétrie », puisque tous les opérandes deviennent des paramètres explicites (au lieu de faire de l'opérande de gauche le *this et de l'opérande de droite un paramètre explicite).</p>
+<p>Pour les opérateurs binaires qui modifient l'opérande de gauche (par exemple operator+=), la version à fonction membre est généralement préférée. Dans ces cas, l'opérande le plus à gauche est toujours d'un type classe, et il est naturel que l'objet modifié soit celui pointé par *this. Comme l'opérande de droite devient un paramètre explicite, il n'y a aucune ambiguïté sur celui qui est modifié et celui qui est simplement évalué.</p>
+<p>Les opérateurs unaires sont également généralement surchargés sous forme de fonctions membres, puisque la version membre n'a pas de paramètres.</p>
+<p>Les règles empiriques suivantes peuvent vous aider à déterminer la forme la plus adaptée à une situation donnée :</p>
+<ul>
+<li>Si vous surchargez l'affectation (=), l'indexation ([]), l'appel de fonction (()) ou la sélection de membre (-&gt;), faites-le sous forme de fonction membre.</li>
+<li>Si vous surchargez un opérateur unaire, faites-le sous forme de fonction membre.</li>
+<li>Si vous surchargez un opérateur binaire qui ne modifie pas son opérande de gauche (par exemple operator+), faites-le sous forme de fonction ordinaire (solution préférée) ou de fonction amie.</li>
+<li>Si vous surchargez un opérateur binaire qui modifie son opérande de gauche, mais que vous ne pouvez pas ajouter de membres à la définition de classe de cet opérande (par exemple operator&lt;&lt;, dont l'opérande de gauche est de type ostream), faites-le sous forme de fonction ordinaire (solution préférée) ou de fonction amie.</li>
+<li>Si vous surchargez un opérateur binaire qui modifie son opérande de gauche (par exemple operator+=), et que vous pouvez modifier la définition de classe de cet opérande, faites-le sous forme de fonction membre.</li>
+</ul>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-operators-using-member-functions/">https://www.learncpp.com/cpp-tutorial/overloading-operators-using-member-functions/</a></em></p>
+</main>
+</body>
+</html>

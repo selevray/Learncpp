@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27.9 — Spécifications d&#x27;exception et noexcept</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="279-spécifications-dexception-et-noexcept">27.9 — Spécifications d'exception et noexcept</h1>
+<p>(Remerciements à Koe, qui a fourni la première version de cette leçon !)</p>
+<p>En regardant la déclaration typique d'une fonction, il n'est pas possible de savoir si elle peut lever une exception :</p>
+<pre><code class="language-cpp">int doSomething(); // cette fonction peut-elle lever une exception ?
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>doSomething()</code> peut-elle lever une exception ? Ce n'est pas clair. Pourtant, la réponse est importante dans certains contextes. Dans la leçon <a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.8%20-%20Dangers%20et%20inconv%C3%A9nients%20des%20exceptions.html">27.8 -- Dangers et inconvénients des exceptions</a>, nous avons expliqué qu'une exception qui sort d'un destructeur pendant le déroulement de la pile (stack unwinding) provoque l'arrêt du programme. Si <code>doSomething()</code> peut lever une exception, l'appeler depuis un destructeur (ou depuis tout autre endroit où une exception levée n'est pas souhaitable) est risqué. Nous pourrions bien sûr faire en sorte que le destructeur gère les exceptions levées par <code>doSomething()</code> (afin que ces exceptions ne se propagent pas hors du destructeur), mais il faudrait penser à le faire, et s'assurer de couvrir tous les types d'exceptions susceptibles d'être levées.</p>
+<p>Les commentaires peuvent aider à indiquer si une fonction lève des exceptions (et, le cas échéant, lesquelles), mais la documentation peut devenir obsolète, et le compilateur ne vérifie pas les commentaires.</p>
+<p>Les <strong>spécifications d'exception</strong> (exception specifications) sont un mécanisme du langage conçu à l'origine pour documenter le type d'exceptions qu'une fonction peut lever, dans le cadre de sa spécification. Bien que la plupart de ces spécifications soient aujourd'hui obsolètes (deprecated) ou supprimées, une spécification d'exception utile a été ajoutée pour les remplacer ; c'est elle que nous allons étudier dans cette leçon.</p>
+<h2 id="le-spécificateur-noexcept">Le spécificateur noexcept</h2>
+<p>En C++, toutes les fonctions sont classées soit comme <em>non lanceuses</em> (non-throwing), soit comme <em>potentiellement lanceuses</em> (potentially throwing). Une <strong>fonction non lanceuse</strong> est une fonction qui promet de ne pas lever d'exceptions visibles par l'appelant. Une <strong>fonction potentiellement lanceuse</strong> peut lever des exceptions visibles par l'appelant.</p>
+<p>Pour déclarer qu'une fonction est non lanceuse, nous pouvons utiliser le <strong>spécificateur noexcept</strong> (noexcept specifier). Pour cela, on place mot-clé <code>noexcept</code> dans la déclaration de la fonction, à droite de la liste des paramètres :</p>
+<pre><code class="language-cpp">void doSomething() noexcept; // cette fonction est spécifiée comme non lanceuse
+</code></pre>
+<p>Notez que <code>noexcept</code> n'empêche pas réellement la fonction de lever des exceptions, ni d'appeler d'autres fonctions potentiellement lanceuses. C'est autorisé, à condition que la fonction <code>noexcept</code> intercepte et gère ces exceptions en interne, et que ces exceptions ne sortent pas de la fonction <code>noexcept</code>.</p>
+<p>Si une exception non gérée sortait d'une fonction <code>noexcept</code>, <code>std::terminate</code> serait appelée (même s'il existe un gestionnaire d'exceptions qui aurait pu la traiter plus haut dans la pile). Et si <code>std::terminate</code> est appelée depuis l'intérieur d'une fonction <code>noexcept</code>, le déroulement de la pile peut ou non avoir lieu (selon l'implémentation et les optimisations), ce qui signifie que vos objets peuvent ou non être correctement détruits avant la fin du programme.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La promesse qu'une fonction <code>noexcept</code> fait de ne pas lever d'exceptions visibles par l'appelant est une promesse contractuelle, et non une garantie imposée par le compilateur. Ainsi, bien qu'appeler une fonction <code>noexcept</code> doive être sûr, tout bogue de gestion des exceptions dans la fonction <code>noexcept</code> qui rompt ce contrat provoquera l'arrêt du programme ! Cela ne devrait pas arriver, mais les bogues ne devraient pas non plus arriver.</p>
+<p>Pour cette raison, il est préférable que les fonctions <code>noexcept</code> ne manipulent pas du tout les exceptions, ni n'appellent de fonctions potentiellement lanceuses susceptibles de lever une exception. Une fonction <code>noexcept</code> ne peut pas comporter de bogue de gestion des exceptions si aucune exception ne peut être levée !</p>
+</div>
+<p>De même que des fonctions ne différant que par leur valeur de retour ne peuvent pas être surchargées, des fonctions ne différant que par leur spécification d'exception ne peuvent pas être surchargées.</p>
+<h2 id="illustration-du-comportement-des-fonctions-noexcept-et-des-exceptions">Illustration du comportement des fonctions noexcept et des exceptions</h2>
+<p>Le programme suivant illustre le comportement des fonctions <code>noexcept</code> et des exceptions dans différents cas :</p>
+<pre><code class="language-cpp">// Remerciements à yellowEmu pour la première version de ce programme
+#include &lt;iostream&gt;
+
+class Doomed
+{
+public:
+    ~Doomed()
+    {
+        std::cout &lt;&lt; &quot;Doomed destructed\n&quot;;
+    }
+};
+
+void thrower()
+{
+    std::cout &lt;&lt; &quot;Throwing exception\n&quot;;
+    throw 1;
+}
+
+void pt()
+{
+    std::cout &lt;&lt; &quot;pt (potentally throwing) called\n&quot;;
+    // Cet objet sera détruit pendant le déroulement de la pile (s'il a lieu)
+    Doomed doomed{};
+    thrower();
+    std::cout &lt;&lt; &quot;This never prints\n&quot;;
+}
+
+void nt() noexcept
+{
+    std::cout &lt;&lt; &quot;nt (noexcept) called\n&quot;;
+    // Cet objet sera détruit pendant le déroulement de la pile (s'il a lieu)
+    Doomed doomed{};
+    thrower();
+    std::cout &lt;&lt; &quot;this never prints\n&quot;;
+}
+
+void tester(int c) noexcept
+{
+    std::cout &lt;&lt; &quot;tester (noexcept) case &quot; &lt;&lt; c &lt;&lt; &quot; called\n&quot;;
+    try
+    {
+        (c == 1) ? pt() : nt();
+    }
+    catch (...)
+    {
+        std::cout &lt;&lt; &quot;tester caught exception\n&quot;;
+    }
+}
+
+int main()
+{
+    std::cout &lt;&lt; std::unitbuf; // vide le tampon après chaque insertion
+    std::cout &lt;&lt; std::boolalpha; // affiche les booléens sous forme true/false
+    tester(1);
+    std::cout &lt;&lt; &quot;Test successful\n\n&quot;;
+    tester(2);
+    std::cout &lt;&lt; &quot;Test successful\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+tester (noexcept) case 1 called
+pt (potentially throwing) called
+Throwing exception
+Doomed destructed
+tester caught exception
+Test successful
+
+tester (noexcept) case 2 called
+nt (noexcept) called
+throwing exception
+terminate called after throwing an instance of 'int'
+</code></pre>
+<p>puis le programme a été interrompu.</p>
+<p>Examinons plus en détail ce qui se passe ici. Notez que <code>tester</code> est une fonction <code>noexcept</code> et qu'elle promet donc de ne exposer aucune exception à l'appelant (<code>main</code>).</p>
+<p>Le premier cas montre que les fonctions <code>noexcept</code> peuvent appeler des fonctions potentiellement lanceuses, et même gérer les exceptions que ces fonctions lèvent. Tout d'abord, <code>tester(1)</code> est appelée ; elle appelle la fonction potentiellement lanceuse <code>pt</code>, qui appelle <code>thrower</code>, qui lève une exception. Le premier gestionnaire de cette exception se trouve dans <code>tester</code>. L'exception déroule donc la pile (en détruisant au passage la variable locale <code>doomed</code>), puis elle est interceptée et gérée à l'intérieur de <code>tester</code>. Comme <code>tester</code> n'expose pas cette exception à l'appelant (<code>main</code>), il n'y a aucune violation de <code>noexcept</code> ici, et le contrôle revient à <code>main</code>.</p>
+<p>Le second cas montre ce qui se passe lorsqu'une fonction <code>noexcept</code> tente de renvoyer une exception à son appelant. Tout d'abord, <code>tester(2)</code> est appelée ; elle appelle la fonction non lanceuse <code>nt</code>, qui appelle <code>thrower</code>, qui lève une exception. Le premier gestionnaire de cette exception se trouve dans <code>tester</code>. Cependant, <code>nt</code> est <code>noexcept</code>, et pour atteindre le gestionnaire dans <code>tester</code>, l'exception devrait se propager jusqu'à l'appelant de <code>nt</code>. C'est une violation du <code>noexcept</code> de <code>nt</code> : <code>std::terminate</code> est donc appelée, et notre programme est interrompu immédiatement. Sur la machine de l'auteur, la pile n'a pas été déroulée (comme le montre le fait que <code>doomed</code> n'a pas été détruit).</p>
+<h2 id="le-spécificateur-noexcept-avec-un-paramètre-booléen">Le spécificateur noexcept avec un paramètre booléen</h2>
+<p>Le spécificateur <code>noexcept</code> accepte un paramètre booléen optionnel. <code>noexcept(true)</code> est équivalent à <code>noexcept</code> : la fonction est non lanceuse. <code>noexcept(false)</code> signifie que la fonction est potentiellement lanceuse. Ces paramètres ne sont généralement utilisés que dans les fonctions modèles (template functions), afin qu'une fonction modèle puisse être créée dynamiquement comme non lanceuse ou potentiellement lanceuse, selon une valeur paramétrée.</p>
+<h2 id="quelles-fonctions-sont-non-lanceuses-et-potentiellement-lanceuses">Quelles fonctions sont non lanceuses et potentiellement lanceuses</h2>
+<p>Fonctions implicitement non lanceuses :</p>
+<ul>
+<li>Destructeurs</li>
+</ul>
+<p>Fonctions non lanceuses par défaut, pour les fonctions déclarées implicitement ou défaites (defaulted) :</p>
+<ul>
+<li>Constructeurs : par défaut, de copie, de déplacement</li>
+<li>Opérateurs d'affectation : de copie, de déplacement</li>
+<li>Opérateurs de comparaison (à partir de C++20)</li>
+</ul>
+<p>Toutefois, si l'une de ces fonctions appelle (explicitement ou implicitement) une autre fonction potentiellement lanceuse, la fonction concernée sera elle aussi considérée comme potentiellement lanceuse. Par exemple, si une classe possède un membre de donnée dont le constructeur est potentiellement lanceur, les constructeurs de cette classe seront également considérés comme potentiellement lanceurs. Autre exemple : si un opérateur d'affectation de copie appelle un opérateur d'affectation potentiellement lanceur, l'affectation de copie sera elle aussi potentiellement lanceuse.</p>
+<p>Fonctions potentiellement lanceuses (si elles ne sont pas déclarées implicitement ou défaites) :</p>
+<ul>
+<li>Fonctions ordinaires</li>
+<li>Constructeurs définis par l'utilisateur</li>
+<li>Opérateurs définis par l'utilisateur</li>
+</ul>
+<h2 id="lopérateur-noexcept">L'opérateur noexcept</h2>
+<p>L'opérateur <code>noexcept</code> peut aussi être utilisé à l'intérieur d'expressions. Il prend une expression en argument et renvoie <code>true</code> ou <code>false</code> selon que le compilateur estime qu'elle peut lever une exception ou non. L'opérateur <code>noexcept</code> est évalué statiquement à la compilation, et n'évalue pas réellement l'expression passée en argument.</p>
+<pre><code class="language-cpp">void foo() {throw -1;}
+void boo() {};
+void goo() noexcept {};
+struct S{};
+
+constexpr bool b1{ noexcept(5 + 3) }; // true ; les int sont non lanceurs
+constexpr bool b2{ noexcept(foo()) }; // false ; foo() lève une exception
+constexpr bool b3{ noexcept(boo()) }; // false ; boo() est implicitement noexcept(false)
+constexpr bool b4{ noexcept(goo()) }; // true ; goo() est explicitement noexcept(true)
+constexpr bool b5{ noexcept(S{}) };   // true ; le constructeur par défaut d'une struct est noexcept par défaut
+</code></pre>
+<p>L'opérateur <code>noexcept</code> peut servir à exécuter du code de manière conditionnelle, selon que l'expression est potentiellement lanceuse ou non. Cela est nécessaire pour satisfaire certaines <strong>garanties de sécurité face aux exceptions</strong> (exception safety guarantees), que nous verrons dans la section suivante.</p>
+<h2 id="garanties-de-sécurité-face-aux-exceptions">Garanties de sécurité face aux exceptions</h2>
+<p>Une <strong>garantie de sécurité face aux exceptions</strong> est une directive contractuelle décrivant le comportement des fonctions ou des classes lorsqu'une exception survient. Il existe quatre niveaux de garanties :</p>
+<ul>
+<li>Aucune garantie -- Il n'y a aucune garantie quant à ce qui se passe lorsqu'une exception est levée (par exemple, une classe peut être laissée dans un état inutilisable).</li>
+<li>Garantie de base -- Si une exception est levée, aucune mémoire n'est perdue et l'objet reste utilisable, mais le programme peut rester dans un état modifié.</li>
+<li>Garantie forte -- Si une exception est levée, aucune mémoire n'est perdue et l'état du programme n'est pas modifié. Cela signifie que la fonction doit soit réussir entièrement, soit ne produire aucun effet de bord en cas d'échec. C'est facile si l'échec survient avant toute modification, mais cela peut aussi être obtenu en annulant les modifications déjà effectuées, afin de ramener le programme à l'état précédant l'échec.</li>
+<li>Garantie de non-lancement / garantie de non-échec (No throw / No fail) -- La fonction réussit toujours (no-fail) ou échoue sans lever d'exception visible par l'appelant (no-throw). Des exceptions peuvent être levées en interne si elles ne sont pas exposées. Le spécificateur <code>noexcept</code> correspond à ce niveau de garantie.</li>
+</ul>
+<p>Examinons plus en détail les garanties no-throw et no-fail :</p>
+<p>La garantie no-throw : si une fonction échoue, elle ne lève pas d'exception. Elle renvoie à la place un code d'erreur ou ignore le problème. Les garanties no-throw sont requises pendant le déroulement de la pile, lorsqu'une exception est déjà en cours de traitement ; par exemple, tous les destructeurs doivent offrir une garantie no-throw (de même que toutes les fonctions appelées par ces destructeurs). Exemples de code qui devrait être no-throw :</p>
+<ul>
+<li>destructeurs et fonctions de libération ou de nettoyage de la mémoire</li>
+<li>fonctions dont les fonctions no-throw de plus haut niveau ont besoin</li>
+</ul>
+<p>La garantie no-fail : une fonction réussit toujours dans ce qu'elle tente de faire (elle n'a donc jamais besoin de lever une exception ; no-fail est donc une forme légèrement plus forte de no-throw). Exemples de code qui devrait être no-fail :</p>
+<ul>
+<li>constructeurs de déplacement et affectation par déplacement (sémantique de déplacement, traitée au <a href="https://www.learncpp.com#Chapter22">chapitre 22</a>)</li>
+<li>fonctions d'échange (swap)</li>
+<li>fonctions clear, erase et reset des conteneurs</li>
+<li>opérations sur <code>std::unique_ptr</code> (également traitées au <a href="https://www.learncpp.com#Chapter22">chapitre 22</a>)</li>
+<li>fonctions dont les fonctions no-fail de plus haut niveau ont besoin</li>
+</ul>
+<h2 id="quand-utiliser-noexcept">Quand utiliser noexcept</h2>
+<p>Ce n'est pas parce que votre code ne lève explicitement aucune exception que vous devez parsemer votre code de <code>noexcept</code>. Par défaut, la plupart des fonctions sont potentiellement lanceuses : si votre fonction appelle d'autres fonctions, il est probable qu'elle appelle une fonction potentiellement lanceuse, et qu'elle soit donc elle aussi potentiellement lanceuse.</p>
+<p>Il existe toutefois quelques bonnes raisons de déclarer des fonctions non lanceuses :</p>
+<ul>
+<li>Les fonctions non lanceuses peuvent être appelées en toute sécurité depuis des fonctions qui ne sont pas sûres face aux exceptions, comme les destructeurs.</li>
+<li>Les fonctions <code>noexcept</code> peuvent permettre au compilateur d'effectuer certaines optimisations qui ne seraient pas possibles autrement. Comme une fonction <code>noexcept</code> ne peut pas lever d'exception en dehors d'elle-même, le compilateur n'a pas à veiller à ce que la pile d'exécution reste dans un état permettant le déroulement, ce qui peut lui permettre de produire un code plus rapide.</li>
+<li>Il existe des cas importants où connaître qu'une fonction est <code>noexcept</code> permet de produire des implémentations plus efficaces dans notre propre code : les conteneurs de la bibliothèque standard (comme <code>std::vector</code>) tiennent compte de <code>noexcept</code> et utilisent l'opérateur <code>noexcept</code> pour déterminer s'il faut recourir à la sémantique de déplacement (plus rapide) ou à la sémantique de copie (plus lente) à certains endroits. Nous abordons la sémantique de déplacement au <a href="https://www.learncpp.com#Chapter22">chapitre 22</a>, et cette optimisation dans la leçon <a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.10%20-%20std--move_if_noexcept.html">27.10 -- std::move_if_noexcept</a>.</li>
+</ul>
+<p>La politique de la bibliothèque standard consiste à n'utiliser <code>noexcept</code> que pour les fonctions qui <em>ne doivent pas</em> lever d'exception ni échouer. Les fonctions potentiellement lanceuses qui, en raison de leur implémentation, ne lèvent pas réellement d'exception ne sont généralement pas marquées <code>noexcept</code>.</p>
+<p>Pour votre propre code, marquez systématiquement les éléments suivants comme <code>noexcept</code> :</p>
+<ul>
+<li>Constructeurs de déplacement</li>
+<li>Opérateurs d'affectation par déplacement</li>
+<li>Fonctions d'échange (swap)</li>
+</ul>
+<p>Pour votre code, envisagez de marquer les éléments suivants comme <code>noexcept</code> :</p>
+<ul>
+<li>Fonctions pour lesquelles vous souhaitez exprimer une garantie no-throw ou no-fail (par exemple pour indiquer qu'elles peuvent être appelées en toute sécurité depuis des destructeurs ou d'autres fonctions <code>noexcept</code>)</li>
+<li>Constructeurs de copie et opérateurs d'affectation de copie qui sont no-throw (pour profiter des optimisations).</li>
+<li>Destructeurs. Les destructeurs sont implicitement <code>noexcept</code> tant que tous les membres ont des destructeurs <code>noexcept</code>.</li>
+</ul>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Rendez toujours <code>noexcept</code> les constructeurs de déplacement, les opérateurs d'affectation par déplacement et les fonctions d'échange.</p>
+<p>Rendez <code>noexcept</code> les constructeurs de copie et les opérateurs d'affectation de copie chaque fois que c'est possible.</p>
+<p>Utilisez <code>noexcept</code> sur les autres fonctions pour exprimer une garantie no-fail ou no-throw.</p>
+</div>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous n'êtes pas certain qu'une fonction doive offrir une garantie no-fail/no-throw, faites preuve de prudence et ne la marquez pas <code>noexcept</code>. Revenir sur une décision d'utiliser <code>noexcept</code> revient à rompre un engagement d'interface envers l'utilisateur concernant le comportement de la fonction, et peut casser du code existant. En revanche, renforcer une garantie en ajoutant ultérieurement <code>noexcept</code> à une fonction qui ne l'était pas à l'origine est considéré comme sûr.</p>
+</div>
+<h2 id="spécifications-dexception-dynamiques">Spécifications d'exception dynamiques</h2>
+<div class="callout quote"><p class="callout-title">Lecture facultative</p>
+<p>Avant C++11, et jusqu'à C++17, les <em>spécifications d'exception dynamiques</em> (dynamic exception specifications) étaient utilisées à la place de <code>noexcept</code>. La syntaxe des <strong>spécifications d'exception dynamiques</strong> utilise le mot-clé <code>throw</code> pour énumérer les types d'exceptions qu'une fonction peut lever, directement ou indirectement :</p>
+<pre><code class="language-cpp">int doSomething() throw(); // ne lève pas d'exception
+int doSomething() throw(std::out_of_range, int*); // peut lever std::out_of_range ou un pointeur vers un entier
+int doSomething() throw(...); // peut lever n'importe quoi
+</code></pre>
+<p>En raison de facteurs tels que des implémentations incomplètes des compilateurs, une certaine incompatibilité avec les fonctions modèles, des idées reçues sur leur fonctionnement, et le fait que la bibliothèque standard ne les utilisait pratiquement pas, les spécifications d'exception dynamiques ont été rendues obsolètes en C++11, puis supprimées du langage en C++17 et C++20. Voir <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2015/p0003r0.html#2.0">cet article</a> pour plus de contexte.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/exception-specifications-and-noexcept/">https://www.learncpp.com/cpp-tutorial/exception-specifications-and-noexcept/</a></em></p>
+</main>
+</body>
+</html>

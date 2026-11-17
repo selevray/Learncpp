@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20.2 — La pile (stack) et le tas (heap)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="202-la-pile-stack-et-le-tas-heap">20.2 — La pile (stack) et le tas (heap)</h1>
+<p>La mémoire utilisée par un programme est généralement divisée en plusieurs zones, appelées segments :</p>
+<ul>
+<li>Le segment de code (aussi appelé segment de texte), où se trouve le programme compilé en mémoire. Ce segment est généralement en lecture seule.</li>
+<li>Le segment bss (aussi appelé segment de données non initialisées), où sont stockées les variables globales et statiques initialisées à zéro.</li>
+<li>Le segment de données (aussi appelé segment de données initialisées), où sont stockées les variables globales et statiques initialisées explicitement.</li>
+<li>Le tas (heap), à partir duquel sont alloués les objets créés dynamiquement.</li>
+<li>La pile d'appels (call stack), où sont stockés les paramètres des fonctions, les variables locales et les autres informations liées aux fonctions.</li>
+</ul>
+<p>Dans cette leçon, nous nous concentrerons principalement sur le tas et la pile, car c'est là que se passe l'essentiel des choses intéressantes.</p>
+<p><strong>Le segment de tas</strong></p>
+<p>Le segment de tas (aussi appelé « magasin libre », free store) garde la trace de la mémoire utilisée pour l'allocation dynamique. Nous avons déjà abordé le tas brièvement dans la leçon <a href="../21%20-%20Chapitre%2019%20-%20Allocation%20dynamique%20%28en%20construction%29/19.1%20-%20Allocation%20dynamique%20de%20m%C3%A9moire%20avec%20new%20et%20delete.html">19.1 -- Allocation dynamique de mémoire avec new et delete</a>, voici donc un bref rappel.</p>
+<p>En C++, lorsque vous utilisez l'opérateur <code>new</code> pour allouer de la mémoire, cette mémoire est allouée dans le segment de tas de l'application.</p>
+<p>En supposant qu'un <code>int</code> occupe 4 octets :</p>
+<pre><code class="language-cpp">int* ptr { new int }; // new int alloue 4 octets dans le tas
+int* array { new int[10] }; // new int[10] alloue 40 octets dans le tas
+</code></pre>
+<p>L'adresse de cette mémoire est renvoyée par l'opérateur <code>new</code> et peut ensuite être stockée dans un pointeur. Vous n'avez pas à vous soucier du mécanisme qui permet de trouver de la mémoire libre et de la mettre à disposition de l'utilisateur. Il est toutefois bon de savoir que des allocations successives ne donnent pas forcément des adresses mémoire successives !</p>
+<pre><code class="language-cpp">int* ptr1 { new int };
+int* ptr2 { new int };
+// ptr1 et ptr2 n'ont pas forcément des adresses consécutives
+</code></pre>
+<p>Lorsqu'une variable allouée dynamiquement est supprimée, la mémoire est « rendue » au tas et peut être réattribuée pour les demandes d'allocation futures. Rappelez-vous que supprimer un pointeur ne supprime pas la variable : cela renvoie simplement au système d'exploitation la mémoire située à l'adresse associée.</p>
+<p>Le tas présente des avantages et des inconvénients :</p>
+<ul>
+<li>L'allocation de mémoire sur le tas est relativement lente.</li>
+<li>La mémoire allouée reste allouée jusqu'à sa libération explicite (attention aux fuites de mémoire) ou jusqu'à la fin de l'application (le système d'exploitation doit alors la récupérer).</li>
+<li>La mémoire allouée dynamiquement doit être accédée à travers un pointeur. Déréférencer un pointeur est plus lent que d'accéder directement à une variable.</li>
+<li>Comme le tas est un grand réservoir de mémoire, de grands tableaux, structures ou classes peuvent y être alloués.</li>
+</ul>
+<p><strong>La pile d'appels</strong></p>
+<p>La pile d'appels (généralement appelée « la pile », call stack en anglais) joue un rôle beaucoup plus intéressant. Elle garde la trace de toutes les fonctions actives (celles qui ont été appelées et ne se sont pas encore terminées), depuis le début du programme jusqu'au point d'exécution courant, et gère l'allocation de tous les paramètres de fonctions et de toutes les variables locales.</p>
+<p>La pile d'appels est implémentée sous la forme d'une structure de données de type pile. Avant de voir comment fonctionne la pile d'appels, il faut donc comprendre ce qu'est une pile.</p>
+<p><strong>La structure de données pile</strong></p>
+<p>Une <strong>structure de données</strong> (data structure) est un mécanisme de programmation permettant d'organiser les données de façon à pouvoir les utiliser efficacement. Vous avez déjà rencontré plusieurs structures de données, comme les tableaux et les structures (<code>struct</code>). Ces deux structures fournissent des mécanismes pour stocker des données et y accéder de manière efficace. Il existe de nombreuses autres structures de données couramment utilisées en programmation, dont beaucoup sont implémentées dans la bibliothèque standard, et la pile en fait partie.</p>
+<p>Pensez à une pile d'assiettes dans une cafétéria. Comme chaque assiette est lourde et qu'elles sont empilées, vous ne pouvez faire que l'une de ces trois choses :</p>
+<ol>
+<li>Regarder la surface de l'assiette du dessus</li>
+<li>Retirer l'assiette du dessus de la pile (ce qui découvre celle située dessous, si elle existe)</li>
+<li>Poser une nouvelle assiette sur le dessus de la pile (ce qui cache celle située dessous, si elle existe)</li>
+</ol>
+<p>En programmation, une pile est une structure conteneur qui contient plusieurs variables (un peu comme un tableau). Cependant, alors qu'un tableau permet d'accéder et de modifier les éléments dans l'ordre que l'on souhaite (c'est ce qu'on appelle l'<strong>accès aléatoire</strong>, random access), une pile est plus restrictive. Les opérations possibles sur une pile correspondent aux trois actions mentionnées ci-dessus :</p>
+<ol>
+<li>Regarder l'élément du dessus de la pile (généralement via une fonction nommée <code>top()</code>, parfois appelée <code>peek()</code>)</li>
+<li>Retirer l'élément du dessus de la pile (via une fonction nommée <code>pop()</code>)</li>
+<li>Placer un nouvel élément au sommet de la pile (via une fonction nommée <code>push()</code>)</li>
+</ol>
+<p>Une pile est une structure de type dernier entré, premier sorti (LIFO, last-in, first-out). Le dernier élément empilé sera le premier à être dépilé. Si vous posez une nouvelle assiette sur la pile, la première assiette retirée sera celle que vous venez de poser. Dernier entré, premier sorti. Au fur et à mesure que des éléments sont empilés, la pile grossit ; à mesure qu'ils sont dépilés, elle rétrécit.</p>
+<p>Par exemple, voici une courte séquence montrant le fonctionnement des opérations d'empilement et de dépilement :</p>
+<pre><code>
+Pile : vide
+Push 1
+Pile : 1
+Push 2
+Pile : 1 2
+Push 3
+Pile : 1 2 3
+Pop
+Pile : 1 2
+Pop
+Pile : 1
+</code></pre>
+<p>L'analogie des assiettes est assez bonne pour comprendre le fonctionnement de la pile d'appels, mais nous pouvons en proposer une meilleure. Imaginez une série de boîtes aux lettres empilées les unes sur les autres. Chaque boîte ne peut contenir qu'un seul objet, et toutes les boîtes sont vides au départ. De plus, chaque boîte est clouée à celle qui se trouve en dessous, si bien que leur nombre ne peut pas changer. Si l'on ne peut pas modifier le nombre de boîtes, comment obtenir un comportement de pile ?</p>
+<p>Tout d'abord, nous utilisons un marqueur (comme un post-it) pour repérer la boîte vide la plus basse. Au départ, il s'agit de la boîte la plus basse (au fond de la pile). Lorsque nous empilons un élément, nous le plaçons dans la boîte marquée (c'est-à-dire la première boîte vide) et nous remontons le marqueur d'une boîte. Lorsque nous dépilons un élément, nous descendons le marqueur d'une boîte (il pointe alors sur la boîte non vide la plus haute) et nous retirons l'élément de cette boîte. Tout ce qui se trouve sous le marqueur est considéré comme « sur la pile ». Tout ce qui se trouve au niveau du marqueur ou au-dessus n'est pas sur la pile.</p>
+<p><strong>Le segment de la pile d'appels</strong></p>
+<p>Le segment de la pile d'appels contient la mémoire utilisée par la pile d'appels. Au démarrage de l'application, le système d'exploitation empile la fonction <code>main()</code>. Le programme commence alors son exécution.</p>
+<p>Lorsqu'un appel de fonction est rencontré, la fonction est empilée. Lorsque la fonction courante se termine, elle est dépilée (ce processus est parfois appelé <strong>dérouler la pile</strong>, unwinding the stack). Ainsi, en examinant les fonctions actuellement présentes sur la pile d'appels, on peut voir toutes les fonctions qui ont été appelées pour arriver au point d'exécution courant.</p>
+<p>Notre analogie des boîtes aux lettres correspond assez bien au fonctionnement de la pile d'appels. La pile elle-même est un bloc d'adresses mémoire de taille fixe. Les boîtes aux lettres représentent les adresses mémoire, et les « éléments » que nous empilons et dépilons sont appelés <strong>cadres de pile</strong> (stack frames). Un cadre de pile contient toutes les données associées à un appel de fonction donné. Nous reparlerons des cadres de pile dans un instant. Le « marqueur » est un registre (une petite zone de mémoire située dans le processeur) appelé pointeur de pile (stack pointer, souvent abrégé « SP »). Le pointeur de pile indique où se trouve actuellement le sommet de la pile d'appels.</p>
+<p>Nous pouvons faire une optimisation supplémentaire : lorsque nous dépilons un élément, il suffit de descendre le pointeur de pile. Nous n'avons pas besoin de nettoyer ni de mettre à zéro la mémoire utilisée par le cadre de pile dépilé (l'équivalent de vider la boîte aux lettres). Cette mémoire n'est plus considérée comme « sur la pile » (le pointeur de pile est à cette adresse ou en dessous), donc elle ne sera plus accédée. Si nous empilons plus tard un nouveau cadre à cet endroit, il écrasera l'ancienne valeur que nous n'avons jamais nettoyée.</p>
+<p><strong>La pile d'appels en action</strong></p>
+<p>Examinons plus en détail le fonctionnement de la pile d'appels. Voici la suite d'étapes qui se produit lorsqu'une fonction est appelée :</p>
+<ol>
+<li>Le programme rencontre un appel de fonction.</li>
+<li>Un cadre de pile est construit et empilé. Le cadre de pile contient :</li>
+</ol>
+<ul>
+<li>L'adresse de l'instruction qui suit l'appel de fonction (appelée <strong>adresse de retour</strong>, return address). C'est ce qui permet au processeur de se souvenir où reprendre l'exécution une fois la fonction appelée terminée.</li>
+<li>Tous les arguments de la fonction.</li>
+<li>L'espace mémoire des variables locales.</li>
+<li>Les copies sauvegardées des registres modifiés par la fonction, qui doivent être restaurées au retour de celle-ci.</li>
+</ul>
+<ol start="3">
+<li>Le processeur saute au point d'entrée de la fonction.</li>
+<li>Les instructions de la fonction commencent à s'exécuter.</li>
+</ol>
+<p>Lorsque la fonction se termine, les étapes suivantes ont lieu :</p>
+<ol>
+<li>Les registres sont restaurés depuis la pile d'appels.</li>
+<li>Le cadre de pile est dépilé. Cela libère la mémoire de toutes les variables locales et de tous les arguments.</li>
+<li>La valeur de retour est traitée.</li>
+<li>Le processeur reprend l'exécution à l'adresse de retour.</li>
+</ol>
+<p>La valeur de retour peut être traitée de différentes manières, selon l'architecture de l'ordinateur. Certaines architectures incluent la valeur de retour dans le cadre de pile, d'autres utilisent des registres du processeur.</p>
+<p>En général, il n'est pas indispensable de connaître tous les détails du fonctionnement de la pile d'appels. Toutefois, comprendre que les fonctions sont empilées lorsqu'elles sont appelées et dépilées (déroulées) lorsqu'elles retournent vous donne les bases nécessaires pour comprendre la récursivité, ainsi que d'autres concepts utiles lors du débogage.</p>
+<p>Une remarque technique : sur certaines architectures, la pile d'appels croît en s'éloignant de l'adresse mémoire 0. Sur d'autres, elle croît en direction de l'adresse 0. Par conséquent, les nouveaux cadres de pile peuvent avoir une adresse mémoire supérieure ou inférieure à celle des précédents.</p>
+<p><strong>Un exemple rapide de pile d'appels</strong></p>
+<p>Considérez l'application simple suivante :</p>
+<pre><code class="language-cpp">int foo(int x)
+{
+    // b
+    return x;
+} // foo est dépilée de la pile d'appels ici
+
+int main()
+{
+    // a
+    foo(5); // foo est empilée sur la pile d'appels ici
+    // c
+
+    return 0;
+}
+</code></pre>
+<p>La pile d'appels se présente ainsi aux points repérés :</p>
+<p>a :</p>
+<pre><code>
+main()
+</code></pre>
+<p>b :</p>
+<pre><code>
+foo() (avec le paramètre x)
+main()
+</code></pre>
+<p>c :</p>
+<pre><code>
+main()
+</code></pre>
+<p><strong>Dépassement de pile (stack overflow)</strong></p>
+<p>La pile a une taille limitée et ne peut donc contenir qu'une quantité limitée d'informations. Sous Visual Studio pour Windows, la taille par défaut de la pile est de 1 Mo. Avec g++/Clang sur les variantes d'Unix, elle peut atteindre 8 Mo. Si le programme tente de placer trop d'informations sur la pile, un <strong>dépassement de pile</strong> (stack overflow) se produit. Il survient lorsque toute la mémoire de la pile a été allouée : les allocations suivantes débordent alors dans d'autres zones de la mémoire.</p>
+<p>Un dépassement de pile résulte généralement d'une allocation de trop nombreuses variables sur la pile, et/ou d'un trop grand nombre d'appels de fonctions imbriqués (où la fonction A appelle B, qui appelle C, qui appelle D, etc.). Sur les systèmes d'exploitation modernes, un dépassement de pile provoque généralement une violation d'accès signalée par le système, qui termine le programme.</p>
+<p>Voici un exemple de programme qui provoquera probablement un dépassement de pile. Vous pouvez l'exécuter sur votre système et observer le plantage :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int stack[10000000];
+    std::cout &lt;&lt; &quot;hi&quot; &lt;&lt; stack[0]; // nous utilisons stack[0] ici afin que le compilateur n'optimise pas le tableau
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme tente d'allouer sur la pile un tableau énorme (probablement 40 Mo). Comme la pile n'est pas assez grande pour contenir ce tableau, l'allocation déborde dans des zones de la mémoire que le programme n'a pas le droit d'utiliser.</p>
+<p>Sous Windows (Visual Studio), ce programme produit le résultat suivant :</p>
+<pre><code>
+HelloWorld.exe (process 15916) exited with code -1073741571.
+</code></pre>
+<p>-1073741571 correspond à c0000005 en hexadécimal, qui est le code Windows d'une violation d'accès. Notez que « hi » n'est jamais affiché, car le programme est terminé avant ce point.</p>
+<p>Voici un autre programme qui provoquera un dépassement de pile pour une raison différente :</p>
+<pre><code class="language-cpp">// Merci au lecteur yellowEmu pour l'idée d'ajouter un compteur
+#include &lt;iostream&gt;
+
+int g_counter{ 0 };
+
+void eatStack()
+{
+    std::cout &lt;&lt; ++g_counter &lt;&lt; ' ';
+
+    // Nous utilisons une condition ici pour éviter les avertissements du compilateur concernant la récursion infinie
+    if (g_counter &gt; 0)
+        eatStack(); // notez que eatStack() s'appelle elle-même
+
+    // Nécessaire pour empêcher le compilateur d'effectuer une optimisation d'appel terminal (tail-call optimization)
+    std::cout &lt;&lt; &quot;hi&quot;;
+}
+
+int main()
+{
+    eatStack();
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, un cadre de pile est empilé à chaque appel de la fonction <code>eatStack()</code>. Comme <code>eatStack()</code> s'appelle elle-même (et ne retourne jamais à l'appelant), la pile finit par manquer de mémoire et provoque un dépassement.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Exécuté sur la machine Windows 10 de l'auteur (depuis l'IDE Visual Studio Community), <code>eatStack()</code> a planté après 4848 appels en mode debug, et après 128 679 appels en mode release.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous reparlerons des fonctions qui s'appellent elles-mêmes dans la prochaine leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.3%20-%20R%C3%A9cursivit%C3%A9.html">20.3 -- La récursivité</a>.</p>
+</div>
+<p>La pile présente des avantages et des inconvénients :</p>
+<ul>
+<li>L'allocation de mémoire sur la pile est relativement rapide.</li>
+<li>La mémoire allouée sur la pile reste dans sa portée tant qu'elle est sur la pile. Elle est détruite lorsqu'elle est dépilée.</li>
+<li>Toute la mémoire allouée sur la pile est connue à la compilation. Par conséquent, elle peut être accédée directement à travers une variable.</li>
+<li>Comme la pile est relativement petite, il est généralement déconseillé de faire quoi que ce soit qui consomme beaucoup d'espace de pile. Cela inclut l'allocation ou la copie de grands tableaux, ou d'autres structures gourmandes en mémoire.</li>
+</ul>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p><a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.3%20-%20Introduction%20aux%20objets%20et%20aux%20variables.html#comment-560618">Ce commentaire</a> donne quelques informations complémentaires (simplifiées) sur la façon dont les variables de la pile sont disposées et reçoivent des adresses mémoire réelles à l'exécution.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/the-stack-and-the-heap/">https://www.learncpp.com/cpp-tutorial/the-stack-and-the-heap/</a></em></p>
+</main>
+</body>
+</html>

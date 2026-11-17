@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.11 — Comportement de std::vector en tant que pile</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1611-comportement-de-stdvector-en-tant-que-pile">16.11 — Comportement de std::vector en tant que pile</h1>
+<p>Imaginons un programme où l'utilisateur saisit une liste de valeurs, par exemple une série de notes de test. Le nombre de valeurs n'est pas connu à la compilation et peut varier à chaque exécution. Vous devrez stocker ces valeurs dans un <code>std::vector</code> pour les afficher et/ou les traiter.</p>
+<p>D'après ce que nous avons vu jusqu'ici, plusieurs approches sont possibles :</p>
+<p>Vous pouvez d'abord demander à l'utilisateur combien d'entrées il a, créer un vecteur de cette taille, puis lui demander de saisir ce nombre de valeurs.</p>
+<p>Ce n'est pas une mauvaise approche, mais elle oblige l'utilisateur à connaître exactement le nombre d'entrées à l'avance, et à ne pas se tromper en comptant. Compter à la main plus de dix ou vingt éléments est fastidieux. Pourquoi demander à l'utilisateur de compter les valeurs alors que c'est au programme de le faire ?</p>
+<p>Vous pouvez aussi supposer que l'utilisateur ne voudra pas saisir plus d'un certain nombre de valeurs (par exemple 30), puis créer (ou redimensionner) un vecteur de cette taille. Vous demandez ensuite à l'utilisateur de saisir des données jusqu'à ce qu'il ait fini (ou jusqu'à atteindre 30 valeurs). Comme la longueur d'un vecteur doit correspondre au nombre d'éléments utilisés, vous pouvez ensuite redimensionner le vecteur au nombre de valeurs effectivement saisies.</p>
+<p>L'inconvénient de cette approche est que l'utilisateur est limité à 30 valeurs, et nous ne savons pas si cette limite est trop haute ou trop basse. Si l'utilisateur veut en saisir davantage, tant pis pour lui.</p>
+<p>Nous pourrions résoudre ce problème en ajoutant une logique qui agrandit le vecteur dès que l'utilisateur atteint le nombre maximal de valeurs. Mais nous mêlerions alors la gestion de la taille du tableau à la logique du programme, ce qui augmenterait considérablement sa complexité (et provoquerait inévitablement des bugs).</p>
+<p>Le vrai problème vient du fait que nous essayons de deviner combien d'éléments l'utilisateur va saisir, afin de gérer correctement la taille du vecteur. Lorsque le nombre d'éléments à saisir n'est vraiment pas connu à l'avance, il existe une meilleure approche.</p>
+<p>Mais avant d'y arriver, nous devons faire un bref détour.</p>
+<h2 id="quest-ce-quune-pile">Qu'est-ce qu'une pile ?</h2>
+<p>Place à une analogie ! Pensez à une pile d'assiettes dans une cafétéria. Pour une raison inconnue, ces assiettes sont très lourdes et ne peuvent être soulevées qu'une à la fois. Comme elles sont empilées et lourdes, vous ne pouvez modifier la pile que de deux façons :</p>
+<ol>
+<li>Poser une nouvelle assiette au sommet de la pile (elle masque alors celle situées dessous, s'il y en a)</li>
+<li>Retirer l'assiette du sommet (elle dégage alors celle situées dessous, s'il y en a)</li>
+</ol>
+<p>Ajouter ou retirer une assiette au milieu ou au fond de la pile n'est pas permis, car cela demanderait de soulever plusieurs assiettes à la fois.</p>
+<p>L'ordre dans lequel les éléments sont ajoutés et retirés d'une pile peut être décrit comme <strong>dernier entré, premier sorti</strong> (<em>last-in, first-out</em>, LIFO). La dernière assiette posée sur la pile sera la première retirée.</p>
+<h2 id="les-piles-en-programmation">Les piles en programmation</h2>
+<p>En programmation, une <strong>pile</strong> (<em>stack</em>) est un type de conteneur dans lequel l'insertion et le retrait d'éléments suivent un ordre LIFO. Ces opérations portent généralement les noms <strong>push</strong> (empiler) et <strong>pop</strong> (dépiler) :</p>
+<table>
+<thead>
+<tr>
+<th>Nom de l'opération</th>
+<th>Comportement</th>
+<th>Obligatoire ?</th>
+<th>Remarques</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Push</td>
+<td>Place un nouvel élément au sommet de la pile</td>
+<td>Oui</td>
+<td></td>
+</tr>
+<tr>
+<td>Pop</td>
+<td>Retire l'élément au sommet de la pile</td>
+<td>Oui</td>
+<td>Peut renvoyer l'élément retiré ou void</td>
+</tr>
+</tbody>
+</table>
+<p>De nombreuses implémentations de piles proposent aussi, en option, d'autres opérations utiles :</p>
+<table>
+<thead>
+<tr>
+<th>Nom de l'opération</th>
+<th>Comportement</th>
+<th>Obligatoire ?</th>
+<th>Remarques</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Top ou Peek</td>
+<td>Renvoie l'élément au sommet de la pile</td>
+<td>Facultative</td>
+<td>Ne retire pas l'élément</td>
+</tr>
+<tr>
+<td>Empty</td>
+<td>Indique si la pile ne contient aucun élément</td>
+<td>Facultative</td>
+<td></td>
+</tr>
+<tr>
+<td>Size</td>
+<td>Nombre d'éléments présents dans la pile</td>
+<td>Facultative</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Les piles sont courantes en programmation. Dans la leçon <a href="../03%20-%20Chapitre%203%20-%20D%C3%A9boguer%20des%20programmes%20C%2B%2B/3.9%20-%20Utiliser%20un%20d%C3%A9bogueur%20int%C3%A9gr%C3%A9%20-%20la%20pile%20d%27appels.html">3.9 -- Utiliser un débogueur intégré : la pile d'appels</a>, nous avons vu la pile d'appels, qui garde la trace des fonctions appelées. La pile d'appels est… une pile ! (Je sais, cette révélation est décevante.) Lorsqu'une fonction est appelée, une entrée contenant des informations sur cette fonction est ajoutée au sommet de la pile d'appels. Lorsque la fonction se termine, son entrée est retirée du sommet. Ainsi, le sommet de la pile d'appels représente toujours la fonction en cours d'exécution, et chaque entrée suivante représente la fonction qui s'exécutait auparavant.</p>
+<p>Voici par exemple une courte séquence qui montre le fonctionnement des opérations d'empilement et de dépilement :</p>
+<pre><code>
+       (Pile : vide)
+Push 1 (Pile : 1)
+Push 2 (Pile : 1 2)
+Push 3 (Pile : 1 2 3)
+Pop    (Pile : 1 2)
+Push 4 (Pile : 1 2 4)
+Pop    (Pile : 1 2)
+Pop    (Pile : 1)
+Pop    (Pile : vide)
+</code></pre>
+<h2 id="les-piles-en-c">Les piles en C++</h2>
+<p>Dans certains langages, une pile est implémentée comme un type de conteneur à part entière, distinct des autres. Cette approche peut toutefois être très limitative. Prenons le cas où nous voulons afficher toutes les valeurs d'une pile sans la modifier : une interface de pile pure ne fournit pas de méthode directe pour cela.</p>
+<p>En C++, les opérations de type pile ont plutôt été ajoutées, sous forme de fonctions membres, aux conteneurs de la bibliothèque standard existants qui permettent l'insertion et le retrait efficaces d'éléments à une extrémité (<code>std::vector</code>, <code>std::deque</code> et <code>std::list</code>). Chacun de ces conteneurs peut ainsi être utilisé comme une pile, en plus de ses fonctionnalités natives.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>L'analogie avec la pile d'assiettes est bonne, mais nous pouvons en proposer une meilleure, qui aidera à comprendre comment une pile peut être implémentée avec un tableau. Au lieu d'une pile d'assiettes dont le nombre varie, imaginez une colonne de boîtes aux lettres empilées les unes sur les autres. Chaque boîte ne peut contenir qu'un seul objet, et toutes démarrent vides. Chaque boîte est clouée à celle situé en dessous, et le sommet de la colonne est couvert de piques empoisonnées, de sorte qu'aucune nouvelle boîte ne peut être insérée.</p>
+<p>Si nous ne pouvons pas changer le nombre de boîtes, comment obtenir un comportement de pile ?</p>
+<p>D'abord, nous utilisons un marqueur (comme un post-it) pour savoir où se trouve le sommet de la pile : ce sera toujours la boîte vide la plus basse. Au départ, la pile est vide, donc le marqueur est posé sur la boîte du bas.</p>
+<p>Lorsque nous empilons un objet, nous le plaçons dans la boîte marquée (la boîte vide la plus basse), puis nous remontons le marqueur d'une boîte. Lorsque nous dépilons un objet, nous descendons le marqueur d'une boîte (il pointe alors sur la boîte non vide la plus haute) et nous retirons l'objet de cette boîte, qui redevient vide.</p>
+<p>Les objets situés sous le marqueur sont considérés comme « sur la pile ». Les objets situés au niveau du marqueur ou au-dessus ne sont pas sur la pile.</p>
+<p>Appelons maintenant le marqueur <code>length</code> et le nombre de boîtes <code>capacity</code>…</p>
+</div>
+<p>Dans la suite de cette leçon, nous allons examiner comment fonctionne l'interface de pile de <code>std::vector</code>, puis nous verrons comment elle nous aide à résoudre le problème présenté au début de la leçon.</p>
+<h2 id="comportement-de-pile-avec-stdvector">Comportement de pile avec <code>std::vector</code></h2>
+<p>Le comportement de pile de <code>std::vector</code> est implémenté par les fonctions membres suivantes :</p>
+<table>
+<thead>
+<tr>
+<th>Nom de la fonction</th>
+<th>Opération de pile</th>
+<th>Comportement</th>
+<th>Remarques</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>push_back()</td>
+<td>Push</td>
+<td>Place un nouvel élément au sommet de la pile</td>
+<td>Ajoute l'élément à la fin du vecteur</td>
+</tr>
+<tr>
+<td>pop_back()</td>
+<td>Pop</td>
+<td>Retire l'élément au sommet de la pile</td>
+<td>Renvoie void, supprime l'élément en fin de vecteur</td>
+</tr>
+<tr>
+<td>back()</td>
+<td>Top ou Peek</td>
+<td>Renvoie l'élément au sommet de la pile</td>
+<td>Ne retire pas l'élément</td>
+</tr>
+<tr>
+<td>emplace_back()</td>
+<td>Push</td>
+<td>Variante de push_back() parfois plus efficace (voir ci-dessous)</td>
+<td>Ajoute l'élément à la fin du vecteur</td>
+</tr>
+</tbody>
+</table>
+<p>Regardons un exemple qui utilise certaines de ces fonctions :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printStack(const std::vector&lt;int&gt;&amp; stack)
+{
+    if (stack.empty()) // si stack.size == 0
+        std::cout &lt;&lt; &quot;Empty&quot;;
+
+    for (auto element : stack)
+        std::cout &lt;&lt; element &lt;&lt; ' ';
+
+    // \t est un caractère de tabulation, pour aider à aligner le texte
+    std::cout &lt;&lt; &quot;\tCapacity: &quot; &lt;&lt; stack.capacity() &lt;&lt; &quot;  Length &quot; &lt;&lt; stack.size() &lt;&lt; &quot;\n&quot;;
+}
+
+int main()
+{
+    std::vector&lt;int&gt; stack{}; // pile vide
+
+    printStack(stack);
+
+    stack.push_back(1); // push_back() empile un élément sur la pile
+    printStack(stack);
+
+    stack.push_back(2);
+    printStack(stack);
+
+    stack.push_back(3);
+    printStack(stack);
+
+    std::cout &lt;&lt; &quot;Top: &quot; &lt;&lt; stack.back() &lt;&lt; '\n'; // back() renvoie le dernier élément
+
+    stack.pop_back(); // pop_back() dépile un élément de la pile
+    printStack(stack);
+
+    stack.pop_back();
+    printStack(stack);
+
+    stack.pop_back();
+    printStack(stack);
+
+    return 0;
+}
+</code></pre>
+<p>Sous GCC ou Clang, ce programme affiche :</p>
+<pre><code>
+Empty   Capacity: 0  Length: 0
+1       Capacity: 1  Length: 1
+1 2     Capacity: 2  Length: 2
+1 2 3   Capacity: 4  Length: 3
+Top:3
+1 2     Capacity: 4  Length: 2
+1       Capacity: 4  Length: 1
+Empty   Capacity: 4  Length: 0
+</code></pre>
+<p>Rappelez-vous que la longueur (length) est le nombre d'éléments du vecteur, soit, dans ce cas, le nombre d'éléments de notre pile.</p>
+<p>Contrairement à l'opérateur d'indexation <code>operator[]</code> ou à la fonction membre <code>at()</code>, <code>push_back()</code> (et <code>emplace_back()</code>) augmente la longueur du vecteur, et provoque une réallocation si la capacité ne suffit pas à insérer la valeur.</p>
+<p>Dans l'exemple ci-dessus, le vecteur est réalloué 3 fois (de la capacité 0 à 1, de 1 à 2, puis de 2 à 4).</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p><code>push_back()</code> et <code>emplace_back()</code> augmentent la longueur d'un <code>std::vector</code>, et provoquent une réallocation si la capacité ne suffit pas à insérer la valeur.</p>
+</div>
+<h2 id="capacité-supplémentaire-lors-de-lempilement">Capacité supplémentaire lors de l'empilement</h2>
+<p>Dans la sortie ci-dessus, remarquez que lors de la dernière des trois réallocations, la capacité est passée de 2 à 4, alors que nous n'ajoutions qu'un seul élément. Lorsqu'un empilement déclenche une réallocation, <code>std::vector</code> alloue généralement une capacité supplémentaire, afin que d'autres éléments puissent être ajoutés sans nouvelle réallocation à l'ajout suivant.</p>
+<p>La quantité de capacité supplémentaire allouée dépend de l'implémentation de <code>std::vector</code> par le compilateur, et les compilateurs ne procèdent pas tous de la même façon :</p>
+<ul>
+<li>GCC et Clang double la capacité actuelle. Lors de la dernière réallocation, la capacité passe donc de 2 à 4.</li>
+<li>Visual Studio 2022 multiplie la capacité actuelle par 1,5. Lors de la dernière réallocation, la capacité passe de 2 à 3.</li>
+</ul>
+<p>Par conséquent, le programme précédent peut afficher une sortie légèrement différente selon le compilateur utilisé.</p>
+<h2 id="redimensionner-un-vecteur-ne-fonctionne-pas-avec-le-comportement-de-pile">Redimensionner un vecteur ne fonctionne pas avec le comportement de pile</h2>
+<p>La réallocation d'un vecteur est coûteuse en calcul (elle est proportionnelle à la longueur du vecteur), il faut donc l'éviter lorsque c'est raisonnable. Dans l'exemple ci-dessus, nous pourrions éviter les 3 réallocations en redimensionnant manuellement le vecteur à une capacité de 3 au début du programme.</p>
+<p>Voyons ce qui se passe si nous remplaçons la ligne 18 de l'exemple précédent par :</p>
+<pre><code class="language-cpp">std::vector&lt;int&gt; stack(3); // initialisation par parenthèses pour fixer la capacité du vecteur à 3
+</code></pre>
+<p>Lorsque nous relançons le programme, nous obtenons la sortie suivante :</p>
+<pre><code>
+0 0 0   Capacity: 3  Length 3
+0 0 0 1     Capacity: 6  Length 4
+0 0 0 1 2   Capacity: 6  Length 5
+0 0 0 1 2 3     Capacity: 6  Length 6
+Top: 3
+0 0 0 1 2   Capacity: 6  Length 5
+0 0 0 1     Capacity: 6  Length 4
+0 0 0   Capacity: 6  Length 3
+</code></pre>
+<p>Ce n'est pas correct : notre pile commence par une série de valeurs <code>0</code> ! Le problème vient du fait que l'initialisation par parenthèses (pour fixer la taille initiale du vecteur) et la fonction <code>resize()</code> définissent à la fois la capacité ET la longueur. Notre vecteur commence avec une capacité de 3 (ce que nous voulions), mais sa longueur est également fixée à 3. Il démarre donc avec 3 éléments valant 0, et les éléments empilés ensuite viennent se placer au-dessus de ces éléments initiaux.</p>
+<p>La modification de la longueur par la fonction membre <code>resize()</code> est acceptable lorsque nous comptons accéder aux éléments par indice (puisque les indices doivent être inférieurs à la longueur pour être valides), mais elle pose problème lorsque nous utilisons le vecteur comme une pile.</p>
+<p>Ce dont nous avons réellement besoin, c'est d'un moyen de modifier la capacité (pour éviter des réallocations futures) sans modifier la longueur (ce qui aurait pour effet de ajouter de nouveaux éléments à notre pile).</p>
+<h2 id="la-fonction-membre-reserve-modifie-la-capacité-mais-pas-la-longueur">La fonction membre <code>reserve()</code> modifie la capacité (mais pas la longueur)</h2>
+<p>La fonction membre <code>reserve()</code> permet de réallouer un <code>std::vector</code> sans modifier sa longueur actuelle.</p>
+<p>Voici le même exemple que précédemment, mais avec un appel à <code>reserve()</code> pour fixer la capacité :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printStack(const std::vector&lt;int&gt;&amp; stack)
+{
+    if (stack.empty()) // si stack.size == 0
+        std::cout &lt;&lt; &quot;Empty&quot;;
+
+    for (auto element : stack)
+        std::cout &lt;&lt; element &lt;&lt; ' ';
+
+    // \t est un caractère de tabulation, pour aider à aligner le texte
+    std::cout &lt;&lt; &quot;\tCapacity: &quot; &lt;&lt; stack.capacity() &lt;&lt; &quot;  Length &quot; &lt;&lt; stack.size() &lt;&lt; &quot;\n&quot;;
+}
+
+int main()
+{
+    std::vector&lt;int&gt; stack{};
+
+    printStack(stack);
+
+    stack.reserve(6); // réserve de la place pour 6 éléments (sans modifier la longueur)
+    printStack(stack);
+
+    stack.push_back(1);
+    printStack(stack);
+
+    stack.push_back(2);
+    printStack(stack);
+
+    stack.push_back(3);
+    printStack(stack);
+
+    std::cout &lt;&lt; &quot;Top: &quot; &lt;&lt; stack.back() &lt;&lt; '\n';
+
+    stack.pop_back();
+    printStack(stack);
+
+    stack.pop_back();
+    printStack(stack);
+
+    stack.pop_back();
+    printStack(stack);
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme affiche :</p>
+<pre><code>
+Empty   Capacity: 0  Length: 0
+Empty   Capacity: 6  Length: 0
+1       Capacity: 6  Length: 1
+1 2     Capacity: 6  Length: 2
+1 2 3   Capacity: 6  Length: 3
+Top: 3
+1 2     Capacity: 6  Length: 2
+1       Capacity: 6  Length: 1
+Empty   Capacity: 6  Length: 0
+</code></pre>
+<p>Vous constatez que l'appel à <code>reserve(6)</code> a porté la capacité à 6, sans modifier la longueur. Plus aucune réallocation n'a lieu, car le std::vector est assez grand pour accueillir tous les éléments empilés.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La fonction membre <code>resize()</code> modifie la longueur du vecteur, ainsi que sa capacité si nécessaire.<br />
+La fonction membre <code>reserve()</code> ne modifie que la capacité, si nécessaire.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Pour augmenter le nombre d'éléments d'un <code>std::vector</code> :<br />
+Utilisez <code>resize()</code> lorsque vous accédez au vecteur par indexation. Cela modifie la longueur du vecteur, de sorte que vos indices seront valides.<br />
+Utilisez <code>reserve()</code> lorsque vous accédez au vecteur avec des opérations de pile. Cela augmente la capacité sans modifier la longueur du vecteur.</p>
+</div>
+<h2 id="push_back-ou-emplace_back"><code>push_back()</code> ou <code>emplace_back()</code></h2>
+<p><code>push_back()</code> et <code>emplace_back()</code> empilent tous deux un élément. Si l'objet à empiler existe déjà, <code>push_back()</code> et <code>emplace_back()</code> sont équivalents, et <code>push_back()</code> doit être préféré.</p>
+<p>En revanche, lorsque nous créons un objet temporaire (du même type que les éléments du vecteur) dans le but de l'empiler, <code>emplace_back()</code> peut être plus efficace :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+class Foo
+{
+private:
+    std::string m_a{};
+    int m_b{};
+
+public:
+    Foo(std::string_view a, int b)
+        : m_a { a }, m_b { b }
+        {}
+
+    explicit Foo(int b)
+        : m_a {}, m_b { b }
+        {};
+};
+
+int main()
+{
+    std::vector&lt;Foo&gt; stack{};
+
+    // Lorsque nous disposons déjà d'un objet, push_back et emplace_back ont une efficacité similaire
+    Foo f{ &quot;a&quot;, 2 };
+    stack.push_back(f);    // préférer celle-ci
+    stack.emplace_back(f);
+
+    // Lorsqu'il faut créer un objet temporaire à empiler, emplace_back est plus efficace
+    stack.push_back({ &quot;a&quot;, 2 }); // crée un objet temporaire, puis le copie dans le vecteur
+    stack.emplace_back(&quot;a&quot;, 2);  // transmet les arguments afin que l'objet soit créé directement dans le vecteur (aucune copie)
+
+    // push_back n'utilise pas les constructeurs explicit, emplace_back si
+    stack.push_back({ 2 }); // erreur de compilation : Foo(int) est explicit
+    stack.emplace_back(2);  // ok
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous avons un vecteur d'objets <code>Foo</code>. Avec <code>push_back({ "a", 2 })</code>, nous créons et initialisons un objet <code>Foo</code> temporaire, qui est ensuite copié dans le vecteur. Pour des types coûteux à copier (comme <code>std::string</code>), cette copie peut dégrader les performances.</p>
+<p>Avec <code>emplace_back()</code>, nous n'avons pas besoin de créer un objet temporaire à passer. Nous transmettons plutôt les arguments qui serviraient à créer cet objet temporaire, et <code>emplace_back()</code> les transmet (grâce à un mécanisme appelé <em>perfect forwarding</em>) au vecteur, où ils servent à créer et initialiser l'objet directement dans le vecteur. On évite ainsi une copie qui aurait autrement été effectuée.</p>
+<p>Notez que <code>push_back()</code> n'utilise pas les constructeurs explicit, alors que <code>emplace_back()</code> les utilise. Cela rend <code>emplace_back</code> plus dangereux, car il est plus facile d'invoquer accidentellement un constructeur explicit pour effectuer une conversion qui n'a pas de sens.</p>
+<p>Avant C++20, <code>emplace_back()</code> ne fonctionne pas avec l'initialisation par agrégat.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Préférez <code>emplace_back()</code> lorsque vous créez un nouvel objet temporaire à ajouter au conteneur, ou lorsque vous avez besoin d'accéder à un constructeur explicit.</p>
+<p>Préférez <code>push_back()</code> dans les autres cas.</p>
+<p><a href="https://abseil.io/tips/112">Cet article</a> explique plus en détail cette bonne pratique.</p>
+</div>
+<h2 id="résoudre-notre-problème-avec-les-opérations-de-pile">Résoudre notre problème avec les opérations de pile</h2>
+<p>Il devrait maintenant être évident comment résoudre le problème présenté au début de la leçon. Si nous ne savons pas à l'avance combien d'éléments seront ajoutés à notre <code>std::vector</code>, le plus simple est d'utiliser les fonctions de pile pour insérer ces éléments.</p>
+<p>Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; scoreList{};
+
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Enter a score (or -1 to finish): &quot;;
+        int x{};
+        std::cin &gt;&gt; x;
+
+        if (!std::cin) // gérer une saisie invalide
+        {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+            continue;
+        }
+
+        // Si c'est terminé, on sort de la boucle
+        if (x == -1)
+            break;
+
+        // L'utilisateur a saisi un élément valide, on l'ajoute au vecteur
+        scoreList.push_back(x);
+    }
+
+    std::cout &lt;&lt; &quot;Your list of scores: \n&quot;;
+
+    for (const auto&amp; score : scoreList)
+        std::cout &lt;&lt; score &lt;&lt; ' ';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme permet à l'utilisateur de saisir des notes de test, en ajoutant chacune d'elles à un vecteur. Une fois la saisie terminée, toutes les valeurs du vecteur sont affichées.</p>
+<p>Remarquez que, dans ce programme, nous n'avons ni à compter, ni à indexer, ni à nous soucier de la taille d'un tableau ! Nous pouvons nous concentrer sur la logique de ce que doit faire le programme, et laisser le vecteur gérer tous les problèmes de stockage !</p>
+<h2 id="cest-lheure-du-quiz">C'est l'heure du quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Écrivez un programme qui empile et dépile des valeurs, et qui affiche la séquence suivante :</p>
+<pre><code>
+       (Pile : vide)
+Push 1 (Pile : 1)
+Push 2 (Pile : 1 2)
+Push 3 (Pile : 1 2 3)
+Pop    (Pile : 1 2)
+Push 4 (Pile : 1 2 4)
+Pop    (Pile : 1 2)
+Pop    (Pile : 1)
+Pop    (Pile : vide)
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void printStackValues(const std::vector&lt;int&gt;&amp; v)
+{
+    std::cout &lt;&lt; &quot;\t(Stack:&quot;;
+
+    for (auto e : v)
+        std::cout &lt;&lt; ' ' &lt;&lt; e;
+
+    if (v.empty()) // si v.size == 0
+        std::cout &lt;&lt; &quot; empty&quot;;
+
+    std::cout &lt;&lt; &quot;)\n&quot;;
+}
+
+void pushAndPrint(std::vector&lt;int&gt;&amp; v, int val)
+{
+    v.push_back(val);
+    std::cout &lt;&lt; &quot;Push &quot; &lt;&lt; val;
+    printStackValues(v);
+}
+
+void popAndPrint(std::vector&lt;int&gt;&amp; v)
+{
+    v.pop_back();
+    std::cout &lt;&lt; &quot;Pop &quot;;
+    printStackValues(v);
+}
+
+int main()
+{
+    std::vector&lt;int&gt; v {};
+
+    printStackValues(v);
+
+    pushAndPrint(v, 1);
+    pushAndPrint(v, 2);
+    pushAndPrint(v, 3);
+    popAndPrint(v);
+    pushAndPrint(v, 4);
+    popAndPrint(v);
+    popAndPrint(v);
+    popAndPrint(v);
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdvector-and-stack-behavior/">https://www.learncpp.com/cpp-tutorial/stdvector-and-stack-behavior/</a></em></p>
+</main>
+</body>
+</html>

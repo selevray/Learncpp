@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.6 — Templates de fonctions</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="116-templates-de-fonctions">11.6 — Templates de fonctions</h1>
+<p>Supposons que vous souhaitiez écrire une fonction calculant le maximum de deux nombres. Vous pourriez procéder ainsi :</p>
+<pre><code class="language-cpp">int max(int x, int y)
+{
+    return (x &lt; y) ? y : x;
+    // Remarque : nous utilisons &lt; au lieu de &gt; parce que std::max utilise &lt;
+}
+</code></pre>
+<p>Bien que l'appelant puisse transmettre des valeurs différentes à la fonction, le type des paramètres est figé : l'appelant ne peut donc transmettre que des valeurs de type <code>int</code>. Cela signifie que cette fonction ne fonctionne réellement bien que pour les entiers (et pour les types pouvant être promus en <code>int</code>).</p>
+<p>Que se passe-t-il alors lorsque vous voulez trouver le maximum de deux valeurs <code>double</code> ? Comme C++ exige que l'on précise le type de tous les paramètres de fonction, la solution consiste à créer une nouvelle version surchargée de <code>max</code> dont les paramètres sont de type <code>double</code> :</p>
+<pre><code class="language-cpp">double max(double x, double y)
+{
+    return (x &lt; y) ? y: x;
+}
+</code></pre>
+<p>Remarquez que le code d'implémentation de la version <code>double</code> de <code>max</code> est exactement le même que celui de la version <code>int</code> ! En fait, cette implémentation fonctionne pour de nombreux types différents : <code>int</code>, <code>double</code>, <code>long</code>, <code>long double</code>, et même pour de nouveaux types que vous avez vous-même créés (nous verrons comment faire dans de prochaines leçons).</p>
+<p>Devoir créer des fonctions surchargées ayant la même implémentation pour chaque ensemble de types de paramètres que nous souhaitons prendre en charge est une source de maintenance pénible, une recette pour les erreurs, et une violation évidente du principe DRY (don't repeat yourself, « ne vous répétez pas »). Il existe aussi un défi moins évident : un programmeur qui souhaite utiliser la fonction <code>max</code> peut vouloir l'appeler avec un type d'argument que l'auteur de <code>max</code> n'a pas anticipé (et pour lequel il n'a donc pas écrit de fonction surchargée).</p>
+<p>Ce qui nous manque vraiment, c'est un moyen d'écrire une seule version de <code>max</code> capable de travailler avec des arguments de n'importe quel type (même des types qui n'ont peut-être pas été anticipés lors de l'écriture du code de <code>max</code>). Les fonctions ordinaires ne sont tout simplement pas à la hauteur de cette tâche. Heureusement, C++ prend en charge une autre fonctionnalité conçue spécialement pour résoudre ce genre de problème.</p>
+<p>Bienvenue dans le monde des templates C++.</p>
+<h2 id="introduction-aux-templates-c">Introduction aux templates C++</h2>
+<p>En C++, le système de templates a été conçu pour simplifier la création de fonctions (ou de classes) capables de travailler avec différents types de données.</p>
+<p>Plutôt que de créer manuellement une série de fonctions ou de classes presque identiques (une pour chaque ensemble de types différents), nous créons un seul <em>template</em>. Comme une définition ordinaire, une <strong>définition de template</strong> décrit à quoi ressemble une fonction ou une classe. Contrairement à une définition ordinaire (où tous les types doivent être précisés), dans un template nous pouvons utiliser un ou plusieurs types de substitution. Un type de substitution (placeholder type) représente un type inconnu au moment de la définition du template, mais qui sera fourni plus tard, au moment de l'utilisation du template.</p>
+<p>Une fois le template défini, le compilateur peut l'utiliser pour générer autant de fonctions (ou de classes) surchargées que nécessaire, chacune utilisant des types réels différents !</p>
+<p>Le résultat final est le même : nous obtenons une série de fonctions ou de classes presque identiques (une pour chaque ensemble de types différents). Mais nous n'avons à créer et à maintenir qu'un seul template, et le compilateur se charge du travail difficile de créer les autres à notre place.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Le compilateur peut utiliser un seul template pour générer une famille de fonctions ou de classes apparentées, chacune utilisant un ensemble différent de types réels.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Comme le concept de template peut être difficile à décrire avec des mots, essayons une analogie.</p>
+<p>Si vous cherchiez le mot « template » dans un dictionnaire, vous y trouveriez une définition proche de la suivante : « un template est un modèle qui sert de patron pour créer des objets semblables ». Un type de template très facile à comprendre est celui du pochoir pour la peinture. Un pochoir est une fine plaque de matériau (comme du carton ou du plastique) dans laquelle une forme a été découpée (par exemple un visage souriant). En plaçant le pochoir sur un autre objet, puis en projetant de la peinture à travers l'ouverture, vous pouvez reproduire très rapidement la forme découpée. Le pochoir lui-même n'a besoin d'être créé qu'une seule fois, puis il peut être réutilisé autant de fois que souhaité, pour créer la forme découpée dans autant de couleurs différentes que vous le voulez. Mieux encore, la couleur d'une forme réalisée au pochoir n'a pas besoin d'être déterminée avant que le pochoir ne soit effectivement utilisé.</p>
+<p>Un template est essentiellement un pochoir permettant de créer des fonctions ou des classes. Nous créons le template (notre pochoir) une seule fois, puis nous pouvons l'utiliser autant de fois que nécessaire, pour découper une fonction ou une classe pour un ensemble de types réels donné. Ces types réels n'ont pas besoin d'être déterminés avant que le template ne soit effectivement utilisé.</p>
+</div>
+<p>Comme les types réels ne sont pas déterminés au moment où le template est utilisé dans un programme (et non au moment où il est écrit), l'auteur du template n'a pas besoin d'anticiper tous les types réels susceptibles d'être utilisés. Cela signifie que le code d'un template peut être utilisé avec des types qui n'existaient même pas au moment où le template a été écrit ! Nous verrons comment cela s'avère utile lorsque nous explorerons la bibliothèque standard C++, qui regorge de code de templates !</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les templates peuvent fonctionner avec des types qui n'existaient même pas au moment où le template a été écrit. Cela rend le code de template à la fois souple et pérenne !</p>
+</div>
+<p>Dans la suite de cette leçon, nous allons présenter et explorer en détail la manière de créer des templates de fonctions et décrire leur fonctionnement. Nous reporterons la discussion sur les templates de classes après avoir vu ce que sont les classes.</p>
+<h2 id="templates-de-fonctions">Templates de fonctions</h2>
+<p>Un <strong>template de fonction</strong> (function template) est une définition de type fonction utilisée pour générer une ou plusieurs fonctions surchargées, chacune avec un ensemble différent de types réels. C'est ce qui nous permettra de créer des fonctions capables de travailler avec de nombreux types différents. Le template de fonction initial, qui sert à générer d'autres fonctions, est appelé <strong>template primaire</strong> (primary template), et les fonctions générées à partir du template primaire sont appelées <strong>fonctions instanciées</strong> (instantiated functions).</p>
+<p>Lorsque nous créons un template de fonction primaire, nous utilisons des <strong>types de substitution</strong> (technically called <strong>type template parameters</strong>, informally called <strong>template types</strong>, en français « paramètres template de type ») pour tous les types de paramètres, types de retour ou types utilisés dans le corps de la fonction que nous voulons laisser à l'utilisateur du template le soin de préciser ultérieurement.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>C++ prend en charge 3 genres différents de paramètres de template :</p>
+<ul>
+<li>Les paramètres template de type (où le paramètre représente un type).</li>
+<li>Les paramètres template non-type (où le paramètre représente une valeur constexpr).</li>
+<li>Les paramètres template template (où le paramètre représente un template).</li>
+</ul>
+<p>Les paramètres template de type sont de loin les plus courants, nous nous concentrerons donc d'abord sur eux. Nous aborderons également les paramètres non-type, qui sont de plus en plus utilisés en C++ moderne.</p>
+</div>
+<p>Les templates de fonctions s'apprennent mieux par l'exemple. Transformons donc notre fonction ordinaire <code>max(int, int)</code> de l'exemple précédent en template de fonction. C'est étonnamment simple, et nous expliquerons ce qui se passe au fur et à mesure.</p>
+<h2 id="création-dun-template-de-fonction-max">Création d'un template de fonction <code>max()</code></h2>
+<p>Voici à nouveau la version <code>int</code> de <code>max()</code> :</p>
+<pre><code class="language-cpp">int max(int x, int y)
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>Remarquez que nous utilisons le type <code>int</code> trois fois dans cette fonction : une fois pour le paramètre <code>x</code>, une fois pour le paramètre <code>y</code>, et une fois pour le type de retour de la fonction.</p>
+<p>Pour créer un template de fonction pour <code>max()</code>, nous allons faire deux choses. Premièrement, nous remplaçons tous les types réels que nous voulons laisser à préciser ultérieurement par des paramètres template de type. Ici, comme un seul type doit être remplacé (<code>int</code>), nous n'avons besoin que d'un seul paramètre template de type (que nous appellerons <code>T</code>) :</p>
+<p>Voici notre nouvelle fonction utilisant un seul type template, où toutes les occurrences du type réel <code>int</code> ont été remplacées par le paramètre template de type <code>T</code> :</p>
+<pre><code class="language-cpp">T max(T x, T y) // ne compilera pas car nous n'avons pas défini T
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>C'est un bon début, mais cela ne compilera pas, car le compilateur ne sait pas ce qu'est <code>T</code> ! Et il s'agit toujours d'une fonction ordinaire, pas d'un template de fonction.</p>
+<p>Deuxièmement, nous indiquons au compilateur qu'il s'agit d'un template, et que <code>T</code> est un paramètre template de type servant de substitut à n'importe quel type. Ces deux opérations sont réalisées à l'aide d'une <strong>déclaration de paramètres template</strong> (template parameter declaration), qui définit les paramètres template qui seront utilisés par la suite. La portée d'une déclaration de paramètres template est strictement limitée au template de fonction (ou de classe) qui la suit. Par conséquent, chaque template de fonction ou de classe a besoin de sa propre déclaration de paramètres template.</p>
+<pre><code class="language-cpp">template &lt;typename T&gt; // déclaration des paramètres template, définissant T comme paramètre template de type
+T max(T x, T y) // définition du template de fonction pour max&lt;T&gt;
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>Dans notre déclaration de paramètres template, nous commençons par le mot-clé <code>template</code>, qui indique au compilateur que nous créons un template. Ensuite, nous spécifions entre chevrons (<code>&lt;&gt;</code>) tous les paramètres template utilisés par notre template. Pour chaque paramètre template de type, nous utilisons le mot-clé <code>typename</code> (préféré) ou <code>class</code>, suivi du nom du paramètre template de type (par exemple <code>T</code>).</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous verrons comment créer des templates de fonctions avec plusieurs types template dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.8%20-%20Mod%C3%A8les%20de%20fonctions%20avec%20plusieurs%20types%20de%20param%C3%A8tres.html">11.8 -- Templates de fonctions avec plusieurs types template</a>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Il n'y a aucune différence entre les mots-clés <code>typename</code> et <code>class</code> dans ce contexte. Vous verrez souvent les gens utiliser le mot-clé <code>class</code>, puisqu'il a été introduit dans le langage plus tôt. Nous préférons cependant le mot-clé plus récent <code>typename</code>, car il indique plus clairement que le paramètre template de type peut être remplacé par n'importe quel type (comme un type fondamental), et pas seulement par un type classe.</p>
+</div>
+<p>Croyez-le ou non, nous avons terminé ! Nous avons créé une version template de notre fonction <code>max()</code> capable d'accepter des arguments de types différents.</p>
+<p>Dans la prochaine leçon, nous verrons comment utiliser notre template de fonction <code>max</code> pour générer une ou plusieurs fonctions <code>max()</code> avec des paramètres de types différents, puis comment appeler ces fonctions.</p>
+<h2 id="nommer-les-paramètres-template">Nommer les paramètres template</h2>
+<p>De la même manière que nous utilisons souvent une seule lettre pour les noms de variables dans des situations triviales (par exemple <code>x</code>), il est conventionnel d'utiliser une seule lettre majuscule (à partir de <code>T</code>) lorsque le paramètre template est utilisé de façon triviale ou évidente. Par exemple, dans notre template de fonction <code>max</code> :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+T max(T x, T y)
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>Nous n'avons pas besoin de donner à <code>T</code> un nom complexe, car c'est manifestement un simple type de substitution pour les valeurs comparées, et <code>T</code> peut être n'importe quel type pouvant être comparé (tel que <code>int</code>, <code>double</code> ou <code>char</code>, mais pas <code>nullptr</code>).</p>
+<p>Nos templates de fonctions suivront généralement cette convention de nommage.</p>
+<p>Si un paramètre template de type a un usage non évident ou des exigences spécifiques à respecter, il existe deux conventions courantes pour ces noms :</p>
+<ul>
+<li>Commencer par une majuscule (par exemple <code>Allocator</code>). La bibliothèque standard utilise cette convention.</li>
+<li>Préfixer par un <code>T</code>, puis commencer par une majuscule (par exemple <code>TAllocator</code>). Cela permet de voir plus facilement qu'il s'agit d'un paramètre template de type.</li>
+</ul>
+<p>Le choix entre les deux relève de vos préférences personnelles.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Par exemple, la bibliothèque standard possède une surcharge de <code>std::max()</code> déclarée ainsi :</p>
+<pre><code class="language-cpp">template&lt; class T, class Compare &gt;
+const T&amp; max( const T&amp; a, const T&amp; b, Compare comp ); // ignorez le &amp; pour l'instant, nous les verrons dans une future leçon
+</code></pre>
+<p>Comme <code>a</code> et <code>b</code> sont de type <code>T</code>, nous savons que peu nous importe le type de <code>a</code> et <code>b</code> : il peut s'agir de n'importe quel type. Comme <code>comp</code> a le type <code>Compare</code>, nous savons que <code>comp</code> doit être un type satisfaisant aux exigences d'un <code>Compare</code> (quelles qu'elles soient).</p>
+<p>Lorsqu'un template de fonction est instancié, le compilateur remplace les paramètres template par les arguments template, puis compile la fonction instanciée résultante. La compilation réussit ou non selon la manière dont les objets de chaque type sont utilisés dans la fonction. Les exigences pour un paramètre template donné sont donc essentiellement définies de manière implicite.</p>
+<p>Comme il peut être difficile de déduire les exigences à partir de la manière dont les objets du type sont utilisés, c'est un domaine où il est utile de consulter la documentation technique, qui doit énoncer explicitement ces exigences. Par exemple, si nous voulons connaître les exigences d'un <code>Compare</code>, nous pouvons consulter la documentation de <code>std::max</code> (voir par exemple <a href="https://en.cppreference.com/w/cpp/algorithm/max">https://en.cppreference.com/w/cpp/algorithm/max</a>), où elles devraient être listées.</p>
+</div>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez une seule lettre majuscule commençant par <code>T</code> (par exemple <code>T</code>, <code>U</code>, <code>V</code>, etc.) pour nommer les paramètres template de type utilisés de façon triviale ou évidente et représentant « tout type raisonnable ».</p>
+<p>Si le paramètre template de type a un usage non évident ou des exigences spécifiques à respecter, un nom plus descriptif est justifié (par exemple <code>Allocator</code> ou <code>TAllocator</code>).</p>
+</div>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Expliquez pourquoi les plans de construction sont un type de template.</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Le plan de construction n'est qu'une feuille de papier décrivant comment construire un bâtiment. À l'aide de ce plan, les équipes de construction peuvent rapidement ériger de nombreux bâtiments à la structure identique. Cependant, le type de matériau spécifique utilisé pour chaque bâtiment peut varier (par exemple, le matériau employé pour le revêtement extérieur du bâtiment) et n'a pas besoin d'être déterminé avant que les bâtiments ne soient effectivement construits.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/function-templates/">https://www.learncpp.com/cpp-tutorial/function-templates/</a></em></p>
+</main>
+</body>
+</html>

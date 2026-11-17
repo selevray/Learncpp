@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26.4 — Spécialisation de modèles de classes</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="264-spécialisation-de-modèles-de-classes">26.4 — Spécialisation de modèles de classes</h1>
+<p>Dans la leçon précédente <a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.3%20-%20Sp%C3%A9cialisation%20de%20fonctions%20template.html">26.3 -- Spécialisation de modèles de fonctions</a>, nous avons vu qu'il était possible de spécialiser des fonctions afin de fournir un comportement différent pour des types de données spécifiques. Il s'avère qu'il est possible de spécialiser non seulement des fonctions, mais aussi des classes !</p>
+<p>Considérons le cas où vous voulez une classe qui stocke 8 objets. Voici un modèle de classe simplifié pour cela :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage8
+{
+private:
+    T m_array[8];
+
+public:
+    void set(int index, const T&amp; value)
+    {
+        m_array[index] = value;
+    }
+
+    const T&amp; get(int index) const
+    {
+        return m_array[index];
+    }
+};
+
+int main()
+{
+    // Définit un Storage8 pour les entiers
+    Storage8&lt;int&gt; intStorage;
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+        intStorage.set(count, count);
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+        std::cout &lt;&lt; intStorage.get(count) &lt;&lt; '\n';
+
+    // Définit un Storage8 pour les bool
+    Storage8&lt;bool&gt; boolStorage;
+    for (int count{ 0 }; count &lt; 8; ++count)
+        boolStorage.set(count, count &amp; 3);
+
+    std::cout &lt;&lt; std::boolalpha;
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+    {
+        std::cout &lt;&lt; boolStorage.get(count) &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Cet exemple affiche :</p>
+<pre><code>
+0
+1
+2
+3
+4
+5
+6
+7
+false
+true
+true
+true
+false
+true
+true
+true
+</code></pre>
+<p>Bien que cette classe soit entièrement fonctionnelle, il s'avère que l'implémentation de <code>Storage8&lt;bool&gt;</code> est plus inefficace qu'elle ne devrait l'être. Comme toutes les variables doivent avoir une adresse, et que le processeur ne peut pas adresser une unité plus petite qu'un octet, toutes les variables doivent occuper au moins un octet. En conséquence, une variable de type <code>bool</code> occupe un octet entier alors qu'elle n'a techniquement besoin que d'un seul bit pour stocker sa valeur vrai ou faux ! Un <code>bool</code> contient donc 1 bit d'information utile et 7 bits d'espace gaspillé. Notre classe <code>Storage8&lt;bool&gt;</code>, qui contient 8 <code>bool</code>, représente donc 1 octet d'information utile et 7 octets gaspillés.</p>
+<p>Il s'avère qu'à l'aide d'une logique binaire élémentaire, il est possible de compresser les 8 booléens dans un seul octet, supprimant entièrement l'espace gaspillé. Cependant, pour y parvenir, il faut remanier la classe lorsqu'elle est utilisée avec le type <code>bool</code>, en remplaçant le tableau de 8 <code>bool</code> par une variable d'un seul octet. Bien que nous puissions créer une classe entièrement nouvelle pour cela, cela présente un inconvénient majeur : il faut lui donner un nom différent. Le programmeur doit alors se souvenir que <code>Storage8&lt;T&gt;</code> est destiné aux types autres que <code>bool</code>, tandis que <code>Storage8Bool</code> (ou quel que soit le nom choisi pour la nouvelle classe) est destiné à <code>bool</code>. C'est une complexité inutile que nous préférerions éviter. Heureusement, C++ nous offre une meilleure méthode : la spécialisation de modèles de classes (class template specialization).</p>
+<h2 id="spécialisation-de-modèles-de-classes">Spécialisation de modèles de classes</h2>
+<p>La spécialisation de modèle de classe nous permet de spécialiser une classe template pour un type de données particulier (ou plusieurs types de données, s'il y a plusieurs paramètres template). Dans ce cas, nous allons utiliser la spécialisation de modèle de classe pour écrire une version personnalisée de <code>Storage8&lt;bool&gt;</code> qui prendra le pas sur la classe générique <code>Storage8&lt;T&gt;</code>.</p>
+<p>Les spécialisations de modèles de classes sont traitées comme des classes entièrement indépendantes, même si elles sont instanciées de la même façon que la classe template. Cela signifie que nous pouvons modifier tout ce qui concerne notre classe spécialisée, y compris la façon dont elle est implémentée et même les fonctions qu'elle rend publiques, exactement comme s'il s'agissait d'une classe indépendante.</p>
+<p>Comme pour tous les templates, le compilateur doit pouvoir voir la définition complète d'une spécialisation pour l'utiliser. De plus, la définition d'une spécialisation de modèle de classe exige que la classe non spécialisée soit définie au préalable.</p>
+<p>Voici un exemple de classe <code>Storage8&lt;bool&gt;</code> spécialisée :</p>
+<pre><code class="language-cpp">#include &lt;cstdint&gt;
+
+// Définit d'abord notre modèle de classe non spécialisé
+template &lt;typename T&gt;
+class Storage8
+{
+private:
+    T m_array[8];
+
+public:
+    void set(int index, const T&amp; value)
+    {
+        m_array[index] = value;
+    }
+
+    const T&amp; get(int index) const
+    {
+        return m_array[index];
+    }
+};
+
+// Définit maintenant notre modèle de classe spécialisé
+template &lt;&gt; // ce qui suit est une classe template sans paramètres template
+class Storage8&lt;bool&gt; // nous spécialisons Storage8 pour bool
+{
+// Ce qui suit relève simplement des détails d'implémentation de la classe
+
+private:
+    std::uint8_t m_data{};
+
+public:
+    // Ne vous préoccupez pas des détails d'implémentation de ces fonctions
+    void set(int index, bool value)
+    {
+        // Déterminer quel bit on définit ou on efface
+        // Ceci met un 1 au bit qui nous intéresse, pour l'activer ou le désactiver
+        auto mask{ 1 &lt;&lt; index };
+
+        if (value)  // Si l'on définit un bit
+            m_data |= mask;   // utiliser le OU binaire pour activer ce bit
+        else  // si l'on désactive un bit
+            m_data &amp;= ~mask;  // appliquer le ET binaire avec le masque inversé pour désactiver ce bit
+    }
+
+    bool get(int index)
+    {
+        // Déterminer quel bit on lit
+        auto mask{ 1 &lt;&lt; index };
+        // ET binaire pour obtenir la valeur du bit qui nous intéresse
+        // Puis conversion implicite en booléen
+        return (m_data &amp; mask);
+    }
+};
+
+// Même exemple que précédemment
+int main()
+{
+    // Définit un Storage8 pour les entiers (instancie Storage8&lt;T&gt;, avec T = int)
+    Storage8&lt;int&gt; intStorage;
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+    {
+        intStorage.set(count, count);
+    }
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+    {
+        std::cout &lt;&lt; intStorage.get(count) &lt;&lt; '\n';
+    }
+
+    // Définit un Storage8 pour les bool (instancie la spécialisation Storage8&lt;bool&gt;)
+    Storage8&lt;bool&gt; boolStorage;
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+    {
+        boolStorage.set(count, count &amp; 3);
+    }
+
+    std::cout &lt;&lt; std::boolalpha;
+
+    for (int count{ 0 }; count &lt; 8; ++count)
+    {
+        std::cout &lt;&lt; boolStorage.get(count) &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Remarquons d'abord que notre modèle de classe spécialisé commence par <code>template&lt;&gt;</code>. Le mot-clé template indique au compilateur que ce qui suit est un template, et les chevrons vides signifient qu'il n'y a aucun paramètre template. Ici, il n'y a aucun paramètre template parce que nous remplaçons le seul paramètre template (<code>T</code>) par un type précis (<code>bool</code>).</p>
+<p>Ensuite, nous ajoutons <code>&lt;bool&gt;</code> au nom de la classe pour indiquer que nous spécialisons une version <code>bool</code> de <code>class Storage8</code>.</p>
+<p>Toutes les autres modifications relèvent des détails d'implémentation de la classe. Vous n'avez pas besoin de comprendre le fonctionnement de la logique binaire pour utiliser la classe (vous pouvez toutefois consulter <a href="../07%20-%20Chapitre%20O%20-%20Manipulation%20de%20bits%20%28chapitre%20facultatif%29/O.2%20-%20Op%C3%A9rateurs%20bit%20%C3%A0%20bit.html">O.2 -- Opérateurs binaires</a> si vous voulez le comprendre, mais avez besoin de revoir le fonctionnement des opérateurs binaires).</p>
+<p>Notez que cette classe spécialisée utilise un <code>std::uint8_t</code> (un entier non signé d'un octet) au lieu d'un tableau de 8 <code>bool</code> (8 octets).</p>
+<p>Désormais, lorsque nous instancions un objet de type <code>Storage&lt;T&gt;</code>, où <code>T</code> n'est pas un <code>bool</code>, nous obtenons une version générée à partir du modèle de classe générique <code>Storage8&lt;T&gt;</code>. Lorsque nous instancions un objet de type <code>Storage8&lt;bool&gt;</code>, nous obtenons la version spécialisée que nous venons de créer. Notez que nous avons conservé la même interface publique pour les deux classes : bien que C++ nous laisse toute liberté pour ajouter, supprimer ou modifier les fonctions de <code>Storage8&lt;bool&gt;</code>, conserver une interface cohérente permet au programmeur d'utiliser l'une ou l'autre classe exactement de la même manière.</p>
+<p>Comme vous pouvez vous y attendre, ceci affiche le même résultat que l'exemple précédent qui utilisait la version non spécialisée de <code>Storage8&lt;bool&gt;</code> :</p>
+<pre><code>
+0
+1
+2
+3
+4
+5
+6
+7
+false
+true
+true
+true
+false
+true
+true
+true
+</code></pre>
+<h2 id="spécialisation-de-fonctions-membres">Spécialisation de fonctions membres</h2>
+<p>Dans la leçon précédente, nous avons présenté cet exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    // Définit quelques unités de stockage
+    Storage i { 5 };
+    Storage d { 6.7 };
+
+    // Affiche quelques valeurs
+    i.print();
+    d.print();
+}
+</code></pre>
+<p>Notre souhait est de spécialiser la fonction <code>print()</code> afin qu'elle affiche les nombres <code>double</code> en notation scientifique. En utilisant la spécialisation de modèle de classe, nous pourrions définir une classe spécialisée pour <code>Storage&lt;double&gt;</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+// Spécialisation explicite de modèle de classe pour Storage&lt;double&gt;
+// Remarquez à quel point c'est redondant
+template &lt;&gt;
+class Storage&lt;double&gt;
+{
+private:
+    double m_value {};
+public:
+    Storage(double value)
+      : m_value { value }
+    {
+    }
+
+    void print();
+};
+
+// Nous allons définir ceci en dehors de la classe pour des raisons qui deviendront évidentes plus loin
+// Il s'agit d'une définition normale (non spécialisée) de la fonction membre print de la classe spécialisée Storage&lt;double&gt;
+void Storage&lt;double&gt;::print()
+{
+    std::cout &lt;&lt; std::scientific &lt;&lt; m_value &lt;&lt; '\n';
+}
+
+int main()
+{
+    // Définit quelques unités de stockage
+    Storage i { 5 };
+    Storage d { 6.7 }; // utilise la spécialisation explicite Storage&lt;double&gt;
+
+    // Affiche quelques valeurs
+    i.print(); // appelle Storage&lt;int&gt;::print (instanciée à partir de Storage&lt;T&gt;)
+    d.print(); // appelle Storage&lt;double&gt;::print (appelée depuis la spécialisation explicite de Storage&lt;double&gt;)
+}
+</code></pre>
+<p>Cependant, remarquez la quantité de redondance ici. Nous avons dupliqué une classe entière simplement pour modifier une seule fonction membre !</p>
+<p>Heureusement, nous pouvons faire mieux. C++ ne nous oblige pas à spécialiser explicitement <code>Storage&lt;double&gt;</code> pour spécialiser explicitement <code>Storage&lt;double&gt;::print()</code>. Nous pouvons plutôt laisser le compilateur spécialiser implicitement <code>Storage&lt;double&gt;</code> à partir de <code>Storage&lt;T&gt;</code>, et fournir une spécialisation explicite de la seule fonction <code>Storage&lt;double&gt;::print()</code> ! Voici à quoi cela ressemble :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+// Ceci est une définition de fonction membre spécialisée
+// Les spécialisations explicites de fonctions ne sont pas implicitement inline ; il faut donc la déclarer inline si elle est placée dans un fichier d'en-tête
+template&lt;&gt;
+void Storage&lt;double&gt;::print()
+{
+    std::cout &lt;&lt; std::scientific &lt;&lt; m_value &lt;&lt; '\n';
+}
+
+int main()
+{
+    // Définit quelques unités de stockage
+    Storage i { 5 };
+    Storage d { 6.7 }; // provoquera l'instanciation implicite de Storage&lt;double&gt;
+
+    // Affiche quelques valeurs
+    i.print(); // appelle Storage&lt;int&gt;::print (instanciée à partir de Storage&lt;T&gt;)
+    d.print(); // appelle Storage&lt;double&gt;::print (appelée depuis la spécialisation explicite de Storage&lt;double&gt;::print())
+}
+</code></pre>
+<p>C'est tout !</p>
+<p>Comme indiqué dans la leçon précédente (<a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.3%20-%20Sp%C3%A9cialisation%20de%20fonctions%20template.html">26.3 -- Spécialisation de modèles de fonctions</a>), les spécialisations explicites de fonctions ne sont pas implicitement inline. Nous devons donc marquer notre spécialisation de <code>Storage&lt;double&gt;::print()</code> comme inline si nous la définissons dans un fichier d'en-tête.</p>
+<h2 id="où-définir-les-spécialisations-de-modèles-de-classes">Où définir les spécialisations de modèles de classes</h2>
+<p>Pour utiliser une spécialisation, le compilateur doit pouvoir voir la définition complète à la fois de la classe non spécialisée et de la classe spécialisée. Si le compilateur ne peut voir que la définition de la classe non spécialisée, il utilisera celle-ci à la place de la spécialisation.</p>
+<p>Pour cette raison, les classes et fonctions spécialisées sont souvent définies dans un fichier d'en-tête, juste sous la définition de la classe non spécialisée, de sorte qu'inclure un seul en-tête inclut à la fois la classe non spécialisée et toutes ses spécialisations. Cela garantit que la spécialisation est toujours visible lorsque la classe non spécialisée l'est aussi.</p>
+<p>Si une spécialisation n'est nécessaire que dans une seule unité de traduction, elle peut être définie dans le fichier source de cette unité de traduction. Les autres unités de traduction ne pouvant pas voir la définition de la spécialisation, elles continueront d'utiliser la version non spécialisée.</p>
+<p>Méfiez-vous de placer une spécialisation dans son propre fichier d'en-tête distinct, dans l'intention d'inclure cet en-tête dans chaque unité de traduction où la spécialisation est souhaitée. C'est une mauvaise idée que de concevoir du code dont le comportement change de façon transparente selon la présence ou l'absence d'un fichier d'en-tête. Par exemple, si vous comptez utiliser la spécialisation mais oubliez d'inclure son en-tête, vous risquez d'utiliser la version non spécialisée à la place. Si vous comptez utiliser la version non spécialisée, vous risquez tout de même d'utiliser la spécialisation si un autre en-tête l'inclut indirectement (inclusion transitive).</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/class-template-specialization/">https://www.learncpp.com/cpp-tutorial/class-template-specialization/</a></em></p>
+</main>
+</body>
+</html>

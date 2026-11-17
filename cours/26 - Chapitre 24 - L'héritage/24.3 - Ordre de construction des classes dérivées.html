@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24.3 — Ordre de construction des classes dérivées</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="243-ordre-de-construction-des-classes-dérivées">24.3 — Ordre de construction des classes dérivées</h1>
+<p>Dans la leçon précédente sur <a href="https://www.learncpp.com/cpp-tutorial/112-basic-inheritance-in-c/">l'héritage de base en C++</a>, vous avez appris que des classes peuvent hériter des membres et des fonctions d'autres classes. Dans cette leçon, nous allons examiner de plus près l'ordre de construction qui se produit lorsqu'une classe dérivée est instanciée.</p>
+<p>Commençons par introduire de nouvelles classes qui nous aideront à illustrer certains points importants.</p>
+<pre><code class="language-cpp">class Base
+{
+public:
+    int m_id {};
+
+    Base(int id=0)
+        : m_id { id }
+    {
+    }
+
+    int getId() const { return m_id; }
+};
+
+class Derived: public Base
+{
+public:
+    double m_cost {};
+
+    Derived(double cost=0.0)
+        : m_cost { cost }
+    {
+    }
+
+    double getCost() const { return m_cost; }
+};
+</code></pre>
+<p>Dans cet exemple, la classe Derived dérive de la classe Base.</p>
+<p><img alt="" src="../images/images_CppTutorial_Section11_DerivedBase.gif" /></p>
+<p>Comme Derived hérite des fonctions et des variables de Base, vous pourriez supposer que les membres de Base sont copiés dans Derived. Ce n'est pas le cas. On peut plutôt considérer Derived comme une classe en deux parties : une partie Derived et une partie Base.</p>
+<p><img alt="" src="../images/images_CppTutorial_Section11_DerivedBaseCombined.gif" /></p>
+<p>Vous avez déjà vu de nombreux exemples de ce qui se passe lorsque l'on instancie une classe normale (non dérivée) :</p>
+<pre><code class="language-cpp">int main()
+{
+    Base base;
+
+    return 0;
+}
+</code></pre>
+<p>Base est une classe non dérivée, car elle n'hérite d'aucune autre classe. C++ alloue de la mémoire pour Base, puis appelle le constructeur par défaut de Base pour effectuer l'initialisation.</p>
+<p>Examinons maintenant ce qui se passe lorsque l'on instancie une classe dérivée :</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived derived;
+
+    return 0;
+}
+</code></pre>
+<p>Si vous essayez ce code vous-même, vous ne remarquerez aucune différence avec l'exemple précédent où nous instancions la classe non dérivée Base. Pourtant, en coulisse, les choses se déroulent légèrement différemment. Comme mentionné plus haut, Derived est en réalité composée de deux parties : une partie Base et une partie Derived. Lorsque C++ construit un objet dérivé, il le fait en plusieurs phases. D'abord, la classe la plus basse (au sommet de l'arbre d'héritage) est construite. Ensuite, chaque classe enfant est construite à son tour, jusqu'à la classe la plus dérivée (au bas de l'arbre d'héritage), qui est construite en dernier.</p>
+<p>Ainsi, lorsque nous instancions un objet de Derived, la partie Base de Derived est d'abord construite (à l'aide du constructeur par défaut de Base). Une fois la partie Base terminée, la partie Derived est construite (à l'aide du constructeur par défaut de Derived). À ce stade, il n'existe plus de classe dérivée, la construction est donc terminée.</p>
+<p>Ce processus est facile à illustrer.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    int m_id {};
+
+    Base(int id=0)
+        : m_id { id }
+    {
+        std::cout &lt;&lt; &quot;Base\n&quot;;
+    }
+
+    int getId() const { return m_id; }
+};
+
+class Derived: public Base
+{
+public:
+    double m_cost {};
+
+    Derived(double cost=0.0)
+        : m_cost { cost }
+    {
+        std::cout &lt;&lt; &quot;Derived\n&quot;;
+    }
+
+    double getCost() const { return m_cost; }
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Instantiating Base\n&quot;;
+    Base base;
+
+    std::cout &lt;&lt; &quot;Instantiating Derived\n&quot;;
+    Derived derived;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+Instantiating Base
+Base
+Instantiating Derived
+Base
+Derived
+</code></pre>
+<p>Comme vous pouvez le voir, lorsque Derived est construite, la partie Base de Derived est construite en premier. Cela a du sens : logiquement, un enfant ne peut pas exister sans son parent. C'est aussi la manière sûre de procéder : la classe enfant utilise souvent des variables et des fonctions du parent, alors que la classe parent ne connaît rien de l'enfant. Instancier la classe parent en premier garantit que ces variables sont déjà initialisées au moment où la classe dérivée est créée et prête à les utiliser.</p>
+<p><strong>Ordre de construction pour les chaînes d'héritage</strong></p>
+<p>Il arrive que des classes dérivent d'autres classes, qui dérivent elles-mêmes d'autres classes. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class A
+{
+public:
+    A()
+    {
+        std::cout &lt;&lt; &quot;A\n&quot;;
+    }
+};
+
+class B: public A
+{
+public:
+    B()
+    {
+        std::cout &lt;&lt; &quot;B\n&quot;;
+    }
+};
+
+class C: public B
+{
+public:
+    C()
+    {
+        std::cout &lt;&lt; &quot;C\n&quot;;
+    }
+};
+
+class D: public C
+{
+public:
+    D()
+    {
+        std::cout &lt;&lt; &quot;D\n&quot;;
+    }
+};
+</code></pre>
+<p>Rappelez-vous que C++ construit toujours en premier la classe « la première » ou « la plus basse ». Il parcourt ensuite l'arbre d'héritage dans l'ordre et construit chaque classe dérivée successive.</p>
+<p>Voici un court programme qui illustre l'ordre de création tout au long de la chaîne d'héritage.</p>
+<pre><code class="language-cpp">int main()
+{
+    std::cout &lt;&lt; &quot;Constructing A: \n&quot;;
+    A a;
+
+    std::cout &lt;&lt; &quot;Constructing B: \n&quot;;
+    B b;
+
+    std::cout &lt;&lt; &quot;Constructing C: \n&quot;;
+    C c;
+
+    std::cout &lt;&lt; &quot;Constructing D: \n&quot;;
+    D d;
+}
+</code></pre>
+<p>Ce code affiche :</p>
+<pre><code>
+Constructing A:
+A
+Constructing B:
+A
+B
+Constructing C:
+A
+B
+C
+Constructing D:
+A
+B
+C
+D
+</code></pre>
+<p><strong>Conclusion</strong></p>
+<p>C++ construit les classes dérivées en plusieurs phases, en commençant par la classe la plus basse (au sommet de l'arbre d'héritage) et en terminant par la classe la plus dérivée (au bas de l'arbre d'héritage). À mesure que chaque classe est construite, le constructeur approprié de cette classe est appelé pour initialiser cette partie de l'objet.</p>
+<p>Vous remarquerez que les classes d'exemple de cette section utilisent toutes le constructeur par défaut des classes de base (par souci de simplicité). Dans la prochaine leçon, nous examinerons de plus près le rôle des constructeurs dans le processus de construction des classes dérivées (notamment la manière de choisir explicitement le constructeur de la classe de base que votre classe dérivée doit utiliser).</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/order-of-construction-of-derived-classes/">https://www.learncpp.com/cpp-tutorial/order-of-construction-of-derived-classes/</a></em></p>
+</main>
+</body>
+</html>

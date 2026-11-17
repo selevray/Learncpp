@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22.3 — Longueur et capacité de std::string</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="223-longueur-et-capacité-de-stdstring">22.3 — Longueur et capacité de std::string</h1>
+<p>Une fois que vous avez créé des chaînes, il est souvent utile de connaître leur longueur. C'est là qu'interviennent les opérations de longueur et de capacité. Nous verrons aussi différentes façons de convertir un std::string en chaînes de style C, afin de pouvoir les utiliser avec des fonctions qui attendent des chaînes de type char*.</p>
+<p><strong>Longueur d'une chaîne</strong></p>
+<p>La longueur d'une chaîne est assez simple : c'est le nombre de caractères qu'elle contient. Deux fonctions identiques permettent de déterminer la longueur d'une chaîne :</p>
+<p>|  |
+| --- |
+| <strong>size_type string::length() const</strong>  <strong>size_type string::size() const</strong>  - Ces deux fonctions renvoient le nombre actuel de caractères de la chaîne, sans compter le caractère de fin de chaîne (terminateur nul).   Exemple de code :   <code>cpp std::string s { "012345678" };
+ std::cout &lt;&lt; s.length() &lt;&lt; '\n';</code>   Sortie :   <code>9</code> |</p>
+<p>Bien qu'il soit possible d'utiliser length() pour savoir si une chaîne contient des caractères, il est plus efficace d'utiliser la fonction empty() :</p>
+<p>|  |
+| --- |
+| <strong>bool string::empty() const</strong>  - Renvoie true si la chaîne ne contient aucun caractère, false sinon.   Exemple de code :   <code>cpp std::string string1 { "Not Empty" };
+ std::cout &lt;&lt; (string1.empty() ? "true" : "false") &lt;&lt; '\n';
+ std::string string2; // vide
+ std::cout &lt;&lt; (string2.empty() ? "true" : "false")  &lt;&lt; '\n';</code>   Sortie :   <code>false
+ true</code> |</p>
+<p>Il existe une autre fonction liée à la taille, que vous n'utiliserez probablement jamais, mais que nous mentionnons ici par souci d'exhaustivité :</p>
+<p>|  |
+| --- |
+| <strong>size_type string::max_size() const</strong>  - Renvoie le nombre maximal de caractères qu'une chaîne peut contenir.- Cette valeur varie selon le système d'exploitation et l'architecture du système.   Exemple de code :   <code>cpp std::string s { "MyString" };
+ std::cout &lt;&lt; s.max_size() &lt;&lt; '\n';</code>   Sortie :   <code>4294967294</code> |</p>
+<p><strong>Capacité d'une chaîne</strong></p>
+<p>La capacité d'une chaîne reflète la quantité de mémoire que la chaîne a allouée pour contenir ses données. Cette valeur est exprimée en nombre de caractères, sans compter le caractère nul de fin. Par exemple, une chaîne de capacité 8 peut contenir 8 caractères.</p>
+<p>|  |
+| --- |
+| <strong>size_type string::capacity() const</strong>  - Renvoie le nombre de caractères que la chaîne peut contenir sans réallocation.   Exemple de code :   <code>cpp std::string s { "01234567" };
+ std::cout &lt;&lt; "Length: " &lt;&lt; s.length() &lt;&lt; '\n';
+ std::cout &lt;&lt; "Capacity: " &lt;&lt; s.capacity() &lt;&lt; '\n';</code>   Sortie :   <code>Length: 8
+ Capacity: 15</code> |</p>
+<p>Remarquez que la capacité est supérieure à la longueur de la chaîne ! Bien que notre chaîne ait une longueur de 8, elle a en réalité alloué suffisamment de mémoire pour 15 caractères ! Pourquoi cela ?</p>
+<p>Ce qu'il faut retenir, c'est que si l'utilisateur veut placer dans une chaîne plus de caractères que sa capacité ne le permet, la chaîne doit être réallouée avec une capacité plus grande. Par exemple, si une chaîne avait à la fois une longueur et une capacité de 8, ajouter le moindre caractère forcerait une réallocation. En donnant à la capacité une valeur supérieure à la longueur réelle, on laisse à l'utilisateur une marge pour agrandir la chaîne avant qu'une réallocation ne soit nécessaire.</p>
+<p>Or, la réallocation est problématique pour plusieurs raisons :</p>
+<p>Premièrement, réallouer une chaîne est relativement coûteux. Il faut d'abord allouer une nouvelle zone mémoire, puis copier chaque caractère de la chaîne dans cette nouvelle zone. Cela peut prendre beaucoup de temps si la chaîne est volumineuse. Enfin, l'ancienne zone mémoire doit être libérée. Si vous effectuez de nombreuses réallocations, ce processus peut ralentir considérablement votre programme.</p>
+<p>Deuxièmement, à chaque réallocation, le contenu de la chaîne se retrouve à une nouvelle adresse mémoire. Cela signifie que toutes les références, tous les pointeurs et tous les itérateurs pointant vers la chaîne deviennent invalides !</p>
+<p>Notez qu'une chaîne n'est pas toujours allouée avec une capacité supérieure à sa longueur. Considérez le programme suivant :</p>
+<pre><code class="language-cpp">std::string s { &quot;0123456789abcde&quot; };
+std::cout &lt;&lt; &quot;Length: &quot; &lt;&lt; s.length() &lt;&lt; '\n';
+std::cout &lt;&lt; &quot;Capacity: &quot; &lt;&lt; s.capacity() &lt;&lt; '\n';
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Length: 15
+Capacity: 15
+</code></pre>
+<p>(Les résultats peuvent varier selon le compilateur.)</p>
+<p>Ajoutons un caractère à la chaîne et observons la variation de la capacité :</p>
+<pre><code class="language-cpp">std::string s(&quot;0123456789abcde&quot;);
+std::cout &lt;&lt; &quot;Length: &quot; &lt;&lt; s.length() &lt;&lt; '\n';
+std::cout &lt;&lt; &quot;Capacity: &quot; &lt;&lt; s.capacity() &lt;&lt; '\n';
+
+// Ajoutons maintenant un nouveau caractère
+s += &quot;f&quot;;
+std::cout &lt;&lt; &quot;Length: &quot; &lt;&lt; s.length() &lt;&lt; '\n';
+std::cout &lt;&lt; &quot;Capacity: &quot; &lt;&lt; s.capacity() &lt;&lt; '\n';
+</code></pre>
+<p>Ce qui produit le résultat suivant :</p>
+<pre><code>
+Length: 15
+Capacity: 15
+Length: 16
+Capacity: 31
+</code></pre>
+<p>|  |
+| --- |
+| <strong>void string::reserve()</strong>   <strong>void string::reserve(size_type unSize)</strong>   - La seconde version de cette fonction fixe la capacité de la chaîne à au moins unSize (elle peut être supérieure). Notez que cela peut entraîner une réallocation.- Si la première version est appelée, ou si la seconde est appelée avec unSize inférieur à la capacité actuelle, la fonction tente de réduire la capacité pour correspondre à la longueur. Cette demande de réduction peut être ignorée, selon l'implémentation.   Exemple de code :   ```cpp std::string s { "01234567" };
+ std::cout &lt;&lt; "Length: " &lt;&lt; s.length() &lt;&lt; '\n';
+ std::cout &lt;&lt; "Capacity: " &lt;&lt; s.capacity() &lt;&lt; '\n';</p>
+<p>s.reserve(200);
+ std::cout &lt;&lt; "Length: " &lt;&lt; s.length() &lt;&lt; '\n';
+ std::cout &lt;&lt; "Capacity: " &lt;&lt; s.capacity() &lt;&lt; '\n';</p>
+<p>s.reserve();
+ std::cout &lt;&lt; "Length: " &lt;&lt; s.length() &lt;&lt; '\n';
+ std::cout &lt;&lt; "Capacity: " &lt;&lt; s.capacity() &lt;&lt; '\n'; <code>Sortie :</code> 
+ Length: 8
+ Capacity: 15
+ Length: 8
+ Capacity: 207
+ Length: 8
+ Capacity: 207 ``` |</p>
+<p>Cet exemple montre deux choses intéressantes. Premièrement, bien que nous ayons demandé une capacité de 200, nous obtenons une capacité de 207. La capacité est toujours garantie d'être au moins égale à votre demande, mais elle peut être supérieure. Nous avons ensuite demandé de réajuster la capacité à la longueur de la chaîne. Cette demande a été ignorée, puisque la capacité n'a pas changé.</p>
+<p>Si vous savez à l'avance que vous allez construire une grande chaîne en effectuant de nombreuses opérations qui augmentent sa taille, vous pouvez éviter des réallocations multiples en réservant dès le départ une capacité suffisante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;cstdlib&gt; // pour rand() et srand()
+#include &lt;ctime&gt; // pour time()
+
+int main()
+{
+    std::srand(std::time(nullptr)); // initialise le générateur de nombres aléatoires
+
+    std::string s{}; // longueur 0
+    s.reserve(64); // réserve 64 caractères
+
+    // Remplit la chaîne de caractères minuscules aléatoires
+    for (int count{ 0 }; count &lt; 64; ++count)
+        s += 'a' + std::rand() % 26;
+
+    std::cout &lt;&lt; s;
+}
+</code></pre>
+<p>Le résultat de ce programme change à chaque exécution, mais voici la sortie d'une exécution :</p>
+<pre><code>
+wzpzujwuaokbakgijqdawvzjqlgcipiiuuxhyfkdppxpyycvytvyxwqsbtielxpy
+</code></pre>
+<p>Plutôt que de réallouer s plusieurs fois, nous fixons la capacité une seule fois, puis nous remplissons la chaîne. Cela peut améliorer considérablement les performances lorsqu'on construit de grandes chaînes par concaténation.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdstring-length-and-capacity/">https://www.learncpp.com/cpp-tutorial/stdstring-length-and-capacity/</a></em></p>
+</main>
+</body>
+</html>

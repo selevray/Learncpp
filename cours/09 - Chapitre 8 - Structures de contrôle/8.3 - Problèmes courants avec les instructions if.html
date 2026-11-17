@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.3 — Problèmes courants avec les instructions if</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="83-problèmes-courants-avec-les-instructions-if">8.3 — Problèmes courants avec les instructions if</h1>
+<p>Cette leçon fait suite à la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.2%20-%20Instructions%20if%20et%20blocs.html">8.2 -- Instructions if et blocs</a>. Nous allons y examiner quelques problèmes courants liés aux instructions if.</p>
+<h2 id="instructions-if-imbriquées-et-le-problème-du-else-pendant-dangling-else">Instructions if imbriquées et le problème du else pendant (dangling else)</h2>
+<p>Il est possible d'imbriquer des instructions if à l'intérieur d'autres instructions if :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    if (x &gt;= 0) // instruction if externe
+        // c'est un mauvais style de codage d'imbriquer les instructions if de cette façon
+        if (x &lt;= 20) // instruction if interne
+            std::cout &lt;&lt; x &lt;&lt; &quot; is between 0 and 20\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Considérez maintenant le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    if (x &gt;= 0) // instruction if externe
+        // c'est un mauvais style de codage d'imbriquer les instructions if de cette façon
+        if (x &lt;= 20) // instruction if interne
+            std::cout &lt;&lt; x &lt;&lt; &quot; is between 0 and 20\n&quot;;
+
+    // à quelle instruction if ce else appartient-il ?
+    else
+        std::cout &lt;&lt; x &lt;&lt; &quot; is negative\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Le programme ci-dessus introduit une source d'ambiguïté potentielle appelée problème du <strong>else pendant</strong> (dangling else). L'instruction else du programme ci-dessus est-elle associée à l'instruction if externe ou à l'instruction if interne ?</p>
+<p>La réponse est qu'une instruction else est associée à la dernière instruction if non appariée du même bloc. Ainsi, dans le programme ci-dessus, l'instruction else est associée à l'instruction if interne, comme si le programme avait été écrit ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    if (x &gt;= 0) // instruction if externe
+    {
+        if (x &lt;= 20) // instruction if interne
+            std::cout &lt;&lt; x &lt;&lt; &quot; is between 0 and 20\n&quot;;
+        else // rattaché à l'instruction if interne
+            std::cout &lt;&lt; x &lt;&lt; &quot; is negative\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Cela fait produire au programme ci-dessus une sortie incorrecte :</p>
+<pre><code>
+Enter a number: 21
+21 is negative
+</code></pre>
+<p>Pour éviter de telles ambiguïtés lorsque l'on imbrique des instructions if, il est recommandé d'enfermer explicitement l'instruction if interne dans un bloc. Cela nous permet de rattacher une instruction else soit à l'instruction if interne, soit à l'instruction if externe, sans ambiguïté :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    if (x &gt;= 0)
+    {
+        if (x &lt;= 20)
+            std::cout &lt;&lt; x &lt;&lt; &quot; is between 0 and 20\n&quot;;
+        else // rattaché à l'instruction if interne
+            std::cout &lt;&lt; x &lt;&lt; &quot; is greater than 20\n&quot;;
+    }
+    else // rattaché à l'instruction if externe
+        std::cout &lt;&lt; x &lt;&lt; &quot; is negative\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>L'instruction else située à l'intérieur du bloc se rattache à l'instruction if interne, tandis que l'instruction else située à l'extérieur du bloc se rattache à l'instruction if externe.</p>
+<h2 id="aplatir-les-instructions-if-imbriquées">Aplatir les instructions if imbriquées</h2>
+<p>Les instructions if imbriquées peuvent souvent être aplaties, soit en restructurant la logique, soit en utilisant des opérateurs logiques (présentés dans la leçon <a href="../06%20-%20Chapitre%206%20-%20Les%20op%C3%A9rateurs/6.8%20-%20Op%C3%A9rateurs%20logiques.html">6.8 -- Opérateurs logiques</a>). Un code moins imbriqué est moins sujet aux erreurs.</p>
+<p>Par exemple, l'exemple ci-dessus peut être aplati de la manière suivante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    if (x &lt; 0)
+        std::cout &lt;&lt; x &lt;&lt; &quot; is negative\n&quot;;
+    else if (x &lt;= 20) // ne s'exécute que si x &gt;= 0
+        std::cout &lt;&lt; x &lt;&lt; &quot; is between 0 and 20\n&quot;;
+    else // ne s'exécute que si x &gt; 20
+        std::cout &lt;&lt; x &lt;&lt; &quot; is greater than 20\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Voici un autre exemple, qui utilise des opérateurs logiques pour tester plusieurs conditions dans une seule instruction if :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    std::cout &lt;&lt; &quot;Enter another integer: &quot;;
+    int y{};
+    std::cin &gt;&gt; y;
+
+    if (x &gt; 0 &amp;&amp; y &gt; 0) // &amp;&amp; est le et logique -- vérifie si les deux conditions sont vraies
+        std::cout &lt;&lt; &quot;Both numbers are positive\n&quot;;
+    else if (x &gt; 0 || y &gt; 0) // || est le ou logique -- vérifie si l'une des conditions est vraie
+        std::cout &lt;&lt; &quot;One of the numbers is positive\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;Neither number is positive\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<h2 id="instructions-nulles">Instructions nulles</h2>
+<p>Une <strong>instruction nulle</strong> (null statement) est une instruction d'expression qui consiste uniquement en un point-virgule :</p>
+<pre><code class="language-cpp">if (x &gt; 10)
+    ; // ceci est une instruction nulle
+</code></pre>
+<p>Les instructions nulles ne font rien. Elles sont généralement utilisées lorsque le langage exige qu'une instruction soit présente, alors que le programmeur n'en a pas besoin. Pour la lisibilité, les instructions nulles sont généralement placées sur leur propre ligne. Nous verrons plus tard, dans ce chapitre, des exemples d'instructions nulles volontaires lorsque nous aborderons les boucles.</p>
+<p>Les instructions nulles sont rarement utilisées volontairement avec les instructions if. En revanche, elles peuvent causer involontairement des problèmes aux programmeurs débutants (ou peu attentifs). Considérez l'extrait suivant :</p>
+<pre><code class="language-cpp">if (nuclearCodesActivated()); // remarquez le point-virgule à la fin de cette ligne
+    blowUpTheWorld();
+</code></pre>
+<p>Dans l'extrait ci-dessus, le programmeur a accidentellement placé un point-virgule à la fin de l'instruction if (une erreur courante, car les points-virgules terminent de nombreuses instructions). Cette erreur anodine se compile sans problème, et fait exécuter l'extrait comme s'il avait été écrit ainsi :</p>
+<pre><code class="language-cpp">if (nuclearCodesActivated())
+    ; // le point-virgule agit comme une instruction nulle
+blowUpTheWorld(); // et cette ligne est toujours exécutée !
+</code></pre>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Veillez à ne pas « terminer » votre instruction if par un point-virgule, sinon la ou les instructions que vous vouliez exécuter conditionnellement seront exécutées inconditionnellement (même si elles se trouvent à l'intérieur d'un bloc).</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>En Python, le mot-clé <code>pass</code> joue le rôle d'instruction nulle. Il sert souvent de marqueur pour du code qui sera implémenté plus tard. Comme il s'agit d'un mot plutôt que d'un symbole, <code>pass</code> est moins sujet à une utilisation involontaire et plus facile à rechercher (ce qui permet de retrouver facilement ces marqueurs par la suite).</p>
+<pre><code>
+for x in [0, 1, 2]:
+  pass               # À compléter plus tard
+</code></pre>
+<p>En C++, nous pouvons imiter <code>pass</code> en utilisant le préprocesseur :</p>
+<pre><code class="language-cpp">#define PASS
+
+void foo(int x, int y)
+{
+    if (x &gt; y)
+        PASS;
+    else
+        PASS;
+}
+
+int main()
+{
+    foo(4, 7);
+
+    return 0;
+}
+</code></pre>
+<p>Par cohérence avec les autres instructions C++, notre <code>PASS</code> nécessite un point-virgule final. <code>PASS</code> est supprimé par le préprocesseur, et le point-virgule final est interprété par le compilateur comme une instruction nulle.</p>
+</div>
+<h2 id="operator-et-operator-dans-la-condition">Operator== et Operator= dans la condition</h2>
+<p>Dans une condition, vous devez utiliser <code>operator==</code> pour tester l'égalité, et non <code>operator=</code> (qui est l'affectation). Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter 0 or 1: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+    if (x = 0) // oups, nous avons utilisé une affectation ici au lieu d'un test d'égalité
+        std::cout &lt;&lt; &quot;You entered 0\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;You entered 1\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme se compile et s'exécute, mais produit un mauvais résultat dans certains cas :</p>
+<pre><code>
+Enter 0 or 1: 0
+You entered 1
+</code></pre>
+<p>En fait, ce programme produira toujours le résultat <code>You entered 1</code>. Cela se produit parce que <code>x = 0</code> affecte d'abord la valeur <code>0</code> à <code>x</code>, puis s'évalue à la valeur de <code>x</code>, qui vaut maintenant <code>0</code>, c'est-à-dire le booléen <code>false</code>. La condition étant toujours <code>false</code>, l'instruction else s'exécute toujours.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/common-if-statement-problems/">https://www.learncpp.com/cpp-tutorial/common-if-statement-problems/</a></em></p>
+</main>
+</body>
+</html>

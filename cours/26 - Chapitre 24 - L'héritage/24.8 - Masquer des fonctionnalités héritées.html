@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24.8 — Masquer des fonctionnalités héritées</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="248-masquer-des-fonctionnalités-héritées">24.8 — Masquer des fonctionnalités héritées</h1>
+<p><strong>Modifier le niveau d'accès d'un membre hérité</strong></p>
+<p>C++ nous permet de modifier le spécificateur d'accès d'un membre hérité dans la classe dérivée. Pour cela, on utilise une <em>déclaration using</em> qui désigne le membre de la classe de base (avec son qualificateur de portée) dont on veut changer l'accès, sous le nouveau spécificateur.</p>
+<p>Par exemple, considérons la classe Base suivante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+private:
+    int m_value {};
+
+public:
+    Base(int value)
+        : m_value { value }
+    {
+    }
+
+protected:
+    void printValue() const { std::cout &lt;&lt; m_value; }
+};
+</code></pre>
+<p>Comme Base::printValue() a été déclarée protected, elle ne peut être appelée que par Base ou par ses classes dérivées. Le public ne peut pas y accéder.</p>
+<p>Définissons une classe Derived qui change le spécificateur d'accès de printValue() en public :</p>
+<pre><code class="language-cpp">class Derived: public Base
+{
+public:
+    Derived(int value)
+        : Base { value }
+    {
+    }
+
+    // Base::printValue était héritée en protected, donc le public n'y a pas accès
+    // Mais nous la passons en public grâce à une déclaration using
+    using Base::printValue; // remarque : pas de parenthèses ici
+};
+</code></pre>
+<p>Ainsi, le code suivant fonctionne désormais :</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived derived { 7 };
+
+    // printValue est public dans Derived, donc c'est correct
+    derived.printValue(); // affiche 7
+    return 0;
+}
+</code></pre>
+<p>Vous ne pouvez modifier l'accès que des membres de la base auxquels la classe dérivée aurait normalement accès. Vous ne pouvez donc jamais faire passer un membre de la base de private à protected ou public, car les classes dérivées n'ont pas accès aux membres private de la classe de base.</p>
+<p><strong>Masquer des fonctionnalités</strong></p>
+<p>En C++, il n'est pas possible de supprimer ou de restreindre une fonctionnalité de la classe de base autrement qu'en modifiant le code source. En revanche, dans une classe dérivée, il est possible de masquer une fonctionnalité existant dans la base, de sorte qu'elle ne soit plus accessible via la classe dérivée. Il suffit pour cela de modifier le spécificateur d'accès correspondant.</p>
+<p>Par exemple, nous pouvons rendre private un membre public :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    int m_value{};
+};
+
+class Derived : public Base
+{
+private:
+    using Base::m_value;
+
+public:
+    Derived(int value) : Base { value }
+    {
+    }
+};
+
+int main()
+{
+    Derived derived{ 7 };
+    std::cout &lt;&lt; derived.m_value; // erreur : m_value est private dans Derived
+
+    Base&amp; base{ derived };
+    std::cout &lt;&lt; base.m_value; // correct : m_value est public dans Base
+
+    return 0;
+}
+</code></pre>
+<p>Cela nous a permis de prendre une classe de base mal conçue et d'encapsuler ses données dans notre classe dérivée. Autrement, plutôt que d'hériter publiquement des membres de Base et de rendre m_value private en redéfinissant son accès, nous aurions pu hériter de Base en privé, ce qui aurait fait hériter tous les membres de Base en private dès le départ.</p>
+<p>Notons toutefois que, si m_value est private dans la classe Derived, elle reste public dans la classe Base. L'encapsulation de m_value dans Derived peut donc toujours être contournée en convertissant en Base&amp; et en accédant directement au membre.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Pour la même raison, si une classe Base possède une fonction virtuelle publique et que la classe Derived en change l'accès en private, le public peut tout de même appeler la fonction private de Derived en convertissant un objet Derived en Base&amp; puis en appelant la fonction virtuelle. Le compilateur l'autorise, car la fonction est publique dans Base. Cependant, comme l'objet est en réalité un Derived, la résolution de la fonction virtuelle sélectionne (et appelle) la version (private) de Derived. Les contrôles d'accès ne sont pas appliqués à l'exécution.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class A
+{
+public:
+    virtual void fun()
+    {
+        std::cout &lt;&lt; &quot;public A::fun()\n&quot;;
+    }
+};
+
+class B : public A
+{
+private:
+    virtual void fun()
+    {
+         std::cout &lt;&lt; &quot;private B::fun()\n&quot;;
+   }
+};
+
+int main()
+{
+    B b {};
+    b.fun();                  // erreur de compilation : interdit car B::fun() est private
+    static_cast&lt;A&amp;&gt;(b).fun(); // correct : A::fun() est public, se résout en B::fun() private à l'exécution
+
+    return 0;
+}
+</code></pre>
+</div>
+<p>Il peut paraître surprenant, mais étant donné un ensemble de fonctions surchargées dans la classe de base, il n'existe pas de moyen de modifier le spécificateur d'accès d'une seule surcharge. Vous ne pouvez les modifier toutes ensemble :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    int m_value{};
+
+    int getValue() const { return m_value; }
+    int getValue(int) const { return m_value; }
+};
+
+class Derived : public Base
+{
+private:
+    using Base::getValue; // rend TOUTES les fonctions getValue private
+
+public:
+    Derived(int value) : Base { value }
+    {
+    }
+};
+
+int main()
+{
+    Derived derived{ 7 };
+    std::cout &lt;&lt; derived.getValue();  // erreur : getValue() est private dans Derived
+    std::cout &lt;&lt; derived.getValue(5); // erreur : getValue(int) est private dans Derived
+
+    return 0;
+}
+</code></pre>
+<h2 id="supprimer-des-fonctions-dans-la-classe-dérivée">Supprimer des fonctions dans la classe dérivée</h2>
+<p>Vous pouvez également marquer des fonctions membres comme supprimées (deleted) dans la classe dérivée, ce qui garantit qu'elles ne pourront pas être appelées du tout via un objet dérivé :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+class Base
+{
+private:
+    int m_value {};
+
+public:
+    Base(int value)
+        : m_value { value }
+    {
+    }
+
+    int getValue() const { return m_value; }
+};
+
+class Derived : public Base
+{
+public:
+    Derived(int value)
+        : Base { value }
+    {
+    }
+
+
+    int getValue() const = delete; // marque cette fonction comme inaccessible
+};
+
+int main()
+{
+    Derived derived { 7 };
+
+    // Ce qui suit ne fonctionnera pas, car getValue() a été supprimée !
+    std::cout &lt;&lt; derived.getValue();
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous avons marqué la fonction getValue() comme supprimée. Cela signifie que le compilateur signalera une erreur lorsque nous tenterons d'appeler la version dérivée de la fonction. Notez que la version de getValue() de Base reste accessible. Nous pouvons appeler Base::getValue() de deux manières :</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived derived { 7 };
+
+    // Nous pouvons appeler directement la fonction Base::getValue()
+    std::cout &lt;&lt; derived.Base::getValue();
+
+    // Ou nous pouvons convertir Derived en référence Base, et getValue() se résoudra en Base::getValue()
+    std::cout &lt;&lt; static_cast&lt;Base&amp;&gt;(derived).getValue();
+
+    return 0;
+}
+</code></pre>
+<p>Avec la méthode de conversion, nous convertissons vers un Base&amp; plutôt que vers un Base afin d'éviter de copier la partie Base de <code>derived</code>.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/hiding-inherited-functionality/">https://www.learncpp.com/cpp-tutorial/hiding-inherited-functionality/</a></em></p>
+</main>
+</body>
+</html>

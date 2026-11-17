@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.4 — Objets de classe const et fonctions membres const</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="144-objets-de-classe-const-et-fonctions-membres-const">14.4 — Objets de classe const et fonctions membres const</h1>
+<p>Dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.1%20-%20Variables%20constantes%20%28constantes%20nomm%C3%A9es%29.html">5.1 -- Constant variables (named constants)</a>, vous avez appris que les objets de types fondamentaux (<code>int</code>, <code>double</code>, <code>char</code>, etc.) peuvent être rendus constants à l'aide du mot-clé <code>const</code>. Toutes les variables const doivent être initialisées au moment de leur création.</p>
+<pre><code class="language-cpp">const int x;      // erreur de compilation : non initialisée
+const int y{};    // ok : initialisée à la valeur par défaut
+const int z{ 5 }; // ok : initialisée par liste
+</code></pre>
+<p>De même, les objets de types classe (struct, classes et unions) peuvent également être rendus const à l'aide du mot-clé <code>const</code>. Ces objets doivent eux aussi être initialisés au moment de leur création.</p>
+<pre><code class="language-cpp">struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+};
+
+int main()
+{
+    const Date today { 2020, 10, 14 }; // objet de type classe const
+
+    return 0;
+}
+</code></pre>
+<p>Comme pour les variables ordinaires, vous voudrez généralement rendre const (ou constexpr) vos objets de types classe lorsque vous devez garantir qu'ils ne sont pas modifiés après leur création.</p>
+<h2 id="la-modification-des-membres-de-données-dun-objet-const-est-interdite">La modification des membres de données d'un objet const est interdite</h2>
+<p>Une fois qu'un objet de type classe const a été initialisé, toute tentative de modifier ses membres de données est interdite, car cela violerait la constance de l'objet. Cela concerne aussi bien la modification directe des variables membres (si elles sont publiques) que l'appel de fonctions membres qui modifient la valeur des variables membres.</p>
+<pre><code class="language-cpp">struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void incrementDay()
+    {
+        ++day;
+    }
+};
+
+int main()
+{
+    const Date today { 2020, 10, 14 }; // const
+
+    today.day += 1;        // erreur de compilation : impossible de modifier un membre d'un objet const
+    today.incrementDay();  // erreur de compilation : impossible d'appeler une fonction membre qui modifie un membre d'un objet const
+
+    return 0;
+}
+</code></pre>
+<h2 id="un-objet-const-ne-peut-pas-appeler-de-fonction-membre-non-const">Un objet const ne peut pas appeler de fonction membre non-const</h2>
+<p>Vous serez peut-être surpris de constater que ce code provoque également une erreur de compilation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void print()
+    {
+        std::cout &lt;&lt; year &lt;&lt; '/' &lt;&lt; month &lt;&lt; '/' &lt;&lt; day;
+    }
+};
+
+int main()
+{
+    const Date today { 2020, 10, 14 }; // const
+
+    today.print();  // erreur de compilation : impossible d'appeler une fonction membre non-const
+
+    return 0;
+}
+</code></pre>
+<p>Bien que <code>print()</code> ne tente pas de modifier une variable membre, notre appel <code>today.print()</code> viole tout de même la constance. Cela vient du fait que la fonction membre <code>print()</code> elle-même n'est pas déclarée const. Le compilateur ne nous laisse pas appeler une fonction membre non-const sur un objet const.</p>
+<h2 id="fonctions-membres-const">Fonctions membres const</h2>
+<p>Pour résoudre le problème ci-dessus, nous devons faire de <code>print()</code> une fonction membre const. Une <strong>fonction membre const</strong> est une fonction membre qui garantit qu'elle ne modifiera pas l'objet et n'appellera aucune fonction membre non-const (car celles-ci pourraient modifier l'objet).</p>
+<p>Rendre <code>print()</code> const est facile : il suffit d'ajouter le mot-clé <code>const</code> à la déclaration de la fonction, après la liste des paramètres mais avant le corps de la fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void print() const // désormais une fonction membre const
+    {
+        std::cout &lt;&lt; year &lt;&lt; '/' &lt;&lt; month &lt;&lt; '/' &lt;&lt; day;
+    }
+};
+
+int main()
+{
+    const Date today { 2020, 10, 14 }; // const
+
+    today.print();  // ok : un objet const peut appeler une fonction membre const
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>print()</code> est devenue une fonction membre const, ce qui signifie que nous pouvons l'appeler sur des objets const (comme <code>today</code>).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Pour les fonctions membres définies en dehors de la définition de la classe, le mot-clé <code>const</code> doit être utilisé à la fois dans la déclaration de la fonction dans la définition de la classe et dans la définition de la fonction en dehors de celle-ci. Nous montrons un exemple de ceci dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.2%20-%20Classes%20et%20fichiers%20d%27en-t%C3%AAte.html">15.2 -- Classes and header files</a>.</p>
+<p>Les constructeurs ne peuvent pas être rendus const, car ils doivent initialiser les membres de l'objet, ce qui nécessite de les modifier. Nous abordons les constructeurs dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.9%20-%20Introduction%20aux%20constructeurs.html">14.9 -- Introduction to constructors</a>.</p>
+</div>
+<p>Une fonction membre const qui tente de modifier une variable membre ou d'appeler une fonction membre non-const provoquera une erreur de compilation. Par exemple :</p>
+<pre><code class="language-cpp">struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void incrementDay() const // rendue const
+    {
+        ++day; // erreur de compilation : une fonction const ne peut pas modifier un membre
+    }
+};
+
+int main()
+{
+    const Date today { 2020, 10, 14 }; // const
+
+    today.incrementDay();
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, <code>incrementDay()</code> a été marquée comme fonction membre const, mais elle tente de modifier <code>day</code>. Cela provoquera une erreur de compilation.</p>
+<p>Les fonctions membres const peuvent modifier des objets qui ne sont pas membres (comme des variables locales ou des paramètres de fonction) et appeler des fonctions non membres comme d'habitude. Le qualificatif const ne s'applique qu'aux membres.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Une fonction membre const ne peut pas : modifier l'objet implicite, appeler des fonctions membres non-const.<br />
+Une fonction membre const peut : modifier des objets qui ne sont pas l'objet implicite, appeler des fonctions membres const, appeler des fonctions non membres.</p>
+</div>
+<h2 id="les-fonctions-membres-const-peuvent-être-appelées-sur-des-objets-non-const">Les fonctions membres const peuvent être appelées sur des objets non-const</h2>
+<p>Les fonctions membres const peuvent aussi être appelées sur des objets non-const :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void print() const // const
+    {
+        std::cout &lt;&lt; year &lt;&lt; '/' &lt;&lt; month &lt;&lt; '/' &lt;&lt; day;
+    }
+};
+
+int main()
+{
+    Date today { 2020, 10, 14 }; // non-const
+
+    today.print();  // ok : une fonction membre const peut être appelée sur un objet non-const
+
+    return 0;
+}
+</code></pre>
+<p>Comme les fonctions membres const peuvent être appelées à la fois sur des objets const et non-const, si une fonction membre ne modifie pas l'état de l'objet, elle doit être rendue const.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Une fonction membre qui ne modifie pas (et ne modifiera jamais) l'état de l'objet doit être rendue const, afin de pouvoir être appelée sur des objets const comme non-const.</p>
+</div>
+<p>Soyez prudent quant aux fonctions membres auxquelles vous appliquez <code>const</code>. Une fois qu'une fonction membre est const, elle peut être appelée sur des objets const. Retirer ultérieurement le <code>const</code> d'une fonction membre cassera tout code qui appelle cette fonction membre sur un objet const.</p>
+<h2 id="objets-const-via-le-passage-par-référence-const">Objets const via le passage par référence const</h2>
+<p>Bien qu'instancier des variables locales const soit une façon de créer des objets const, un moyen plus courant d'obtenir un objet const consiste à le passer à une fonction par référence const.</p>
+<p>Dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.5%20-%20Passage%20par%20r%C3%A9f%C3%A9rence%20%C3%A0%20une%20lvalue.html">12.5 -- Pass by lvalue reference</a>, nous avons vu l'intérêt de passer les arguments de types classe par référence const plutôt que par valeur. Pour rappel, passer un argument de type classe par valeur entraîne la création d'une copie de la classe (ce qui est lent) : la plupart du temps, nous n'avons pas besoin d'une copie, et une référence vers l'argument original convient parfaitement et évite la copie. On rend généralement la référence const afin que la fonction puisse accepter des arguments lvalue const ainsi que des arguments rvalue (par exemple des littéraux et des objets temporaires).</p>
+<p>Pouvez-vous voir ce qui ne va pas dans le code suivant ?</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void print() // non-const
+    {
+        std::cout &lt;&lt; year &lt;&lt; '/' &lt;&lt; month &lt;&lt; '/' &lt;&lt; day;
+    }
+};
+
+void doSomething(const Date&amp; date)
+{
+    date.print();
+}
+
+int main()
+{
+    Date today { 2020, 10, 14 }; // non-const
+    today.print();
+
+    doSomething(today);
+
+    return 0;
+}
+</code></pre>
+<p>La réponse est que, à l'intérieur de la fonction <code>doSomething()</code>, <code>date</code> est traité comme un objet const (puisqu'il a été passé par référence const). Or, avec ce <code>date</code> const, nous appelons la fonction membre non-const <code>print()</code>. Comme nous ne pouvons pas appeler une fonction membre non-const sur un objet const, cela provoque une erreur de compilation.</p>
+<p>La correction est simple : rendre <code>print()</code> const :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Date
+{
+    int year {};
+    int month {};
+    int day {};
+
+    void print() const // désormais const
+    {
+        std::cout &lt;&lt; year &lt;&lt; '/' &lt;&lt; month &lt;&lt; '/' &lt;&lt; day;
+    }
+};
+
+void doSomething(const Date&amp; date)
+{
+    date.print();
+}
+
+int main()
+{
+    Date today { 2020, 10, 14 }; // non-const
+    today.print();
+
+    doSomething(today);
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, dans la fonction <code>doSomething()</code>, le <code>date</code> const peut appeler avec succès la fonction membre const <code>print()</code>.</p>
+<h2 id="surcharge-const-et-non-const-des-fonctions-membres">Surcharge const et non-const des fonctions membres</h2>
+<p>Enfin, bien que cela ne soit pas très fréquent, il est possible de surcharger une fonction membre avec une version const et une version non-const de la même fonction. Cela fonctionne car le qualificatif const fait partie de la signature de la fonction : deux fonctions qui ne diffèrent que par leur constance sont donc considérées comme distinctes.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Something
+{
+    void print()
+    {
+        std::cout &lt;&lt; &quot;non-const\n&quot;;
+    }
+
+    void print() const
+    {
+        std::cout &lt;&lt; &quot;const\n&quot;;
+    }
+};
+
+int main()
+{
+    Something s1{};
+    s1.print(); // appelle print()
+
+    const Something s2{};
+    s2.print(); // appelle print() const
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code class="language-cpp">non-const
+const
+</code></pre>
+<p>La surcharge d'une fonction par une version const et une version non-const se fait typiquement lorsque la valeur de retour doit différer selon la constance. C'est assez rare.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/const-class-objects-and-const-member-functions/">https://www.learncpp.com/cpp-tutorial/const-class-objects-and-const-member-functions/</a></em></p>
+</main>
+</body>
+</html>

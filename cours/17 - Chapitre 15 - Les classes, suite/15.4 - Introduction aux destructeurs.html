@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15.4 — Introduction aux destructeurs</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="154-introduction-aux-destructeurs">15.4 — Introduction aux destructeurs</h1>
+<h2 id="le-problème-du-nettoyage">Le problème du nettoyage</h2>
+<p>Imaginons que vous écriviez un programme qui doit envoyer des données sur un réseau. Cependant, établir une connexion avec le serveur coûte cher, donc vous voulez collecter un ensemble de données puis les envoyer toutes d'un coup. Une telle classe pourrait être structurée ainsi :</p>
+<pre><code class="language-cpp">// Cet exemple ne compilera pas car il est (volontairement) incomplet
+class NetworkData
+{
+private:
+    std::string m_serverName{};
+    DataStore m_dataQueue{};
+
+public:
+    NetworkData(std::string_view serverName)
+        : m_serverName { serverName }
+    {
+    }
+
+    void addData(std::string_view data)
+    {
+        m_dataQueue.add(data);
+    }
+
+    void sendData()
+    {
+        // se connecter au serveur
+        // envoyer toutes les données
+        // vider les données
+    }
+};
+
+int main()
+{
+    NetworkData n(&quot;someipAddress&quot;);
+
+    n.addData(&quot;somedata1&quot;);
+    n.addData(&quot;somedata2&quot;);
+
+    n.sendData();
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, cette classe <code>NetworkData</code> présente un problème potentiel. Elle repose sur le fait que <code>sendData()</code> soit explicitement appelée avant l'arrêt du programme. Si l'utilisateur de <code>NetworkData</code> oublie de le faire, les données ne seront pas envoyées au serveur et seront perdues à la fin du programme. Vous pourriez dire : « Ce n'est pas difficile de penser à le faire ! », et dans cet exemple précis, vous auriez raison. Mais considérons un exemple un peu plus complexe, comme cette fonction :</p>
+<pre><code class="language-cpp">bool someFunction()
+{
+    NetworkData n(&quot;someipAddress&quot;);
+
+    n.addData(&quot;somedata1&quot;);
+    n.addData(&quot;somedata2&quot;);
+
+    if (someCondition)
+        return false;
+
+    n.sendData();
+    return true;
+}
+</code></pre>
+<p>Dans ce cas, si <code>someCondition</code> vaut <code>true</code>, la fonction retourne prématurément et <code>sendData()</code> n'est pas appelée. Cette erreur est plus facile à commettre, car l'appel à <code>sendData()</code> est bien présent : simplement, le programme n'y accède pas dans tous les cas.</p>
+<p>Pour généraliser ce problème, les classes qui utilisent une ressource (le plus souvent de la mémoire, mais parfois des fichiers, des bases de données, des connexions réseau, etc.) doivent souvent être explicitement envoyées ou fermées avant la destruction de l'objet qui les utilise. Dans d'autres cas, nous pouvons vouloir effectuer une tenue de registres avant la destruction de l'objet, comme écrire des informations dans un fichier journal ou envoyer une donnée de télémétrie à un serveur. Le terme « nettoyage » désigne souvent l'ensemble des tâches qu'une classe doit accomplir avant la destruction d'un objet de cette classe pour se comporter comme attendu. Si nous devons compter sur l'utilisateur d'une telle classe pour s'assurer que la fonction de nettoyage est appelée avant la destruction de l'objet, nous risquons de rencontrer des erreurs tôt ou tard.</p>
+<p>Mais pourquoi exiger cela de l'utilisateur ? Si l'objet est détruit, nous savons qu'un nettoyage doit être effectué à ce moment-là. Ce nettoyage ne devrait-il pas se faire automatiquement ?</p>
+<h2 id="les-destructeurs-à-la-rescousse">Les destructeurs à la rescousse</h2>
+<p>Dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.9%20-%20Introduction%20aux%20constructeurs.html">14.9 -- Introduction aux constructeurs</a>, nous avons étudié les constructeurs, des fonctions membres spéciales appelées lors de la création d'un objet d'un type de classe non agrégat. Les constructeurs servent à initialiser les membres et à effectuer toute autre tâche de préparation nécessaire pour que les objets de la classe soient prêts à l'emploi.</p>
+<p>De manière analogue, les classes possèdent un autre type de fonction membre spéciale, appelée automatiquement lorsqu'un objet d'un type de classe non agrégat est détruit. Cette fonction s'appelle un <strong>destructeur</strong> (destructor). Les destructeurs permettent à une classe d'effectuer tout nettoyage nécessaire avant la destruction d'un objet de cette classe.</p>
+<h2 id="nommage-des-destructeurs">Nommage des destructeurs</h2>
+<p>Comme les constructeurs, les destructeurs obéissent à des règles de nommage précises :</p>
+<ol>
+<li>Le destructeur doit porter le même nom que la classe, précédé d'un tilde (~).</li>
+<li>Le destructeur ne peut pas prendre d'arguments.</li>
+<li>Le destructeur n'a pas de type de retour.</li>
+</ol>
+<p>Une classe ne peut avoir qu'un seul destructeur.</p>
+<p>En général, vous ne devriez pas appeler un destructeur explicitement (il sera appelé automatiquement lorsque l'objet sera détruit), car il est rare que vous ayez besoin de nettoyer un objet plus d'une fois.</p>
+<p>Les destructeurs peuvent appeler sans risque d'autres fonctions membres, puisque l'objet n'est détruit qu'après l'exécution du destructeur.</p>
+<h2 id="un-exemple-de-destructeur">Un exemple de destructeur</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Simple
+{
+private:
+    int m_id {};
+
+public:
+    Simple(int id)
+        : m_id { id }
+    {
+        std::cout &lt;&lt; &quot;Constructing Simple &quot; &lt;&lt; m_id &lt;&lt; '\n';
+    }
+
+    ~Simple() // voici notre destructeur
+    {
+        std::cout &lt;&lt; &quot;Destructing Simple &quot; &lt;&lt; m_id &lt;&lt; '\n';
+    }
+
+    int getID() const { return m_id; }
+};
+
+int main()
+{
+    // Alloue un Simple
+    Simple simple1{ 1 };
+    {
+        Simple simple2{ 2 };
+    } // simple2 est détruit ici
+
+    return 0;
+} // simple1 est détruit ici
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+Constructing Simple 1
+Constructing Simple 2
+Destructing Simple 2
+Destructing Simple 1
+</code></pre>
+<p>Notez que, lorsque chaque objet <code>Simple</code> est détruit, le destructeur est appelé, ce qui affiche un message. « Destructing Simple 1 » est affiché après « Destructing Simple 2 » parce que <code>simple2</code> a été détruit avant la fin de la fonction, alors que <code>simple1</code> ne l'a été qu'à la fin de <code>main()</code>.</p>
+<p>Rappelez-vous que les variables statiques (y compris les variables globales et les variables locales statiques) sont construites au démarrage du programme et détruites à son arrêt.</p>
+<h2 id="amélioration-du-programme-networkdata">Amélioration du programme NetworkData</h2>
+<p>Revenons à notre exemple du début de la leçon : nous pouvons supprimer la nécessité pour l'utilisateur d'appeler explicitement <code>sendData()</code> en faisant appeler cette fonction par un destructeur :</p>
+<pre><code class="language-cpp">class NetworkData
+{
+private:
+    std::string m_serverName{};
+    DataStore m_dataQueue{};
+
+public:
+    NetworkData(std::string_view serverName)
+        : m_serverName { serverName }
+    {
+    }
+
+    ~NetworkData()
+    {
+        sendData(); // s'assurer que toutes les données sont envoyées avant la destruction de l'objet
+    }
+
+    void addData(std::string_view data)
+    {
+        m_dataQueue.add(data);
+    }
+
+    void sendData()
+    {
+        // se connecter au serveur
+        // envoyer toutes les données
+        // vider les données
+    }
+};
+
+int main()
+{
+    NetworkData n(&quot;someipAddress&quot;);
+
+    n.addData(&quot;somedata1&quot;);
+    n.addData(&quot;somedata2&quot;);
+
+    return 0;
+}
+</code></pre>
+<p>Avec un tel destructeur, notre objet <code>NetworkData</code> enverra toujours les données qu'il contient avant d'être détruit ! Le nettoyage se fait automatiquement, ce qui réduit les risques d'erreurs et le nombre de choses à penser.</p>
+<h2 id="un-destructeur-implicite">Un destructeur implicite</h2>
+<p>Si un objet d'un type de classe non agrégat ne possède pas de destructeur déclaré par l'utilisateur, le compilateur en génère un dont le corps est vide. Ce destructeur est appelé destructeur implicite (implicit destructor) ; il ne sert en pratique que de marque-place.</p>
+<p>Si votre classe n'a pas besoin d'effectuer de nettoyage à sa destruction, vous pouvez ne pas définir de destructeur et laisser le compilateur générer un destructeur implicite pour votre classe.</p>
+<h2 id="mise-en-garde-concernant-la-fonction-stdexit">Mise en garde concernant la fonction <code>std::exit()</code></h2>
+<p>Dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.12%20-%20Arr%C3%AAts%20%28quitter%20le%20programme%20pr%C3%A9matur%C3%A9ment%29.html">8.12 -- Arrêts (quitter votre programme prématurément)</a>, nous avons vu que la fonction <code>std::exit()</code> peut être utilisée pour terminer immédiatement votre programme. Lorsque le programme se termine immédiatement, il s'arrête simplement. Les variables locales ne sont pas détruites au préalable et, pour cette raison, aucun destructeur n'est appelé. Soyez prudent si vous comptez sur vos destructeurs pour effectuer un travail de nettoyage nécessaire dans un tel cas.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les exceptions non gérées provoquent également la fin du programme et peuvent ne pas dérouler la pile avant de le faire. Si le déroulement de la pile (stack unwinding) n'a pas lieu, les destructeurs ne seront pas appelés avant la terminaison du programme.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-destructors/">https://www.learncpp.com/cpp-tutorial/introduction-to-destructors/</a></em></p>
+</main>
+</body>
+</html>

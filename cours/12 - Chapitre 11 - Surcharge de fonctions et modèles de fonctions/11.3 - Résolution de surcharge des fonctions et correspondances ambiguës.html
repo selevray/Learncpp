@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.3 — Résolution de surcharge des fonctions et correspondances ambiguës</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="113-résolution-de-surcharge-des-fonctions-et-correspondances-ambiguës">11.3 — Résolution de surcharge des fonctions et correspondances ambiguës</h1>
+<p>Dans la leçon précédente (<a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.2%20-%20Diff%C3%A9renciation%20des%20fonctions%20surcharg%C3%A9es.html">11.2 -- Différenciation des fonctions surchargées</a>), nous avons vu quels attributs d'une fonction permettent de différencier les fonctions surchargées les unes des autres. Si une fonction surchargée n'est pas correctement différenciée des autres surcharges portant le même nom, le compilateur produira une erreur de compilation.</p>
+<p>Cependant, disposer d'un ensemble de fonctions surchargées correctement différenciées ne représente que la moitié du tableau. Lors de chaque appel de fonction, le compilateur doit aussi s'assurer qu'une déclaration de fonction correspondante peut être trouvée.</p>
+<p>Avec les fonctions non surchargées (fonctions dont le nom est unique), une seule fonction peut potentiellement correspondre à un appel. Cette fonction correspond soit directement, soit après application de conversions de types, soit pas du tout (et une erreur de compilation en résulte). Avec les fonctions surchargées, plusieurs fonctions peuvent potentiellement correspondre à un appel. Comme un appel ne peut se rattacher qu'à une seule d'entre elles, le compilateur doit déterminer la surcharge qui correspond le mieux. Le processus qui consiste à associer un appel de fonction à une surcharge précise s'appelle <strong>résolution de surcharge</strong> (overload resolution).</p>
+<p>Dans les cas simples où le type des arguments et le type des paramètres correspondent exactement, cette résolution est (en général) directe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void print(int x)
+{
+     std::cout &lt;&lt; x &lt;&lt; '\n';
+}
+
+void print(double d)
+{
+     std::cout &lt;&lt; d &lt;&lt; '\n';
+}
+
+int main()
+{
+     print(5); // 5 est un int, donc cela correspond à print(int)
+     print(6.7); // 6.7 est un double, donc cela correspond à print(double)
+
+     return 0;
+}
+</code></pre>
+<p>Mais que se passe-t-il lorsque les types des arguments de l'appel ne correspondent exactement aux types des paramètres d'aucune surcharge ? Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void print(int x)
+{
+     std::cout &lt;&lt; x &lt;&lt; '\n';
+}
+
+void print(double d)
+{
+     std::cout &lt;&lt; d &lt;&lt; '\n';
+}
+
+int main()
+{
+     print('a'); // char ne correspond ni à int ni à double, que se passe-t-il ?
+     print(5L); // long ne correspond ni à int ni à double, que se passe-t-il ?
+
+     return 0;
+}
+</code></pre>
+<p>Il n'y a pas de correspondance exacte ici, mais cela ne signifie pas qu'aucune correspondance ne peut être trouvée : après tout, un <code>char</code> ou un <code>long</code> peut être converti implicitement en <code>int</code> ou en <code>double</code>. Mais quelle est la meilleure conversion à effectuer dans chaque cas ?</p>
+<p>Dans cette leçon, nous allons voir comment le compilateur associe un appel de fonction donné à une fonction surchargée précise.</p>
+<h2 id="résolution-des-appels-de-fonctions-surchargées">Résolution des appels de fonctions surchargées</h2>
+<p>Lorsqu'un appel est effectué vers une fonction surchargée, le compilateur parcourt une suite de règles pour déterminer laquelle des fonctions surchargées (le cas échéant) correspond le mieux (nous détaillerons ces étapes dans la section suivante).</p>
+<p>À chaque étape, le compilateur applique différentes conversions de types aux arguments de l'appel. Pour chaque conversion appliquée, il vérifie si l'une des fonctions surchargées correspond désormais. Une fois toutes les conversions de l'étape appliquées et vérifiées, l'étape est terminée. Le résultat peut prendre l'une de trois formes :</p>
+<ul>
+<li>Aucune fonction correspondante n'a été trouvée. Le compilateur passe à l'étape suivante de la séquence.</li>
+<li>Une seule fonction correspondante a été trouvée. Cette fonction est considérée comme la meilleure correspondance. Le processus de recherche est alors terminé, et les étapes suivantes ne sont pas exécutées.</li>
+<li>Plusieurs fonctions correspondantes ont été trouvées. Le compilateur émet une erreur de compilation de correspondance ambiguë. Nous reviendrons plus loin sur ce cas.</li>
+</ul>
+<p>Si le compilateur atteint la fin de toute la séquence sans trouver de correspondance, il génère une erreur de compilation indiquant qu'aucune fonction surchargée correspondant à l'appel n'a pu être trouvée.</p>
+<h2 id="la-séquence-de-correspondance-des-arguments">La séquence de correspondance des arguments</h2>
+<p>Étape 1) Le compilateur cherche d'abord une correspondance exacte. Cette étape se déroule en deux phases. Dans la première, le compilateur vérifie s'il existe une surcharge pour laquelle le type des arguments de l'appel correspond exactement au type des paramètres :</p>
+<pre><code class="language-cpp">void foo(int)
+{
+}
+
+void foo(double)
+{
+}
+
+int main()
+{
+    foo(0);   // correspondance exacte avec foo(int)
+    foo(3.4); // correspondance exacte avec foo(double)
+
+    return 0;
+}
+</code></pre>
+<p>Comme le <code>0</code> de l'appel <code>foo(0)</code> est un <code>int</code>, le compilateur vérifie si une surcharge <code>foo(int)</code> a été déclarée. C'est le cas, donc le compilateur considère que <code>foo(int)</code> est une correspondance exacte.</p>
+<p>Dans la seconde phase, le compilateur applique un certain nombre de conversions triviales aux arguments de l'appel. Les <strong>conversions triviales</strong> (trivial conversions) forment un ensemble de règles de conversion particulières qui modifient le type (sans modifier la valeur) afin de trouver une correspondance. Elles comprennent :</p>
+<ul>
+<li>les conversions lvalue vers rvalue ;</li>
+<li>les conversions de qualification (par exemple non-<code>const</code> vers <code>const</code>) ;</li>
+<li>les conversions non-référence vers référence.</li>
+</ul>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">void foo(const int)
+{
+}
+
+void foo(const double&amp;) // double&amp; est une référence vers un double
+{
+}
+
+int main()
+{
+    int x { 1 };
+    foo(x); // x est converti trivialement de int en const int
+
+    double d { 2.3 };
+    foo(d); // d est converti trivialement de double en const double&amp; (conversion non-référence vers référence)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous appelons <code>foo(x)</code>, où <code>x</code> est un <code>int</code>. Le compilateur convertit trivialement <code>x</code> d'un <code>int</code> en <code>const int</code>, ce qui correspond alors à <code>foo(const int)</code>. Nous appelons aussi <code>foo(d)</code>, où <code>d</code> est un <code>double</code>. Le compilateur convertit trivialement <code>d</code> d'un <code>double</code> en <code>const double&amp;</code>, ce qui correspond alors à <code>foo(const double&amp;)</code>.</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous abordons les références dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.3%20-%20R%C3%A9f%C3%A9rences%20lvalue.html">12.3 -- Références lvalue</a>.</p>
+</div>
+<p>Les correspondances obtenues par ces conversions triviales sont considérées comme des correspondances exactes. Cela signifie que le programme suivant produit une correspondance ambiguë :</p>
+<pre><code class="language-cpp">void foo(int)
+{
+}
+
+void foo(const int&amp;) // int&amp; est une référence vers un int
+{
+}
+
+int main()
+{
+    int x { 1 };
+    foo(x); // correspondance ambiguë avec foo(int) et foo(const int&amp;)
+
+    return 0;
+}
+</code></pre>
+<p>Étape 2) Si aucune correspondance exacte n'est trouvée, le compilateur tente une correspondance en appliquant la promotion numérique aux arguments. Dans la leçon (<a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.1%20-%20Conversion%20de%20type%20implicite.html">10.1 -- Conversion implicite de type</a>), nous avons vu que certains types entiers et flottants étroits peuvent être automatiquement promus vers des types plus larges, tels que <code>int</code> ou <code>double</code>. Si, après promotion numérique, une correspondance est trouvée, l'appel est résolu.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">void foo(int)
+{
+}
+
+void foo(double)
+{
+}
+
+int main()
+{
+    foo('a');  // promu pour correspondre à foo(int)
+    foo(true); // promu pour correspondre à foo(int)
+    foo(4.5f); // promu pour correspondre à foo(double)
+
+    return 0;
+}
+</code></pre>
+<p>Pour <code>foo('a')</code>, comme aucune correspondance exacte avec <code>foo(char)</code> n'a pu être trouvée à l'étape précédente, le compilateur promeut le <code>char</code> <code>'a'</code> en <code>int</code> et recherche une correspondance. Elle correspond à <code>foo(int)</code>, donc l'appel se résout vers <code>foo(int)</code>.</p>
+<p>Étape 3) Si aucune correspondance n'est trouvée par promotion numérique, le compilateur tente une correspondance en appliquant aux arguments des conversions numériques (<a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.3%20-%20Conversions%20num%C3%A9riques.html">10.3 -- Conversions numériques</a>).</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;string&gt; // pour std::string
+
+void foo(double)
+{
+}
+
+void foo(std::string)
+{
+}
+
+int main()
+{
+    foo('a'); // 'a' converti pour correspondre à foo(double)
+
+    return 0;
+}
+</code></pre>
+<p>Ici, comme il n'existe ni <code>foo(char)</code> (correspondance exacte) ni <code>foo(int)</code> (correspondance par promotion), le <code>'a'</code> est converti numériquement en <code>double</code> et associé à <code>foo(double)</code>.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les correspondances obtenues par promotions numériques l'emportent sur celles obtenues par conversions numériques.</p>
+</div>
+<p>Étape 4) Si aucune correspondance n'est trouvée par conversion numérique, le compilateur tente une correspondance par conversions définies par l'utilisateur. Bien que nous n'ayons pas encore abordé ces conversions, certains types (par exemple les classes) peuvent définir des conversions vers d'autres types qui peuvent être invoquées implicitement. Voici un exemple, uniquement pour illustrer le propos :</p>
+<pre><code class="language-cpp">// Nous n'avons pas encore vu les classes, donc ne vous inquiétez pas si cela ne vous semble pas clair
+class X // ceci définit un nouveau type appelé X
+{
+public:
+    operator int() { return 0; } // Voici une conversion définie par l'utilisateur de X vers int
+};
+
+void foo(int)
+{
+}
+
+void foo(double)
+{
+}
+
+int main()
+{
+    X x; // Ici, nous créons un objet de type X (nommé x)
+    foo(x); // x est converti en int grâce à la conversion définie par l'utilisateur de X vers int
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, le compilateur vérifie d'abord s'il existe une correspondance exacte avec <code>foo(X)</code>. Nous n'en avons pas défini. Ensuite, il vérifie si <code>x</code> peut être promu numériquement, ce qui n'est pas le cas. Il vérifie alors si <code>x</code> peut subir une conversion numérique, ce qui n'est pas non plus le cas. Enfin, il recherche les conversions définies par l'utilisateur. Comme nous avons défini une conversion de <code>X</code> vers <code>int</code>, le compilateur convertit <code>X</code> en <code>int</code> pour correspondre à <code>foo(int)</code>.</p>
+<p>Après application d'une conversion définie par l'utilisateur, le compilateur peut appliquer des promotions ou conversions supplémentaires pour trouver une correspondance. Ainsi, si notre conversion définie par l'utilisateur avait produit un <code>char</code> au lieu d'un <code>int</code>, le compilateur aurait utilisé cette conversion vers <code>char</code>, puis promu le résultat en <code>int</code> pour trouver la correspondance.</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous verrons comment créer des conversions définies par l'utilisateur pour les types classe (en surchargeant les opérateurs de conversion de type) dans la leçon <a href="../23%20-%20Chapitre%2021%20-%20Surcharge%20d%27op%C3%A9rateurs/21.11%20-%20Surcharge%20des%20transtypages%20%28typecasts%29.html">21.11 -- Surcharge des opérateurs de transtypage</a>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Le constructeur d'une classe agit aussi comme une conversion définie par l'utilisateur, depuis d'autres types vers ce type classe, et peut être utilisé à cette étape pour trouver des fonctions correspondantes.</p>
+</div>
+<p>Étape 5) Si aucune correspondance n'est trouvée par conversion définie par l'utilisateur, le compilateur recherche une fonction correspondante qui utilise des points de suspension (ellipsis).</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous abordons les points de suspension dans la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.5%20-%20Les%20points%20de%20suspension%20%28ellipsis%29%20et%20pourquoi%20les%20%C3%A9viter.html">20.5 -- Points de suspension (ellipsis) et raisons de les éviter</a>.</p>
+</div>
+<p>Étape 6) Si aucune correspondance n'a été trouvée à ce stade, le compilateur abandonne et émet une erreur de compilation indiquant qu'il n'a pas pu trouver de fonction correspondante.</p>
+<h2 id="correspondances-ambiguës">Correspondances ambiguës</h2>
+<p>Avec les fonctions non surchargées, chaque appel se résout soit vers une fonction, soit, si aucune correspondance n'est trouvée, vers une erreur de compilation :</p>
+<pre><code class="language-cpp">void foo()
+{
+}
+
+int main()
+{
+     foo(); // correct : correspondance trouvée
+     goo(); // erreur de compilation : aucune correspondance trouvée
+
+     return 0;
+}
+</code></pre>
+<p>Avec les fonctions surchargées, il existe un troisième résultat possible : une correspondance ambiguë (<code>ambiguous match</code>). Une <strong>correspondance ambiguë</strong> (ambiguous match) se produit lorsque le compilateur trouve deux fonctions ou plus pouvant correspondre à l'appel au ccours de la même étape. Dans ce cas, le compilateur arrête la recherche et émet une erreur de compilation signalant un appel de fonction ambigu.</p>
+<p>Comme chaque fonction surchargée doit être différenciée pour que le programme compile, vous pouvez vous demander comment un appel de fonction peut correspondre à plus d'une fonction. Examinons un exemple qui l'illustre :</p>
+<pre><code class="language-cpp">void foo(int)
+{
+}
+
+void foo(double)
+{
+}
+
+int main()
+{
+    foo(5L); // 5L est de type long
+
+    return 0;
+}
+</code></pre>
+<p>Comme le littéral <code>5L</code> est de type <code>long</code>, le compilateur cherche d'abord une correspondance exacte avec <code>foo(long)</code>, sans en trouver. Ensuite, il tente une promotion numérique, mais les valeurs de type <code>long</code> ne peuvent pas être promues, donc il n'y a pas non plus de correspondance à cette étape.</p>
+<p>Il tente alors une correspondance en appliquant des conversions numériques à l'argument <code>long</code>. En parcourant toutes les règles de conversion numérique, le compilateur trouve deux correspondances possibles. Si l'argument <code>long</code> est converti en <code>int</code>, l'appel correspond à <code>foo(int)</code>. Si l'argument <code>long</code> est converti en <code>double</code>, il correspond alors à <code>foo(double)</code>. Comme deux correspondances possibles par conversion numérique ont été trouvées, l'appel est considéré comme ambigu.</p>
+<p>Avec Visual Studio 2019, cela produit le message d'erreur suivant :</p>
+<pre><code>
+error C2668: 'foo': ambiguous call to overloaded function
+message : could be 'void foo(double)'
+message : or       'void foo(int)'
+message : while trying to match the argument list '(long)'
+</code></pre>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Si le compilateur trouve plusieurs correspondances au cours d'une même étape, l'appel de fonction est ambigu. Cela signifie qu'aucune correspondance de cette étape n'est considérée comme meilleure qu'une autre correspondance de la même étape.</p>
+</div>
+<p>Voici un autre exemple produisant des correspondances ambiguës :</p>
+<pre><code class="language-cpp">void foo(unsigned int)
+{
+}
+
+void foo(float)
+{
+}
+
+int main()
+{ 
+    foo(0);       // un int peut être converti numériquement en unsigned int ou en float
+    foo(3.14159); // un double peut être converti numériquement en unsigned int ou en float
+
+    return 0;
+}
+</code></pre>
+<p>Bien que l'on puisse s'attendre à ce que <code>0</code> se résolve vers <code>foo(unsigned int)</code> et <code>3.14159</code> vers <code>foo(float)</code>, ces deux appels produisent une correspondance ambiguë. La valeur <code>int</code> <code>0</code> peut être convertie numériquement en <code>unsigned int</code> ou en <code>float</code>, donc les deux surcharges correspondent aussi bien l'une que l'autre, et l'appel est ambigu.</p>
+<p>Il en va de même pour la conversion d'un <code>double</code> en <code>float</code> ou en <code>unsigned int</code>. Ce sont deux conversions numériques, donc les deux surcharges correspondent aussi bien l'une que l'autre, et le résultat est à nouveau ambigu.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les arguments par défaut peuvent également provoquer des correspondances ambiguës. Nous traitons ces cas dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.5%20-%20Arguments%20par%20d%C3%A9faut.html">11.5 -- Arguments par défaut</a>.</p>
+</div>
+<h2 id="résoudre-les-correspondances-ambiguës">Résoudre les correspondances ambiguës</h2>
+<p>Les correspondances ambiguës étant une erreur de compilation, elles doivent être levées avant que votre programme puisse compiler. Il existe plusieurs façons de les résoudre :</p>
+<ol>
+<li>Souvent, la meilleure solution consiste simplement à définir une nouvelle fonction surchargée qui prend des paramètres exactement du type avec lequel vous appelez la fonction. C++ pourra alors trouver une correspondance exacte pour l'appel.</li>
+<li>Vous pouvez aussi convertir explicitement les arguments ambigus pour qu'ils correspondent au type de la fonction que vous voulez appeler. Par exemple, pour que <code>foo(0)</code> corresponde à <code>foo(unsigned int)</code> dans l'exemple ci-dessus, vous écririez :</li>
+</ol>
+<pre><code class="language-cpp">int x{ 0 };
+foo(static_cast&lt;unsigned int&gt;(x)); // appellera foo(unsigned int)
+</code></pre>
+<ol start="3">
+<li>Si votre argument est un littéral, vous pouvez utiliser le suffixe du littéral pour vous assurer qu'il est interprété avec le bon type :</li>
+</ol>
+<pre><code class="language-cpp">foo(0u); // appellera foo(unsigned int) car le suffixe 'u' désigne un unsigned int, c'est donc désormais une correspondance exacte
+</code></pre>
+<p>La liste des suffixes les plus utilisés se trouve dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.2%20-%20Litt%C3%A9raux.html">5.2 -- Littéraux</a>.</p>
+<h2 id="correspondance-pour-les-fonctions-à-plusieurs-arguments">Correspondance pour les fonctions à plusieurs arguments</h2>
+<p>S'il y a plusieurs arguments, le compilateur applique les règles de correspondance à chaque argument tour à tour. La fonction choisie est celle pour laquelle chaque argument correspond au moins aussi bien que dans toutes les autres fonctions candidates, et pour laquelle au moins un argument correspond mieux que dans toutes les autres fonctions. En d'autres termes, la fonction choisie doit offrir une meilleure correspondance que toutes les autres fonctions candidates pour au moins un paramètre, et une correspondance non moins bonne pour tous les autres paramètres.</p>
+<p>Si une telle fonction est trouvée, elle constitue clairement et sans ambiguïté le meilleur choix. Si aucune fonction de ce type ne peut être trouvée, l'appel est considéré comme ambigu (ou comme n'ayant aucune correspondance).</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void print(char, int)
+{
+    std::cout &lt;&lt; 'a' &lt;&lt; '\n';
+}
+
+void print(char, double)
+{
+    std::cout &lt;&lt; 'b' &lt;&lt; '\n';
+}
+
+void print(char, float)
+{
+    std::cout &lt;&lt; 'c' &lt;&lt; '\n';
+}
+
+int main()
+{
+    print('x', 'a');
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, toutes les fonctions correspondent exactement au premier argument. En revanche, la fonction du haut correspond au second paramètre par promotion, alors que les autres nécessitent une conversion. Par conséquent, <code>print(char, int)</code> est sans ambiguïté la meilleure correspondance.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/function-overload-resolution-and-ambiguous-matches/">https://www.learncpp.com/cpp-tutorial/function-overload-resolution-and-ambiguous-matches/</a></em></p>
+</main>
+</body>
+</html>

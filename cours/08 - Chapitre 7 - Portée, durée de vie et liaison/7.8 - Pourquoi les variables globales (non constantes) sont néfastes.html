@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.8 — Pourquoi les variables globales (non constantes) sont néfastes</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="78-pourquoi-les-variables-globales-non-constantes-sont-néfastes">7.8 — Pourquoi les variables globales (non constantes) sont néfastes</h1>
+<p>Si vous demandiez à un programmeur chevronné un seul conseil sur les bonnes pratiques de programmation, après réflexion, la réponse la plus probable serait : « Évitez les variables globales ! ». Et c'est pour une bonne raison : les variables globales sont l'un des concepts du langage les plus abusés au fil de l'histoire. Bien qu'elles puissent sembler inoffensives dans les petits programmes académiques, elles posent souvent problème dans les programmes plus importants.</p>
+<p>Les nouveaux programmeurs sont souvent tentés d'utiliser de nombreuses variables globales, car elles sont faciles à manipuler, surtout lorsque plusieurs appels à différentes fonctions sont impliqués (transmettre des données par les paramètres de fonctions est pénible). Cependant, c'est généralement une mauvaise idée. De nombreux développeurs pensent que les variables globales non constantes doivent être évitées complètement !</p>
+<p>Mais avant d'expliquer pourquoi, il faut apporter une précision. Lorsque des développeurs affirment que les variables globales sont néfastes, ils ne parlent généralement pas de <em>toutes</em> les variables globales. Ils visent surtout les variables globales non constantes.</p>
+<h2 id="pourquoi-les-variables-globales-non-constantes-sont-néfastes">Pourquoi les variables globales (non constantes) sont néfastes</h2>
+<p>La raison de loin la plus importante pour laquelle les variables globales non constantes sont dangereuses tient au fait que leurs valeurs peuvent être modifiées par <em>n'importe quelle</em> fonction appelée, et qu'il n'existe pas de moyen simple pour le programmeur de savoir que cela va se produire. Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int g_mode; // déclare une variable globale (initialisée à zéro par défaut)
+
+void doSomething()
+{
+    g_mode = 2; // affecte la valeur 2 à la variable globale g_mode
+}
+
+int main()
+{
+    g_mode = 1; // note : ceci affecte la valeur 1 à la variable globale g_mode. Ce n'est pas la déclaration d'une variable locale g_mode !
+
+    doSomething();
+
+    // Le programmeur s'attend toujours à ce que g_mode vaille 1
+    // Mais doSomething l'a fait passer à 2 !
+
+    if (g_mode == 1)
+    {
+        std::cout &lt;&lt; &quot;Aucune menace détectée.\n&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;Lancement des missiles nucléaires...\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Notez que le programmeur a affecté la valeur <em>1</em> à la variable <code>g_mode</code>, puis a appelé <code>doSomething()</code>. À moins que le programmeur ne sache explicitement que <code>doSomething()</code> allait modifier la valeur de <code>g_mode</code>, il ne s'attendait probablement pas à ce que <code>doSomething()</code> change cette valeur ! Par conséquent, la suite de <code>main()</code> ne fonctionne pas comme le programmeur l'attend (et le monde est anéanti).</p>
+<p>En bref, les variables globales rendent l'état du programme imprévisible. Chaque appel de fonction devient potentiellement dangereux, et le programmeur n'a pas de moyen simple de savoir lesquels sont dangereux et lesquels ne le sont pas ! Les variables locales sont bien plus sûres, car les autres fonctions ne peuvent pas les modifier directement.</p>
+<p>Il existe bien d'autres bonnes raisons de ne pas utiliser de globales non constantes.</p>
+<p>Avec les variables globales, il n'est pas rare de trouver un code de ce type :</p>
+<pre><code class="language-cpp">void someFunction()
+{
+    // code utile
+
+    if (g_mode == 4)
+    {
+        // faire quelque chose de bien
+    }
+}
+</code></pre>
+<p>Après débogage, vous constatez que votre programme ne fonctionne pas correctement parce que <code>g_mode</code> vaut <code>3</code>, et non <em>4</em>. Comment corriger le problème ? Il faut maintenant trouver tous les endroits où <code>g_mode</code> pourrait valoir <code>3</code>, et retracer comment cette valeur a été affectée au départ. Il est possible que cela se trouve dans un morceau de code totalement sans rapport !</p>
+<p>L'une des raisons essentielles de déclarer les variables locales le plus près possible de l'endroit où elles sont utilisées est que cela minimise la quantité de code à parcourir pour comprendre le rôle de la variable. Les variables globales sont à l'extrême opposé : comme elles sont accessibles partout, il peut être nécessaire de parcourir tout le programme pour comprendre leur utilisation. Dans les petits programmes, cela peut ne pas poser de problème. Dans les grands, ce sera le cas.</p>
+<p>Par exemple, vous pourriez constater que <code>g_mode</code> est référencée 442 fois dans votre programme. À moins que <code>g_mode</code> ne soit bien documentée, vous devrez potentiellement examiner chacune de ses utilisations pour comprendre comment elle est employée selon les cas, quelles sont ses valeurs valides et quel est son rôle global.</p>
+<p>Les variables globales rendent aussi votre programme moins modulaire et moins flexible. Une fonction qui n'utilise que ses paramètres et n'a aucun effet de bord est parfaitement modulaire. La modularité facilite à la fois la compréhension de ce que fait un programme et la réutilisation du code. Les variables globales réduisent considérablement la modularité.</p>
+<p>En particulier, évitez d'utiliser des variables globales pour les variables de « point de décision » importantes (c'est-à-dire les variables que vous utiliseriez dans une instruction conditionnelle, comme la variable <code>g_mode</code> de l'exemple ci-dessus). Votre programme risque peu de casser si une variable globale contenant une information secondaire change (par exemple le nom de l'utilisateur). Il est bien plus probable qu'il casse si vous modifiez une variable globale qui influence <em>la façon</em> dont le programme fonctionne réellement.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez des variables locales plutôt que des variables globales chaque fois que c'est possible.</p>
+</div>
+<h2 id="le-problème-de-lordre-dinitialisation-des-variables-globales">Le problème de l'ordre d'initialisation des variables globales</h2>
+<p>L'initialisation des variables statiques (ce qui inclut les variables globales) a lieu lors du démarrage du programme, avant l'exécution de la fonction <code>main</code>. Elle se déroule en deux phases.</p>
+<p>La première phase s'appelle <strong>initialisation statique (static initialization)</strong>. Elle comporte elle-même deux sous-étapes :</p>
+<ul>
+<li>Les variables globales dont l'initialiseur est <code>constexpr</code> (y compris les littéraux) sont initialisées avec ces valeurs. On parle d'<strong>initialisation constante (constant initialization)</strong>.</li>
+<li>Les variables globales sans initialiseur sont initialisées à zéro (zero-initialization). L'initialisation à zéro est considérée comme une forme d'initialisation statique, puisque <code>0</code> est une valeur <code>constexpr</code>.</li>
+</ul>
+<p>La seconde phase s'appelle <strong>initialisation dynamique (dynamic initialization)</strong>. Elle est plus complexe et plus nuancée, mais l'idée générale est que les variables globales dont l'initialiseur n'est pas <code>constexpr</code> sont initialisées à ce moment-là.</p>
+<p>Voici un exemple d'initialiseur non <code>constexpr</code> :</p>
+<pre><code class="language-cpp">int init()
+{
+    return 5;
+}
+
+int g_something{ init() }; // initialisation non constexpr
+</code></pre>
+<p>Dans un même fichier, pour chaque phase, les variables globales sont généralement initialisées dans l'ordre de leur définition (il existe quelques exceptions à cette règle pour la phase d'initialisation dynamique). Il faut donc veiller à ne pas faire dépendre une variable de la valeur d'initialisation d'une autre variable qui ne sera initialisée que plus tard. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int initX();  // déclaration anticipée
+int initY();  // déclaration anticipée
+
+int g_x{ initX() }; // g_x est initialisée en premier
+int g_y{ initY() };
+
+int initX()
+{
+    return g_y; // g_y n'est pas encore initialisée au moment de cet appel
+}
+
+int initY()
+{
+    return 5;
+}
+
+int main()
+{
+    std::cout &lt;&lt; g_x &lt;&lt; ' ' &lt;&lt; g_y &lt;&lt; '\n';
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+0 5
+</code></pre>
+<p>Plus problématique encore, l'ordre d'initialisation des objets statiques entre différentes unités de traduction est indéterminé.</p>
+<p>Étant donné deux fichiers, <em>a.cpp</em> et <em>b.cpp</em>, l'un ou l'autre peut voir ses variables globales initialisées en premier. Si une variable à durée de stockage statique de <em>a.cpp</em> est initialisée à partir d'une variable à durée statique définie dans <em>b.cpp</em>, il y a 50 % de chances que la variable de <em>b.cpp</em> ne soit pas encore initialisée.</p>
+<div class="callout quote"><p class="callout-title">Terminologie</p>
+<p>L'indétermination de l'ordre d'initialisation des objets à durée de stockage statique situés dans des unités de traduction différentes est souvent appelée <a href="https://en.cppreference.com/w/cpp/language/siof">static initialization order fiasco</a>.</p>
+</div>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Évitez d'initialiser des objets à durée statique à l'aide d'autres objets à durée statique provenant d'une autre unité de traduction.</p>
+<p>L'initialisation dynamique des variables globales est également sujette à des problèmes d'ordre d'initialisation et doit être évitée chaque fois que c'est possible.</p>
+</div>
+<h2 id="alors-quelles-sont-les-très-bonnes-raisons-dutiliser-des-variables-globales-non-constantes">Alors, quelles sont les très bonnes raisons d'utiliser des variables globales non constantes ?</h2>
+<p>Il n'y en a pas beaucoup. Dans la plupart des cas, il est préférable d'utiliser des variables locales et de les passer en arguments aux autres fonctions. Mais dans certains cas, un usage judicieux de variables globales non constantes <em>peut</em> effectivement réduire la complexité du programme, et dans ces rares cas, leur usage peut être préférable aux alternatives.</p>
+<p>Un bon exemple est un fichier journal, dans lequel on peut écrire des informations d'erreur ou de débogage. Il est sans doute pertinent de le définir comme globale, car vous n'aurez probablement qu'un seul journal dans le programme, qui sera utilisé presque partout. Un autre bon exemple est un générateur de nombres aléatoires (nous en montrons un exemple dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.15%20-%20Nombres%20al%C3%A9atoires%20globaux%20%28Random.h%29.html">8.15 -- Nombres aléatoires globaux (Random.h)</a>).</p>
+<p>Pour information, les objets <code>std::cout</code> et <code>std::cin</code> sont eux-mêmes implémentés comme des variables globales (dans l'espace de noms <em>std</em>).</p>
+<p>En règle générale, toute utilisation d'une variable globale doit satisfaire au moins les deux critères suivants : il ne doit exister qu'une seule instance de ce que représente la variable dans le programme, et son utilisation doit être omniprésente dans le programme.</p>
+<p>De nombreux nouveaux programmeurs commettent l'erreur de penser qu'une chose peut être implémentée comme globale parce qu'une seule est nécessaire <em>pour le moment</em>. Par exemple, vous pourriez penser que, comme vous réalisez un jeu à un seul joueur, vous n'avez besoin que d'un seul joueur. Mais que se passera-t-il plus tard si vous voulez ajouter un mode multijoueur (versus ou hotseat) ?</p>
+<h2 id="se-protéger-de-la-destruction-globale">Se protéger de la destruction globale</h2>
+<p>Si vous trouvez tout de même une bonne utilisation pour une variable globale non constante, quelques conseils utiles permettent de limiter les ennuis. Ces conseils ne concernent pas seulement les variables globales non constantes, ils peuvent aider avec toutes les variables globales.</p>
+<p>Tout d'abord, préfixez toutes les variables globales sans espace de noms par « g » ou « g_ », ou mieux encore, placez-les dans un espace de noms (abordé dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.2%20-%20Espaces%20de%20noms%20d%C3%A9finis%20par%20l%27utilisateur%20et%20op%C3%A9rateur%20de%20r%C3%A9solution%20de%20port%C3%A9e.html">7.2 -- Espaces de noms définis par l'utilisateur et opérateur de résolution de portée</a>), afin de réduire le risque de collisions de noms.</p>
+<p>Par exemple, au lieu de :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+constexpr double gravity { 9.8 }; // risque de collision avec une autre variable globale nommée gravity
+
+int main()
+{
+    std::cout &lt;&lt; gravity &lt;&lt; '\n'; // on ne sait pas, à partir du nom seul, s'il s'agit d'une variable locale ou globale
+
+    return 0;
+}
+</code></pre>
+<p>Faites plutôt ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace constants
+{
+    constexpr double gravity { 9.8 }; // n'entrera pas en collision avec d'autres variables globales nommées gravity
+}
+
+int main()
+{
+    std::cout &lt;&lt; constants::gravity &lt;&lt; '\n'; // il est clair qu'il s'agit d'une variable globale (puisque les espaces de noms sont globaux)
+
+    return 0;
+}
+</code></pre>
+<p>Ensuite, plutôt que d'autoriser un accès direct à la variable globale, il est préférable d'« encapsuler » la variable. Assurez-vous que la variable ne soit accessible que depuis le fichier dans lequel elle est déclarée, par exemple en la rendant <code>static</code> ou <code>const</code>, puis fournissez des « fonctions d'accès » globales externes pour manipuler la variable. Ces fonctions peuvent garantir que l'utilisation reste correcte (par exemple en effectuant une validation des entrées, un contrôle de bornes, etc.). De plus, si vous décidez un jour de changer l'implémentation sous-jacente (par exemple passer d'une base de données à une autre), vous n'aurez à modifier que les fonctions d'accès, au lieu de chaque portion de code qui utilise directement la variable globale.</p>
+<p>Par exemple, au lieu de ceci :</p>
+<p>constants.cpp :</p>
+<pre><code class="language-cpp">namespace constants
+{
+    extern const double gravity { 9.8 }; // possède une liaison externe, accessible depuis d'autres fichiers
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace constants
+{
+    extern const double gravity; // déclaration anticipée
+}
+
+int main()
+{
+    std::cout &lt;&lt; constants::gravity &lt;&lt; '\n'; // accès direct à la variable globale
+
+    return 0;
+}
+</code></pre>
+<p>Faites plutôt ceci :</p>
+<p>constants.cpp :</p>
+<pre><code class="language-cpp">namespace constants
+{
+    constexpr double gravity { 9.8 }; // possède une liaison interne, n'est accessible que dans ce fichier
+}
+
+double getGravity() // possède une liaison externe, accessible depuis d'autres fichiers
+{
+    // On pourra ajouter ici de la logique si besoin
+    // ou changer l'implémentation de façon transparente pour les appelants
+    return constants::gravity;
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+double getGravity(); // déclaration anticipée
+
+int main()
+{
+    std::cout &lt;&lt; getGravity() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Les variables globales <code>const</code> ont par défaut une liaison interne, <code>gravity</code> n'a donc pas besoin d'être <code>static</code>.</p>
+</div>
+<p>Troisièmement, lorsque vous écrivez une fonction autonome qui utilise la variable globale, n'utilisez pas directement la variable dans le corps de la fonction. Passez-la plutôt en argument. Ainsi, si votre fonction doit un jour utiliser une valeur différente dans certaines circonstances, il vous suffit de changer l'argument. Cela contribue à préserver la modularité.</p>
+<p>Au lieu de :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace constants
+{
+    constexpr double gravity { 9.8 };
+}
+
+// Cette fonction n'est utile que pour calculer la vitesse instantanée à partir de la gravité globale
+double instantVelocity(int time)
+{
+    return constants::gravity * time;
+}
+
+int main()
+{
+    std::cout &lt;&lt; instantVelocity(5) &lt;&lt; '\n';
+
+    return 0;
+
+}
+</code></pre>
+<p>Faites plutôt ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace constants
+{
+    constexpr double gravity { 9.8 };
+}
+
+// Cette fonction peut calculer la vitesse instantanée pour n'importe quelle valeur de gravité (plus utile)
+double instantVelocity(int time, double gravity)
+{
+    return gravity * time;
+}
+
+int main()
+{
+    std::cout &lt;&lt; instantVelocity(5, constants::gravity) &lt;&lt; '\n'; // on transmet notre constante à la fonction en tant que paramètre
+
+    return 0;
+}
+</code></pre>
+<h2 id="une-blague-c">Une blague C++</h2>
+<p>Quel est le meilleur préfixe de nommage pour une variable globale ?</p>
+<p>Réponse : //</p>
+<p>Cette blague mérite à elle seule tous les commentaires.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/why-non-const-global-variables-are-evil/">https://www.learncpp.com/cpp-tutorial/why-non-const-global-variables-are-evil/</a></em></p>
+</main>
+</body>
+</html>

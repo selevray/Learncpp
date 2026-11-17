@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22.1 — std::string et std::wstring</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="221-stdstring-et-stdwstring">22.1 — std::string et std::wstring</h1>
+<p>La bibliothèque standard contient de nombreuses classes utiles, mais la plus utile est peut-être std::string. std::string (et std::wstring) est une classe de chaînes de caractères qui fournit de nombreuses opérations pour affecter, comparer et modifier des chaînes. Dans ce chapitre, nous allons étudier en profondeur ces classes de chaînes.</p>
+<p>Remarque : les chaînes de style C seront appelées « chaînes de style C », tandis que std::string (et std::wstring) seront simplement appelées « chaînes ».</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Ce chapitre est quelque peu obsolète et sera probablement condensé dans une future mise à jour. N'hésitez pas à parcourir ce contenu pour y trouver des idées et des exemples utiles, mais les sites de référence techniques (par exemple <a href="https://en.cppreference.com/w/cpp/string/basic_string">cppreference</a>) doivent être privilégiés pour les informations les plus récentes.</p>
+</div>
+<p><strong>Motivation pour une classe de chaînes</strong></p>
+<p>Dans une leçon précédente, nous avons étudié les <a href="https://www.learncpp.com/cpp-tutorial/66-c-style-strings/">chaînes de style C</a>, qui utilisent des tableaux de char pour stocker une suite de caractères. Si vous avez essayé de faire quoi que ce soit avec des chaînes de style C, vous avez très vite conclu qu'elles sont pénibles à manipuler, faciles à mal utiliser et difficiles à déboguer.</p>
+<p>Les chaînes de style C présentent de nombreux inconvénients, principalement liés au fait que vous devez gérer vous-même toute la mémoire. Par exemple, si vous voulez affecter la chaîne « hello! » à un tampon, vous devez d'abord allouer dynamiquement un tampon de la bonne longueur :</p>
+<pre><code class="language-cpp">char* strHello { new char[7] };
+</code></pre>
+<p>N'oubliez pas de prévoir un caractère supplémentaire pour le terminateur nul !</p>
+<p>Ensuite, vous devez effectivement copier la valeur :</p>
+<pre><code class="language-cpp">strcpy(strHello, &quot;hello!&quot;);
+</code></pre>
+<p>Espérons que vous avez alloué un tampon suffisamment grand pour éviter tout dépassement de tampon !</p>
+<p>Et bien sûr, comme la chaîne est allouée dynamiquement, vous devez penser à la désallouer correctement lorsque vous n'en avez plus besoin :</p>
+<pre><code class="language-cpp">delete[] strHello;
+</code></pre>
+<p>N'oubliez pas d'utiliser delete[] pour tableau plutôt que delete simple !</p>
+<p>De plus, de nombreux opérateurs intuitifs que le C fournit pour manipuler les nombres, comme l'affectation et les comparaisons, ne fonctionnent tout simplement pas avec les chaînes de style C. Parfois, ils semblent fonctionner mais produisent en réalité des résultats incorrects : par exemple, comparer deux chaînes de style C avec == effectue en fait une comparaison de pointeurs, et non une comparaison de chaînes. Affecter une chaîne de style C à une autre avec operator= semble fonctionner au début, mais effectue en réalité une copie de pointeur (copie superficielle), ce qui n'est généralement pas ce que vous voulez. Ce genre de choses peut provoquer des plantages de programme très difficiles à trouver et à déboguer !</p>
+<p>En résumé, travailler avec des chaînes de style C exige de se souvenir de nombreuses règles minutieuses sur ce qui est sûr ou non, de mémoriser des fonctions aux noms curieux comme strcat() et strcmp() au lieu d'utiliser des opérateurs intuitifs, et de réaliser beaucoup de gestion mémoire manuelle.</p>
+<p>Heureusement, C++ et la bibliothèque standard offrent une bien meilleure façon de traiter les chaînes : les classes std::string et std::wstring. En s'appuyant sur des concepts C++ comme les constructeurs, les destructeurs et la surcharge d'opérateurs, std::string vous permet de créer et de manipuler des chaînes de façon intuitive et sûre ! Plus de gestion mémoire, plus de noms de fonctions étranges, et un risque de catastrophe nettement réduit.</p>
+<p>Inscrivez-moi !</p>
+<p><strong>Vue d'ensemble des chaînes</strong></p>
+<p>Toutes les fonctionnalités de chaînes de la bibliothèque standard se trouvent dans le fichier d'en-tête <code>&lt;string&gt;</code>. Pour les utiliser, incluez simplement cet en-tête :</p>
+<pre><code class="language-cpp">    #include &lt;string&gt;
+</code></pre>
+<p>Il existe en réalité 3 classes de chaînes différentes dans l'en-tête string. La première est une classe de base template nommée basic_string&lt;&gt; :</p>
+<pre><code class="language-cpp">namespace std
+{
+    template&lt;class charT, class traits = char_traits&lt;charT&gt;, class Allocator = allocator&lt;charT&gt; &gt;
+        class basic_string;
+}
+</code></pre>
+<p>Vous ne travaillerez pas directement avec cette classe, donc ne vous inquiétez pas pour le moment de ce que sont traits ou Allocator. Les valeurs par défaut suffiront dans presque tous les cas imaginables.</p>
+<p>La bibliothèque standard fournit deux variantes de basic_string&lt;&gt; :</p>
+<pre><code class="language-cpp">namespace std
+{
+    typedef basic_string&lt;char&gt; string;
+    typedef basic_string&lt;wchar_t&gt; wstring;
+}
+</code></pre>
+<p>Ce sont les deux classes que vous utiliserez réellement. std::string sert pour les chaînes ASCII standard et UTF-8. std::wstring sert pour les chaînes à caractères larges / Unicode (UTF-16). Il n'existe pas de classe intégrée pour les chaînes UTF-32 (mais vous devriez pouvoir en créer une à partir de basic_string&lt;&gt; si vous en avez besoin).</p>
+<p>Bien que vous utiliserez directement std::string et std::wstring, toute la fonctionnalité des chaînes est implémentée dans la classe basic_string&lt;&gt;. string et wstring accèdent directement à cette fonctionnalité grâce à leur nature template. Par conséquent, toutes les fonctions présentées fonctionneront aussi bien pour string que pour wstring. Cependant, comme basic_string est une classe template, le compilateur produira aussi des messages d'erreur de template très impressionnants lorsque vous écrirez quelque chose de syntaxiquement incorrect avec une string ou une wstring. Ne vous laissez pas intimider par ces erreurs : elles paraissent bien pires qu'elles ne le sont !</p>
+<p>Voici la liste de toutes les fonctions de la classe string. La plupart de ces fonctions existent en plusieurs variantes pour gérer différents types d'entrées, que nous verrons plus en détail dans les prochaines leçons.</p>
+<table>
+<thead>
+<tr>
+<th>Fonction</th>
+<th>Effet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Création et destruction</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://www.learncpp.com/cpp-tutorial/17-2-ststring-construction-and-destruction/">(constructor)</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-2-ststring-construction-and-destruction/">(destructor)</a></td>
+<td>Crée ou copie une chaîne  Détruit une chaîne</td>
+</tr>
+<tr>
+<td><strong>Taille et capacité</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://www.learncpp.com/cpp-tutorial/17-3-stdstring-length-and-capacity/">capacity()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-3-stdstring-length-and-capacity/">empty()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-3-stdstring-length-and-capacity/">length(), size()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-3-stdstring-length-and-capacity/">max_size()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-3-stdstring-length-and-capacity/">reserve()</a></td>
+<td>Renvoie le nombre de caractères pouvant être contenus sans réallocation  Renvoie un booléen indiquant si la chaîne est vide  Renvoie le nombre de caractères de la chaîne  Renvoie la taille maximale de chaîne pouvant être allouée  Agrandit ou réduit la capacité de la chaîne</td>
+</tr>
+<tr>
+<td><strong>Accès aux éléments</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://www.learncpp.com/cpp-tutorial/17-4-stdstring-character-access-and-conversion-to-c-style-arrays/">[], at()</a></td>
+<td>Accède au caractère situé à un indice donné</td>
+</tr>
+<tr>
+<td><strong>Modification</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="http://www.learncpp.com/cpp-programming/17-5-stdstring-assignment-and-swapping/">=, assign()</a>  <a href="http://www.learncpp.com/uncategorized/17-6-stdstring-appending/">+=, append(), push_back()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-7-stdstring-inserting/">insert()</a>  clear()  erase()  replace()  resize()  <a href="http://www.learncpp.com/cpp-programming/17-5-stdstring-assignment-and-swapping/">swap()</a></td>
+<td>Affecte une nouvelle valeur à la chaîne  Concatène des caractères à la fin de la chaîne  Insère des caractères à un indice quelconque de la chaîne  Supprime tous les caractères de la chaîne  Efface des caractères à un indice quelconque de la chaîne  Remplace des caractères à un indice quelconque par d'autres caractères  Agrandit ou réduit la chaîne (tronque ou ajoute des caractères en fin de chaîne)  Échange la valeur de deux chaînes</td>
+</tr>
+<tr>
+<td><strong>Entrée et sortie</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>&gt;&gt;, getline()  &lt;&lt;  <a href="https://www.learncpp.com/cpp-tutorial/17-4-stdstring-character-access-and-conversion-to-c-style-arrays/">c_str()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-4-stdstring-character-access-and-conversion-to-c-style-arrays/">copy()</a>  <a href="https://www.learncpp.com/cpp-tutorial/17-4-stdstring-character-access-and-conversion-to-c-style-arrays/">data()</a></td>
+<td>Lit des valeurs depuis le flux d'entrée dans la chaîne  Écrit la valeur de la chaîne dans le flux de sortie  Renvoie le contenu de la chaîne sous forme de chaîne de style C terminée par un caractère nul  Copie le contenu (non terminé par un caractère nul) dans un tableau de caractères  Identique à c_str(). La surcharge non const permet d'écrire dans la chaîne renvoyée.</td>
+</tr>
+<tr>
+<td><strong>Comparaison de chaînes</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>==, !=  &lt;, &lt;=, &gt; &gt;=  compare()</td>
+<td>Compare si deux chaînes sont égales ou différentes (renvoie un bool)  Compare si deux chaînes sont inférieures ou supérieures l'une à l'autre (renvoie un bool)  Compare si deux chaînes sont égales ou différentes (renvoie -1, 0 ou 1)</td>
+</tr>
+<tr>
+<td><strong>Sous-chaînes et concaténation</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>+  substr()</td>
+<td>Concatène deux chaînes  Renvoie une sous-chaîne</td>
+</tr>
+<tr>
+<td><strong>Recherche</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>find()  find_first_of()  find_first_not_of()  find_last_of()  find_last_not_of()  rfind()</td>
+<td>Trouve l'indice du premier caractère ou de la première sous-chaîne  Trouve l'indice du premier caractère appartenant à un ensemble de caractères  Trouve l'indice du premier caractère n'appartenant pas à un ensemble de caractères  Trouve l'indice du dernier caractère appartenant à un ensemble de caractères  Trouve l'indice du dernier caractère n'appartenant pas à un ensemble de caractères  Trouve l'indice du dernier caractère ou de la dernière sous-chaîne</td>
+</tr>
+<tr>
+<td><strong>Prise en charge des itérateurs et des allocateurs</strong></td>
+<td></td>
+</tr>
+<tr>
+<td>begin(), end()  get_allocator()  rbegin(), rend()</td>
+<td>Prise en charge des itérateurs à parcours avant pour le début et la fin de la chaîne  Renvoie l'allocateur  Prise en charge des itérateurs à parcours arrière pour le début et la fin de la chaîne</td>
+</tr>
+</tbody>
+</table>
+<p>Bien que les classes de chaînes de la bibliothèque standard offrent beaucoup de fonctionnalités, quelques omissions notables existent :</p>
+<ul>
+<li>Constructeurs permettant de créer des chaînes à partir de nombres</li>
+<li>Fonctions de mise en majuscules / minuscules</li>
+<li>Comparaisons insensibles à la casse</li>
+<li>Découpage (tokenisation) d'une chaîne en tableau</li>
+<li>Fonctions simples pour obtenir la partie gauche ou droite d'une chaîne</li>
+<li>Suppression des espaces en début et en fin de chaîne</li>
+<li>Formatage d'une chaîne à la manière de sprintf</li>
+<li>Conversion de l'UTF-8 vers l'UTF-16 ou inversement</li>
+</ul>
+<p>Pour la plupart de ces besoins, vous devrez soit écrire vos propres fonctions, soit convertir votre chaîne en chaîne de style C (à l'aide de c_str()) et utiliser les fonctions C qui offrent cette fonctionnalité.</p>
+<p>Dans les prochaines leçons, nous étudierons plus en détail les différentes fonctions de la classe string. Bien que nous utilisions string dans nos exemples, tout ce qui est présenté s'applique de manière identique à wstring.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdstring-and-stdwstring/">https://www.learncpp.com/cpp-tutorial/stdstring-and-stdwstring/</a></em></p>
+</main>
+</body>
+</html>

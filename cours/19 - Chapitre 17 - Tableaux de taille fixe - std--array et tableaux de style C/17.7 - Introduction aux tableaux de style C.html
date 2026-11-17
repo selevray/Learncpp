@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.7 — Introduction aux tableaux de style C</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="177-introduction-aux-tableaux-de-style-c">17.7 — Introduction aux tableaux de style C</h1>
+<p>Maintenant que nous avons vu <code>std::vector</code> et <code>std::array</code>, nous allons compléter notre étude des tableaux en présentant le dernier type de tableau : les tableaux de style C.</p>
+<p>Comme indiqué dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.1%20-%20Introduction%20aux%20conteneurs%20et%20aux%20tableaux.html">16.1 -- Introduction aux conteneurs et aux tableaux</a>, les tableaux de style C ont été hérités du langage C et sont intégrés au noyau du langage C++ (contrairement aux autres types de tableaux, qui sont des classes conteneurs de la bibliothèque standard). Cela signifie que nous n'avons pas besoin d'inclure un fichier d'en-tête pour les utiliser.</p>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Étant le seul type de tableau pris en charge nativement par le langage, les types de conteneurs de tableaux de la bibliothèque standard (par exemple <code>std::array</code> et <code>std::vector</code>) sont généralement implémentés à l'aide d'un tableau de style C.</p>
+</div>
+<h2 id="déclarer-un-tableau-de-style-c">Déclarer un tableau de style C</h2>
+<p>Comme ils font partie du noyau du langage, les tableaux de style C possèdent leur propre syntaxe de déclaration. Dans une déclaration de tableau de style C, on utilise des crochets (<code>[]</code>) pour indiquer au compilateur qu'un objet déclaré est un tableau de style C. À l'intérieur des crochets, on peut éventuellement fournir la longueur du tableau, une valeur entière de type <code>std::size_t</code> qui indique au compilateur le nombre d'éléments du tableau.</p>
+<p>La définition suivante crée une variable de tableau de style C nommée <code>testScore</code> qui contient 30 éléments de type <code>int</code> :</p>
+<pre><code class="language-cpp">int main()
+{
+    int testScore[30] {};      // Définit un tableau de style C nommé testScore contenant 30 éléments int initialisés par valeur (aucun include requis)
+
+//  std::array&lt;int, 30&gt; arr{}; // Pour comparaison, voici un std::array de 30 éléments int initialisés par valeur (nécessite #include &lt;array&gt;)
+
+    return 0;
+}
+</code></pre>
+<p>La longueur d'un tableau de style C doit être au moins égale à 1. Le compilateur produit une erreur si la longueur du tableau est nulle, négative ou non entière.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les tableaux de style C alloués dynamiquement sur le tas peuvent avoir une longueur de 0.</p>
+</div>
+<h2 id="la-longueur-dun-tableau-de-style-c-doit-être-une-expression-constante">La longueur d'un tableau de style C doit être une expression constante</h2>
+<p>Comme pour <code>std::array</code>, lors de la déclaration d'un tableau de style C, sa longueur doit être une expression constante (de type <code>std::size_t</code>, bien que cela n'ait généralement pas d'importance).</p>
+<div class="callout info"><p class="callout-title">Remarque</p>
+<p>Certains compilateurs peuvent autoriser la création de tableaux dont la longueur n'est pas constexpr, pour assurer la compatibilité avec une fonctionnalité du C99 appelée tableaux à longueur variable (VLA, variable-length arrays).</p>
+<p>Les tableaux à longueur variable ne sont pas valides en C++ et ne doivent pas être utilisés dans les programmes C++. Si votre compilateur accepte ces tableaux, vous avez probablement oublié de désactiver les extensions du compilateur (voir <a href="../00%20-%20Chapitre%200%20-%20Introduction%20-%20Premiers%20pas/0.10%20-%20Configuration%20de%20votre%20compilateur%20-%20extensions%20du%20compilateur.html">0.10 -- Configurer votre compilateur : extensions du compilateur</a>).</p>
+</div>
+<h2 id="indexer-un-tableau-de-style-c">Indexer un tableau de style C</h2>
+<p>Comme avec un <code>std::array</code>, on peut indexer un tableau de style C à l'aide de l'opérateur d'indexation (<code>operator[]</code>) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int arr[5]; // définit un tableau de 5 valeurs int
+
+    arr[1] = 7; // utilise l'opérateur d'indexation pour accéder à l'élément 1 du tableau
+    std::cout &lt;&lt; arr[1]; // affiche 7
+
+    return 0;
+}
+</code></pre>
+<p>Contrairement aux classes conteneurs de la bibliothèque standard (qui n'utilisent que des indices non signés de type <code>std::size_t</code>), l'indice d'un tableau de style C peut être une valeur de n'importe quel type entier (signé ou non signé) ou une énumération non scopée. Cela signifie que les tableaux de style C ne posent pas les problèmes de conversion de signe liés à l'indexation que rencontrent les classes conteneurs de la bibliothèque standard !</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 9, 8, 7, 6, 5 };
+
+    int s { 2 };
+    std::cout &lt;&lt; arr[s] &lt;&lt; '\n'; // utilisation d'un indice signé : correct
+
+    unsigned int u { 2 };
+    std::cout &lt;&lt; arr[u] &lt;&lt; '\n'; // utilisation d'un indice non signé : correct
+
+    return 0;
+}
+</code></pre>
+<div class="callout info"><p class="callout-title">Remarque</p>
+<p>Les tableaux de style C acceptent des indices signés ou non signés (ou des énumérations non scopées).</p>
+</div>
+<p><code>operator[]</code> ne effectue aucune vérification des bornes, et passer un indice hors bornes entraîne un comportement indéfini.</p>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Lors de la déclaration d'un tableau (par exemple <code>int arr[5]</code>), l'utilisation de <code>[]</code> fait partie de la syntaxe de déclaration et ne constitue pas un appel à l'opérateur d'indexation <code>operator[]</code>.</p>
+</div>
+<h2 id="initialisation-par-agrégat-des-tableaux-de-style-c">Initialisation par agrégat des tableaux de style C</h2>
+<p>Comme <code>std::array</code>, les tableaux de style C sont des agrégats, ce qui signifie qu'ils peuvent être initialisés par initialisation d'agrégat.</p>
+<p>Pour rappel, l'initialisation d'agrégat permet d'initialiser directement les membres d'un agrégat. Pour cela, on fournit une liste d'initialisation, c'est-à-dire une liste de valeurs d'initialisation séparées par des virgules et entourées d'accolades.</p>
+<pre><code class="language-cpp">int main()
+{
+    int fibonnaci[6] = { 0, 1, 1, 2, 3, 5 }; // initialisation par copie de liste à l'aide d'une liste entre accolades
+    int prime[5] { 2, 3, 5, 7, 11 };         // initialisation de liste à l'aide d'une liste entre accolades (à privilégier)
+
+    return 0;
+}
+</code></pre>
+<p>Chacune de ces formes d'initialisation initialise les éléments du tableau dans l'ordre, en commençant par l'élément 0.</p>
+<p>Si vous ne fournissez pas d'initialiseur pour un tableau de style C, ses éléments sont initialisés par défaut. Dans la plupart des cas, cela laisse les éléments non initialisés. Comme nous voulons généralement que nos éléments soient initialisés, les tableaux de style C doivent être initialisés par valeur (à l'aide d'accolades vides) lorsqu'ils sont définis sans initialiseurs.</p>
+<pre><code class="language-cpp">int main()
+{
+    int arr1[5];    // Éléments initialisés par défaut (les éléments int restent non initialisés)
+    int arr2[5] {}; // Éléments initialisés par valeur (les éléments int valent zéro) (à privilégier)
+
+    return 0;
+}
+</code></pre>
+<p>Si la liste d'initialisation contient plus d'initialiseurs que la longueur du tableau, le compilateur produit une erreur. Si elle en contient moins, les éléments restants sans initialiseur sont initialisés par valeur :</p>
+<pre><code class="language-cpp">int main()
+{
+    int a[4] { 1, 2, 3, 4, 5 }; // erreur de compilation : trop d'initialiseurs
+    int b[4] { 1, 2 };          // arr[2] et arr[3] sont initialisés par valeur
+
+    return 0;
+}
+</code></pre>
+<p>Un inconvénient des tableaux de style C est que le type des éléments doit être spécifié explicitement. La déduction d'argument de modèle de classe (CTAD) ne fonctionne pas, car les tableaux de style C ne sont pas des modèles de classe. De même, utiliser <code>auto</code> pour tenter de déduire le type des éléments d'un tableau à partir de la liste d'initialiseurs ne fonctionne pas non plus :</p>
+<pre><code class="language-cpp">int main()
+{
+    auto squares[5] { 1, 4, 9, 16, 25 }; // erreur de compilation : impossible d'utiliser la déduction de type sur des tableaux de style C
+
+    return 0;
+}
+</code></pre>
+<h2 id="longueur-omise">Longueur omise</h2>
+<p>La définition de tableau suivante contient une redondance subtile. La voyez-vous ?</p>
+<pre><code class="language-cpp">int main()
+{
+    const int prime[5] { 2, 3, 5, 7, 11 }; // prime a pour longueur 5
+
+    return 0;
+}
+</code></pre>
+<p>Nous indiquons explicitement au compilateur que le tableau a une longueur de 5, puis nous l'initialisons aussi avec 5 éléments. Lorsqu'on initialise un tableau de style C avec une liste d'initialisation, on peut omettre la longueur (dans la définition du tableau) et laisser le compilateur la déduire du nombre d'initialiseurs.</p>
+<p>Les définitions de tableaux suivantes se comportent de manière identique :</p>
+<pre><code class="language-cpp">int main()
+{
+    const int prime1[5] { 2, 3, 5, 7, 11 }; // prime1 défini explicitement avec une longueur de 5
+    const int prime2[] { 2, 3, 5, 7, 11 };  // prime2 : longueur déduite par le compilateur à 5
+
+    return 0;
+}
+</code></pre>
+<p>Cela ne fonctionne que lorsque des initialiseurs sont explicitement fournis pour tous les membres du tableau.</p>
+<pre><code class="language-cpp">int main()
+{
+    int bad[] {}; // erreur : le compilateur déduirait une longueur nulle, ce qui est interdit !
+
+    return 0;
+}
+</code></pre>
+<p>Lorsqu'on utilise une liste d'initialisation pour initialiser tous les éléments d'un tableau de style C, il est préférable d'omettre la longueur et de laisser le compilateur la calculer. Ainsi, si des initialiseurs sont ajoutés ou retirés, la longueur du tableau s'adapte automatiquement, et nous ne risquons pas de décalage entre la longueur définie et le nombre d'initialiseurs fournis.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez l'omission de la longueur d'un tableau de style C lorsque vous initialisez explicitement chaque élément avec une valeur.</p>
+</div>
+<h2 id="tableaux-de-style-c-const-et-constexpr">Tableaux de style C const et constexpr</h2>
+<p>Comme <code>std::array</code>, les tableaux de style C peuvent être <code>const</code> ou <code>constexpr</code>. Comme les autres variables const, les tableaux const doivent être initialisés, et la valeur de leurs éléments ne peut plus être modifiée par la suite.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace ProgramData
+{
+    constexpr int squares[5] { 1, 4, 9, 16, 25 }; // un tableau de int constexpr
+}
+
+int main()
+{
+    const int prime[5] { 2, 3, 5, 7, 11 }; // un tableau de int const
+    prime[0] = 17; // erreur de compilation : impossible de modifier un int const
+
+    return 0;
+}
+</code></pre>
+<h2 id="la-taille-dun-tableau-de-style-c-avec-sizeof">La taille d'un tableau de style C avec sizeof</h2>
+<p>Dans les leçons précédentes, nous avons utilisé l'opérateur <code>sizeof()</code> pour obtenir la taille d'un objet ou d'un type en octets. Appliqué à un tableau de style C, <code>sizeof()</code> renvoie le nombre d'octets occupés par l'ensemble du tableau :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int prime[] { 2, 3, 5, 7, 11 }; // le compilateur déduit que prime a pour longueur 5
+
+    std::cout &lt;&lt; sizeof(prime); // affiche 20 (en supposant des int de 4 octets)
+
+    return 0;
+}
+</code></pre>
+<p>En supposant des <code>int</code> de 4 octets, le programme ci-dessus affiche <code>20</code>. Le tableau <code>prime</code> contient 5 éléments <code>int</code> de 4 octets chacun, soit 5 * 4 = 20 octets.</p>
+<p>Notez qu'il n'y a aucun surcoût ici. Un objet tableau de style C ne contient que ses éléments, rien de plus.</p>
+<h2 id="obtenir-la-longueur-dun-tableau-de-style-c">Obtenir la longueur d'un tableau de style C</h2>
+<p>En C++17, on peut utiliser <code>std::size()</code> (défini dans l'en-tête &lt;iterator&gt;), qui renvoie la longueur du tableau sous forme de valeur entière non signée (de type <code>std::size_t</code>). En C++20, on peut aussi utiliser <code>std::ssize()</code>, qui renvoie la longueur du tableau sous forme de valeur entière signée (d'un grand type entier signé, probablement <code>std::ptrdiff_t</code>).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt; // pour std::size et std::ssize
+
+int main()
+{
+    const int prime[] { 2, 3, 5, 7, 11 };   // le compilateur déduit que prime a pour longueur 5
+
+    std::cout &lt;&lt; std::size(prime) &lt;&lt; '\n';  // C++17, renvoie une valeur entière non signée 5
+    std::cout &lt;&lt; std::ssize(prime) &lt;&lt; '\n'; // C++20, renvoie une valeur entière signée 5
+
+    return 0;
+}
+</code></pre>
+<div class="callout info"><p class="callout-title">Remarque</p>
+<p>L'en-tête canonique de définition de <code>std::size()</code> et <code>std::ssize()</code> est &lt;iterator&gt;. Cependant, comme ces fonctions sont très utiles, de nombreux autres en-têtes les rendent également disponibles, notamment &lt;array&gt; et &lt;vector&gt;. Lorsque vous utilisez <code>std::size()</code> ou <code>std::ssize()</code> sur un tableau de style C, il se peut que vous n'ayez pas déjà inclus l'un de ces autres en-têtes. Dans ce cas, l'en-tête &lt;iterator&gt; est celui qu'on inclut par convention.</p>
+<p>La liste complète des en-têtes définissant ces fonctions est disponible dans la <a href="https://en.cppreference.com/w/cpp/iterator/size">documentation cppreference sur les fonctions size</a>.</p>
+</div>
+<h2 id="obtenir-la-longueur-dun-tableau-de-style-c-c14-ou-antérieur">Obtenir la longueur d'un tableau de style C (C++14 ou antérieur)</h2>
+<p>Avant C++17, il n'existait aucune fonction de la bibliothèque standard pour obtenir la longueur d'un tableau de style C.</p>
+<p>Si vous utilisez C++11 ou C++14, vous pouvez utiliser cette fonction à la place :</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt; // pour std::size_t
+#include &lt;iostream&gt;
+
+template &lt;typename T, std::size_t N&gt;
+constexpr std::size_t length(const T(&amp;)[N]) noexcept
+{
+    return N;
+}
+
+int main() {
+
+    int array[]{ 1, 1, 2, 3, 5, 8, 13, 21 };
+    std::cout &lt;&lt; &quot;The array has: &quot; &lt;&lt; length(array) &lt;&lt; &quot; elements\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Cette fonction est un modèle de fonction qui prend un tableau de style C par référence et renvoie le paramètre de modèle non-type représentant la longueur du tableau.</p>
+<p>Dans des bases de code bien plus anciennes, vous pourrez voir la longueur d'un tableau de style C déterminée en divisant la taille de tout le tableau par la taille d'un élément :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int array[8] {};
+    std::cout &lt;&lt; &quot;The array has: &quot; &lt;&lt; sizeof(array) / sizeof(array[0]) &lt;&lt; &quot; elements\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+The array has: 8 elements
+</code></pre>
+<p>Comment cela fonctionne-t-il ? Tout d'abord, notez que la taille du tableau entier est égale à sa longueur multipliée par la taille d'un élément. Plus concisément : <code>taille du tableau = longueur * taille d'un élément</code>.</p>
+<p>En algèbre, on peut réarranger cette équation : <code>longueur = taille du tableau / taille d'un élément</code>. On utilise généralement <code>sizeof(array[0])</code> pour la taille d'un élément. Par conséquent, longueur = <code>sizeof(array) / sizeof(array[0])</code>. On peut aussi rencontrer occasionnellement l'écriture <code>sizeof(array) / sizeof(*array)</code>, qui fait exactement la même chose.</p>
+<p>Cependant, comme nous le montrerons dans la leçon suivante, cette formule peut facilement échouer (lorsqu'elle est appliquée à un tableau ayant subi une dégradation (decay)), ce qui peut rendre le programme défaillant de manière inattendue. Le <code>std::size()</code> de C++17 et la fonction modèle <code>length()</code> présentée ci-dessus provoquent tous deux une erreur de compilation dans ce cas, et sont donc sûrs à utiliser.</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous traitons de la dégradation des tableaux dans la leçon suivante <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.8%20-%20D%C3%A9gradation%20des%20tableaux%20de%20style%20C%20%28array%20decay%29.html">17.8 -- Dégradation des tableaux de style C</a>.</p>
+</div>
+<h2 id="les-tableaux-de-style-c-ne-supportent-pas-laffectation">Les tableaux de style C ne supportent pas l'affectation</h2>
+<p>De façon peut-être surprenante, les tableaux C++ ne supportent pas l'affectation :</p>
+<pre><code class="language-cpp">int main()
+{
+    int arr[] { 1, 2, 3 }; // correct : l'initialisation est valide
+    arr[0] = 4;            // l'affectation à des éléments individuels est valide
+    arr = { 5, 6, 7 };     // erreur de compilation : affectation de tableau non valide
+
+    return 0;
+}
+</code></pre>
+<p>Techniquement, cela ne fonctionne pas parce que l'affectation exige que l'opérande de gauche soit une lvalue modifiable, et les tableaux de style C ne sont pas considérés comme des lvalues modifiables.</p>
+<p>Si vous devez affecter une nouvelle liste de valeurs à un tableau de style C, il est préférable d'utiliser un <code>std::vector</code>. Sinon, vous pouvez affecter de nouvelles valeurs élément par élément, ou utiliser <code>std::copy</code> pour copier un tableau de style C existant :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::copy
+
+int main()
+{
+    int arr[] { 1, 2, 3 };
+    int src[] { 5, 6, 7 };
+
+    // Copie src dans arr
+    std::copy(std::begin(src), std::end(src), std::begin(arr));
+
+    return 0;
+}
+</code></pre>
+<h2 id="temps-de-quiz">Temps de quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Convertissez la définition de <code>std::array</code> suivante en une définition équivalente de tableau de style C constexpr :</p>
+<pre><code class="language-cpp">constexpr std::array&lt;int, 3&gt; a{}; // alloue 3 int
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">    constexpr int a[3] {}; // alloue 3 int
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Quelles sont les trois erreurs du programme suivant ?</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int length{ 5 };
+    const int arr[length] { 9, 7, 5, 3, 1 };
+
+    std::cout &lt;&lt; arr[length];
+    arr[0] = 4;
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<ol>
+<li>Lors de la définition d'un tableau, sa longueur doit être une constante de compilation. Dans le programme ci-dessus, <code>length</code> n'est pas const, donc la définition <code>const int arr[length]</code> n'est pas autorisée.</li>
+<li>Les indices des tableaux vont de 0 à longueur - 1. Par conséquent, <code>arr[length]</code> est un indice hors bornes, ce qui entraîne un comportement indéfini.</li>
+<li>Les éléments du tableau sont de type « const int », et <code>arr[0]</code> ne peut donc pas être modifié par affectation.</li>
+</ol>
+</details>
+<h4 id="question-n-3">Question n° 3</h4>
+<p>Un « carré parfait » est un entier naturel dont la racine carrée est un entier. On obtient des carrés parfaits en multipliant un entier naturel (zéro inclus) par lui-même. Les 4 premiers carrés parfaits sont : 0, 1, 4, 9.</p>
+<p>Utilisez un tableau de style C global constexpr pour contenir les carrés parfaits compris entre 0 et 9 (inclus). Demandez de façon répétée à l'utilisateur de saisir un entier à un seul chiffre, ou -1 pour quitter. Affichez si le chiffre saisi par l'utilisateur est un carré parfait.</p>
+<p>La sortie doit correspondre à ce qui suit :</p>
+<pre><code>
+Enter a single digit integer, or -1 to quit: 4
+4 is a perfect square
+
+Enter a single digit integer, or -1 to quit: 5
+5 is not a perfect square
+
+Enter a single digit integer, or -1 to quit: -1
+Bye
+</code></pre>
+<p>Indices : utilisez une boucle for basée sur un intervalle pour parcourir le tableau de style C et rechercher une correspondance.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace ProgramData
+{
+    constexpr int squares[] { 0, 1, 4, 9 };
+}
+
+bool matchSquare(int input)
+{
+    for (const auto&amp; e : ProgramData::squares)
+    {
+        if (input == e)
+            return true;
+    }
+
+    return false;
+}
+
+int main()
+{
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Enter a single digit integer, or -1 to quit: &quot;;
+        int input{};
+        std::cin &gt;&gt; input;
+
+        if (input == -1)
+            break;
+
+        if (matchSquare(input))
+            std::cout &lt;&lt; input &lt;&lt; &quot; is a perfect square\n&quot;;
+        else
+            std::cout &lt;&lt; input &lt;&lt; &quot; is not a perfect square\n&quot;;
+    }
+
+    std::cout &lt;&lt; &quot;Bye\n&quot;;
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-c-style-arrays/">https://www.learncpp.com/cpp-tutorial/introduction-to-c-style-arrays/</a></em></p>
+</main>
+</body>
+</html>

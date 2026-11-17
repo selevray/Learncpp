@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Six façons indépendantes du langage d&#x27;écrire un meilleur code</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="six-façons-indépendantes-du-langage-décrire-un-meilleur-code">Six façons indépendantes du langage d'écrire un meilleur code</h1>
+<p>L'un des aspects remarquables du travail dans un service avec d'autres développeurs, c'est de voir sans cesse les mêmes erreurs se reproduire, jour après jour, mois après mois, année après année. Qu'il s'agisse d'une timidité générale, de la crainte que les critiques soient prises personnellement, de l'absence de processus de revue formel ou d'une culture d'entreprise qui n'encourage ni la réflexion ni l'amélioration, les développeurs hésitent souvent à formuler des critiques constructives à leurs collègues. Sans ces critiques, ils n'ont guère l'occasion de repérer et d'améliorer leurs compétences, et les mêmes erreurs se répètent. Or les erreurs et les mauvaises habitudes d'un seul membre de l'équipe finissent par coûter du temps à tout le monde, et le temps est toujours la ressource la plus contrainte dans un environnement de production. Pour réduire ces goulots d'étranglement, il est primordial de concevoir votre code correctement dès le départ, ce qui suppose d'avoir de bonnes habitudes.</p>
+<p>Les conseils de bon sens qui suivent sont tirés de années d'expérience, aussi bien professionnelle que dans de grands projets personnels. Cet article est dédié à mes collègues programmeurs, qu'ils travaillent en milieu professionnel ou pour le plaisir.</p>
+<hr />
+<h3 id="1-prévoir-lextensibilité">1) Prévoir l'extensibilité</h3>
+<p>C'est sans doute le problème que je rencontre presque tous les jours. En général, lorsque nous écrivons un morceau de code, c'est pour résoudre un problème très précis. Il est facile de s'enfermer dans l'état d'esprit « voici le problème à résoudre, et voici comment je vais le résoudre ». On met alors en œuvre une solution spécifique, taillée pour ce cas particulier, qui fonctionne très bien à court terme, mais qui engendre à long terme d'énormes problèmes de maintenance.</p>
+<p>L'extensibilité doit toujours être présente à l'esprit pour tout code que vous écrivez. Qu'il s'agisse de l'expansion du périmètre (des fonctionnalités non prévues à l'origine), de machines plus rapides ou de clients plus exigeants qui font des choses plus complexes avec votre programme, les solutions spécifiques d'aujourd'hui devront être étendues demain pour faire autre chose. Par exemple, vous pouvez écrire une petite bibliothèque pour manipuler des fichiers BMP. Demain, vos clients voudront aussi la prise en charge du JPEG. Aujourd'hui, vous écrivez certaines informations dans un fichier ; demain, il faudra en écrire trois fois plus, et les anciens fichiers devront continuer à fonctionner. Vos clients utilisent aujourd'hui votre logiciel pour accomplir une tâche ; demain, ils voudront accomplir une tâche portant sur dix fois plus de champs, d'objets ou de toute autre unité pertinente pour votre logiciel. Si votre code n'est pas déjà conçu pour supporter des extensions, vous finirez embourbé dans la maintenance, et chaque ajout rendra votre logiciel plus complexe et ingérable.</p>
+<p>De nombreuses suggestions simples peuvent favoriser l'extensibilité : ne codez pas de solutions spécifiques, mais des bibliothèques génériques et réutilisables. Ne supposez pas que la longueur ou la taille de quoi que ce soit restera constante. Versionnez tous vos fichiers de données utilisateur. Utilisez l'encapsulation.</p>
+<p>De loin, la plus grande part du temps consacré à toute étape du cycle de vie d'un logiciel est passée en phase de maintenance. Il est donc impératif de concevoir votre logiciel de manière à faciliter la maintenance, ce qui signifie concevoir en vue de l'extensibilité.</p>
+<hr />
+<h3 id="2-ne-pas-utiliser-de-nombres-magiques">2) Ne pas utiliser de nombres magiques</h3>
+<p>Les nombres magiques (magic numbers) sont des nombres codés en dur dans votre projet, généralement sans explication. Ils traduisent souvent des hypothèses explicites sur la taille, la longueur ou la valeur de quelque chose. Comme ces nombres sont plutôt arbitraires, ils ne portent en eux-mêmes aucune signification, ce qui peut finalement rendre votre code plus difficile à lire, à comprendre et à maintenir.</p>
+<p>Par exemple, vous pourriez rencontrer un morceau de code qui ressemble à ceci :</p>
+<pre><code>
+for iii = 0 to 15
+    if (slot[iii].type == 12)
+        return true;
+</code></pre>
+<p>Que signifient les nombres 15 et 12 dans ce contexte ? Pourquoi ces valeurs précises ont-elles été choisies ? Ces nombres ne transmettent aucune information précise au lecteur sur ce qui se passe dans ce segment de code.</p>
+<p>Idéalement, les nombres magiques devraient être paramétrés. Les mécanismes pour y parvenir varient d'un langage à l'autre, mais l'utilisation de constantes symboliques (par exemple via des variables <code>const</code>, des <code>#define</code> ou des valeurs énumérées) est bien meilleure. Le code ci-dessus, réécrit avec des constantes symboliques :</p>
+<pre><code>
+for iii = 0 to MAX_INVENTORY_SLOTS
+    if (slot[iii].type == TYPE_ITEM_POTION)
+       return true;
+</code></pre>
+<p>Soudain, ce code a beaucoup plus de sens. Sans même connaître beaucoup le reste du programme, il est assez évident qu'on examine l'inventaire (probablement d'une créature) pour voir s'il contient des potions.</p>
+<p>De plus, utiliser des constantes symboliques plutôt que des nombres magiques favorise l'extensibilité. Plus tard, votre personnage pourrait avoir besoin de 20 emplacements d'inventaire au lieu de 15. Avec des nombres magiques, il faudrait rechercher dans le code toutes les occurrences du nombre 15 et les modifier à la main. Modifier une constante symbolique consiste généralement à rechercher <code>MAX_INVENTORY_SLOTS</code> et à changer sa définition de 15 à 20. Cela permet non seulement de gagner beaucoup de temps, mais aussi d'éviter les erreurs dues à la modification involontaire des mauvais nombres magiques. Considérez par exemple cet extrait de code :</p>
+<pre><code>
+if (iii == 15)
+    return;
+</code></pre>
+<p>Que signifie ce 15 ? Est-ce le nombre maximal d'emplacements d'inventaire (auquel cas il faudrait le modifier), ou signifie-t-il autre chose (auquel cas il ne faudrait pas y toucher) ? Sans comprendre le contexte du code qui l'entoure, il est impossible de le dire. Dès lors, effectuer des modifications en masse lorsqu'il faut augmenter le nombre d'emplacements d'inventaire est dangereux, car cela risque de casser par inadvertance d'autres parties du code qui fonctionnent déjà.</p>
+<p>(Note de l'auteur : il est également recommandé d'utiliser de meilleurs noms de variables que <code>iii</code>.)</p>
+<hr />
+<h3 id="3-documenter-le-pourquoi-pas-le-quoi">3) Documenter le pourquoi, pas le quoi</h3>
+<p>Presque tous les développeurs comprennent intuitivement la valeur des bons commentaires pour la maintenance. Pourtant, beaucoup de programmeurs utilisent mal les commentaires, si bien qu'ils n'apportent que peu ou pas de valeur au processus de maintenance.</p>
+<p>Voici un exemple de commentaire qui n'apporte rien :</p>
+<pre><code>
+# Loop through all of the inventory slots
+for i = 0 to MAX_INVENTORY_SLOTS
+</code></pre>
+<p>Ce que fait le code est assez évident, même sans ce commentaire superflu.</p>
+<p>Voici un autre commentaire inutile que l'on rencontre parfois :</p>
+<pre><code>
+iii = iii + 1; // increment iii
+</code></pre>
+<p>Les commentaires ne doivent pas décrire <em>ce que</em> fait le code. La syntaxe du code indique ce que fait le code. Un bon commentaire explique <em>comment</em> ou <em>pourquoi</em> le code fait ce qu'il fait. Les commentaires de type <em>comment</em> sont souvent utiles pour décrire l'algorithme utilisé pour résoudre un problème :</p>
+<pre><code>
+/* The following code scans the entire dungeon looking for spots
+    where a hallway connects to a room.  This done by examining
+    adjacent square of the dungeon.  If a square is a hallway
+    square and the hallway square has one adjacent room
+    neighbor, this is a candidate square. */
+
+// Algorithm implemented here
+</code></pre>
+<p>Les commentaires de type <em>comment</em> sont plus utiles en tête d'une fonction ou d'un bloc de code, car ils permettent au programmeur de savoir si le code qui suit l'intéresse, sans avoir à lire et à comprendre tout le bloc. Cela peut faire gagner beaucoup de temps pendant la maintenance, lorsqu'il s'agit de localiser un segment de code particulier.</p>
+<p>Les commentaires de type <em>pourquoi</em> sont idéaux sous forme de commentaires placés sur une ligne de code individuelle. Ils doivent expliquer pourquoi le développeur fait quelque chose de précis :</p>
+<pre><code>
+// Because all creatures have been priority sorted by time,
+//   if this creature (which is the next to move) has a time
+//   greater than the current time, we can advance the
+//   CurrentTime variable so that the creature can take it's
+//    move.
+if (pCreature-&gt;GetTime() &gt; CurrentTime)
+    CurrentTime = pCreature-&gt;GetTime()
+</code></pre>
+<p>Si votre code a vraiment besoin d'un commentaire pour expliquer <em>ce que</em> il fait, c'est probablement qu'il doit être restructuré ou simplifié, et non commenté.</p>
+<hr />
+<h3 id="4-ne-pas-réinventer-la-roue">4) Ne pas réinventer la roue</h3>
+<p>Les programmeurs des langages orientés objet sont souvent tentés d'écrire leurs propres classes pour faire des choses qui ont déjà été résolues un million de fois par d'autres. C'est particulièrement vrai pour les classes conteneurs. Écrire ses propres conteneurs de type tableau ou liste chaînée peut être un bon exercice académique, voire amusant si l'on aime ce genre de choses, mais pourquoi le faire alors que vous pouvez réutiliser une classe déjà écrite ? Non seulement cela vous fait gagner le temps nécessaire à l'implémentation de la classe, mais aussi le temps de la tester et de la déboguer. De plus, les futures versions de la classe pourront offrir des fonctionnalités supplémentaires sans que vous ayez à faire autre chose que de les installer. Enfin, si le conteneur fait partie du langage (comme dans la bibliothèque standard de modèles (STL) du C++), les programmeurs qui liront votre code seront plus susceptibles de connaître déjà le fonctionnement de ces conteneurs, ce qui réduit le temps nécessaire aux nouveaux arrivants pour se familiariser avec le code.</p>
+<p>Réinventer la roue peut aussi conduire à la duplication de code, ce qui rend votre projet plus complexe et plus difficile à maintenir. Si deux ou trois morceaux de code accomplissent la même tâche, vous devrez peut-être les modifier tous pour améliorer leurs fonctionnalités. C'est du temps effectivement gaspillé, qui pourrait être utilisé ailleurs. De plus, cela crée une confusion quant à la version qui a telle ou telle responsabilité, et rend la recherche d'erreurs plus difficile (car il est plus compliqué d'isoler le code utilisé pour un problème donné).</p>
+<p>L'une des critiques souvent formulées à propos de certaines bibliothèques, comme la bibliothèque standard de modèles du C++, est que leur interface est peu pratique. Si c'est votre cas, plutôt que de réécrire un conteneur qui existe déjà, créez une classe d'enveloppe (wrapper) et exposez les fonctionnalités que vous utilisez le plus dans votre propre interface. En général, la perte de performance est faible, vous pouvez adapter l'interface à vos besoins, et si vous devez étendre les fonctionnalités de la bibliothèque sous-jacente, vous disposez déjà d'un endroit pratique pour le faire.</p>
+<p>De nombreuses ressources de qualité sont déjà disponibles sur le web, où l'on peut trouver du code gratuit, notamment <a href="http://www.koders.com/">Koders.com</a>, <a href="http://www.google.com/codesearch">Google code search</a>, <a href="http://www.krugle.com/">Krugle</a>, <a href="http://sourceforge.net/">Sourceforge</a> et <a href="http://www.codeproject.com/">Code Project</a>, entre autres. Utilisez-les.</p>
+<p>Il existe aussi de nombreuses bonnes bibliothèques libres qui peuvent déjà résoudre les problèmes que vous essayez de résoudre : par exemple, <a href="http://www.libsdl.org/">SDL</a>, <a href="http://freetype.sourceforge.net/index2.html">FreeType</a> et <a href="http://www.wxwidgets.org/">WxWidgets</a> sont autant de bibliothèques multiplateformes qui peuvent offrir des solutions simples à vos problèmes. Même s'il faut apprendre à les utiliser, le temps nécessaire est souvent bien inférieur à celui qu'exigerait la mise en œuvre de votre propre solution, sans parler de son débogage et de sa maintenance !</p>
+<p>Remarque : faites attention aux questions de licence, en particulier si vous utilisez du code open source dans des projets commerciaux !</p>
+<hr />
+<h3 id="5-travailler-de-manière-incrémentale">5) Travailler de manière incrémentale</h3>
+<p>L'une des plus grandes erreurs des programmeurs amateurs consiste à essayer d'implémenter trop de choses à la fois, sans consacrer suffisamment de temps à tester chaque section. Il en résulte que les bogues s'empilent les uns sur les autres, ce qui non seulement les rend plus difficiles à trouver et à isoler, mais donne aussi l'impression que le nombre de bogues à corriger est ingérable.</p>
+<p>Il est bien préférable de travailler de manière incrémentale. Une fois chaque section de code écrite, demandez-vous : « Comment vais-je tester cela ? », puis testez-le réellement. Si vous trouvez des bogues, que ce soit dans le code que vous venez d'écrire ou dans le code sur lequel il repose, ces bogues doivent être corrigés immédiatement.</p>
+<p>Concentrez-vous sur un seul domaine à la fois. Travaillez sur un morceau de code particulier jusqu'à ce qu'il fasse ce que vous voulez. Chaque fois que vous passez d'un domaine à un autre, votre cerveau doit effectuer un changement de contexte, ce qui réduit votre productivité et vous fatigue plus vite. Si vous écrivez une classe conteneur, ne vous contentez pas d'implémenter la partie dont vous avez besoin maintenant, en laissant le reste pour plus tard. Si vous savez que vous en aurez besoin, implémentez-la dès maintenant, pendant que les détails sont encore frais dans votre esprit. Il est vraiment étonnant de constater à quelle vitesse on oublie les détails de ce que l'on a déjà codé ! Vous serez moins susceptible de commettre des erreurs, et votre plan de test sera plus cohérent et structuré.</p>
+<hr />
+<h3 id="6-trouver-quelquun-qui-accepte-de-critiquer-votre-travail">6) Trouver quelqu'un qui accepte de critiquer votre travail</h3>
+<p>Comme évoqué dans l'introduction de cet article, trouver quelqu'un prêt à vous donner un retour constructif est l'un des meilleurs moyens d'apprendre. Si cette personne est disponible, consultez-la même avant de commencer à coder ! Présentez-lui une esquisse de la solution que vous envisagez, expliquez-la-lui et demandez-lui son avis. En expliquant votre solution, vous ne ferez pas seulement mûrir le problème dans votre propre esprit : elle pourra aussi vous conseiller sur des points que vous n'aviez pas anticipés, comme des zones à risque, de meilleurs algorithmes auxquels vous n'aviez pas pensé, ou les endroits où vous êtes sur le point de réinventer la roue.</p>
+<p>Une fois votre solution codée, faites-la examiner par quelqu'un. Cette personne pourra très probablement signaler les endroits où votre code n'est pas assez extensible, où vous avez utilisé des nombres magiques, ou ceux où la documentation est insuffisante.</p>
+<p>N'oubliez pas que, dans une équipe, tout le monde est dans le même bateau. Quand votre coéquipier écrit aujourd'hui du mauvais code, c'est peut-être vous qui devrez l'étendre demain. Il vaut donc la peine que tout le monde travaille ensemble pour s'assurer que de bonnes habitudes sont adoptées dès le départ, afin que les conséquences ne soient pas aussi lourdes par la suite. Si vous travaillez seul, avoir de bonnes habitudes vous aidera à garder votre code structuré et souple, ce qui le rendra plus facile à manipuler et moins éprouvant pour votre patience.</p>
+<hr />
+<h3 id="conclusion">Conclusion</h3>
+<p>Bien que la plupart de ces points paraissent évidents, ils sont souvent sacrifiés lorsque la pression du temps se fait sentir. Cependant, ces suggestions ne doivent pas être considérées comme des mesures préventives, mais comme des investissements. Passez un peu plus de temps maintenant, et vous gagnerez beaucoup de temps plus tard. « Mais que faire si je n'ai pas beaucoup de temps maintenant ? », demandez-vous. Faites-le quand même. Le moment présent est déjà « plus tard » par rapport à un moment passé, et plus le code vieillit, plus ce genre d'erreurs tend à s'accumuler. Bien faire les choses maintenant vous laissera plus de temps à l'avenir pour continuer à bien les faire. En fin de compte, cela donne non seulement un produit de meilleure qualité, mais aussi un programmeur plus heureux.</p>
+<p>Si vous pensez que cet article en valait la peine, n'hésitez pas à le recommander à l'aide des icônes de partage social ci-dessous. Merci beaucoup, et bon codage.</p>
+<p>Articles connexes :</p>
+<ul>
+<li><a href="http://www.learncpp.com/cpp-programming/eight-c-programming-mistakes-the-compiler-wont-catch/">Eight C++ programming mistakes the compiler won’t catch</a>- <a href="http://www.learncpp.com/computer-game-programming/three-questions-that-need-to-be-answered-before-you-start-writing-your-game/">Three questions that need to be answered before you start writing your game</a></li>
+</ul>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/general-programming/six-language-independent-ways-to-write-better-code/">https://www.learncpp.com/general-programming/six-language-independent-ways-to-write-better-code/</a></em></p>
+</main>
+</body>
+</html>

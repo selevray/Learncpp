@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10.1 — Conversion de type implicite</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="101-conversion-de-type-implicite">10.1 — Conversion de type implicite</h1>
+<p>Nous avons introduit la conversion de type dans la leçon <a href="../04%20-%20Chapitre%204%20-%20Les%20types%20de%20donn%C3%A9es%20fondamentaux/4.12%20-%20Introduction%20%C3%A0%20la%20conversion%20de%20type%20et%20%C3%A0%20static_cast.html">4.12 -- Introduction à la conversion de type et static_cast</a>. Pour rappeler les points les plus importants de cette leçon :</p>
+<ul>
+<li>Le processus de conversion de données d'un type vers un autre type est appelé « conversion de type ».</li>
+<li>La conversion de type implicite est effectuée automatiquement par le compilateur lorsqu'un type de données est requis, mais qu'un autre type de données est fourni.</li>
+<li>La conversion de type explicite est demandée à l'aide d'un opérateur de conversion, tel que <code>static_cast</code>.</li>
+<li>Les conversions ne modifient pas les données converties. Le processus de conversion utilise plutôt ces données en entrée et produit le résultat converti.</li>
+<li>Lorsqu'une valeur est convertie vers un autre type de valeur, le processus de conversion produit un objet temporaire du type cible, qui contient le résultat de la conversion.</li>
+</ul>
+<p>Dans la première moitié de ce chapitre, nous allons approfondir le fonctionnement de la conversion de type. Nous commencerons par les conversions implicites dans cette leçon, puis nous verrons les conversions de type explicites (transtypage) dans la prochaine leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.6%20-%20Conversion%20explicite%20de%20type%20%28cast%29%20et%20static_cast.html">10.6 -- Conversion de type explicite (transtypage) et static_cast</a>. Comme la conversion de type est utilisée partout, il est important de comprendre ce qui se passe en coulisses lorsqu'une conversion est nécessaire. Ces connaissances sont également utiles pour comprendre le fonctionnement des fonctions surchargées (fonctions pouvant porter le même nom que d'autres fonctions).</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Dans ce chapitre, nous nous concentrerons sur la conversion de valeurs vers d'autres types de valeurs. Nous aborderons les autres types de conversions une fois que nous aurons présenté les sujets préalables (tels que les pointeurs, les références, l'héritage, etc.).</p>
+</div>
+<h2 id="pourquoi-des-conversions-sont-nécessaires">Pourquoi des conversions sont nécessaires</h2>
+<p>La valeur d'un objet est stockée sous la forme d'une suite de bits, et le type de données de l'objet indique au compilateur comment interpréter ces bits pour en tirer des valeurs significatives. Des types de données différents peuvent représenter une même « valeur » de façons différentes. Par exemple, la valeur entière <code>3</code> peut être stockée sous la forme binaire <code>0000 0000 0000 0000 0000 0000 0000 0011</code>, tandis que la valeur à virgule flottante <code>3.0</code> peut être stockée sous la forme binaire <code>0100 0000 0100 0000 0000 0000 0000 0000</code>.</p>
+<p>Que se passe-t-il donc lorsque nous écrivons ceci ?</p>
+<pre><code class="language-cpp">float f{ 3 }; // initialise une variable à virgule flottante avec l'entier 3
+</code></pre>
+<p>Dans ce cas, le compilateur ne peut pas simplement copier les bits utilisés pour représenter l'<code>int</code> <code>3</code> dans la mémoire allouée à la variable <code>float</code> <code>f</code>. S'il le faisait, lorsque <code>f</code> (de type <code>float</code>) serait évaluée, ces bits seraient interprétés comme un <code>float</code> et non comme un <code>int</code>, et Dieu sait quelle valeur <code>float</code> nous obtiendrions !</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Le programme suivant affiche en réalité la valeur <code>int</code> <code>3</code> comme si elle était un <code>float</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;cstring&gt;
+
+int main()
+{
+    int n { 3 };                        // voici la valeur int 3
+    float f {};                         // voici notre variable float
+    std::memcpy(&amp;f, &amp;n, sizeof(float)); // copie les bits de n dans f
+    std::cout &lt;&lt; f &lt;&lt; '\n';             // affiche f (contenant les bits de n)
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+4.2039e-45
+</code></pre>
+</div>
+<p>Il faut donc plutôt convertir la valeur entière <code>3</code> en la valeur à virgule flottante équivalente <code>3.0</code>, qui peut alors être stockée dans la mémoire allouée à <code>f</code> (en utilisant la représentation binaire du <code>float</code> <code>3.0</code>).</p>
+<h2 id="quand-une-conversion-de-type-implicite-se-produit">Quand une conversion de type implicite se produit</h2>
+<p>La <strong>conversion de type implicite</strong> (également appelée <strong>conversion de type automatique</strong> ou <strong>coercition</strong>) est effectuée automatiquement par le compilateur lorsqu'une expression d'un certain type est fournie dans un contexte où un autre type est attendu. La grande majorité des conversions de type en C++ sont des conversions implicites. Par exemple, une conversion implicite se produit dans tous les cas suivants :</p>
+<p>Lors de l'initialisation (ou de l'affectation d'une valeur) d'une variable avec une valeur d'un type de données différent :</p>
+<pre><code class="language-cpp">double d{ 3 }; // la valeur int 3 est convertie implicitement en double
+d = 6; // la valeur int 6 est convertie implicitement en double
+</code></pre>
+<p>Lorsque le type d'une valeur de retour est différent du type de retour déclaré de la fonction :</p>
+<pre><code class="language-cpp">float doSomething()
+{
+    return 3.0; // la valeur double 3.0 est convertie implicitement en float
+}
+</code></pre>
+<p>Lors de l'utilisation de certains opérateurs binaires avec des opérandes de types différents :</p>
+<pre><code class="language-cpp">double division{ 4.0 / 3 }; // la valeur int 3 est convertie implicitement en double
+</code></pre>
+<p>Lors de l'utilisation d'une valeur non booléenne dans une instruction if :</p>
+<pre><code class="language-cpp">if (5) // la valeur int 5 est convertie implicitement en bool
+{
+}
+</code></pre>
+<p>Lorsqu'un argument passé à une fonction est d'un type différent de celui du paramètre de la fonction :</p>
+<pre><code class="language-cpp">void doSomething(long l)
+{
+}
+
+doSomething(3); // la valeur int 3 est convertie implicitement en long
+</code></pre>
+<p>Comment le compilateur sait-il alors comment convertir une valeur vers un autre type ?</p>
+<h2 id="les-conversions-standard">Les conversions standard</h2>
+<p>Dans le cadre du langage de base, la norme C++ définit un ensemble de règles de conversion appelées « conversions standard ». Les <strong>conversions standard</strong> précisent comment les différents types fondamentaux (ainsi que certains types composés, notamment les tableaux, les références, les pointeurs et les énumérations) se convertissent vers d'autres types du même groupe.</p>
+<p>En C++23, il existe 14 conversions standard différentes. Elles peuvent être regroupées grossièrement en 5 catégories générales :</p>
+<table>
+<thead>
+<tr>
+<th>Catégorie</th>
+<th>Signification</th>
+<th>Lien</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Promotions numériques</td>
+<td>Conversions de petits types entiers en <code>int</code> ou <code>unsigned int</code>, et de <code>float</code> en <code>double</code>.</td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.2%20-%20Promotion%20des%20nombres%20%C3%A0%20virgule%20flottante%20et%20enti%C3%A8re.html">10.2 -- Promotion des nombres à virgule flottante et des entiers</a></td>
+</tr>
+<tr>
+<td>Conversions numériques</td>
+<td>Autres conversions entières et à virgule flottante qui ne sont pas des promotions.</td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.3%20-%20Conversions%20num%C3%A9riques.html">10.3 -- Conversions numériques</a></td>
+</tr>
+<tr>
+<td>Conversions de qualification</td>
+<td>Conversions qui ajoutent ou retirent <code>const</code> ou <code>volatile</code>.</td>
+<td></td>
+</tr>
+<tr>
+<td>Transformations de valeur</td>
+<td>Conversions qui modifient la catégorie de valeur d'une expression.</td>
+<td><a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.2%20-%20Cat%C3%A9gories%20de%20valeurs%20%28lvalues%20et%20rvalues%29.html">12.2 -- Catégories de valeurs (lvalues et rvalues)</a></td>
+</tr>
+<tr>
+<td>Conversions de pointeurs</td>
+<td>Conversions de <code>std::nullptr</code> vers des types pointeurs, ou de types pointeurs vers d'autres types pointeurs.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Par exemple, la conversion d'une valeur <code>int</code> en valeur <code>float</code> relève de la catégorie des conversions numériques : pour effectuer cette conversion, le compilateur doit simplement appliquer les règles de conversion numérique de <code>int</code> vers <code>float</code>.</p>
+<p>Les conversions numériques et les promotions numériques sont les plus importantes de ces catégories, et nous les détaillerons dans les prochaines leçons.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Voici la liste complète des conversions standard :</p>
+<table>
+<thead>
+<tr>
+<th>Catégorie</th>
+<th>Conversion standard</th>
+<th>Description</th>
+<th>Voir aussi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Transformation de valeur</td>
+<td>Lvalue-vers-rvalue</td>
+<td>Convertit une expression lvalue en expression rvalue</td>
+<td><a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.2%20-%20Cat%C3%A9gories%20de%20valeurs%20%28lvalues%20et%20rvalues%29.html">12.2 -- Catégories de valeurs (lvalues et rvalues)</a></td>
+</tr>
+<tr>
+<td>Transformation de valeur</td>
+<td>Tableau-vers-pointeur</td>
+<td>Convertit un tableau de style C en pointeur vers son premier élément (appelé aussi array decay)</td>
+<td><a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.8%20-%20D%C3%A9gradation%20des%20tableaux%20de%20style%20C%20%28array%20decay%29.html">17.8 -- Dégradation des tableaux de style C</a></td>
+</tr>
+<tr>
+<td>Transformation de valeur</td>
+<td>Fonction-vers-pointeur</td>
+<td>Convertit une fonction en pointeur de fonction</td>
+<td><a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.1%20-%20Pointeurs%20vers%20fonctions.html">20.1 -- Pointeurs de fonctions</a></td>
+</tr>
+<tr>
+<td>Transformation de valeur</td>
+<td>Matérialisation temporaire</td>
+<td>Convertit une valeur en objet temporaire</td>
+<td></td>
+</tr>
+<tr>
+<td>Conversion de qualification</td>
+<td>Conversion de qualification</td>
+<td>Ajoute ou retire <code>const</code> ou <code>volatile</code> des types</td>
+<td></td>
+</tr>
+<tr>
+<td>Promotions numériques</td>
+<td>Promotions entières</td>
+<td>Convertit les petits types entiers en <code>int</code> ou <code>unsigned int</code></td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.2%20-%20Promotion%20des%20nombres%20%C3%A0%20virgule%20flottante%20et%20enti%C3%A8re.html">10.2 -- Promotion des nombres à virgule flottante et des entiers</a></td>
+</tr>
+<tr>
+<td>Promotions numériques</td>
+<td>Promotions à virgule flottante</td>
+<td>Convertit <code>float</code> en <code>double</code></td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.2%20-%20Promotion%20des%20nombres%20%C3%A0%20virgule%20flottante%20et%20enti%C3%A8re.html">10.2 -- Promotion des nombres à virgule flottante et des entiers</a></td>
+</tr>
+<tr>
+<td>Conversions numériques</td>
+<td>Conversions entières</td>
+<td>Conversions entières qui ne sont pas des promotions entières</td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.3%20-%20Conversions%20num%C3%A9riques.html">10.3 -- Conversions numériques</a></td>
+</tr>
+<tr>
+<td>Conversions numériques</td>
+<td>Conversions à virgule flottante</td>
+<td>Conversions à virgule flottante qui ne sont pas des promotions à virgule flottante</td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.3%20-%20Conversions%20num%C3%A9riques.html">10.3 -- Conversions numériques</a></td>
+</tr>
+<tr>
+<td>Conversions numériques</td>
+<td>Conversions entier-virgule flottante</td>
+<td>Convertit des types entiers et à virgule flottante</td>
+<td><a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.3%20-%20Conversions%20num%C3%A9riques.html">10.3 -- Conversions numériques</a></td>
+</tr>
+<tr>
+<td>Conversions numériques</td>
+<td>Conversions booléennes</td>
+<td>Convertit un entier, une énumération non délimitée, un pointeur ou un pointeur vers membre en <code>bool</code></td>
+<td><a href="../04%20-%20Chapitre%204%20-%20Les%20types%20de%20donn%C3%A9es%20fondamentaux/4.10%20-%20Introduction%20aux%20instructions%20if.html">4.10 -- Introduction aux instructions if</a></td>
+</tr>
+<tr>
+<td>Conversions de pointeurs</td>
+<td>Conversions de pointeurs</td>
+<td>Convertit <code>std::nullptr</code> en pointeur, ou un pointeur en pointeur void ou vers classe de base</td>
+<td></td>
+</tr>
+<tr>
+<td>Conversions de pointeurs</td>
+<td>Conversions de pointeurs vers membre</td>
+<td>Convertit <code>std::nullptr</code> en pointeur vers membre, ou un pointeur vers membre de classe de base en pointeur vers membre de classe dérivée</td>
+<td></td>
+</tr>
+<tr>
+<td>Conversions de pointeurs</td>
+<td>Conversions de pointeurs de fonction</td>
+<td>Convertit un pointeur vers fonction noexcept en pointeur vers fonction</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="la-conversion-de-type-peut-échouer">La conversion de type peut échouer</h2>
+<p>Lorsqu'une conversion de type est invoquée (implicitement ou explicitement), le compilateur détermine s'il peut convertir la valeur du type actuel vers le type souhaité. Si une conversion valide est trouvée, le compilateur produit une nouvelle valeur du type souhaité.</p>
+<p>Si le compilateur ne trouve aucune conversion acceptable, la compilation échoue avec une erreur de compilation. Les conversions de type peuvent échouer pour diverses raisons. Par exemple, le compilateur ne sait peut-être pas comment convertir une valeur entre le type d'origine et le type souhaité.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">int main()
+{
+    int x { &quot;14&quot; };
+
+    return 0;
+}
+</code></pre>
+<p>Comme il n'existe pas de conversion standard de la chaîne littérale « 14 » vers <code>int</code>, le compilateur produit une erreur. Par exemple, GCC produit l'erreur : <code>prog.cc:3:13: error: invalid conversion from 'const char*' to 'int' [-fpermissive]</code>.</p>
+<p>Dans d'autres cas, certaines fonctionnalités interdisent certaines catégories de conversions. Par exemple :</p>
+<pre><code class="language-cpp">int x { 3.5 }; // l'initialisation avec accolades interdit les conversions qui entraînent une perte de données
+</code></pre>
+<p>Bien que le compilateur sache convertir une valeur <code>double</code> en valeur <code>int</code>, les conversions réductrices sont interdites lors d'une initialisation avec accolades.</p>
+<p>Il existe aussi des cas où le compilateur ne parvient pas à déterminer laquelle de plusieurs conversions possibles est la meilleure à utiliser. Nous en verrons des exemples dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.3%20-%20R%C3%A9solution%20de%20surcharge%20des%20fonctions%20et%20correspondances%20ambigu%C3%ABs.html">11.3 -- Résolution de la surcharge de fonctions et correspondances ambiguës</a>.</p>
+<p>L'ensemble complet des règles décrivant le fonctionnement des conversions de type est à la fois long et complexe ; dans la plupart des cas, la conversion de type « fonctionne tout simplement ». Dans le prochain ensemble de leçons, nous verrons les points les plus importants à connaître sur les conversions standard. Si un détail plus fin est nécessaire pour un cas peu courant, les règles complètes sont détaillées dans la <a href="https://en.cppreference.com/w/cpp/language/implicit_conversion">documentation de référence technique sur les conversions implicites</a>.</p>
+<p>Allons-y !</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/implicit-type-conversion/">https://www.learncpp.com/cpp-tutorial/implicit-type-conversion/</a></em></p>
+</main>
+</body>
+</html>

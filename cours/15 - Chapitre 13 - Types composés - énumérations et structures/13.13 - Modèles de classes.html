@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.13 — Modèles de classes</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1313-modèles-de-classes">13.13 — Modèles de classes</h1>
+<p>Dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.6%20-%20Templates%20de%20fonctions.html">11.6 -- Modèles de fonctions</a>, nous avons présenté le problème qui consiste à devoir créer une fonction surchargée distincte pour chaque ensemble de types avec lequel nous voulons travailler :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// fonction qui calcule le plus grand de deux valeurs int
+int max(int x, int y)
+{
+    return (x &lt; y) ? y : x;
+}
+
+// fonction presque identique pour calculer le plus grand de deux valeurs double
+// la seule différence réside dans l'information de type
+double max(double x, double y)
+{
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max(5, 6);     // appelle max(int, int)
+    std::cout &lt;&lt; '\n';
+    std::cout &lt;&lt; max(1.2, 3.4); // appelle max(double, double)
+
+    return 0;
+}
+</code></pre>
+<p>La solution consiste à créer un modèle de fonction que le compilateur peut utiliser pour instancier des fonctions normales pour n'importe quel ensemble de types dont nous avons besoin :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// un seul modèle de fonction pour max
+template &lt;typename T&gt;
+T max(T x, T y)
+{
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max(5, 6);     // instancie et appelle max&lt;int&gt;(int, int)
+    std::cout &lt;&lt; '\n';
+    std::cout &lt;&lt; max(1.2, 3.4); // instancie et appelle max&lt;double&gt;(double, double)
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous expliquons le fonctionnement de l'instanciation des modèles de fonctions dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.7%20-%20Instanciation%20des%20fonctions%20template.html">11.7 -- Instanciation des modèles de fonctions</a>.</p>
+</div>
+<h2 id="les-types-agrégats-posent-des-problèmes-similaires">Les types agrégats posent des problèmes similaires</h2>
+<p>Nous rencontrons des difficultés similaires avec les types agrégats (structures, classes, unions et tableaux).</p>
+<p>Par exemple, supposons que nous écrivions un programme qui doit manipuler des paires de valeurs <code>int</code> et déterminer laquelle des deux est la plus grande. Nous pourrions écrire un programme comme celui-ci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Pair
+{
+    int first{};
+    int second{};
+};
+
+constexpr int max(Pair p) // passage par valeur car Pair est petite
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+
+int main()
+{
+    Pair p1{ 5, 6 };
+    std::cout &lt;&lt; max(p1) &lt;&lt; &quot; is larger\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Plus tard, nous découvrons que nous avons aussi besoin de paires de valeurs <code>double</code>. Nous modifions donc notre programme comme suit :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Pair
+{
+    int first{};
+    int second{};
+};
+
+struct Pair // erreur de compilation : redéfinition erronée de Pair
+{
+    double first{};
+    double second{};
+};
+
+constexpr int max(Pair p)
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+
+constexpr double max(Pair p) // erreur de compilation : une fonction surchargée ne peut pas différer uniquement par le type de retour
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+
+int main()
+{
+    Pair p1{ 5, 6 };
+    std::cout &lt;&lt; max(p1) &lt;&lt; &quot; is larger\n&quot;;
+
+    Pair p2{ 1.2, 3.4 };
+    std::cout &lt;&lt; max(p2) &lt;&lt; &quot; is larger\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Malheureusement, ce programme ne compile pas et présente plusieurs problèmes qu'il faut résoudre.</p>
+<p>Premièrement, contrairement aux fonctions, les définitions de types ne peuvent pas être surchargées. Le compilateur traitera la seconde définition de <code>Pair</code> comme une redéclaration erronée de la première. Deuxièmement, bien que les fonctions puissent être surchargées, nos fonctions <code>max(Pair)</code> ne diffèrent que par leur type de retour, et des fonctions surchargées ne peuvent pas être distinguées uniquement par leur type de retour. Troisièmement, il y a beaucoup de redondance : chaque structure <code>Pair</code> est identique (hormis le type de données), de même que nos fonctions <code>max(Pair)</code> (hormis le type de retour).</p>
+<p>Nous pourrions résoudre les deux premiers problèmes en donnant à nos structures <code>Pair</code> des noms différents (par exemple <code>PairInt</code> et <code>PairDouble</code>). Mais il faudrait alors retenir notre convention de nommage, et recopier un bloc de code pour chaque type de paire supplémentaire, ce qui ne résout pas le problème de redondance.</p>
+<p>Heureusement, nous pouvons faire mieux.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Avant de continuer, veuillez relire les leçons <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.6%20-%20Templates%20de%20fonctions.html">11.6 -- Modèles de fonctions</a> et <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.7%20-%20Instanciation%20des%20fonctions%20template.html">11.7 -- Instanciation des modèles de fonctions</a> si vous n'êtes pas sûr du fonctionnement des modèles de fonctions, des types templates ou de l'instanciation des modèles de fonctions.</p>
+</div>
+<h2 id="modèles-de-classes">Modèles de classes</h2>
+<p>Tout comme un modèle de fonction est une définition servant à instancier des fonctions, un <strong>modèle de classe</strong> (class template) est une définition servant à instancier des types classes.</p>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Un « type classe » est un type structure, classe ou union. Bien que nous illustrions les « modèles de classes » avec des structures par souci de simplicité, tout ce qui est présenté ici s'applique aussi bien aux classes.</p>
+</div>
+<p>Pour rappel, voici la définition de notre structure de paire d'<code>int</code> :</p>
+<pre><code class="language-cpp">struct Pair
+{
+    int first{};
+    int second{};
+};
+</code></pre>
+<p>Réécrivons notre classe de paire sous forme de modèle de classe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+struct Pair
+{
+    T first{};
+    T second{};
+};
+
+int main()
+{
+    Pair&lt;int&gt; p1{ 5, 6 };        // instancie Pair&lt;int&gt; et crée l'objet p1
+    std::cout &lt;&lt; p1.first &lt;&lt; ' ' &lt;&lt; p1.second &lt;&lt; '\n';
+
+    Pair&lt;double&gt; p2{ 1.2, 3.4 }; // instancie Pair&lt;double&gt; et crée l'objet p2
+    std::cout &lt;&lt; p2.first &lt;&lt; ' ' &lt;&lt; p2.second &lt;&lt; '\n';
+
+    Pair&lt;double&gt; p3{ 7.8, 9.0 }; // crée l'objet p3 en utilisant la définition précédente de Pair&lt;double&gt;
+    std::cout &lt;&lt; p3.first &lt;&lt; ' ' &lt;&lt; p3.second &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Comme pour les modèles de fonctions, la définition d'un modèle de classe commence par une déclaration de paramètres template. Nous commençons par le mot-clé <code>template</code>. Ensuite, nous indiquons entre chevrons (&lt;&gt;) tous les types templates que notre modèle de classe utilisera. Pour chaque type template nécessaire, nous utilisons le mot-clé <code>typename</code> (à privilégier) ou <code>class</code> (moins recommandé), suivi du nom du type template (par exemple <code>T</code>). Ici, comme les deux membres ont le même type, un seul type template suffit.</p>
+<p>Ensuite, nous définissons notre structure comme d'habitude, si ce n'est que nous pouvons utiliser notre type template (<code>T</code>) partout où nous voulons un type templaté qui sera remplacé par un type réel plus tard. C'est tout ! La définition du modèle de classe est terminée.</p>
+<p>Dans <code>main</code>, nous pouvons instancier des objets <code>Pair</code> avec les types de notre choix. Tout d'abord, nous instancions un objet de type <code>Pair&lt;int&gt;</code>. Comme la définition de type <code>Pair&lt;int&gt;</code> n'existe pas encore, le compilateur utilise le modèle de classe pour instancier une définition de type structure nommée <code>Pair&lt;int&gt;</code>, dans laquelle toutes les occurrences du type template <code>T</code> sont remplacées par le type <code>int</code>.</p>
+<p>Ensuite, nous instancions un objet de type <code>Pair&lt;double&gt;</code>, ce qui instancie une définition de structure nommée <code>Pair&lt;double&gt;</code> où <code>T</code> est remplacé par <code>double</code>. Pour <code>p3</code>, <code>Pair&lt;double&gt;</code> a déjà été instancié, donc le compilateur utilise la définition de type précédente.</p>
+<p>Voici le même exemple que ci-dessus, montrant ce que le compilateur compile réellement une fois toutes les instanciations de modèles effectuées :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Une déclaration pour notre modèle de classe Pair
+// (la définition n'est plus nécessaire puisqu'elle n'est pas utilisée)
+template &lt;typename T&gt;
+struct Pair;
+
+// Définit explicitement à quoi ressemble Pair&lt;int&gt;
+template &lt;&gt; // indique au compilateur qu'il s'agit d'un type template sans paramètres template
+struct Pair&lt;int&gt;
+{
+    int first{};
+    int second{};
+};
+
+// Définit explicitement à quoi ressemble Pair&lt;double&gt;
+template &lt;&gt; // indique au compilateur qu'il s'agit d'un type template sans paramètres template
+struct Pair&lt;double&gt;
+{
+    double first{};
+    double second{};
+};
+
+int main()
+{
+    Pair&lt;int&gt; p1{ 5, 6 };        // instancie Pair&lt;int&gt; et crée l'objet p1
+    std::cout &lt;&lt; p1.first &lt;&lt; ' ' &lt;&lt; p1.second &lt;&lt; '\n';
+
+    Pair&lt;double&gt; p2{ 1.2, 3.4 }; // instancie Pair&lt;double&gt; et crée l'objet p2
+    std::cout &lt;&lt; p2.first &lt;&lt; ' ' &lt;&lt; p2.second &lt;&lt; '\n';
+
+    Pair&lt;double&gt; p3{ 7.8, 9.0 }; // crée l'objet p3 en utilisant la définition précédente de Pair&lt;double&gt;
+    std::cout &lt;&lt; p3.first &lt;&lt; ' ' &lt;&lt; p3.second &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Vous pouvez compiler directement cet exemple et constater qu'il fonctionne comme prévu !</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>L'exemple ci-dessus fait appel à une fonctionnalité appelée spécialisation de modèle de classe (abordée dans la leçon future <a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.4%20-%20Sp%C3%A9cialisation%20de%20mod%C3%A8les%20de%20classes.html">26.4 -- Spécialisation de modèles de classes</a>). La connaissance du fonctionnement de cette fonctionnalité n'est pas requise à ce stade.</p>
+</div>
+<h2 id="utiliser-notre-modèle-de-classe-dans-une-fonction">Utiliser notre modèle de classe dans une fonction</h2>
+<p>Revenons maintenant au problème consistant à rendre notre fonction <code>max()</code> utilisable avec différents types. Comme le compilateur traite <code>Pair&lt;int&gt;</code> et <code>Pair&lt;double&gt;</code> comme des types distincts, nous pourrions utiliser des fonctions surchargées distinguées par le type de paramètre :</p>
+<pre><code class="language-cpp">constexpr int max(Pair&lt;int&gt; p)
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+
+constexpr double max(Pair&lt;double&gt; p) // correct : fonction surchargée distinguée par le type de paramètre
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+</code></pre>
+<p>Bien que ce code compile, il ne résout pas le problème de redondance. Ce que nous voulons vraiment, c'est une fonction qui accepte une paire de n'importe quel type. Autrement dit, nous voulons une fonction qui prend un paramètre de type <code>Pair&lt;T&gt;</code>, où T est un paramètre de type template. Et cela nécessite un modèle de fonction !</p>
+<p>Voici un exemple complet, où <code>max()</code> est implémentée sous forme de modèle de fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+struct Pair
+{
+    T first{};
+    T second{};
+};
+
+template &lt;typename T&gt;
+constexpr T max(Pair&lt;T&gt; p)
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+
+int main()
+{
+    Pair&lt;int&gt; p1{ 5, 6 };
+    std::cout &lt;&lt; max&lt;int&gt;(p1) &lt;&lt; &quot; is larger\n&quot;; // appel explicite à max&lt;int&gt;
+
+    Pair&lt;double&gt; p2{ 1.2, 3.4 };
+    std::cout &lt;&lt; max(p2) &lt;&lt; &quot; is larger\n&quot;; // appel à max&lt;double&gt; par déduction d'argument template (à privilégier)
+
+    return 0;
+}
+</code></pre>
+<p>Le modèle de fonction <code>max()</code> est assez simple. Comme nous voulons passer un <code>Pair&lt;T&gt;</code>, le compilateur doit savoir ce qu'est <code>T</code>. Nous commençons donc la fonction par une déclaration de paramètre template qui définit le type template T. Nous pouvons alors utiliser <code>T</code> à la fois comme type de retour et comme type template de <code>Pair&lt;T&gt;</code>.</p>
+<p>Lorsque la fonction <code>max()</code> est appelée avec un argument <code>Pair&lt;int&gt;</code>, le compilateur instancie la fonction <code>int max&lt;int&gt;(Pair&lt;int&gt;)</code> à partir du modèle de fonction, où le type template <code>T</code> est remplacé par <code>int</code>. L'extrait suivant montre ce que le compilateur instancie réellement dans ce cas :</p>
+<pre><code class="language-cpp">template &lt;&gt;
+constexpr int max(Pair&lt;int&gt; p)
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+</code></pre>
+<p>Comme pour tout appel à un modèle de fonction, nous pouvons être explicites sur l'argument de type template (par exemple <code>max&lt;int&gt;(p1)</code>) ou être implicites (par exemple <code>max(p2)</code>) et laisser le compilateur déduire l'argument de type template grâce à la déduction d'arguments template.</p>
+<h2 id="modèles-de-classes-avec-des-membres-de-type-template-et-de-type-non-template">Modèles de classes avec des membres de type template et de type non template</h2>
+<p>Un modèle de classe peut avoir certains membres utilisant un type template et d'autres utilisant un type normal (non template). Par exemple :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+struct Foo
+{
+    T first{};    // first aura le type avec lequel T est remplacé
+    int second{}; // second aura toujours le type int, quel que soit le type remplaçant T
+};
+</code></pre>
+<p>Cela fonctionne exactement comme vous vous y attendez : <code>first</code> sera du type template <code>T</code>, et <code>second</code> sera toujours un <code>int</code>.</p>
+<h2 id="modèles-de-classes-avec-plusieurs-types-templates">Modèles de classes avec plusieurs types templates</h2>
+<p>Un modèle de classe peut aussi avoir plusieurs types templates. Par exemple, si nous voulons que les deux membres de notre classe <code>Pair</code> puissent avoir des types différents, nous pouvons définir notre modèle de classe <code>Pair</code> avec deux types templates :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T, typename U&gt;
+struct Pair
+{
+    T first{};
+    U second{};
+};
+
+template &lt;typename T, typename U&gt;
+void print(Pair&lt;T, U&gt; p)
+{
+    std::cout &lt;&lt; '[' &lt;&lt; p.first &lt;&lt; &quot;, &quot; &lt;&lt; p.second &lt;&lt; ']';
+}
+
+int main()
+{
+    Pair&lt;int, double&gt; p1{ 1, 2.3 }; // une paire contenant un int et un double
+    Pair&lt;double, int&gt; p2{ 4.5, 6 }; // une paire contenant un double et un int
+    Pair&lt;int, int&gt; p3{ 7, 8 };      // une paire contenant deux int
+
+    print(p2);
+
+    return 0;
+}
+</code></pre>
+<p>Pour définir plusieurs types templates, dans la déclaration de paramètres template, nous séparons chacun des types souhaités par une virgule. Dans l'exemple ci-dessus, nous définissons deux types templates différents, l'un nommé <code>T</code> et l'autre nommé <code>U</code>. Les arguments de type template réels pour <code>T</code> et <code>U</code> peuvent être différents (comme pour <code>p1</code> et <code>p2</code> ci-dessus) ou identiques (comme pour <code>p3</code>).</p>
+<h2 id="faire-fonctionner-un-modèle-de-fonction-avec-plusieurs-types-de-classes">Faire fonctionner un modèle de fonction avec plusieurs types de classes</h2>
+<p>Considérons la fonction template <code>print()</code> de l'exemple précédent :</p>
+<pre><code class="language-cpp">template &lt;typename T, typename U&gt;
+void print(Pair&lt;T, U&gt; p)
+{
+    std::cout &lt;&lt; '[' &lt;&lt; p.first &lt;&lt; &quot;, &quot; &lt;&lt; p.second &lt;&lt; ']';
+}
+</code></pre>
+<p>Comme nous avons explicitement défini le paramètre de fonction comme un <code>Pair&lt;T, U&gt;</code>, seuls les arguments de type <code>Pair&lt;T, U&gt;</code> (ou ceux qui peuvent être convertis en <code>Pair&lt;T, U&gt;</code>) correspondront. C'est idéal si nous voulons appeler notre fonction uniquement avec un argument <code>Pair&lt;T, U&gt;</code>.</p>
+<p>Dans certains cas, nous pouvons écrire des modèles de fonctions que nous voulons utiliser avec n'importe quel type qui compile correctement. Pour cela, il suffit d'utiliser à la place un paramètre de type template comme paramètre de fonction.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T, typename U&gt;
+struct Pair
+{
+    T first{};
+    U second{};
+};
+
+struct Point
+{
+    int first{};
+    int second{};
+};
+
+template &lt;typename T&gt;
+void print(T p) // le paramètre de type template correspondra à n'importe quel type
+{
+    std::cout &lt;&lt; '[' &lt;&lt; p.first &lt;&lt; &quot;, &quot; &lt;&lt; p.second &lt;&lt; ']'; // ne compilera que si le type possède des membres first et second
+}
+
+int main()
+{
+    Pair&lt;double, int&gt; p1{ 4.5, 6 };
+    print(p1); // correspond à print(Pair&lt;double, int&gt;)
+
+    std::cout &lt;&lt; '\n';
+
+    Point p2 { 7, 8 };
+    print(p2); // correspond à print(Point)
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous avons réécrit <code>print()</code> avec un seul paramètre de type template (<code>T</code>), qui correspond à n'importe quel type. Le corps de la fonction compilera avec succès pour tout type classe possédant des membres <code>first</code> et <code>second</code>. Nous le démontrons en appelant <code>print()</code> avec un objet de type <code>Pair&lt;double, int&gt;</code>, puis avec un objet de type <code>Point</code>.</p>
+<p>Un cas peut prêter à confusion. Considérons la version suivante de <code>print()</code> :</p>
+<pre><code class="language-cpp">template &lt;typename T, typename U&gt;
+struct Pair // définit un type classe nommé Pair
+{
+    T first{};
+    U second{};
+};
+
+template &lt;typename Pair&gt; // définit un paramètre de type template nommé Pair (masque le type classe Pair)
+void print(Pair p)       // ceci désigne le paramètre template Pair, et non le type classe Pair
+{
+    std::cout &lt;&lt; '[' &lt;&lt; p.first &lt;&lt; &quot;, &quot; &lt;&lt; p.second &lt;&lt; ']';
+}
+</code></pre>
+<p>On pourrait penser que cette fonction ne correspondra qu'à un argument de type classe <code>Pair</code>. Pourtant, cette version de <code>print()</code> est fonctionnellement identique à la version précédente dont le paramètre template se nommait <code>T</code>, et elle correspondra à <em>n'importe quel</em> type. Le problème vient de ce que, lorsque nous définissons <code>Pair</code> comme paramètre de type template, il masque les autres utilisations du nom <code>Pair</code> dans la portée globale. Ainsi, à l'intérieur du modèle de fonction, <code>Pair</code> désigne le paramètre template <code>Pair</code> et non le type classe <code>Pair</code>. Et comme un paramètre de type template correspond à n'importe quel type, ce <code>Pair</code> correspond à n'importe quel type d'argument, et pas seulement à ceux de type classe <code>Pair</code> !</p>
+<p>C'est une bonne raison de s'en tenir à des noms de paramètres template simples, comme <code>T</code>, <code>U</code> ou <code>N</code>, qui risquent moins de masquer le nom d'un type classe.</p>
+<h2 id="stdpair">std::pair</h2>
+<p>Les données par paires étant courantes, la bibliothèque standard C++ contient un modèle de classe nommé <code>std::pair</code> (dans l'en-tête <code>&lt;utility&gt;</code>), défini de manière identique à notre modèle de classe <code>Pair</code> à plusieurs types templates de la section précédente. En fait, nous pouvons remplacer la structure <code>pair</code> que nous avons développée par <code>std::pair</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt;
+
+template &lt;typename T, typename U&gt;
+void print(std::pair&lt;T, U&gt; p)
+{
+    // les membres de std::pair portent les noms prédéfinis `first` et `second`
+    std::cout &lt;&lt; '[' &lt;&lt; p.first &lt;&lt; &quot;, &quot; &lt;&lt; p.second &lt;&lt; ']';
+}
+
+int main()
+{
+    std::pair&lt;int, double&gt; p1{ 1, 2.3 }; // une paire contenant un int et un double
+    std::pair&lt;double, int&gt; p2{ 4.5, 6 }; // une paire contenant un double et un int
+    std::pair&lt;int, int&gt; p3{ 7, 8 };      // une paire contenant deux int
+
+    print(p2);
+
+    return 0;
+}
+</code></pre>
+<p>Nous avons développé notre propre classe <code>Pair</code> dans cette leçon pour montrer comment les choses fonctionnent, mais dans du code réel, vous devriez privilégier <code>std::pair</code> plutôt que d'écrire la vôtre.</p>
+<h2 id="utiliser-des-modèles-de-classes-dans-plusieurs-fichiers">Utiliser des modèles de classes dans plusieurs fichiers</h2>
+<p>Tout comme les modèles de fonctions, les modèles de classes sont généralement définis dans des fichiers d'en-tête afin de pouvoir être inclus dans tout fichier de code qui en a besoin. Les définitions de modèles et les définitions de types sont toutes deux exemptées de la règle de la définition unique (ODR), donc cela ne pose pas de problème :</p>
+<p>pair.h :</p>
+<pre><code class="language-cpp">#ifndef PAIR_H
+#define PAIR_H
+
+template &lt;typename T&gt;
+struct Pair
+{
+    T first{};
+    T second{};
+};
+
+template &lt;typename T&gt;
+constexpr T max(Pair&lt;T&gt; p)
+{
+    return (p.first &lt; p.second ? p.second : p.first);
+}
+
+#endif
+</code></pre>
+<p>foo.cpp :</p>
+<pre><code class="language-cpp">#include &quot;pair.h&quot;
+#include &lt;iostream&gt;
+
+void foo()
+{
+    Pair&lt;int&gt; p1{ 1, 2 };
+    std::cout &lt;&lt; max(p1) &lt;&lt; &quot; is larger\n&quot;;
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;pair.h&quot;
+#include &lt;iostream&gt;
+
+void foo(); // déclaration anticipée de la fonction foo()
+
+int main()
+{
+    Pair&lt;double&gt; p2 { 3.4, 5.6 };
+    std::cout &lt;&lt; max(p2) &lt;&lt; &quot; is larger\n&quot;;
+
+    foo();
+
+    return 0;
+}
+</code></pre>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/class-templates/">https://www.learncpp.com/cpp-tutorial/class-templates/</a></em></p>
+</main>
+</body>
+</html>

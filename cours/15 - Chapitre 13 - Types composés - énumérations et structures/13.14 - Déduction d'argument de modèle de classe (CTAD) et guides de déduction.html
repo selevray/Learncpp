@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.14 — Déduction d&#x27;argument de modèle de classe (CTAD) et guides de déduction</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1314-déduction-dargument-de-modèle-de-classe-ctad-et-guides-de-déduction">13.14 — Déduction d'argument de modèle de classe (CTAD) et guides de déduction</h1>
+<h2 id="déduction-dargument-de-modèle-de-classe-ctad-c17">Déduction d'argument de modèle de classe (CTAD) <em>(C++17)</em></h2>
+<p>À partir de C++17, lorsque vous instanciez un objet à partir d'un modèle de classe, le compilateur peut déduire les types du modèle à partir des types de l'initialiseur de l'objet. On parle de <strong>déduction d'argument de modèle de classe</strong> (<em>class template argument deduction</em>, ou <strong>CTAD</strong> en abrégé). Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::pair
+
+int main()
+{
+    std::pair&lt;int, int&gt; p1{ 1, 2 }; // on spécifie explicitement le modèle de classe std::pair&lt;int, int&gt; (C++11 et versions ultérieures)
+    std::pair p2{ 1, 2 };           // CTAD utilisée pour déduire std::pair&lt;int, int&gt; à partir des initialiseurs (C++17)
+
+    return 0;
+}
+</code></pre>
+<p>Le CTAD n'est effectué que si aucune liste d'arguments de modèle n'est présente. Par conséquent, les deux exemples suivants sont des erreurs :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::pair
+
+int main()
+{
+    std::pair&lt;&gt; p1 { 1, 2 };    // erreur : trop peu d'arguments de modèle, les deux arguments ne sont pas déduits
+    std::pair&lt;int&gt; p2 { 3, 4 }; // erreur : trop peu d'arguments de modèle, le second argument n'est pas déduit
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Beaucoup de leçons à venir sur ce site utilisent le CTAD. Si vous compilez ces exemples avec la norme C++14 (ou une version antérieure), vous obtiendrez une erreur indiquant des arguments de modèle manquants. Il vous faudra alors ajouter explicitement ces arguments pour que l'exemple compile.</p>
+</div>
+<p>Comme le CTAD est une forme de déduction de type, nous pouvons utiliser des suffixes littéraux pour modifier le type déduit :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::pair
+
+int main()
+{
+    std::pair p1 { 3.4f, 5.6f }; // déduit en pair&lt;float, float&gt;
+    std::pair p2 { 1u, 2u };     // déduit en pair&lt;unsigned int, unsigned int&gt;
+
+    return 0;
+}
+</code></pre>
+<h2 id="guides-de-déduction-darguments-de-modèle-c17">Guides de déduction d'arguments de modèle <em>(C++17)</em></h2>
+<p>Dans la plupart des cas, le CTAD fonctionne directement. Cependant, dans certains cas, le compilateur a besoin d'un peu d'aide pour déduire correctement les arguments de modèle.</p>
+<p>Vous serez peut-être surpris de constater que le programme suivant (presque identique à l'exemple utilisant <code>std::pair</code> ci-dessus) ne compile pas en C++17 (uniquement) :</p>
+<pre><code class="language-cpp">// définition de notre propre type Pair
+template &lt;typename T, typename U&gt;
+struct Pair
+{
+    T first{};
+    U second{};
+};
+
+int main()
+{
+    Pair&lt;int, int&gt; p1{ 1, 2 }; // ok : nous spécifions explicitement les arguments de modèle
+    Pair p2{ 1, 2 };           // erreur de compilation en C++17 (accepté en C++20)
+
+    return 0;
+}
+</code></pre>
+<p>Si vous compilez ce code en C++17, vous obtiendrez probablement une erreur du type « class template argument deduction failed », « cannot deduce template arguments » ou « No viable constructor or deduction guide ». En effet, en C++17, le CTAD ne sait pas déduire les arguments de modèle des classes modèles de type agrégat. Pour remédier à cela, nous pouvons fournir au compilateur un <strong>guide de déduction</strong> (<em>deduction guide</em>), qui lui indique comment déduire les arguments de modèle pour un modèle de classe donné.</p>
+<p>Voici le même programme avec un guide de déduction :</p>
+<pre><code class="language-cpp">template &lt;typename T, typename U&gt;
+struct Pair
+{
+    T first{};
+    U second{};
+};
+
+// Voici un guide de déduction pour notre Pair (nécessaire uniquement en C++17)
+// Les objets Pair initialisés avec des arguments de type T et U doivent être déduits en Pair&lt;T, U&gt;
+template &lt;typename T, typename U&gt;
+Pair(T, U) -&gt; Pair&lt;T, U&gt;;
+
+int main()
+{
+    Pair&lt;int, int&gt; p1{ 1, 2 }; // on spécifie explicitement le modèle de classe Pair&lt;int, int&gt; (C++11 et versions ultérieures)
+    Pair p2{ 1, 2 };           // CTAD utilisée pour déduire Pair&lt;int, int&gt; à partir des initialiseurs (C++17)
+
+    return 0;
+}
+</code></pre>
+<p>Cet exemple doit compiler en C++17.</p>
+<p>Le guide de déduction de notre classe <code>Pair</code> est assez simple, mais examinons de plus près son fonctionnement.</p>
+<pre><code class="language-cpp">// Voici un guide de déduction pour notre Pair (nécessaire uniquement en C++17)
+// Les objets Pair initialisés avec des arguments de type T et U doivent être déduits en Pair&lt;T, U&gt;
+template &lt;typename T, typename U&gt;
+Pair(T, U) -&gt; Pair&lt;T, U&gt;;
+</code></pre>
+<p>Tout d'abord, nous utilisons la même définition de paramètres de type que dans la classe <code>Pair</code>. Cela a du sens : si notre guide de déduction doit indiquer au compilateur comment déduire les types de <code>Pair&lt;T, U&gt;</code>, nous devons définir ce que sont <code>T</code> et <code>U</code> (paramètres de type du modèle). Ensuite, à droite de la flèche, se trouve le type que nous aidons le compilateur à déduire. Ici, nous voulons que le compilateur puisse déduire les arguments de modèle pour les objets de type <code>Pair&lt;T, U&gt;</code>, c'est donc exactement ce que nous écrivons. Enfin, à gauche de la flèche, nous indiquons au compilateur quel type de déclaration rechercher. Ici, nous lui demandons de chercher une déclaration d'un objet nommé <code>Pair</code> avec deux arguments (l'un de type <code>T</code>, l'autre de type <code>U</code>). Nous pourrions aussi écrire <code>Pair(T t, U u)</code> (où <code>t</code> et <code>u</code> sont les noms des paramètres), mais comme nous n'utilisons pas <code>t</code> ni <code>u</code>, il n'est pas nécessaire de les nommer.</p>
+<p>En résumé, nous indiquons au compilateur que s'il rencontre la déclaration d'un <code>Pair</code> avec deux arguments (de types respectifs <code>T</code> et <code>U</code>), il doit déduire le type <code>Pair&lt;T, U&gt;</code>.</p>
+<p>Ainsi, lorsque le compilateur rencontre la définition <code>Pair p2{ 1, 2 };</code> dans notre programme, il se dit : « Ah, c'est la déclaration d'un <code>Pair</code> avec deux arguments de type <code>int</code> et <code>int</code>. D'après le guide de déduction, je dois donc déduire <code>Pair&lt;int, int&gt;</code> ».</p>
+<p>Voici un exemple similaire pour un <code>Pair</code> qui ne prend qu'un seul paramètre de type :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+struct Pair
+{
+    T first{};
+    T second{};
+};
+
+// Voici un guide de déduction pour notre Pair (nécessaire uniquement en C++17)
+// Les objets Pair initialisés avec des arguments de type T et T doivent être déduits en Pair&lt;T&gt;
+template &lt;typename T&gt;
+Pair(T, T) -&gt; Pair&lt;T&gt;;
+
+int main()
+{
+    Pair&lt;int&gt; p1{ 1, 2 }; // on spécifie explicitement le modèle de classe Pair&lt;int&gt; (C++11 et versions ultérieures)
+    Pair p2{ 1, 2 };      // CTAD utilisée pour déduire Pair&lt;int&gt; à partir des initialiseurs (C++17)
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce cas, notre guide de déduction associe un <code>Pair(T, T)</code> (un <code>Pair</code> avec deux arguments de type <code>T</code>) à un <code>Pair&lt;T&gt;</code>.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>C++20 permet au compilateur de générer automatiquement des guides de déduction pour les agrégats. Les guides de déduction ne sont donc nécessaires que pour assurer la compatibilité avec C++17.</p>
+<p>Pour cette raison, la version de <code>Pair</code> sans guides de déduction compile en C++20.</p>
+<p><code>std::pair</code> (et les autres types modèles de la bibliothèque standard) possèdent des guides de déduction prédéfinis, ce qui explique pourquoi notre exemple ci-dessus utilisant <code>std::pair</code> compile sans problème en C++17, sans que nous ayons à fournir nous-mêmes les guides de déduction.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les types non agrégats n'ont pas besoin de guides de déduction en C++17, car la présence d'un constructeur remplit le même rôle.</p>
+</div>
+<h2 id="paramètres-de-type-de-modèle-avec-valeurs-par-défaut">Paramètres de type de modèle avec valeurs par défaut</h2>
+<p>Tout comme les paramètres de fonction peuvent avoir des arguments par défaut, les paramètres de modèle peuvent recevoir des valeurs par défaut. Celles-ci sont utilisées lorsque le paramètre de modèle n'est pas spécifié explicitement et ne peut pas être déduit.</p>
+<p>Voici une modification du programme précédent avec le modèle de classe <code>Pair&lt;T, U&gt;</code>, où les paramètres de type <code>T</code> et <code>U</code> ont pour valeur par défaut le type <code>int</code> :</p>
+<pre><code class="language-cpp">template &lt;typename T=int, typename U=int&gt; // on fixe par défaut T et U au type int
+struct Pair
+{
+    T first{};
+    U second{};
+};
+
+template &lt;typename T, typename U&gt;
+Pair(T, U) -&gt; Pair&lt;T, U&gt;;
+
+int main()
+{
+    Pair&lt;int, int&gt; p1{ 1, 2 }; // on spécifie explicitement le modèle de classe Pair&lt;int, int&gt; (C++11 et versions ultérieures)
+    Pair p2{ 1, 2 };           // CTAD utilisée pour déduire Pair&lt;int, int&gt; à partir des initialiseurs (C++17)
+
+    Pair p3;                   // utilise le Pair&lt;int, int&gt; par défaut
+
+    return 0;
+}
+</code></pre>
+<p>La définition de <code>p3</code> ne spécifie explicitement aucun type pour les paramètres de type du modèle, et il n'existe aucun initialiseur à partir duquel ces types pourraient être déduits. Le compilateur utilise donc les types indiqués par défaut, ce qui signifie que <code>p3</code> est de type <code>Pair&lt;int, int&gt;</code>.</p>
+<h2 id="le-ctad-ne-fonctionne-pas-avec-linitialisation-de-membres-non-statiques">Le CTAD ne fonctionne pas avec l'initialisation de membres non statiques</h2>
+<p>Lorsque vous initialisez un membre de type classe à l'aide de l'initialisation de membre non statique, le CTAD ne fonctionne pas dans ce contexte. Tous les arguments de modèle doivent être spécifiés explicitement :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::pair
+
+struct Foo
+{
+    std::pair&lt;int, int&gt; p1{ 1, 2 }; // ok, arguments de modèle spécifiés explicitement
+    std::pair p2{ 1, 2 };           // erreur de compilation, le CTAD ne peut pas être utilisé dans ce contexte
+};
+
+int main()
+{
+    std::pair p3{ 1, 2 };           // ok, le CTAD peut être utilisé ici
+    return 0;
+}
+</code></pre>
+<h2 id="le-ctad-ne-fonctionne-pas-avec-les-paramètres-de-fonction">Le CTAD ne fonctionne pas avec les paramètres de fonction</h2>
+<p>Le CTAD signifie <em>class template argument deduction</em> (déduction des arguments de modèle de classe) et non <em>class template parameter deduction</em> : il ne déduit donc que le type des arguments de modèle, et non celui des paramètres de modèle.</p>
+<p>Par conséquent, le CTAD ne peut pas être utilisé dans les paramètres de fonction.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt;
+
+void print(std::pair p) // erreur de compilation, le CTAD ne peut pas être utilisé ici
+{
+    std::cout &lt;&lt; p.first &lt;&lt; ' ' &lt;&lt; p.second &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::pair p { 1, 2 }; // p est déduit en std::pair&lt;int, int&gt;
+    print(p);
+
+    return 0;
+}
+</code></pre>
+<p>Dans de tels cas, vous devez utiliser un modèle de fonction à la place :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt;
+
+template &lt;typename T, typename U&gt;
+void print(std::pair&lt;T, U&gt; p)
+{
+    std::cout &lt;&lt; p.first &lt;&lt; ' ' &lt;&lt; p.second &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::pair p { 1, 2 }; // p est déduit en std::pair&lt;int, int&gt;
+    print(p);
+
+    return 0;
+}
+</code></pre>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/class-template-argument-deduction-ctad-and-deduction-guides/">https://www.learncpp.com/cpp-tutorial/class-template-argument-deduction-ctad-and-deduction-guides/</a></em></p>
+</main>
+</body>
+</html>

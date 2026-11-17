@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22.4 — std::move</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="224-stdmove">22.4 — std::move</h1>
+<p>Une fois que vous commencez à utiliser régulièrement la sémantique de déplacement, vous rencontrerez des cas où vous voulez invoquer la sémantique de déplacement, alors que les objets dont vous disposez sont des l-values et non des r-values. Prenons la fonction d'échange suivante comme exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+template &lt;typename T&gt;
+void mySwapCopy(T&amp; a, T&amp; b) 
+{ 
+    T tmp { a }; // invoque le constructeur de copie
+    a = b; // invoque l'affectation par copie
+    b = tmp; // invoque l'affectation par copie
+}
+
+int main()
+{
+    std::string x{ &quot;abc&quot; };
+    std::string y{ &quot;de&quot; };
+
+    std::cout &lt;&lt; &quot;x: &quot; &lt;&lt; x &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;y: &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    mySwapCopy(x, y);
+
+    std::cout &lt;&lt; &quot;x: &quot; &lt;&lt; x &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;y: &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Reçue deux objets de type T (ici, std::string), cette fonction échange leurs valeurs en effectuant trois copies. Par conséquent, ce programme affiche :</p>
+<pre><code>
+x: abc
+y: de
+x: de
+y: abc
+</code></pre>
+<p>Comme nous l'avons montré dans la leçon précédente, effectuer des copies peut être inefficace. Et cette version de l'échange effectue 3 copies. Cela entraîne une création et une destruction excessives de chaînes, ce qui est lent.</p>
+<p>Cependant, il n'est pas nécessaire de faire des copies ici. Tout ce que nous cherchons vraiment à faire est d'échanger les valeurs de a et b, ce qui peut tout aussi bien être accompli en effectuant 3 déplacements ! Ainsi, si nous passons de la sémantique de copie à la sémantique de déplacement, nous pouvons rendre notre code plus performant.</p>
+<p>Mais comment ? Le problème ici est que les paramètres a et b sont des références à des l-values et non des références à des r-values, de sorte que nous n'avons pas de moyen d'invoquer le constructeur de déplacement et l'opérateur d'affectation par déplacement à la place du constructeur de copie et de l'affectation par copie. Par défaut, nous obtenons le comportement du constructeur de copie et de l'affectation par copie. Que faire ?</p>
+<h2 id="stdmove">std::move</h2>
+<p>En C++11, std::move est une fonction de la bibliothèque standard qui convertit (à l'aide de static_cast) son argument en une référence à une r-value, afin que la sémantique de déplacement puisse être invoquée. Ainsi, nous pouvons utiliser std::move pour convertir une l-value en un type qui préférera être déplacé plutôt que copié. std::move est définie dans l'en-tête utility.</p>
+<p>Voici le même programme que précédemment, mais avec une fonction mySwapMove() qui utilise std::move pour convertir nos l-values en r-values afin de pouvoir invoquer la sémantique de déplacement :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt; // pour std::move
+
+template &lt;typename T&gt;
+void mySwapMove(T&amp; a, T&amp; b) 
+{ 
+    T tmp { std::move(a) }; // invoque le constructeur de déplacement
+    a = std::move(b); // invoque l'affectation par déplacement
+    b = std::move(tmp); // invoque l'affectation par déplacement
+}
+
+int main()
+{
+    std::string x{ &quot;abc&quot; };
+    std::string y{ &quot;de&quot; };
+
+    std::cout &lt;&lt; &quot;x: &quot; &lt;&lt; x &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;y: &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    mySwapMove(x, y);
+
+    std::cout &lt;&lt; &quot;x: &quot; &lt;&lt; x &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;y: &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche le même résultat que précédemment :</p>
+<pre><code>
+x: abc
+y: de
+x: de
+y: abc
+</code></pre>
+<p>Mais il est beaucoup plus efficace. Lors de l'initialisation de tmp, au lieu de faire une copie de x, nous utilisons std::move pour convertir la variable l-value x en une r-value. Comme le paramètre est une r-value, la sémantique de déplacement est invoquée, et x est déplacée dans tmp.</p>
+<p>Avec quelques échanges supplémentaires, la valeur de la variable x a été déplacée vers y, et la valeur de y a été déplacée vers x.</p>
+<h2 id="un-autre-exemple">Un autre exemple</h2>
+<p>Nous pouvons également utiliser std::move lors du remplissage des éléments d'un conteneur, tel que std::vector, avec des l-values.</p>
+<p>Dans le programme suivant, nous ajoutons d'abord un élément à un vector en utilisant la sémantique de copie. Puis nous ajoutons un élément au vector en utilisant la sémantique de déplacement.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt; // pour std::move
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;std::string&gt; v;
+
+    // Nous utilisons std::string car elle est déplaçable (std::string_view ne l'est pas)
+    std::string str { &quot;Knock&quot; };
+
+    std::cout &lt;&lt; &quot;Copie de str\n&quot;;
+    v.push_back(str); // appelle la version push_back à l-value, qui copie str dans l'élément du tableau
+
+    std::cout &lt;&lt; &quot;str: &quot; &lt;&lt; str &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;vector: &quot; &lt;&lt; v[0] &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;\nDéplacement de str\n&quot;;
+
+    v.push_back(std::move(str)); // appelle la version push_back à r-value, qui déplace str dans l'élément du tableau
+
+    std::cout &lt;&lt; &quot;str: &quot; &lt;&lt; str &lt;&lt; '\n'; // Le résultat de ceci est indéterminé
+    std::cout &lt;&lt; &quot;vector:&quot; &lt;&lt; v[0] &lt;&lt; ' ' &lt;&lt; v[1] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme affiche :</p>
+<pre><code>
+Copie de str
+str: Knock
+vector: Knock
+
+Déplacement de str
+str:
+vector: Knock Knock
+</code></pre>
+<p>Dans le premier cas, nous avons passé à push_back() une l-value, de sorte qu'il a utilisé la sémantique de copie pour ajouter un élément au vector. Pour cette raison, la valeur de str reste inchangée.</p>
+<p>Dans le second cas, nous avons passé à push_back() une r-value (en réalité une l-value convertie via std::move), de sorte qu'il a utilisé la sémantique de déplacement pour ajouter un élément au vector. C'est plus efficace, car l'élément du vector peut s'approprier la valeur de la chaîne au lieu de devoir la copier.</p>
+<h2 id="les-objets-déplacés-se-trouvent-dans-un-état-valide-mais-potentiellement-indéterminé">Les objets déplacés se trouvent dans un état valide, mais potentiellement indéterminé</h2>
+<p>Lorsque nous déplaçons la valeur d'un objet temporaire, la valeur dans laquelle se retrouve l'objet déplacé n'a pas d'importance, car l'objet temporaire sera de toute façon détruit immédiatement. Mais qu'en est-il des objets l-value sur lesquels nous avons utilisé std::move() ? Comme nous pouvons continuer à accéder à ces objets après que leurs valeurs ont été déplacées (par exemple, dans l'exemple ci-dessus, nous affichons la valeur de <code>str</code> après son déplacement), il est utile de savoir dans quel état ils se trouvent.</p>
+<p>Il existe deux écoles de pensée à ce sujet. La première estime que les objets qui ont été déplacés doivent être remis à un état par défaut / nul, où l'objet ne possède plus de ressource. Nous en voyons un exemple ci-dessus, où <code>str</code> a été vidée et vaut donc la chaîne vide.</p>
+<p>L'autre école estime qu'il faut faire ce qui est le plus pratique, sans nous contraindre à vider l'objet déplacé lorsque ce n'est pas commode.</p>
+<p>Que fait donc la bibliothèque standard dans ce cas ? À ce sujet, la norme C++ indique : « Sauf indication contraire, les objets déplacés [de types définis dans la bibliothèque standard C++] doivent être placés dans un état valide mais non spécifié. »</p>
+<p>Dans notre exemple ci-dessus, lorsque l'auteur a affiché la valeur de <code>str</code> après avoir appelé <code>std::move</code> dessus, la chaîne vide a été affichée. Cependant, ce n'est pas imposé : il aurait pu afficher n'importe quelle chaîne valide, y compris la chaîne vide, la chaîne d'origine ou toute autre chaîne valide. Nous devons donc éviter d'utiliser la valeur d'un objet déplacé, car les résultats dépendraient de l'implémentation.</p>
+<p>Dans certains cas, nous voulons réutiliser un objet dont la valeur a été déplacée (plutôt que d'allouer un nouvel objet). Par exemple, dans l'implémentation de mySwapMove() ci-dessus, nous déplaçons d'abord la ressource hors de <code>a</code>, puis nous déplaçons une autre ressource dans <code>a</code>. Cela ne pose pas de problème, car nous n'utilisons jamais la valeur de <code>a</code> entre le moment où nous la déplaçons et celui où nous lui donnons une nouvelle valeur déterminée.</p>
+<p>Avec un objet déplacé, il est sûr d'appeler toute fonction qui ne dépend pas de la valeur courante de l'objet. Cela signifie que nous pouvons définir ou redéfinir la valeur de l'objet déplacé (à l'aide de <code>operator=</code>, ou de toute fonction membre <code>clear()</code> ou <code>reset()</code>). Nous pouvons aussi tester l'état de l'objet déplacé (par exemple à l'aide de <code>empty()</code> pour savoir s'il possède une valeur). En revanche, nous devons éviter les fonctions comme <code>operator[]</code> ou <code>front()</code> (qui renvoie le premier élément d'un conteneur), car elles supposent que le conteneur possède des éléments, alors qu'un conteneur déplacé peut en avoir ou non.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p><code>std::move()</code> donne un indice au compilateur indiquant que le programmeur n'a plus besoin de la valeur d'un objet. N'utilisez <code>std::move()</code> que sur des objets persistants dont vous voulez déplacer la valeur, et ne faites aucune hypothèse sur la valeur de l'objet au-delà de ce point. Il est tout à fait correct de donner une nouvelle valeur à un objet déplacé (par exemple à l'aide de <code>operator=</code>) après que sa valeur courante a été déplacée.</p>
+</div>
+<h2 id="où-dautre-stdmove-est-il-utile">Où d'autre std::move est-il utile ?</h2>
+<p>std::move peut aussi être utile lors du tri d'un tableau d'éléments. De nombreux algorithmes de tri (comme le tri par sélection et le tri à bulles) fonctionnent en échangeant des paires d'éléments. Dans les leçons précédentes, nous avons dû recourir à la sémantique de copie pour effectuer ces échanges. Nous pouvons désormais utiliser la sémantique de déplacement, qui est plus efficace.</p>
+<p>Elle peut aussi être utile si nous voulons transférer le contenu géré par un pointeur intelligent vers un autre.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Il existe une variante utile de <code>std::move()</code> appelée <code>std::move_if_noexcept()</code>, qui renvoie une r-value déplaçable si l'objet possède un constructeur de déplacement <code>noexcept</code>, sinon elle renvoie une l-value copiable. Nous la présentons dans la leçon <a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.10%20-%20std--move_if_noexcept.html">27.10 -- std::move_if_noexcept</a>.</p>
+</div>
+<h2 id="conclusion">Conclusion</h2>
+<p>std::move peut être utilisé chaque fois que nous voulons traiter une l-value comme une r-value, afin d'invoquer la sémantique de déplacement au lieu de la sémantique de copie.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdmove/">https://www.learncpp.com/cpp-tutorial/stdmove/</a></em></p>
+</main>
+</body>
+</html>

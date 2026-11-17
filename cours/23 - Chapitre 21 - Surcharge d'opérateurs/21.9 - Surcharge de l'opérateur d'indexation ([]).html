@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.9 — Surcharge de l&#x27;opérateur d&#x27;indexation ([])</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="219-surcharge-de-lopérateur-dindexation">21.9 — Surcharge de l'opérateur d'indexation ([])</h1>
+<p>Lorsque l'on travaille avec des tableaux, on utilise généralement l'opérateur d'indexation ([]) pour accéder à des éléments précis :</p>
+<pre><code class="language-cpp">myArray[0] = 7; // place la valeur 7 dans le premier élément du tableau
+</code></pre>
+<p>Considérons toutefois la classe <code>IntList</code> suivante, qui possède un membre de données qui est un tableau :</p>
+<pre><code class="language-cpp">class IntList
+{
+private:
+    int m_list[10]{};
+};
+
+int main()
+{
+    IntList list{};
+    // comment accéder aux éléments de m_list ?
+    return 0;
+}
+</code></pre>
+<p>Comme le membre de données <code>m_list</code> est privé, nous ne pouvons pas y accéder directement depuis la variable <code>list</code>. Nous n'avons donc aucun moyen direct de lire ou de modifier les valeurs du tableau <code>m_list</code>. Comment alors lire ou placer des éléments dans notre liste ?</p>
+<p>Sans surcharge d'opérateur, la méthode habituelle consiste à créer des fonctions d'accès :</p>
+<pre><code class="language-cpp">class IntList
+{
+private:
+    int m_list[10]{};
+
+public:
+    void setItem(int index, int value) { m_list[index] = value; }
+    int getItem(int index) const { return m_list[index]; }
+};
+</code></pre>
+<p>Cela fonctionne, mais ce n'est pas très convivial. Considérez l'exemple suivant :</p>
+<pre><code class="language-cpp">int main()
+{
+    IntList list{};
+    list.setItem(2, 3);
+
+    return 0;
+}
+</code></pre>
+<p>Remplace-t-on l'élément 2 par la valeur 3, ou l'élément 3 par la valeur 2 ? Sans voir la définition de <code>setItem()</code>, ce n'est tout simplement pas clair.</p>
+<p>On pourrait aussi renvoyer la liste entière et utiliser operator[] pour accéder à l'élément :</p>
+<pre><code class="language-cpp">class IntList
+{
+private:
+    int m_list[10]{};
+
+public:
+    int* getList() { return m_list; }
+};
+</code></pre>
+<p>Cela fonctionne également, mais la syntaxe est étrange :</p>
+<pre><code class="language-cpp">int main()
+{
+    IntList list{};
+    list.getList()[2] = 3;
+
+    return 0;
+}
+</code></pre>
+<h2 id="surcharge-de-operator">Surcharge de operator[]</h2>
+<p>Dans ce cas, une meilleure solution consiste à surcharger l'opérateur d'indexation ([]) pour permettre l'accès aux éléments de <code>m_list</code>. L'opérateur d'indexation fait partie des opérateurs qui doivent obligatoirement être surchargés en tant que fonctions membres. Une fonction <code>operator[]</code> surchargée prend toujours un seul paramètre : l'indice que l'utilisateur place entre les crochets. Dans notre cas <code>IntList</code>, on attend de l'utilisateur un indice entier, et on renverra en résultat une valeur entière.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class IntList
+{
+private:
+    int m_list[10]{};
+
+public:
+    int&amp; operator[] (int index)
+    {
+        return m_list[index];
+    }
+};
+
+/*
+// Peut aussi être implémenté en dehors de la définition de la classe
+int&amp; IntList::operator[] (int index)
+{
+    return m_list[index];
+}
+*/
+
+int main()
+{
+    IntList list{};
+    list[2] = 3; // modifie une valeur
+    std::cout &lt;&lt; list[2] &lt;&lt; '\n'; // lit une valeur
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, chaque fois que nous utilisons l'opérateur d'indexation ([]) sur un objet de notre classe, le compilateur renvoie l'élément correspondant du membre <code>m_list</code> ! Cela nous permet à la fois de lire et de modifier directement les valeurs de <code>m_list</code>.</p>
+<p>Cette approche est simple, tant sur le plan syntaxique que sur celui de la lisibilité. Lorsque <code>list[2]</code> est évalué, le compilateur vérifie d'abord s'il existe une fonction <code>operator[]</code> surchargée. Si c'est le cas, il transmet la valeur placée entre les crochets (ici, 2) en tant qu'argument à cette fonction.</p>
+<p>Notez que, bien que vous puissiez fournir une valeur par défaut au paramètre de la fonction, utiliser <code>operator[]</code> sans indice entre les crochets n'est pas une syntaxe valide, donc cela n'a pas d'intérêt.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>C++23 ajoute la prise en charge de la surcharge de operator[] avec plusieurs indices.</p>
+</div>
+<h2 id="pourquoi-operator-renvoie-une-référence">Pourquoi operator[] renvoie une référence</h2>
+<p>Examinons de plus près l'évaluation de <code>list[2] = 3</code>. Comme l'opérateur d'indexation a une priorité supérieure à celle de l'opérateur d'affectation, <code>list[2]</code> est évalué en premier. <code>list[2]</code> appelle <code>operator[]</code>, que nous avons défini pour renvoyer une référence sur <code>list.m_list[2]</code>. Comme <code>operator[]</code> renvoie une référence, il renvoie l'élément réel <code>list.m_list[2]</code> du tableau. L'expression partiellement évaluée devient <code>list.m_list[2] = 3</code>, qui est une simple affectation d'entier.</p>
+<p>Dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.2%20-%20Cat%C3%A9gories%20de%20valeurs%20%28lvalues%20et%20rvalues%29.html">12.2 -- Catégories de valeurs (lvalues et rvalues)</a>, vous avez appris que toute valeur située à gauche d'une affectation doit être une lvalue (c'est-à-dire une variable ayant une adresse mémoire réelle). Comme le résultat de <code>operator[]</code> peut figurer à gauche d'une affectation (par exemple <code>list[2] = 3</code>), la valeur de retour de <code>operator[]</code> doit être une lvalue. Or, les références sont toujours des lvalues, puisqu'on ne peut prendre une référence que sur des variables ayant une adresse mémoire. En renvoyant une référence, on satisfait donc le compilateur, qui voit que nous renvoyons une lvalue.</p>
+<p>Imaginons ce qui se passerait si <code>operator[]</code> renvoyait un entier par valeur au lieu de le renvoyer par référence. <code>list[2]</code> appellerait <code>operator[]</code>, qui renverrait la <em>valeur de</em> <code>list.m_list[2]</code>. Par exemple, si <code>m_list[2]</code> valait 6, <code>operator[]</code> renverrait la valeur 6. <code>list[2] = 3</code> serait partiellement évalué en <code>6 = 3</code>, ce qui n'a aucun sens ! Si vous essayez cela, le compilateur C++ se plaindra :</p>
+<pre><code>
+C:VCProjectsTest.cpp(386) : error C2106: '=' : left operand must be l-value
+</code></pre>
+<h2 id="operator-surchargé-pour-les-objets-const">operator[] surchargé pour les objets const</h2>
+<p>Dans l'exemple <code>IntList</code> ci-dessus, <code>operator[]</code> n'est pas <code>const</code>, et nous pouvons l'utiliser comme lvalue pour modifier l'état d'objets non <code>const</code>. Mais que se passe-t-il si notre objet <code>IntList</code> est <code>const</code> ? Dans ce cas, nous ne pourrions pas appeler la version non <code>const</code> de <code>operator[]</code>, car cela permettrait potentiellement de modifier l'état d'un objet <code>const</code>.</p>
+<p>La bonne nouvelle est que nous pouvons définir séparément une version <code>const</code> et une version non <code>const</code> de <code>operator[]</code>. La version non <code>const</code> sera utilisée avec les objets non <code>const</code>, et la version <code>const</code> avec les objets <code>const</code>.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class IntList
+{
+private:
+    int m_list[10]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; // donne à cette classe un état initial pour cet exemple
+
+public:
+    // Pour les objets non const : peut être utilisé en affectation
+    int&amp; operator[] (int index)
+    {
+        return m_list[index];
+    }
+
+    // Pour les objets const : ne peut être utilisé qu'en lecture
+    // Cette fonction pourrait aussi renvoyer par valeur si le type est peu coûteux à copier
+    const int&amp; operator[] (int index) const
+    {
+        return m_list[index];
+    }
+};
+
+int main()
+{
+    IntList list{};
+    list[2] = 3; // ok : appelle la version non const de operator[]
+    std::cout &lt;&lt; list[2] &lt;&lt; '\n';
+
+    const IntList clist{};
+    // clist[2] = 3; // erreur de compilation : clist[2] renvoie une référence const, qu'on ne peut pas affecter
+    std::cout &lt;&lt; clist[2] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<h2 id="supprimer-la-duplication-de-code-entre-les-surcharges-const-et-non-const">Supprimer la duplication de code entre les surcharges const et non const</h2>
+<p>Dans l'exemple précédent, remarquez que les implémentations de <code>int&amp; IntList::operator[](int)</code> et de <code>const int&amp; IntList::operator[](int) const</code> sont identiques. La seule différence est le type de retour de la fonction.</p>
+<p>Lorsque l'implémentation est triviale (par exemple une seule ligne), il est tout à fait acceptable (et même préférable) que les deux fonctions aient une implémentation identique. La petite redondance ainsi introduite ne vaut pas la peine d'être supprimée.</p>
+<p>Mais que se passe-t-il si l'implémentation de ces opérateurs est complexe et nécessite de nombreuses instructions ? Par exemple, il peut être important de valider que l'indice est bien valide, ce qui impose d'ajouter de nombreuses lignes redondantes à chaque fonction.</p>
+<p>Dans un tel cas, la redondance introduite par de nombreuses instructions dupliquées pose davantage problème, et il serait souhaitable de disposer d'une seule implémentation utilisable pour les deux surcharges. Mais comment faire ? Normalement, on implémenterait simplement une fonction en fonction de l'autre (par exemple, en faisant appeler l'une par l'autre). Mais c'est un peu délicat ici. La version <code>const</code> de la fonction ne peut pas appeler la version non <code>const</code>, car cela reviendrait à retirer le <code>const</code> d'un objet <code>const</code>. Et si la version non <code>const</code> peut appeler la version <code>const</code>, cette dernière renvoie une référence <code>const</code>, alors que nous devons renvoyer une référence non <code>const</code>. Heureusement, il existe un moyen de contourner ce problème.</p>
+<p>La solution préférée est la suivante :</p>
+<ul>
+<li>Implémenter la logique de la version <code>const</code> de la fonction.</li>
+<li>Faire en sorte que la fonction non <code>const</code> appelle la fonction <code>const</code> et utilise <code>const_cast</code> pour retirer le <code>const</code>.</li>
+</ul>
+<p>La solution obtenue ressemble à ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt; // pour std::as_const
+
+class IntList
+{
+private:
+    int m_list[10]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; // donne à cette classe un état initial pour cet exemple
+
+public:
+    int&amp; operator[] (int index)
+    {
+        // utilise std::as_const pour obtenir une version const de `this` (sous forme de référence)
+        // afin de pouvoir appeler la version const de operator[]
+        // puis const_cast pour retirer le const de la référence renvoyée
+        return const_cast&lt;int&amp;&gt;(std::as_const(*this)[index]);
+    }
+
+    const int&amp; operator[] (int index) const
+    {
+        return m_list[index];
+    }
+};
+
+int main()
+{
+    IntList list{};
+    list[2] = 3; // ok : appelle la version non const de operator[]
+    std::cout &lt;&lt; list[2] &lt;&lt; '\n';
+
+    const IntList clist{};
+    // clist[2] = 3; // erreur de compilation : clist[2] renvoie une référence const, qu'on ne peut pas affecter
+    std::cout &lt;&lt; clist[2] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Normalement, utiliser <code>const_cast</code> pour retirer le <code>const</code> est quelque chose que l'on souhaite éviter, mais dans ce cas, c'est acceptable. Si la surcharge non <code>const</code> a été appelée, nous savons que nous travaillons avec un objet non <code>const</code>. Il est permis de retirer le <code>const</code> d'une référence <code>const</code> vers un objet non <code>const</code>.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>En C++23, nous pouvons faire encore mieux en utilisant plusieurs fonctionnalités que nous n'avons pas encore abordées dans cette série de tutoriels :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class IntList
+{
+private:
+    int m_list[10]{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; // donne à cette classe un état initial pour cet exemple
+
+public:
+    // Utilise un paramètre objet explicite (self) et auto&amp;&amp; pour distinguer const et non const
+    auto&amp;&amp; operator[](this auto&amp;&amp; self, int index)
+    {
+        // Le code complexe se trouve ici
+        return self.m_list[index];
+    }
+};
+
+int main()
+{
+    IntList list{};
+    list[2] = 3; // ok : appelle la version non const de operator[]
+    std::cout &lt;&lt; list[2] &lt;&lt; '\n';
+
+    const IntList clist{};
+    // clist[2] = 3; // erreur de compilation : clist[2] renvoie une référence const, qu'on ne peut pas affecter
+    std::cout &lt;&lt; clist[2] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</div>
+<h2 id="vérifier-la-validité-de-lindice">Vérifier la validité de l'indice</h2>
+<p>Un autre avantage de la surcharge de l'opérateur d'indexation est que nous pouvons le rendre plus sûr que l'accès direct aux tableaux. Normalement, lors de l'accès à un tableau, l'opérateur d'indexation ne vérifie pas si l'indice est valide. Par exemple, le compilateur ne se plaindra pas du code suivant :</p>
+<pre><code class="language-cpp">int list[5]{};
+list[7] = 3; // l'indice 7 est hors limites !
+</code></pre>
+<p>Cependant, si nous connaissons la taille de notre tableau, nous pouvons faire en sorte que notre opérateur d'indexation surchargé vérifie que l'indice est dans les limites :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt; // pour assert()
+#include &lt;iterator&gt; // pour std::size()
+
+class IntList
+{
+private:
+    int m_list[10]{};
+
+public:
+    int&amp; operator[] (int index)
+    {
+        assert(index &gt;= 0 &amp;&amp; static_cast&lt;std::size_t&gt;(index) &lt; std::size(m_list));
+
+        return m_list[index];
+    }
+};
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous avons utilisé la fonction <code>assert()</code> (incluse dans l'en-tête <code>cassert</code>) pour nous assurer que notre indice est valide. Si l'expression placée dans <code>assert</code> s'évalue à <code>false</code> (ce qui signifie que l'utilisateur a passé un indice invalide), le programme se termine avec un message d'erreur, ce qui vaut bien mieux que l'alternative (la corruption de la mémoire). C'est probablement la méthode la plus courante pour effectuer ce type de vérification d'erreur.</p>
+<p>Si vous ne souhaitez pas utiliser <code>assert</code> (qui sera supprimé dans une version de compilation non-debug), vous pouvez à la place utiliser une instruction <code>if</code> et la méthode de gestion d'erreur de votre choix (par exemple, lever une exception, appeler <code>std::exit</code>, etc.) :</p>
+<pre><code class="language-cpp">#include &lt;iterator&gt; // pour std::size()
+
+class IntList
+{
+private:
+    int m_list[10]{};
+
+public:
+    int&amp; operator[] (int index)
+    {
+        if (!(index &gt;= 0 &amp;&amp; static_cast&lt;std::size_t&gt;(index) &lt; std::size(m_list))
+        {
+            // gérer ici l'indice invalide
+        }
+
+        return m_list[index];
+    }
+};
+</code></pre>
+<h2 id="les-pointeurs-vers-des-objets-et-operator-surchargé-ne-font-pas-bon-ménage">Les pointeurs vers des objets et operator[] surchargé ne font pas bon ménage</h2>
+<p>Si vous essayez d'appeler <code>operator[]</code> sur un pointeur vers un objet, C++ supposera que vous cherchez à indexer un tableau d'objets de ce type.</p>
+<p>Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt; // pour assert()
+#include &lt;iterator&gt; // pour std::size()
+
+class IntList
+{
+private:
+    int m_list[10]{};
+
+public:
+    int&amp; operator[] (int index)
+    {
+        return m_list[index];
+    }
+};
+
+int main()
+{
+    IntList* list{ new IntList{} };
+    list [2] = 3; // erreur : cela supposera que nous accédons à l'indice 2 d'un tableau d'IntList
+    delete list;
+
+    return 0;
+}
+</code></pre>
+<p>Comme on ne peut pas affecter un entier à un <code>IntList</code>, ce code ne compile pas. Cependant, si l'affectation d'un entier était valide, ce code compilerait et s'exécuterait, avec des résultats indéfinis.</p>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Assurez-vous de ne pas essayer d'appeler un operator[] surchargé sur un pointeur vers un objet.</p>
+</div>
+<p>La syntaxe correcte consiste à déréférencer d'abord le pointeur (en veillant à utiliser des parenthèses, car operator[] a une priorité supérieure à operator*), puis à appeler operator[] :</p>
+<pre><code class="language-cpp">int main()
+{
+    IntList* list{ new IntList{} };
+    (*list)[2] = 3; // on obtient notre objet IntList, puis on appelle operator[] surchargé
+    delete list;
+
+    return 0;
+}
+</code></pre>
+<p>C'est laid et source d'erreurs. Mieux encore, ne créez pas de pointeurs vers vos objets si vous n'en avez pas besoin.</p>
+<h2 id="le-paramètre-de-la-fonction-na-pas-besoin-dêtre-un-type-entier">Le paramètre de la fonction n'a pas besoin d'être un type entier</h2>
+<p>Comme mentionné plus haut, C++ transmet ce que l'utilisateur saisit entre les crochets comme argument de la fonction surchargée. Dans la plupart des cas, il s'agira d'une valeur entière. Cependant, ce n'est pas obligatoire : vous pouvez définir que votre <code>operator[]</code> surchargé prend une valeur de n'importe quel type souhaité. Vous pourriez définir votre <code>operator[]</code> surchargé pour prendre un <code>double</code>, un <code>std::string</code>, ou tout autre type.</p>
+<p>Comme exemple absurde, juste pour vous montrer que cela fonctionne :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt; // C++17
+
+class Stupid
+{
+private:
+
+public:
+    void operator[] (std::string_view index);
+};
+
+// Il n'a pas de sens de surcharger operator[] pour afficher quelque chose
+// mais c'est le moyen le plus simple de montrer que le paramètre de la fonction peut être un non-entier
+void Stupid::operator[] (std::string_view index)
+{
+    std::cout &lt;&lt; index;
+}
+
+int main()
+{
+    Stupid stupid{};
+    stupid[&quot;Hello, world!&quot;];
+
+    return 0;
+}
+</code></pre>
+<p>Comme vous pouvez vous y attendre, cela affiche :</p>
+<pre><code>
+Hello, world!
+</code></pre>
+<p>Surcharger <code>operator[]</code> pour prendre un paramètre de type <code>std::string</code> peut être utile lors de l'écriture de certains types de classes, comme celles qui utilisent des mots comme indices.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Une map (dictionnaire) est une classe qui stocke des éléments sous forme de paires clé-valeur. La clé doit être unique et sert à accéder à la paire associée. Dans ce quiz, nous allons écrire une application qui permet d'attribuer des notes à des étudiants par leur nom, à l'aide d'une classe map simple. Le nom de l'étudiant sera la clé, et la note (sous forme de <code>char</code>) sera la valeur.</p>
+<p>a) Écrivez d'abord une structure nommée <code>StudentGrade</code> qui contient le nom de l'étudiant (sous forme de <code>std::string</code>) et sa note (sous forme de <code>char</code>).</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+struct StudentGrade
+{
+    std::string name{};
+    char grade{};
+};
+</code></pre>
+</details>
+<p>b) Ajoutez une classe nommée <code>GradeMap</code> qui contient un <code>std::vector</code> de <code>StudentGrade</code> nommé <code>m_map</code>.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;string&gt;
+#include &lt;vector&gt;
+
+struct StudentGrade
+{
+    std::string name{};
+    char grade{};
+};
+
+class GradeMap
+{
+private:
+    std::vector&lt;StudentGrade&gt; m_map{};
+};
+</code></pre>
+</details>
+<p>c) Écrivez un <code>operator[]</code> surchargé pour cette classe. Cette fonction doit prendre un paramètre de type <code>std::string</code> et renvoyer une référence sur un <code>char</code>. Dans le corps de la fonction, vérifiez d'abord si le nom de l'étudiant existe déjà (vous pouvez utiliser <code>std::find_if</code> de &lt;algorithm&gt;). Si l'étudiant existe, renvoyez une référence sur sa note et c'est terminé. Sinon, utilisez la fonction <code>std::vector::emplace_back()</code> ou <code>std::vector::push_back()</code> pour ajouter un <code>StudentGrade</code> pour ce nouvel étudiant. Lorsque vous faites cela, <code>std::vector</code> ajoute une copie de votre <code>StudentGrade</code> à lui-même (en se redimensionnant si nécessaire, ce qui invalide toutes les références renvoyées précédemment). Enfin, nous devons renvoyer une référence sur la note de l'étudiant que nous venons d'ajouter au <code>std::vector</code>. Nous pouvons accéder à l'étudiant que nous venons d'ajouter à l'aide de la fonction <code>std::vector::back()</code>.</p>
+<p>Le programme suivant doit fonctionner :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// ...
+
+int main()
+{
+    GradeMap grades{};
+
+    grades[&quot;Joe&quot;] = 'A';
+    grades[&quot;Frank&quot;] = 'B';
+
+    std::cout &lt;&lt; &quot;Joe has a grade of &quot; &lt;&lt; grades[&quot;Joe&quot;] &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Frank has a grade of &quot; &lt;&lt; grades[&quot;Frank&quot;] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+struct StudentGrade
+{
+    std::string name{};
+    char grade{};
+};
+
+class GradeMap
+{
+private:
+    std::vector&lt;StudentGrade&gt; m_map{};
+
+public:
+    char&amp; operator[](std::string_view name);
+};
+
+char&amp; GradeMap::operator[](std::string_view name)
+{
+    auto found{ std::find_if(m_map.begin(), m_map.end(),
+                [name](const auto&amp; student) { // ceci est une lambda qui capture name depuis la portée englobante
+                    return (student.name == name); // afin que nous puissions utiliser name ici
+                }) };
+
+    if (found != m_map.end())
+    {
+        return found-&gt;grade;
+    }
+
+    // sinon, créer un nouveau StudentGrade pour cet étudiant et l'ajouter
+    // à la fin de notre vecteur. Puis renvoyer la note.
+
+    // version avec emplace_back (C++20 et suivants)
+    // StudentGrade est un agrégat, et emplace_back ne fonctionne avec les agrégats qu'à partir de C++20
+    return m_map.emplace_back(std::string{name}).grade;
+
+    // version avec push_back (C++17 ou antérieur)
+    // m_map.push_back(StudentGrade{std::string{name}});
+    // return m_map.back().grade;
+}
+
+int main()
+{
+    GradeMap grades{};
+
+    grades[&quot;Joe&quot;] = 'A';
+    grades[&quot;Frank&quot;] = 'B';
+
+    std::cout &lt;&lt; &quot;Joe has a grade of &quot; &lt;&lt; grades[&quot;Joe&quot;] &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Frank has a grade of &quot; &lt;&lt; grades[&quot;Frank&quot;] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Consultez <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.6%20-%20Introduction%20aux%20lambdas%20%28fonctions%20anonymes%29.html">20.6 -- Introduction aux lambdas (fonctions anonymes)</a> pour plus d'informations sur les lambdas.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Les maps étant courantes, la bibliothèque standard propose <a href="https://en.cppreference.com/w/cpp/container/map"><code>std::map</code></a>, qui n'est pas encore traitée sur learncpp. En utilisant <code>std::map</code>, nous pouvons simplifier notre code ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;map&gt; // std::map
+#include &lt;string&gt;
+
+int main()
+{
+    // std::map peut être initialisée
+    std::map&lt;std::string, char&gt; grades{
+        { &quot;Joe&quot;, 'A' },
+        { &quot;Frank&quot;, 'B' }
+    };
+
+    // et affectée
+    grades[&quot;Susan&quot;] = 'C';
+    grades[&quot;Tom&quot;] = 'D';
+
+    std::cout &lt;&lt; &quot;Joe has a grade of &quot; &lt;&lt; grades[&quot;Joe&quot;] &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Frank has a grade of &quot; &lt;&lt; grades[&quot;Frank&quot;] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Préférez utiliser <code>std::map</code> plutôt que d'écrire votre propre implémentation.</p>
+</div>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Crédit supplémentaire n° 1 : La classe <code>GradeMap</code> et le programme d'exemple que nous avons écrits sont inefficaces pour de nombreuses raisons. Décrivez une façon dont la classe <code>GradeMap</code> pourrait être améliorée.</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>std::vector</code> n'est pas trié par nature. Cela signifie qu'à chaque appel de <code>operator[]</code>, nous parcourons potentiellement tout le <code>std::vector</code> pour trouver notre élément. Avec peu d'éléments, ce n'est pas un problème, mais à mesure que nous ajoutons des noms, cela deviendra de plus en plus lent. Nous pourrions optimiser cela en gardant notre <code>m_map</code> trié et en utilisant une recherche dichotomique, afin de minimiser le nombre d'éléments à parcourir pour trouver ceux qui nous intéressent.</p>
+</details>
+<h4 id="question-n-3">Question n° 3</h4>
+<p>Crédit supplémentaire n° 2 : Pourquoi ce programme peut-il ne pas fonctionner comme prévu ?</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    GradeMap grades{};
+
+    char&amp; gradeJoe{ grades[&quot;Joe&quot;] }; // effectue un emplace_back
+    gradeJoe = 'A';
+
+    char&amp; gradeFrank{ grades[&quot;Frank&quot;] }; // effectue un emplace_back
+    gradeFrank = 'B';
+
+    std::cout &lt;&lt; &quot;Joe has a grade of &quot; &lt;&lt; gradeJoe &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Frank has a grade of &quot; &lt;&lt; gradeFrank &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>Lorsque Frank est ajouté, le <code>std::vector</code> peut avoir besoin de grandir pour le contenir. Cela impose d'allouer dynamiquement un nouveau bloc de mémoire, de copier les éléments du tableau dans ce nouveau bloc, puis de supprimer l'ancien bloc. Lorsque cela se produit, toutes les références vers des éléments existants du <code>std::vector</code> sont invalidées (ce qui signifie qu'elles deviennent des références pendantes vers une mémoire supprimée).</p>
+<p>Autrement dit, après <code>emplace_back("Frank")</code>, si le <code>std::vector</code> a dû grandir pour faire de la place à Frank, la référence <code>gradeJoe</code> serait invalidée. Accéder à <code>gradeJoe</code> pour afficher la note de Joe conduirait alors à un comportement indéfini.</p>
+<p>La manière dont un <code>std::vector</code> grandit est un détail propre à chaque compilateur : on peut donc s'attendre à ce que le programme ci-dessus fonctionne correctement avec certains compilateurs et pas avec d'autres.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-the-subscript-operator/">https://www.learncpp.com/cpp-tutorial/overloading-the-subscript-operator/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apprendre le C++</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .page { max-width: 820px; }
+  .entete { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .entete h1 { margin: 0.2em 0; flex: 1; font-size: 1.7rem; }
+  #q { width: 100%; font-size: 1.1rem; padding: 12px 18px; margin: 12px 0 10px; }
+  .filtres { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .filtres label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem;
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; cursor: pointer; background: var(--surface); }
+  .filtres input { accent-color: var(--accent); }
+  .compte { color: var(--muted); font-size: 0.9rem; margin: 0 0 8px; }
+  ol.resultats { list-style: none; padding: 0; margin: 0; }
+  ol.resultats li a { display: block; text-decoration: none; color: var(--text);
+    padding: 12px 14px; border: 1px solid transparent; border-radius: var(--radius); }
+  ol.resultats li a:hover, ol.resultats li a.actif { background: var(--surface); border-color: var(--border); }
+  ol.resultats li a.actif { border-color: var(--accent); }
+  .r-titre { font-weight: 650; color: var(--accent); }
+  .r-extrait { color: var(--muted); font-size: 0.92rem; margin-top: 2px; }
+  .genre { display: inline-block; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.03em; text-transform: uppercase;
+    border-radius: 999px; padding: 1px 8px; margin-right: 8px; vertical-align: 2px; }
+  .genre.lecon { background: var(--claude-soft); color: var(--claude); }
+  .genre.fiche { background: var(--tip-soft); color: var(--tip); }
+  .genre.exercice { background: var(--example-soft); color: var(--example); }
+  .genre.cours { background: var(--info-soft); color: var(--info); }
+  .vide { color: var(--muted); padding: 12px 0; }
+  .accueil h2 { font-size: 1.1rem; }
+  .astuce { color: var(--muted); font-size: 0.85rem; }
+  kbd { font-family: var(--mono); font-size: 0.8em; border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 4px; padding: 0 5px; background: var(--surface); }
+</style>
+</head>
+<body data-sans-barre>
+<div class="page">
+  <div class="entete">
+    <h1>🔎 Apprendre le C++</h1>
+    <button type="button" class="theme-btn" id="theme" title="Thème clair / sombre">◐</button>
+  </div>
+  <input id="q" type="search" placeholder="Une notion, un mot-clé, une erreur… (ex. : référence, static_cast, boucle for)" autofocus autocomplete="off" aria-label="Rechercher">
+  <div class="filtres" id="filtres">
+    <label><input type="checkbox" value="lecon" checked> Mes leçons</label>
+    <label><input type="checkbox" value="fiche" checked> Fiches mémo</label>
+    <label><input type="checkbox" value="exercice" checked> Exercices</label>
+    <label><input type="checkbox" value="cours" checked> Cours LearnCpp</label>
+  </div>
+  <p class="compte" id="compte"></p>
+  <ol class="resultats" id="resultats"></ol>
+  <div class="accueil" id="accueil">
+    <h2>Mes leçons</h2>
+    <ol class="resultats" id="mes-lecons"></ol>
+    <h2>Fiches mémo</h2>
+    <ol class="resultats" id="mes-fiches"></ol>
+    <p><a href="cours/index.html">📚 Sommaire complet du cours LearnCpp en français</a></p>
+    <p class="astuce">Astuces : tapez plusieurs mots pour affiner. <kbd>↑</kbd> <kbd>↓</kbd> pour choisir, <kbd>Entrée</kbd> pour ouvrir.
+      Depuis n'importe quelle leçon, appuyez sur <kbd>/</kbd> pour revenir chercher.</p>
+  </div>
+</div>
+
+<script src="assets/index-recherche.js"></script>
+<script>
+(function () {
+  const INDEX = window.INDEX_RECHERCHE || [];
+  const NOMS = { lecon: "Leçon", fiche: "Fiche", exercice: "Exercice", cours: "Cours" };
+  const BONUS = { lecon: 30, fiche: 25, exercice: 15, cours: 0 };
+
+  /* minuscules sans accents, même longueur que l'original (pour surligner au bon endroit) */
+  const ACCENTS = { "à":"a","â":"a","ä":"a","á":"a","é":"e","è":"e","ê":"e","ë":"e","î":"i","ï":"i","í":"i",
+                    "ô":"o","ö":"o","ó":"o","ù":"u","û":"u","ü":"u","ú":"u","ç":"c","ÿ":"y","ñ":"n" };
+  const norm = (s) => s.toLowerCase().replace(/[àâäáéèêëîïíôöóùûüúçÿñ]/g, (c) => ACCENTS[c]);
+  INDEX.forEach((e) => { e.nt = norm(e.titre); e.nx = norm(e.texte); });
+
+  const $q = document.getElementById("q");
+  const $res = document.getElementById("resultats");
+  const $compte = document.getElementById("compte");
+  const $accueil = document.getElementById("accueil");
+  const $filtres = document.getElementById("filtres");
+  let actif = -1;
+
+  const echapper = (s) => s.replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const lienDe = (url) => url.split("/").map(encodeURIComponent).join("/");
+
+  function surligner(texte, normTexte, mots) {
+    const zones = [];
+    mots.forEach((m) => {
+      let i = normTexte.indexOf(m);
+      while (i !== -1 && zones.length < 200) { zones.push([i, i + m.length]); i = normTexte.indexOf(m, i + m.length); }
+    });
+    zones.sort((a, b) => a[0] - b[0]);
+    let out = "", pos = 0;
+    zones.forEach(([d, f]) => {
+      if (d < pos) return;
+      out += echapper(texte.slice(pos, d)) + "<mark>" + echapper(texte.slice(d, f)) + "</mark>";
+      pos = f;
+    });
+    return out + echapper(texte.slice(pos));
+  }
+
+  function extrait(e, mots) {
+    let i = e.nx.indexOf(mots[0]);
+    if (i < 0) return echapper(e.texte.slice(0, 160)) + "…";
+    const d = Math.max(0, i - 70), f = Math.min(e.texte.length, i + 150);
+    return (d > 0 ? "…" : "") + surligner(e.texte.slice(d, f), e.nx.slice(d, f), mots) + (f < e.texte.length ? "…" : "");
+  }
+
+  function compter(texte, mot) {
+    let n = 0, i = texte.indexOf(mot);
+    while (i !== -1 && n < 50) { n++; i = texte.indexOf(mot, i + mot.length); }
+    return n;
+  }
+
+  function genresActifs() {
+    return new Set([...$filtres.querySelectorAll("input:checked")].map((c) => c.value));
+  }
+
+  function ligne(e, mots) {
+    return '<li><a href="' + lienDe(e.url) + '"><span class="genre ' + e.genre + '">' + NOMS[e.genre] + "</span>" +
+      '<span class="r-titre">' + (mots ? surligner(e.titre, e.nt, mots) : echapper(e.titre)) + "</span>" +
+      (mots ? '<div class="r-extrait">' + extrait(e, mots) + "</div>" : "") + "</a></li>";
+  }
+
+  function chercher() {
+    const brut = $q.value.trim();
+    const url = new URL(location.href);
+    if (brut) url.searchParams.set("q", brut); else url.searchParams.delete("q");
+    history.replaceState(null, "", url);
+    actif = -1;
+    if (!brut) {
+      $res.innerHTML = ""; $compte.textContent = ""; $accueil.hidden = false;
+      return;
+    }
+    $accueil.hidden = true;
+    const mots = norm(brut).split(/\s+/).filter(Boolean);
+    const genres = genresActifs();
+    const trouves = [];
+    for (const e of INDEX) {
+      if (!genres.has(e.genre)) continue;
+      let score = BONUS[e.genre], ok = true;
+      for (const m of mots) {
+        const dansTitre = e.nt.includes(m);
+        const n = compter(e.nx, m);
+        if (!dansTitre && !n) { ok = false; break; }
+        score += (dansTitre ? 60 : 0) + Math.min(n, 20);
+      }
+      if (ok) trouves.push([score, e]);
+    }
+    trouves.sort((a, b) => b[0] - a[0]);
+    const affiches = trouves.slice(0, 60);
+    $compte.textContent = trouves.length
+      ? trouves.length + " résultat" + (trouves.length > 1 ? "s" : "") + (trouves.length > 60 ? " (60 premiers affichés)" : "")
+      : "";
+    $res.innerHTML = affiches.length
+      ? affiches.map(([, e]) => ligne(e, mots)).join("")
+      : '<li class="vide">Aucun résultat. Essayez un autre mot, en français ou en anglais (ex. « pointer » ou « pointeur »).</li>';
+  }
+
+  function remplirAccueil() {
+    const lecons = INDEX.filter((e) => e.genre === "lecon").reverse();
+    const fiches = INDEX.filter((e) => e.genre === "fiche");
+    document.getElementById("mes-lecons").innerHTML = lecons.length
+      ? lecons.map((e) => ligne(e)).join("")
+      : '<li class="vide">Pas encore de leçon : lancez <code>/teach</code> dans Claude Code.</li>';
+    document.getElementById("mes-fiches").innerHTML = fiches.length
+      ? fiches.map((e) => ligne(e)).join("") : '<li class="vide">Pas encore de fiche.</li>';
+  }
+
+  function deplacer(sens) {
+    const liens = [...document.querySelectorAll(($accueil.hidden ? "#resultats" : "#accueil") + " a[href]")];
+    if (!liens.length) return;
+    actif = Math.max(0, Math.min(liens.length - 1, actif + sens));
+    liens.forEach((l, i) => l.classList.toggle("actif", i === actif));
+    liens[actif].scrollIntoView({ block: "nearest" });
+  }
+
+  $q.addEventListener("input", chercher);
+  $filtres.addEventListener("change", chercher);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); deplacer(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); deplacer(-1); }
+    else if (e.key === "Enter") {
+      const l = document.querySelector("a.actif") || ($accueil.hidden && document.querySelector("#resultats a[href]"));
+      if (l) { e.preventDefault(); location.href = l.href; }
+    } else if (e.key === "/" && document.activeElement !== $q) { e.preventDefault(); $q.focus(); $q.select(); }
+  });
+
+  /* thème (même clé que composants.js) */
+  const cle = "apprendre-cpp-theme";
+  try { const t = localStorage.getItem(cle); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  document.getElementById("theme").addEventListener("click", () => {
+    const sombre = document.documentElement.dataset.theme
+      ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = sombre ? "light" : "dark";
+    try { localStorage.setItem(cle, document.documentElement.dataset.theme); } catch (e) {}
+  });
+
+  remplirAccueil();
+  const q0 = new URLSearchParams(location.search).get("q");
+  if (q0) $q.value = q0;
+  chercher();
+  if (!INDEX.length) $compte.textContent = "Index introuvable : lancez .venv/bin/python outils/indexer.py";
+})();
+</script>
+</body>
+</html>

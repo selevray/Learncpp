@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27.1 — La nécessité des exceptions</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="271-la-nécessité-des-exceptions">27.1 — La nécessité des exceptions</h1>
+<p>Dans la leçon précédente sur la <a href="https://www.learncpp.com/cpp-tutorial/712-handling-errors-assert-cerr-exit-and-exceptions/">gestion des erreurs</a>, nous avons évoqué l'utilisation de assert(), std::cerr et exit() pour gérer les erreurs. Nous avions cependant reporté un sujet supplémentaire, que nous allons maintenant aborder : les exceptions.</p>
+<p><strong>Quand les codes de retour échouent</strong></p>
+<p>Lorsqu'on écrit du code réutilisable, la gestion des erreurs est une nécessité. L'une des façons les plus courantes de gérer les erreurs potentielles consiste à utiliser des codes de retour. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;string_view&gt;
+
+int findFirstChar(std::string_view string, char ch)
+{
+    // Parcourt chaque caractère de string
+    for (std::size_t index{ 0 }; index &lt; string.length(); ++index)
+        // Si le caractère correspond à ch, retourne son indice
+        if (string[index] == ch)
+            return index;
+
+    // Si aucune correspondance n'a été trouvée, retourne -1
+    return -1;
+}
+</code></pre>
+<p>Cette fonction retourne l'indice du premier caractère correspondant à ch dans string. Si le caractère ne peut pas être trouvé, la fonction retourne -1 pour indiquer que le caractère n'a pas été trouvé.</p>
+<p>Le principal avantage de cette approche est qu'elle est extrêmement simple. Cependant, l'utilisation de codes de retour présente un certain nombre d'inconvénients, qui deviennent rapidement évidents dans les cas non triviaux :</p>
+<p>Premièrement, les valeurs de retour peuvent être obscures : si une fonction retourne -1, cherche-t-elle à signaler une erreur, ou s'agit-il d'une valeur de retour valide ? Il est souvent difficile de le dire sans examiner le détail de la fonction ou consulter la documentation.</p>
+<p>Deuxièmement, une fonction ne peut retourner qu'une seule valeur. Que se passe-t-il donc lorsqu'il faut retourner à la fois le résultat d'une fonction et un éventuel code d'erreur ? Considérons la fonction suivante :</p>
+<pre><code class="language-cpp">double divide(int x, int y)
+{
+    return static_cast&lt;double&gt;(x)/y;
+}
+</code></pre>
+<p>Cette fonction a désespérément besoin d'une gestion des erreurs, car elle plantera si l'utilisateur passe 0 comme paramètre y. Pourtant, elle doit aussi retourner le résultat de x/y. Comment peut-elle faire les deux ? La réponse la plus courante consiste à renvoyer soit le résultat, soit l'erreur, par un paramètre de référence, ce qui donne un code peu élégant et moins pratique à utiliser. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+double divide(int x, int y, bool&amp; outSuccess)
+{
+    if (y == 0)
+    {
+        outSuccess = false;
+        return 0.0;
+    }
+
+    outSuccess = true;
+    return static_cast&lt;double&gt;(x)/y;
+}
+
+int main()
+{
+    bool success {}; // Nous devons maintenant passer une valeur bool pour savoir si l'appel a réussi
+    double result { divide(5, 3, success) };
+
+    if (!success) // Et la vérifier avant d'utiliser le résultat
+        std::cerr &lt;&lt; &quot;Une erreur s'est produite&quot; &lt;&lt; std::endl;
+    else
+        std::cout &lt;&lt; &quot;La réponse est &quot; &lt;&lt; result &lt;&lt; '\n';
+}
+</code></pre>
+<p>Troisièmement, dans les séquences de code où beaucoup de choses peuvent mal se passer, les codes d'erreur doivent être vérifiés en permanence. Considérons l'extrait de code suivant, qui consiste à analyser un fichier texte à la recherche de valeurs qui sont censées s'y trouver :</p>
+<pre><code class="language-cpp">    std::ifstream setupIni { &quot;setup.ini&quot; }; // Ouvre setup.ini en lecture
+    // Si le fichier n'a pas pu être ouvert (par exemple parce qu'il est absent), retourne une énumération d'erreur
+    if (!setupIni)
+        return ERROR_OPENING_FILE;
+
+    // Lit maintenant plusieurs valeurs depuis le fichier
+    if (!readIntegerFromFile(setupIni, m_firstParameter)) // Tente de lire un entier depuis le fichier
+        return ERROR_READING_VALUE; // Retourne la valeur d'énumération indiquant que la valeur n'a pas pu être lue
+
+    if (!readDoubleFromFile(setupIni, m_secondParameter)) // Tente de lire un double depuis le fichier
+        return ERROR_READING_VALUE;
+
+    if (!readFloatFromFile(setupIni, m_thirdParameter)) // Tente de lire un float depuis le fichier
+        return ERROR_READING_VALUE;
+</code></pre>
+<p>Nous n'avons pas encore abordé l'accès aux fichiers, donc ne vous inquiétez pas si vous ne comprenez pas le fonctionnement de ce code. Retenez simplement que chaque appel nécessite une vérification d'erreur et un retour vers l'appelant. Imaginez maintenant vingt paramètres de types différents : vous devriez vérifier les erreurs et retourner ERROR_READING_VALUE vingt fois ! Toute cette vérification et ce retour de valeurs rendent beaucoup plus difficile la compréhension de ce que la fonction cherche réellement à faire.</p>
+<p>Quatrièmement, les codes de retour se marient mal avec les constructeurs. Que se passe-t-il si vous créez un objet et que quelque chose ne va pas du tout à l'intérieur du constructeur ? Les constructeurs n'ont pas de type de retour permettant de transmettre un indicateur d'état, et le renvoyer par un paramètre de référence est peu élégant et doit être vérifié explicitement. De plus, même dans ce cas, l'objet sera tout de même créé et devra ensuite être géré ou détruit.</p>
+<p>Enfin, lorsqu'un code d'erreur est retourné à l'appelant, celui-ci n'est pas toujours en mesure de gérer l'erreur. S'il ne souhaite pas la gérer, il doit soit l'ignorer (auquel cas elle est perdue à jamais), soit la remonter dans la pile d'appels à la fonction qui l'a appelé. Cela peut devenir compliqué et entraîner bon nombre des problèmes décrits ci-dessus.</p>
+<p>En résumé, le principal problème des codes de retour est que le code de gestion des erreurs se retrouve intimement lié au flux de contrôle normal du programme. Cela contraint à la fois la structure du code et la manière raisonnable de gérer les erreurs.</p>
+<p><strong>Les exceptions</strong></p>
+<p>Le mécanisme des exceptions permet de dissocier la gestion des erreurs, ou d'autres circonstances exceptionnelles, du flux de contrôle habituel de votre code. Cela offre davantage de liberté pour gérer les erreurs quand et comme cela est le plus utile pour une situation donnée, ce qui supprime la plupart (voire la totalité) des inconvénients liés aux codes de retour.</p>
+<p>Dans la prochaine leçon, nous verrons comment fonctionnent les exceptions en C++.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/the-need-for-exceptions/">https://www.learncpp.com/cpp-tutorial/the-need-for-exceptions/</a></em></p>
+</main>
+</body>
+</html>

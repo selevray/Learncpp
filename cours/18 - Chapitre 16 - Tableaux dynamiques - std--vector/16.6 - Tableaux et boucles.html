@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.6 — Tableaux et boucles</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="166-tableaux-et-boucles">16.6 — Tableaux et boucles</h1>
+<p>Dans la leçon d'introduction de ce chapitre (<a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.1%20-%20Introduction%20aux%20conteneurs%20et%20aux%20tableaux.html">16.1 -- Introduction aux conteneurs et aux tableaux</a>), nous avons présenté les problèmes de passage à l'échelle que pose la gestion de nombreuses variables individuelles liées entre elles. Dans cette leçon, nous reprenons ce problème, puis nous verrons comment les tableaux permettent de le résoudre avec élégance.</p>
+<h2 id="le-problème-de-passage-à-léchelle-des-variables-revisité">Le problème de passage à l'échelle des variables, revisité</h2>
+<p>Considérons le cas où nous voulons calculer la moyenne des notes d'une classe d'élèves. Pour garder ces exemples concis, nous supposerons que la classe ne compte que 5 élèves.</p>
+<p>Voici comment nous pourrions procéder avec des variables individuelles :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    // alloue 5 variables entières (chacune avec un nom différent)
+    int testScore1{ 84 };
+    int testScore2{ 92 };
+    int testScore3{ 76 };
+    int testScore4{ 81 };
+    int testScore5{ 56 };
+
+    int average { (testScore1 + testScore2 + testScore3 + testScore4 + testScore5) / 5 };
+
+    std::cout &lt;&lt; &quot;The class average is: &quot; &lt;&lt; average &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cela fait beaucoup de variables et beaucoup de frappe. Imaginez le travail pour 30 élèves, voire 600. De plus, si une nouvelle note est ajoutée, il faut déclarer une nouvelle variable, l'initialiser et l'ajouter au calcul de la moyenne. Et avez-vous pensé à mettre à jour le diviseur ? Si vous l'avez oublié, vous avez maintenant une erreur sémantique. Chaque fois que vous modifiez du code existant, vous risquez d'introduire des erreurs.</p>
+<p>Vous savez maintenant que nous devrions utiliser un tableau lorsque nous avons un ensemble de variables liées. Remplaçons donc nos variables individuelles par un <code>std::vector</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector testScore { 84, 92, 76, 81, 56 };
+    std::size_t length { testScore.size() };
+
+    int average { (testScore[0] + testScore[1] + testScore[2] + testScore[3] + testScore[4])
+        / static_cast&lt;int&gt;(length) };
+
+    std::cout &lt;&lt; &quot;The class average is: &quot; &lt;&lt; average &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>C'est mieux : nous avons nettement réduit le nombre de variables définies, et le diviseur du calcul de la moyenne est désormais déduit directement de la longueur du tableau.</p>
+<p>Mais le calcul de la moyenne pose encore problème, car nous devons lister manuellement chaque élément. Et comme chaque élément doit être cité explicitement, notre calcul ne fonctionne que pour des tableaux comportant exactement autant d'éléments que nous en avons listés. Si nous voulons aussi pouvoir calculer la moyenne de tableaux de longueurs différentes, il faudra écrire un nouveau calcul pour chaque longueur.</p>
+<p>Ce dont nous avons vraiment besoin, c'est d'un moyen d'accéder à chaque élément du tableau sans devoir les citer un par un.</p>
+<h2 id="tableaux-et-boucles">Tableaux et boucles</h2>
+<p>Dans les leçons précédentes, nous avons noté que les indices de tableau n'ont pas besoin d'être des expressions constantes : ce peuvent être des expressions évaluées à l'exécution. Cela signifie que nous pouvons utiliser la valeur d'une variable comme indice.</p>
+<p>Remarquez également que les indices utilisés dans le calcul de la moyenne de l'exemple précédent forment une suite croissante : 0, 1, 2, 3, 4. Si nous disposions d'un moyen de faire prendre à une variable, successivement, les valeurs 0, 1, 2, 3 puis 4, nous pourrions utiliser cette variable comme indice au lieu de littéraux. Or nous savons déjà faire cela avec une boucle <code>for</code>.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous avons présenté les boucles <code>for</code> dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.10%20-%20Instructions%20for%20%28for%20statements%29.html">8.10 -- Instructions for</a>.</p>
+</div>
+<p>Réécrivons l'exemple précédent avec une boucle <code>for</code>, dont la variable de boucle sert d'indice de tableau :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector testScore { 84, 92, 76, 81, 56 };
+    std::size_t length { testScore.size() };
+
+    int average { 0 };
+    for (std::size_t index{ 0 }; index &lt; length; ++index) // index va de 0 à length-1
+        average += testScore[index];                      // ajoute la valeur de l'élément d'indice `index`
+    average /= static_cast&lt;int&gt;(length);                  // calcule la moyenne
+
+    std::cout &lt;&lt; &quot;The class average is: &quot; &lt;&lt; average &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cela devrait être assez simple. <code>index</code> commence à <code>0</code>, <code>testScore[0]</code> est ajouté à <code>average</code>, puis <code>index</code> est incrémenté à <code>1</code>. <code>testScore[1]</code> est ajouté à <code>average</code>, et <code>index</code> passe à <code>2</code>. Finalement, lorsque <code>index</code> atteint <code>5</code>, <code>index &lt; length</code> est faux et la boucle se termine.</p>
+<p>À ce moment, la boucle a ajouté à <code>average</code> les valeurs de <code>testScore[0]</code>, <code>testScore[1]</code>, <code>testScore[2]</code>, <code>testScore[3]</code> et <code>testScore[4]</code>.</p>
+<p>Enfin, nous calculons la moyenne en divisant la somme accumulée par la longueur du tableau.</p>
+<p>Cette solution est idéale en termes de maintenabilité. Le nombre d'itérations de la boucle est déterminé par la longueur du tableau, et la variable de boucle sert à toute l'indexation du tableau. Nous n'avons plus besoin de lister manuellement chaque élément.</p>
+<p>Si nous voulons ajouter ou retirer une note, il suffit de modifier le nombre d'éléments de l'initialisation : le reste du code fonctionnera encore sans autre modification !</p>
+<p>Accéder à chaque élément d'un conteneur dans un certain ordre s'appelle <strong>parcours</strong> (traversal), ou <strong>parcourir</strong> le conteneur. Ce parcours est souvent appelé <strong>itération</strong>, ou <strong>itérer sur</strong> le conteneur.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Puisque les classes de conteneurs utilisent le type <code>size_t</code> pour les longueurs et les indices, nous ferons de même dans cette leçon. Nous étudierons l'utilisation de longueurs et d'indices signés dans la prochaine leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.7%20-%20Tableaux%2C%20boucles%20et%20solutions%20du%20d%C3%A9fi%20sur%20le%20signe.html">16.7 -- Tableaux, boucles et solutions au défi du signe</a>.</p>
+</div>
+<h2 id="modèles-tableaux-et-boucles-ouvrent-la-voie-au-passage-à-léchelle">Modèles, tableaux et boucles ouvrent la voie au passage à l'échelle</h2>
+<p>Les tableaux permettent de stocker plusieurs objets sans avoir à nommer chaque élément.</p>
+<p>Les boucles permettent de parcourir un tableau sans avoir à lister explicitement chaque élément.</p>
+<p>Les modèles (templates) permettent de paramétrer le type des éléments.</p>
+<p>Ensemble, modèles, tableaux et boucles nous permettent d'écrire du code capable de travailler sur un conteneur d'éléments, quel que soit le type des éléments ou le nombre d'éléments du conteneur !</p>
+<p>Pour l'illustrer, réécrivons l'exemple précédent en factorisant le calcul de la moyenne dans un modèle de fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+// Modèle de fonction calculant la moyenne des valeurs d'un std::vector
+template &lt;typename T&gt;
+T calculateAverage(const std::vector&lt;T&gt;&amp; arr)
+{
+    std::size_t length { arr.size() };
+
+    T average { 0 };                                      // si notre tableau contient des éléments de type T, la moyenne doit aussi être de type T
+    for (std::size_t index{ 0 }; index &lt; length; ++index) // parcourt tous les éléments
+        average += arr[index];                            // additionne tous les éléments
+    average /= static_cast&lt;int&gt;(length);                  // divise par le nombre d'éléments (de nature entière)
+
+    return average;
+}
+
+int main()
+{
+    std::vector class1 { 84, 92, 76, 81, 56 };
+    std::cout &lt;&lt; &quot;The class 1 average is: &quot; &lt;&lt; calculateAverage(class1) &lt;&lt; '\n'; // calcule la moyenne de 5 int
+
+    std::vector class2 { 93.2, 88.6, 64.2, 81.0 };
+    std::cout &lt;&lt; &quot;The class 2 average is: &quot; &lt;&lt; calculateAverage(class2) &lt;&lt; '\n'; // calcule la moyenne de 4 double
+
+    return 0;
+}
+</code></pre>
+<p>Cela affiche :</p>
+<pre><code>
+The class 1 average is: 77
+The class 2 average is: 81.75
+</code></pre>
+<p>Dans cet exemple, nous avons créé le modèle de fonction <code>calculateAverage()</code>, qui prend un <code>std::vector</code> de n'importe quel type d'élément et de n'importe quelle longueur, et renvoie la moyenne. Dans <code>main()</code>, nous montrons que cette fonction fonctionne aussi bien avec un tableau de 5 éléments <code>int</code> qu'avec un tableau de 4 éléments <code>double</code> !</p>
+<p><code>calculateAverage()</code> fonctionnera pour tout type <code>T</code> qui prend en charge les opérateurs utilisés dans la fonction (<code>operator+=(T)</code>, <code>operator/=(int)</code>). Si vous essayez d'utiliser un <code>T</code> qui ne prend pas en charge ces opérateurs, le compilateur produira une erreur lors de la compilation de la fonction instanciée.</p>
+<p>Vous vous demandez peut-être pourquoi nous convertissons <code>length</code> en <code>int</code> plutôt qu'en <code>T</code>. Lors du calcul de la moyenne, nous divisons la somme par le nombre d'éléments. Ce nombre d'éléments est une valeur entière. Il est donc sémantiquement plus cohérent de diviser par un <code>int</code>.</p>
+<h2 id="ce-que-lon-peut-faire-avec-les-tableaux-et-les-boucles">Ce que l'on peut faire avec les tableaux et les boucles</h2>
+<p>Maintenant que nous savons parcourir un conteneur d'éléments à l'aide d'une boucle, voyons les usages les plus courants de ce parcours. On parcourt généralement un conteneur pour faire l'une de ces quatre choses :</p>
+<ol>
+<li>Calculer une nouvelle valeur à partir de la valeur des éléments existants (par exemple, la valeur moyenne ou la somme des valeurs).</li>
+<li>Rechercher un élément existant (par exemple, vérifier la présence d'une correspondance exacte, compter le nombre de correspondances, trouver la valeur la plus élevée).</li>
+<li>Opérer sur chaque élément (par exemple, afficher chaque élément, multiplier tous les éléments par 2).</li>
+<li>Réordonner les éléments (par exemple, trier les éléments par ordre croissant).</li>
+</ol>
+<p>Les trois premiers cas sont assez directs. Nous pouvons utiliser une seule boucle pour parcourir le tableau, en inspectant ou en modifiant chaque élément selon les besoins.</p>
+<p>Réordonner les éléments d'un conteneur est beaucoup plus délicat, car cela implique généralement une boucle imbriquée dans une autre. Bien que nous puissions le faire manuellement, il est généralement préférable d'utiliser un algorithme existant de la bibliothèque standard. Nous étudierons cela plus en détail dans un chapitre ultérieur consacré aux algorithmes.</p>
+<h2 id="tableaux-et-erreurs-de-décalage-dune-unité">Tableaux et erreurs de décalage d'une unité</h2>
+<p>Lorsque vous parcourez un conteneur à l'aide d'un indice, vous devez veiller à ce que la boucle s'exécute le nombre de fois voulu. Les erreurs de décalage d'une unité (off-by-one, où le corps de la boucle s'exécute une fois de trop ou une fois de moins) sont faciles à commettre.</p>
+<p>En général, lorsque l'on parcourt un conteneur à l'aide d'un indice, on fait démarrer l'indice à <code>0</code> et on boucle tant que <code>index &lt; length</code>.</p>
+<p>Les nouveaux programmeurs utilisent parfois par erreur <code>index &lt;= length</code> comme condition de boucle. Cela fait exécuter la boucle lorsque <code>index == length</code>, ce qui produit un indice hors limites et un comportement indéfini.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Écrivez un court programme qui affiche à l'écran les éléments du vecteur suivant à l'aide d'une boucle :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    // Ajoutez votre code ici
+
+    return 0;
+}
+</code></pre>
+<p>La sortie doit ressembler à ceci :</p>
+<pre><code>
+4 6 7 3 8 2 1 9
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    for (std::size_t index{ 0 }; index &lt; arr.size(); ++index)
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+    }
+
+    if (arr.size() &gt; 0)
+        std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Modifiez le code de la solution du quiz précédent afin que le programme suivant se compile et produise la même sortie :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+// Implémentez printArray() ici
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    printArray(arr); // utilise le modèle de fonction pour afficher le tableau
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printArray(const std::vector&lt;T&gt;&amp; arr)
+{
+    for (std::size_t index{ 0 }; index &lt; arr.size(); ++index)
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+    }
+
+    if (arr.size() &gt; 0)
+        std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    printArray(arr);
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-3">Question n° 3</h4>
+<p>En partant de la solution du quiz n° 2, faites ce qui suit :</p>
+<ul>
+<li>Demandez à l'utilisateur une valeur comprise entre 1 et 9. Si l'utilisateur ne saisit pas une valeur comprise entre 1 et 9, redemandez un entier jusqu'à ce qu'il le fasse. Si l'utilisateur saisit un nombre suivi d'une entrée superflue, ignorez cette entrée superflue.</li>
+<li>Affichez le tableau.</li>
+<li>Écrivez un modèle de fonction qui recherche dans le tableau la valeur saisie par l'utilisateur. Si la valeur figure dans le tableau, renvoyez l'indice de cet élément. Si elle n'y figure pas, renvoyez une valeur appropriée.</li>
+<li>Si la valeur a été trouvée, affichez la valeur et son indice. Si la valeur n'a pas été trouvée, affichez la valeur et le fait qu'elle n'a pas été trouvée.</li>
+</ul>
+<p>Nous verrons comment gérer les entrées invalides dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.5%20-%20std--cin%20et%20gestion%20des%20entr%C3%A9es%20invalides.html">9.5 -- std::cin et gestion des entrées invalides</a>.</p>
+<p>Voici deux exemples d'exécution de ce programme :</p>
+<pre><code>
+Enter a number between 1 and 9: d
+Enter a number between 1 and 9: 6
+4 6 7 3 8 2 1 9
+The number 6 has index 1
+</code></pre>
+<pre><code>
+Enter a number between 1 and 9: 5
+4 6 7 3 8 2 1 9
+The number 5 was not found
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printArray(const std::vector&lt;T&gt;&amp; arr)
+{
+    for (std::size_t index{ 0 }; index &lt; arr.size(); ++index)
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+    }
+
+    if (arr.size() &gt; 0)
+        std::cout &lt;&lt; '\n';
+}
+
+template &lt;typename T&gt;
+int findIndex(const std::vector&lt;T&gt;&amp; arr, T val)
+{
+    for (std::size_t index{ 0 }; index &lt; arr.size(); ++index)
+    {
+        if (arr[index] == val)
+            return static_cast&lt;int&gt;(index);
+    }    
+
+    return -1; // -1 n'est pas un indice valide, on peut donc l'utiliser comme valeur de retour d'erreur
+}
+
+
+int getValidNumber()
+{
+    // Lit d'abord une saisie valide de l'utilisateur
+    int num {};
+    do
+    {
+        std::cout &lt;&lt; &quot;Enter a number between 1 and 9: &quot;;
+        std::cin &gt;&gt; num;
+
+        // si l'utilisateur a saisi un caractère invalide
+        if (!std::cin)
+            std::cin.clear(); // réinitialise les indicateurs d'erreur
+
+        std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // ignore les caractères en trop dans le tampon d'entrée (qu'il y ait eu une erreur ou non)
+
+    } while (num &lt; 1 || num &gt; 9);
+
+    return num;
+}
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    int num { getValidNumber() };
+
+    printArray(arr);
+
+    int index { findIndex(arr, num) };
+
+    if (index != -1)
+        std::cout &lt;&lt; &quot;The number &quot; &lt;&lt; num &lt;&lt; &quot; has index &quot; &lt;&lt; index &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; &quot;The number &quot; &lt;&lt; num &lt;&lt; &quot; was not found\n&quot;;
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-4">Question n° 4</h4>
+<p>Exercice facultatif : modifiez le programme précédent pour qu'il puisse traiter un <code>std::vector</code> contenant des valeurs numériques autres que des <code>int</code>, par exemple <code>std::vector arr{ 4.4, 6.6, 7.7, 3.3, 8.8, 2.2, 1.1, 9.9 };</code>.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printArray(const std::vector&lt;T&gt;&amp; arr)
+{
+    for (std::size_t index{ 0 }; index &lt; arr.size(); ++index)
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+    }
+
+    if (arr.size() &gt; 0)
+        std::cout &lt;&lt; '\n';
+}
+
+template &lt;typename T&gt;
+int findIndex(const std::vector&lt;T&gt;&amp; arr, T val)
+{
+    for (std::size_t index{ 0 }; index &lt; arr.size(); ++index)
+    {
+        if (arr[index] == val)
+            return static_cast&lt;int&gt;(index);
+    }
+
+    return -1; // -1 n'est pas un indice valide, on peut donc l'utiliser comme valeur de retour d'erreur
+}
+
+// Passer low et high permet au compilateur de déduire le type de saisie souhaité
+template &lt;typename T&gt;
+T getValidNumber(std::string_view prompt, T low, T high)
+{
+    // Lit d'abord une saisie valide de l'utilisateur
+    T val {};
+    do
+    {
+        std::cout &lt;&lt; prompt;
+        std::cin &gt;&gt; val;
+
+        // si l'utilisateur a saisi un caractère invalide
+        if (!std::cin)
+            std::cin.clear(); // réinitialise les indicateurs d'erreur
+
+        std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // ignore les caractères en trop dans le tampon d'entrée (qu'il y ait eu une erreur ou non)
+
+    } while (val &lt; low || val &gt; high);
+
+    return val;
+}
+
+int main()
+{
+    std::vector arr{ 4.4, 6.6, 7.7, 3.3, 8.8, 2.2, 1.1, 9.9 };
+
+    auto num { getValidNumber(&quot;Enter a number between 1 and 9: &quot;, 1.0, 9.0) };
+
+    printArray(arr);
+
+    int index { findIndex(arr, num) };
+
+    if (index != -1)
+        std::cout &lt;&lt; &quot;The number &quot; &lt;&lt; num &lt;&lt; &quot; has index &quot; &lt;&lt; index &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; &quot;The number &quot; &lt;&lt; num &lt;&lt; &quot; was not found\n&quot;;
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-5">Question n° 5</h4>
+<p>Écrivez un modèle de fonction qui trouve la plus grande valeur d'un <code>std::vector</code>. Si le vecteur est vide, renvoyez la valeur par défaut du type des éléments.</p>
+<p>Le code suivant doit pouvoir s'exécuter :</p>
+<pre><code class="language-cpp">int main()
+{
+    std::vector data1 { 84, 92, 76, 81, 56 };
+    std::cout &lt;&lt; findMax(data1) &lt;&lt; '\n';
+
+    std::vector data2 { -13.0, -26.7, -105.5, -14.8 };
+    std::cout &lt;&lt; findMax(data2) &lt;&lt; '\n';
+
+    std::vector&lt;int&gt; data3 { };
+    std::cout &lt;&lt; findMax(data3) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Et afficher le résultat suivant :</p>
+<pre><code>
+92
+-13
+0
+</code></pre>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : utilisez une variable hors boucle pour mémoriser la valeur la plus élevée rencontrée jusqu'ici.</p>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+T findMax(const std::vector&lt;T&gt;&amp; arr)
+{
+    std::size_t length { arr.size() };
+
+    if (length==0)
+        return T{};    
+
+    T max { arr[0] }; // La valeur maximale initiale est le premier élément
+
+    // Parcourt les éléments restants à la recherche d'une valeur plus grande
+    for (std::size_t index{ 1 }; index &lt; length; ++index)
+    {
+        if (arr[index] &gt; max)
+            max = arr[index];
+    }
+
+    return max;
+}
+
+int main()
+{
+    std::vector data1 { 84, 92, 76, 81, 56 };
+    std::cout &lt;&lt; findMax(data1) &lt;&lt; '\n';
+
+    std::vector data2 { -13.0, -26.7, -105.5, -14.8 };
+    std::cout &lt;&lt; findMax(data2) &lt;&lt; '\n';
+
+    std::vector&lt;int&gt; data3 { };
+    std::cout &lt;&lt; findMax(data3) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, nous utilisons une variable hors boucle appelée <code>max</code> pour mémoriser le score le plus élevé rencontré. Nous l'initialisons avec la valeur du premier élément afin qu'elle démarre avec une valeur légitime. L'initialisation par valeur pourrait sembler tentante, mais elle ferait renvoyer une mauvaise valeur à la fonction si le tableau ne contenait que des valeurs négatives.</p>
+<p>Nous parcourons ensuite chaque élément du tableau et, lorsque nous trouvons un score supérieur à tous ceux vus précédemment, nous affectons ce score à <code>max</code>. Ainsi, <code>max</code> représente toujours le score le plus élevé parmi tous les éléments parcourus jusqu'ici. Lorsque nous atteignons la fin du tableau, <code>max</code> contient le score le plus élevé de tout le tableau, que nous pouvons alors renvoyer à l'appelant.</p>
+</details>
+<h4 id="question-n-6">Question n° 6</h4>
+<p>Dans le quiz de la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.10%20-%20Instructions%20for%20%28for%20statements%29.html">8.10 -- Instructions for</a>, nous avons implémenté un jeu appelé FizzBuzz pour les nombres trois, cinq et sept.</p>
+<p>Dans ce quiz, implémentez le jeu comme suit :</p>
+<ul>
+<li>Les nombres divisibles uniquement par 3 doivent afficher « fizz ».</li>
+<li>Les nombres divisibles uniquement par 5 doivent afficher « buzz ».</li>
+<li>Les nombres divisibles uniquement par 7 doivent afficher « pop ».</li>
+<li>Les nombres divisibles uniquement par 11 doivent afficher « bang ».</li>
+<li>Les nombres divisibles uniquement par 13 doivent afficher « jazz ».</li>
+<li>Les nombres divisibles uniquement par 17 doivent afficher « pow ».</li>
+<li>Les nombres divisibles uniquement par 19 doivent afficher « boom ».</li>
+<li>Les nombres divisibles par plusieurs des diviseurs ci-dessus doivent afficher chacun des mots associés à leurs diviseurs.</li>
+<li>Les nombres non divisibles par aucun des diviseurs ci-dessus doivent simplement afficher le nombre.</li>
+</ul>
+<p>Utilisez un <code>std::vector</code> pour stocker les diviseurs, et un autre <code>std::vector</code> pour stocker les mots (de type <code>std::string_view</code>). Si les tableaux n'ont pas la même longueur, le programme doit provoquer une assertion. Produisez la sortie pour 150 nombres.</p>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : utilisez le suffixe littéral <code>sv</code> pour que les mots soient de type <code>std::string_view</code>, afin de pouvoir utiliser le CTAD pour déduire le type du tableau.</p>
+</details>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : utilisez une boucle <code>for</code> imbriquée pour comparer le nombre aux diviseurs. Nous étudions les boucles <code>for</code> imbriquées dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.10%20-%20Instructions%20for%20%28for%20statements%29.html">8.10 -- Instructions for</a>.</p>
+</details>
+<p>Voici la sortie attendue pour les 21 premières itérations :</p>
+<pre><code>
+1
+2
+fizz
+4
+buzz
+fizz
+pop
+8
+fizz
+buzz
+bang
+fizz
+jazz
+pop
+fizzbuzz
+16
+pow
+fizz
+boom
+buzz
+fizzpop
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">// h/t au lecteur Waldo pour avoir suggéré ce quiz
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+void fizzbuzz(int count)
+{
+    // Nous les rendons statiques afin de n'effectuer l'initialisation qu'une seule fois
+    static const std::vector divisors                { 3, 5, 7, 11, 13, 17, 19 };
+    static const std::vector&lt;std::string_view&gt; words { &quot;fizz&quot;, &quot;buzz&quot;, &quot;pop&quot;, &quot;bang&quot;, &quot;jazz&quot;, &quot;pow&quot;, &quot;boom&quot; };
+    assert(std::size(divisors) == std::size(words) &amp;&amp; &quot;fizzbuzz: array sizes don't match&quot;);
+
+    // Parcourt chaque nombre entre 1 et count (inclus)
+    for (int i{ 1 }; i &lt;= count; ++i)
+    {
+        bool printed{ false };
+
+        // Compare le nombre courant à chaque diviseur possible
+        for (std::size_t j{ 0 }; j &lt; divisors.size(); ++j)
+        {
+            if (i % divisors[j] == 0)
+            {
+                std::cout &lt;&lt; words[j];
+                printed = true;
+            }
+        }
+
+        // S'il n'y a aucun diviseur
+        if (!printed)
+            std::cout &lt;&lt; i;
+
+        std::cout &lt;&lt; '\n';
+    }
+}
+
+int main()
+{
+    fizzbuzz(150);
+
+    return 0;
+}
+</code></pre>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Comme <code>divisors</code> et <code>words</code> sont des tableaux constants, il serait préférable de les déclarer <code>constexpr</code>, mais nous ne pouvons pas le faire avec un <code>std::vector</code>. Il serait préférable d'utiliser ici un <code>constexpr std::array</code>. Nous étudions <code>std::array</code> dans la leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.1%20-%20Introduction%20%C3%A0%20%60std--array%60.html">17.1 -- Introduction à std::array</a>.</p>
+</div>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/arrays-and-loops/">https://www.learncpp.com/cpp-tutorial/arrays-and-loops/</a></em></p>
+</main>
+</body>
+</html>

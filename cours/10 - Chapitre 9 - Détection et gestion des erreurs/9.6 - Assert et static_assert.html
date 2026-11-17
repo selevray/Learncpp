@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9.6 — Assert et static_assert</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="96-assert-et-static_assert">9.6 — Assert et static_assert</h1>
+<p>Dans une fonction qui prend des paramètres, l'appelant peut passer des arguments syntaxiquement valides mais dénués de sens sur le plan sémantique. Par exemple, dans la leçon précédente (<a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.4%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs.html">9.4 -- Détecter et gérer les erreurs</a>), nous avons présenté la fonction suivante :</p>
+<pre><code class="language-cpp">void printDivision(int x, int y)
+{
+    if (y != 0)
+        std::cout &lt;&lt; static_cast&lt;double&gt;(x) / y;
+    else
+        std::cerr &lt;&lt; &quot;Error: Could not divide by zero\n&quot;;
+}
+</code></pre>
+<p>Cette fonction vérifie explicitement si <code>y</code> vaut <code>0</code>, puisque la division par zéro est une erreur sémantique qui fera planter le programme si elle est exécutée.</p>
+<p>Dans la leçon précédente, nous avons évoqué plusieurs façons de traiter ce type de problème, notamment arrêter le programme ou ignorer les instructions fautives.</p>
+<p>Ces deux options posent cependant problème. Si un programme ignore des instructions à cause d'une erreur, il échoue en silence. Pendant l'écriture et le débogage des programmes, les échecs silencieux sont particulièrement néfastes, car ils masquent les vrais problèmes. Même si nous affichons un message d'erreur, celui-ci peut se perdre parmi les autres sorties du programme, et il peut être difficile de savoir d'où il provient ou comment les conditions qui l'ont déclenché sont apparues. Certaines fonctions sont appelées des dizaines, voire des centaines de fois, et si un seul de ces appels pose problème, il peut être difficile de déterminer lequel.</p>
+<p>Si le programme se termine (via <code>std::exit</code>), nous perdons la pile d'appels et toutes les informations de débogage qui pourraient nous aider à isoler le problème. <code>std::abort</code> est une meilleure option dans ces cas, car le développeur peut généralement démarrer le débogage à l'endroit où le programme a été interrompu.</p>
+<h2 id="préconditions-invariants-et-postconditions">Préconditions, invariants et postconditions</h2>
+<p>En programmation, une <strong>précondition</strong> (precondition) est une condition qui doit être vraie avant l'exécution d'une section de code (généralement le corps d'une fonction). Dans l'exemple précédent, notre vérification <code>y != 0</code> est une précondition qui garantit que <code>y</code> a une valeur non nulle avant la division par <code>y</code>.</p>
+<p>Les préconditions d'une fonction sont idéalement placées en début de fonction, avec un retour anticipé (early return) pour revenir à l'appelant si la précondition n'est pas satisfaite. Par exemple :</p>
+<pre><code class="language-cpp">void printDivision(int x, int y)
+{
+    if (y == 0) // gère le cas
+    {
+        std::cerr &lt;&lt; &quot;Error: Could not divide by zero\n&quot;;
+        return; // renvoie l'utilisateur à l'appelant
+    }
+
+    // Nous savons maintenant que y != 0
+    std::cout &lt;&lt; static_cast&lt;double&gt;(x) / y;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Lecture facultative</p>
+<p>Ceci est parfois appelé le « motif du videur » (« bouncer pattern »), car on est immédiatement éjecté de la fonction dès qu'une erreur est détectée.</p>
+<p>Ce motif présente deux avantages majeurs :</p>
+<ol>
+<li>Tous vos cas de test sont regroupés en début de fonction, et le test et le code qui gère l'erreur sont ensemble.</li>
+<li>Vous obtenez moins d'imbrication.</li>
+</ol>
+<p>Voici à quoi ressemble la version sans ce motif :</p>
+<pre><code class="language-cpp">void printDivision(int x, int y)
+{
+    if (y != 0)
+    {
+        std::cout &lt;&lt; static_cast&lt;double&gt;(x) / y;
+    }
+    else
+    {
+        std::cerr &lt;&lt; &quot;Error: Could not divide by zero\n&quot;;
+        return; // renvoie l'utilisateur à l'appelant
+    }
+}
+</code></pre>
+<p>Cette version est strictement moins bonne, car le test et le code qui gère l'erreur sont plus éloignés et il y a davantage d'imbrication.</p>
+</div>
+<p>Un <strong>invariant</strong> (invariant) est une condition qui doit être vraie pendant l'exécution d'une section de code. Cette notion sert souvent pour les boucles, où le corps de la boucle ne s'exécute que tant que l'invariant reste vrai.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Nous parlons d'un type courant d'invariant, l'« invariant de classe », dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.2%20-%20Introduction%20aux%20classes.html">14.2 -- Introduction aux classes</a>.</p>
+</div>
+<p>De même, une <strong>postcondition</strong> (postcondition) est une condition qui doit être vraie après l'exécution d'une section de code. Notre fonction n'a aucune postcondition.</p>
+<h2 id="assertions">Assertions</h2>
+<p>Utiliser une instruction conditionnelle pour détecter un paramètre invalide (ou pour valider une autre hypothèse), afficher un message d'erreur et terminer le programme est une méthode si courante de détection de problèmes que C++ fournit un raccourci pour le faire.</p>
+<p>Une <strong>assertion</strong> (assertion) est une expression qui doit être vraie, sauf en cas de bogue dans le programme. Si l'expression vaut <code>true</code>, l'instruction d'assertion ne fait rien. Si l'expression conditionnelle vaut <code>false</code>, un message d'erreur est affiché et le programme est terminé (via <code>std::abort</code>). Ce message contient généralement le texte de l'expression qui a échoué, ainsi que le nom du fichier de code et le numéro de ligne de l'assertion. Il est ainsi très facile de savoir non seulement quel était le problème, mais aussi où il s'est produit dans le code. Cela facilite énormément le débogage.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les assertions servent à détecter les erreurs pendant le développement et le débogage.</p>
+<p>Lorsqu'une assertion vaut false, votre programme est immédiatement arrêté. Vous pouvez alors utiliser des outils de débogage pour examiner l'état du programme et déterminer pourquoi l'assertion a échoué. En remontant le fil, vous pouvez ensuite trouver et corriger le problème rapidement.</p>
+<p>Sans assertion pour détecter l'erreur et échouer, une telle erreur provoquerait probablement un dysfonctionnement plus tard. Dans ce cas, il peut être très difficile de déterminer où les choses tournent mal, ou quelle est la véritable cause du problème.</p>
+</div>
+<p>En C++, les assertions à l'exécution sont implémentées par la macro du préprocesseur <strong>assert</strong>, définie dans l'en-tête &lt;cassert&gt;.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt; // pour assert()
+#include &lt;cmath&gt; // pour std::sqrt
+#include &lt;iostream&gt;
+
+double calculateTimeUntilObjectHitsGround(double initialHeight, double gravity)
+{
+  assert(gravity &gt; 0.0); // L'objet n'atteindra pas le sol sans gravité positive.
+
+  if (initialHeight &lt;= 0.0)
+  {
+    // L'objet est déjà au sol. Ou enterré.
+    return 0.0;
+  }
+
+  return std::sqrt((2.0 * initialHeight) / gravity);
+}
+
+int main()
+{
+  std::cout &lt;&lt; &quot;Took &quot; &lt;&lt; calculateTimeUntilObjectHitsGround(100.0, -9.8) &lt;&lt; &quot; second(s)\n&quot;;
+
+  return 0;
+}
+</code></pre>
+<p>Lorsque le programme appelle <code>calculateTimeUntilObjectHitsGround(100.0, -9.8)</code>, <code>assert(gravity &gt; 0.0)</code> vaut <code>false</code>, ce qui déclenche l'assertion. Cela affiche un message semblable à celui-ci :</p>
+<pre><code>
+dropsimulator: src/main.cpp:6: double calculateTimeUntilObjectHitsGround(double, double): Assertion 'gravity &gt; 0.0' failed.
+</code></pre>
+<p>Le message exact varie selon le compilateur utilisé.</p>
+<p>Bien que les assertions servent le plus souvent à valider les paramètres de fonction, elles peuvent être utilisées partout où vous voulez vérifier qu'une condition est vraie.</p>
+<p>Nous vous avons déjà recommandé d'éviter les macros du préprocesseur, mais assert fait partie des rares macros considérées comme acceptables. Nous vous encourageons à utiliser les instructions assert généreusement dans votre code.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les assertions valent mieux que les commentaires, car elles documentent une condition tout en la faisant respecter. Un commentaire peut devenir obsolète lorsque le code change et que le commentaire n'est pas mis à jour. Une assertion devenue obsolète provoque une erreur de correction du code, si bien que les développeurs sont moins enclins à la laisser traîner.</p>
+</div>
+<h2 id="rendre-vos-instructions-assert-plus-descriptives">Rendre vos instructions assert plus descriptives</h2>
+<p>Il arrive que les expressions d'assertion ne soient pas très descriptives. Considérons l'instruction suivante :</p>
+<pre><code class="language-cpp">assert(found);
+</code></pre>
+<p>Si cette assertion se déclenche, elle affichera :</p>
+<pre><code>
+Assertion failed: found, file C:\\VCProjects\\Test.cpp, line 34
+</code></pre>
+<p>Qu'est-ce que cela signifie réellement ? Il est clair que <code>found</code> valait <code>false</code> (puisque l'assertion s'est déclenchée), mais qu'est-ce qui n'a pas été trouvé ? Il faudrait aller regarder le code pour le savoir.</p>
+<p>Heureusement, une petite astuce permet de rendre vos assertions plus descriptives. Il suffit d'ajouter une chaîne littérale reliée par un ET logique :</p>
+<pre><code class="language-cpp">assert(found &amp;&amp; &quot;Car could not be found in database&quot;);
+</code></pre>
+<p>Voici pourquoi cela fonctionne : une chaîne littérale s'évalue toujours à <code>true</code> en tant que booléen. Ainsi, si <code>found</code> vaut <code>false</code>, <code>false &amp;&amp; true</code> vaut <code>false</code>. Si <code>found</code> vaut <code>true</code>, <code>true &amp;&amp; true</code> vaut <code>true</code>. Le ET logique avec une chaîne littérale n'affecte donc pas l'évaluation de l'assertion.</p>
+<p>En revanche, lorsque l'assertion se déclenche, la chaîne littérale est incluse dans le message :</p>
+<pre><code>
+Assertion failed: found &amp;&amp; &quot;Car could not be found in database&quot;, file C:\\VCProjects\\Test.cpp, line 34
+</code></pre>
+<p>Cela vous donne un contexte supplémentaire sur ce qui a mal tourné.</p>
+<h2 id="utiliser-les-assertions-pour-les-fonctionnalités-non-implémentées">Utiliser les assertions pour les fonctionnalités non implémentées</h2>
+<p>Les assertions servent aussi parfois à documenter des cas non implémentés, parce qu'ils n'étaient pas nécessaires au moment où le programmeur a écrit le code :</p>
+<pre><code class="language-cpp">assert(moved &amp;&amp; &quot;Need to handle case where student was just moved to another classroom&quot;);
+</code></pre>
+<p>Ainsi, si un développeur rencontre une situation où ce cas est nécessaire, le code échouera avec un message d'erreur utile, et le programmeur pourra alors déterminer comment implémenter ce cas.</p>
+<h2 id="ndebug">NDEBUG</h2>
+<p>La macro <code>assert</code> entraîne un petit coût en performance à chaque vérification de sa condition. De plus, les assertions ne devraient (idéalement) jamais être rencontrées dans le code de production, car votre code doit déjà avoir été testé en profondeur. C'est pourquoi la plupart des développeurs préfèrent que les assertions ne soient actives que dans les versions de débogage. C++ fournit un moyen intégré de désactiver les assertions dans le code de production : si la macro du préprocesseur <code>NDEBUG</code> est définie, la macro assert est désactivée.</p>
+<p>La plupart des IDE définissent <code>NDEBUG</code> par défaut, dans les paramètres du projet, pour les configurations de version (release). Par exemple, dans Visual Studio, les définitions de préprocesseur suivantes sont données au niveau du projet : <code>WIN32;NDEBUG;_CONSOLE</code>. Si vous utilisez Visual Studio et souhaitez que vos assertions se déclenchent dans les versions de release, vous devrez retirer <code>NDEBUG</code> de ce paramètre.</p>
+<p>Si vous utilisez un IDE ou un système de build qui ne définit pas automatiquement <code>NDEBUG</code> dans la configuration de release, vous devrez l'ajouter manuellement dans les paramètres du projet ou de compilation.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>À des fins de test, vous pouvez activer ou désactiver les assertions dans une unité de traduction donnée. Pour cela, placez l'une des lignes suivantes seule sur sa ligne, <strong>avant</strong> tout #include : <code>#define NDEBUG</code> (pour désactiver les assertions) ou <code>#undef NDEBUG</code> (pour les activer). Veillez à ne pas terminer la ligne par un point-virgule.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#define NDEBUG // désactive les assertions (doit être placé avant tout #include)
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    assert(false); // ne se déclenchera pas, car les assertions sont désactivées dans cette unité de traduction
+    std::cout &lt;&lt; &quot;Hello, world!\n&quot;;
+
+    return 0;
+}
+</code></pre>
+</div>
+<h2 id="static_assert">static_assert</h2>
+<p>C++ possède aussi un autre type d'assertion, appelé <code>static_assert</code>. Une <strong>static_assert</strong> (static_assert) est une assertion vérifiée à la compilation plutôt qu'à l'exécution ; une <code>static_assert</code> en échec provoque une erreur de compilation. Contrairement à assert, déclarée dans l'en-tête &lt;cassert&gt;, static_assert est un mot-clé : aucun en-tête n'a besoin d'être inclus pour l'utiliser.</p>
+<p>Une <code>static_assert</code> prend la forme suivante :</p>
+<pre><code>
+static_assert(condition, diagnostic_message)
+</code></pre>
+<p>Si la condition n'est pas vraie, le message de diagnostic est affiché. Voici un exemple d'utilisation de static_assert pour vérifier la taille de types :</p>
+<pre><code class="language-cpp">static_assert(sizeof(long) == 8, &quot;long must be 8 bytes&quot;);
+static_assert(sizeof(int) &gt;= 4, &quot;int must be at least 4 bytes&quot;);
+
+int main()
+{
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, la compilation produit l'erreur suivante :</p>
+<pre><code>
+1&gt;c:\consoleapplication1\main.cpp(19): error C2338: long must be 8 bytes
+</code></pre>
+<p>Quelques remarques utiles sur <code>static_assert</code> :</p>
+<ul>
+<li>Comme <code>static_assert</code> est évaluée par le compilateur, la condition doit être une expression constante.</li>
+<li><code>static_assert</code> peut être placée n'importe où dans le fichier de code (même dans l'espace de noms global).</li>
+<li><code>static_assert</code> n'est pas désactivée dans les versions de release (contrairement à <code>assert</code> normal).</li>
+<li>Comme c'est le compilateur qui effectue l'évaluation, une <code>static_assert</code> n'a aucun coût à l'exécution.</li>
+</ul>
+<p>Avant C++17, le message de diagnostic doit être fourni comme second paramètre. Depuis C++17, fournir un message de diagnostic est facultatif.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez <code>static_assert</code> à <code>assert()</code> chaque fois que possible.</p>
+</div>
+<h2 id="assertions-et-gestion-des-erreurs">Assertions et gestion des erreurs</h2>
+<p>Les assertions et la gestion des erreurs se ressemblent suffisamment pour que leurs rôles puissent être confondus ; clarifions donc.</p>
+<p>Les assertions servent à détecter les <em>erreurs de programmation</em> pendant le développement, en documentant des hypothèses sur des événements qui ne devraient jamais se produire. Et s'ils se produisent, c'est la faute du programmeur. Les assertions ne permettent pas de récupérer d'une erreur (après tout, si quelque chose ne devrait jamais arriver, il n'y a pas besoin de s'en remettre). Comme les asserts sont généralement retirées à la compilation dans les versions de release, vous pouvez en placer beaucoup sans vous soucier des performances ; il y a donc peu de raisons de ne pas les utiliser généreusement.</p>
+<p>La gestion des erreurs sert à traiter avec élégance les cas qui peuvent se produire (même rarement) dans une version de release. Il peut s'agir de problèmes récupérables (où le programme peut continuer à fonctionner) ou non récupérables (où le programme doit s'arrêter, mais où nous pouvons au moins afficher un message d'erreur soigné et nous assurer que tout est correctement nettoyé). La détection et la gestion des erreurs ont un coût à l'exécution comme un coût de développement.</p>
+<p>Dans certains cas, ce qu'il faut faire est moins clair. Considérons une fonction comme celle-ci :</p>
+<pre><code class="language-cpp">double getInverse(double x)
+{
+    return 1.0 / x;
+}
+</code></pre>
+<p>Si <code>x</code> vaut <code>0.0</code>, cette fonction se comportera mal, et nous devons nous en prémunir. Faut-il utiliser une assertion ou une gestion des erreurs ? La meilleure réponse est peut-être « les deux ».</p>
+<p>Pendant le débogage, si cette fonction est appelée avec <code>x</code> égal à <code>0.0</code>, cela indique un bogue quelque part dans notre code, et nous voulons le savoir immédiatement. Une assertion est donc tout à fait appropriée.</p>
+<p>Cependant, cela pourrait aussi raisonnablement se produire dans une version de release (par exemple sur un chemin obscur que nous n'avons pas testé). Si l'assertion est retirée à la compilation et que nous n'avons pas de gestion d'erreur, cette fonction renverra une valeur inattendue et se comportera mal. Dans ce cas, il vaut probablement mieux détecter la situation et la traiter.</p>
+<p>Notre fonction finale pourrait ressembler à ceci :</p>
+<pre><code class="language-cpp">double getInverse(double x)
+{
+    assert(x != 0.0);
+    if (x == 0.0)
+       // gérer l'erreur d'une manière ou d'une autre (par exemple en lançant une exception)
+
+    return 1.0 / x;
+}
+</code></pre>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Compte tenu de cela, nous vous suggérons ce qui suit :</p>
+<ul>
+<li>Utilisez les assertions pour détecter les erreurs de programmation, les hypothèses incorrectes ou les conditions qui ne devraient jamais survenir dans un code correct. Il revient au programmeur de les corriger, donc nous voulons les repérer au plus tôt.</li>
+<li>Utilisez la gestion des erreurs pour les problèmes que nous prévoyons de rencontrer pendant le fonctionnement normal de votre programme.</li>
+<li>Utilisez les deux lorsqu'un événement ne devrait pas se produire, mais que nous voulons échouer proprement s'il se produit.</li>
+</ul>
+</div>
+<h2 id="quelques-limites-et-mises-en-garde-sur-les-assertions">Quelques limites et mises en garde sur les assertions</h2>
+<p>Les assertions présentent quelques pièges et limites. Premièrement, l'assertion elle-même peut être mal écrite. Dans ce cas, elle signalera une erreur là où il n'y en a aucune, ou ne signalera pas un bogue qui existe bel et bien.</p>
+<p>Deuxièmement, les expressions de vos <code>assert()</code> ne doivent pas avoir d'effets de bord, car l'expression d'assertion n'est pas évaluée lorsque <code>NDEBUG</code> est définie (et l'effet de bord n'est donc pas appliqué). Sinon, ce que vous testez dans une configuration de débogage ne sera pas identique à ce qui s'exécute dans une configuration de release (en supposant que vous livrez avec NDEBUG).</p>
+<p>Notez également que la fonction <code>abort()</code> termine le programme immédiatement, sans possibilité d'effectuer un nettoyage supplémentaire (par exemple fermer un fichier ou une base de données). Pour cette raison, les assertions ne doivent être utilisées que dans les cas où une corruption est peu probable si le programme se termine de façon inattendue.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/assert-and-static_assert/">https://www.learncpp.com/cpp-tutorial/assert-and-static_assert/</a></em></p>
+</main>
+</body>
+</html>

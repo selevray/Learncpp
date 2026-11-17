@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15.6 — Variables membres statiques</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="156-variables-membres-statiques">15.6 — Variables membres statiques</h1>
+<p>Dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.4%20-%20Introduction%20aux%20variables%20globales.html">7.4 -- Introduction aux variables globales</a>, nous avons présenté les variables globales, et dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.11%20-%20Variables%20locales%20statiques.html">7.11 -- Variables locales statiques</a>, nous avons présenté les variables locales statiques. Ces deux types de variables ont une durée statique, ce qui signifie qu'elles sont créées au début du programme et détruites à la fin du programme. Ces variables conservent leur valeur même lorsqu'elles sortent de leur portée.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int generateID()
+{
+    static int s_id{ 0 }; // variable locale statique
+    return ++s_id;
+}
+
+int main()
+{
+    std::cout &lt;&lt; generateID() &lt;&lt; '\n';
+    std::cout &lt;&lt; generateID() &lt;&lt; '\n';
+    std::cout &lt;&lt; generateID() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+1
+2
+3
+</code></pre>
+<p>Remarquez que la variable locale statique <code>s_id</code> a conservé sa valeur d'un appel de fonction à l'autre.</p>
+<p>Les types de classes apportent deux autres utilisations du mot-clé <code>static</code> : les variables membres statiques et les fonctions membres statiques. Heureusement, ces utilisations sont assez simples. Nous parlerons des variables membres statiques dans cette leçon, et des fonctions membres statiques dans la suivante.</p>
+<h2 id="variables-membres-statiques">Variables membres statiques</h2>
+<p>Avant d'aborder le mot-clé static appliqué aux variables membres, considérons d'abord la classe suivante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Something
+{
+    int value{ 1 };
+};
+
+int main()
+{
+    Something first{};
+    Something second{};
+
+    first.value = 2;
+
+    std::cout &lt;&lt; first.value &lt;&lt; '\n';
+    std::cout &lt;&lt; second.value &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque nous instancions un objet de classe, chaque objet reçoit sa propre copie de tous les membres variables normaux. Ici, comme nous avons déclaré deux objets <code>Something</code>, nous obtenons deux copies de <code>value</code> : <code>first.value</code> et <code>second.value</code>. <code>first.value</code> est distinct de <code>second.value</code>. Par conséquent, le programme ci-dessus affiche :</p>
+<pre><code>
+2
+1
+</code></pre>
+<p>Les variables membres d'une classe peuvent être rendues statiques à l'aide du mot-clé <code>static</code>. Contrairement aux variables membres normales, les <strong>variables membres statiques</strong> sont partagées par tous les objets de la classe. Considérez le programme suivant, similaire au précédent :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Something
+{
+    static int s_value; // déclare s_value comme statique (initialisation déplacée ci-dessous)
+};
+
+int Something::s_value{ 1 }; // définit et initialise s_value à 1 (nous en discutons dans la section suivante)
+
+int main()
+{
+    Something first{};
+    Something second{};
+
+    first.s_value = 2;
+
+    std::cout &lt;&lt; first.s_value &lt;&lt; '\n';
+    std::cout &lt;&lt; second.s_value &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit la sortie suivante :</p>
+<pre><code>
+2
+2
+</code></pre>
+<p>Comme <code>s_value</code> est une variable membre statique, <code>s_value</code> est partagée entre tous les objets de la classe. Par conséquent, <code>first.s_value</code> est la même variable que <code>second.s_value</code>. Le programme ci-dessus montre que la valeur que nous avons définie à l'aide de <code>first</code> peut être lue à l'aide de <code>second</code> !</p>
+<h2 id="les-membres-statiques-ne-sont-pas-associés-aux-objets-de-la-classe">Les membres statiques ne sont pas associés aux objets de la classe</h2>
+<p>Bien que vous puissiez accéder aux membres statiques via des objets de la classe (comme dans <code>first.s_value</code> et <code>second.s_value</code> de l'exemple ci-dessus), les membres statiques existent même si aucun objet de la classe n'a été instancié ! Cela est logique : ils sont créés au début du programme et détruits à la fin, donc leur durée de vie n'est pas liée à un objet de classe, contrairement à un membre normal.</p>
+<p>En substance, les membres statiques sont des variables globales qui vivent à l'intérieur de la région de portée de la classe. Il existe très peu de différence entre un membre statique d'une classe et une variable normale à l'intérieur d'un espace de noms.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les membres statiques sont des variables globales qui vivent à l'intérieur de la région de portée de la classe.</p>
+</div>
+<p>Comme le membre statique <code>s_value</code> existe indépendamment de tout objet de la classe, il peut être accédé directement à l'aide du nom de la classe et de l'opérateur de résolution de portée (dans ce cas, <code>Something::s_value</code>) :</p>
+<pre><code class="language-cpp">class Something
+{
+public:
+    static int s_value; // déclare s_value comme statique
+};
+
+int Something::s_value{ 1 }; // définit et initialise s_value à 1 (nous en discutons dans la section suivante)
+
+int main()
+{
+    // remarque : nous n'instancions aucun objet de type Something
+
+    Something::s_value = 2;
+    std::cout &lt;&lt; Something::s_value &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Dans l'extrait ci-dessus, <code>s_value</code> est référencée par le nom de classe <code>Something</code> plutôt qu'à travers un objet. Remarquez que nous n'avons même pas instancié d'objet de type <code>Something</code>, mais nous pouvons tout de même accéder à <code>Something::s_value</code> et l'utiliser. C'est la méthode à privilégier pour accéder aux membres statiques.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Accédez aux membres statiques à l'aide du nom de la classe et de l'opérateur de résolution de portée (::).</p>
+</div>
+<h2 id="définition-et-initialisation-des-variables-membres-statiques">Définition et initialisation des variables membres statiques</h2>
+<p>Lorsque nous déclarons une variable membre statique à l'intérieur d'un type de classe, nous indiquons au compilateur l'existence d'une variable membre statique, sans pour autant la définir (un peu comme une déclaration anticipée). Comme les variables membres statiques sont essentiellement des variables globales, vous devez explicitement les définir (et éventuellement les initialiser) en dehors de la classe, dans la portée globale.</p>
+<p>Dans l'exemple ci-dessus, nous le faisons via cette ligne :</p>
+<pre><code class="language-cpp">int Something::s_value{ 1 }; // définit et initialise s_value à 1
+</code></pre>
+<p>Cette ligne remplit deux rôles : elle instancie la variable membre statique (exactement comme une variable globale) et l'initialise. Ici, nous fournissons la valeur d'initialisation <code>1</code>. Si aucune initialisation n'est fournie, les variables membres statiques sont par défaut initialisées à zéro.</p>
+<p>Notez que cette définition du membre statique n'est pas soumise aux contrôles d'accès : vous pouvez définir et initialiser la valeur même si elle est déclarée privée (ou protégée) dans la classe, car une définition n'est pas considérée comme une forme d'accès.</p>
+<p>Pour les classes non template, si la classe est définie dans un fichier d'en-tête (.h), la définition du membre statique est généralement placée dans le fichier de code associé à la classe (par exemple <code>Something.cpp</code>). Il est également possible de définir le membre comme <code>inline</code> et de le placer sous la définition de la classe, dans l'en-tête (ce qui est utile pour les bibliothèques ne reposant que sur des en-têtes). Si la classe est définie dans un fichier source (.cpp), la définition du membre statique est généralement placée directement sous la classe. Ne placez pas la définition d'un membre statique dans un fichier d'en-tête (tout comme une variable globale, si cet en-tête est inclus plus d'une fois, vous obtiendrez plusieurs définitions, ce qui provoquera une erreur de l'éditeur de liens).</p>
+<p>Pour les classes template, la définition (templatisée) du membre statique est typiquement placée directement sous la définition de la classe template, dans le fichier d'en-tête (cela ne viole pas la règle de définition unique (ODR), car de telles définitions sont implicitement <code>inline</code>).</p>
+<h2 id="initialisation-des-variables-membres-statiques-dans-la-définition-de-la-classe">Initialisation des variables membres statiques dans la définition de la classe</h2>
+<p>Il existe quelques raccourcis par rapport à ce qui précède. Tout d'abord, lorsque le membre statique est d'un type entier constant (ce qui inclut <code>char</code> et <code>bool</code>) ou d'une énumération constante, le membre statique peut être initialisé dans la définition de la classe :</p>
+<pre><code class="language-cpp">class Whatever
+{
+public:
+    static const int s_value{ 4 }; // un static const int peut être défini et initialisé directement
+};
+</code></pre>
+<p>Dans l'exemple ci-dessus, comme la variable membre statique est un <code>const int</code>, aucune ligne de définition explicite n'est nécessaire. Ce raccourci est autorisé car ces types const particuliers sont des constantes de compilation.</p>
+<p>Dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.10%20-%20Partager%20des%20constantes%20globales%20entre%20plusieurs%20fichiers%20%28%C3%A0%20l%27aide%20de%20variables%20inline%29.html">7.10 -- Partager des constantes globales entre plusieurs fichiers (à l'aide de variables inline)</a>, nous avons présenté les variables inline, c'est-à-dire des variables autorisées à avoir plusieurs définitions. C++17 permet aux membres statiques d'être des variables inline :</p>
+<pre><code class="language-cpp">class Whatever
+{
+public:
+    static inline int s_value{ 4 }; // une variable inline statique peut être définie et initialisée directement
+};
+</code></pre>
+<p>De telles variables peuvent être initialisées dans la définition de la classe, qu'elles soient constantes ou non. C'est la méthode à privilégier pour définir et initialiser les membres statiques.</p>
+<p>Comme les membres <code>constexpr</code> sont implicitement <code>inline</code> (à partir de C++17), les membres statiques <code>constexpr</code> peuvent également être initialisés dans la définition de la classe sans utiliser explicitement le mot-clé <code>inline</code> :</p>
+<pre><code class="language-cpp">#include &lt;string_view&gt;
+
+class Whatever
+{
+public:
+    static constexpr double s_value{ 2.2 }; // ok
+    static constexpr std::string_view s_view{ &quot;Hello&quot; }; // cela fonctionne même pour les classes qui supportent l'initialisation constexpr
+};
+</code></pre>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Rendez vos membres statiques <code>inline</code> ou <code>constexpr</code> afin qu'ils puissent être initialisés dans la définition de la classe.</p>
+</div>
+<h2 id="un-exemple-de-variables-membres-statiques">Un exemple de variables membres statiques</h2>
+<p>Pourquoi utiliser des variables statiques dans les classes ? Une utilisation consiste à attribuer un identifiant unique à chaque instance de la classe. Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Something
+{
+private:
+    static inline int s_idGenerator { 1 };
+    int m_id {};
+
+public:
+    // récupère la prochaine valeur du générateur d'identifiants
+    Something() : m_id { s_idGenerator++ } 
+    {    
+    }
+
+    int getID() const { return m_id; }
+};
+
+int main()
+{
+    Something first{};
+    Something second{};
+    Something third{};
+
+    std::cout &lt;&lt; first.getID() &lt;&lt; '\n';
+    std::cout &lt;&lt; second.getID() &lt;&lt; '\n';
+    std::cout &lt;&lt; third.getID() &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+1
+2
+3
+</code></pre>
+<p>Comme <code>s_idGenerator</code> est partagé par tous les objets <code>Something</code>, lorsqu'un nouvel objet <code>Something</code> est créé, le constructeur initialise <code>m_id</code> avec la valeur courante de <code>s_idGenerator</code>, puis incrémente cette valeur pour l'objet suivant. Cela garantit que chaque objet <code>Something</code> instancié reçoit un identifiant unique (incrémenté dans l'ordre de création).</p>
+<p>Donner un identifiant unique à chaque objet peut faciliter le débogage, car il permet de distinguer des objets qui ont par ailleurs des données identiques. C'est particulièrement vrai lorsque l'on travaille avec des tableaux de données.</p>
+<p>Les variables membres statiques sont également utiles lorsque la classe doit utiliser une table de correspondance (par exemple, un tableau servant à stocker un ensemble de valeurs précalculées). En rendant la table statique, une seule copie existe pour tous les objets, au lieu d'une copie par objet instancié. Cela peut économiser une quantité substantielle de mémoire.</p>
+<h2 id="seuls-les-membres-statiques-peuvent-utiliser-la-déduction-de-type-auto-et-ctad">Seuls les membres statiques peuvent utiliser la déduction de type (<code>auto</code> et CTAD)</h2>
+<p>Un membre statique peut utiliser <code>auto</code> pour déduire son type à partir de son initialisateur, ou la déduction des arguments de modèle de classe (CTAD, Class Template Argument Deduction) pour déduire les arguments de type du modèle à partir de son initialisateur.</p>
+<p>Les membres non statiques ne peuvent pas utiliser <code>auto</code> ni CTAD.</p>
+<p>Les raisons de cette distinction sont assez complexes, mais se résument à l'existence de certains cas, pouvant survenir avec des membres non statiques, qui conduisent à des ambiguïtés ou à des résultats peu intuitifs. Ces cas ne se produisent pas pour les membres statiques. C'est pourquoi les membres non statiques sont limités dans l'utilisation de ces fonctionnalités, alors que les membres statiques ne le sont pas.</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::pair&lt;T, U&gt;
+
+class Foo
+{
+private:
+    auto m_x { 5 };           // auto non autorisé pour les membres non statiques
+    std::pair m_v { 1, 2.3 }; // CTAD non autorisé pour les membres non statiques
+
+    static inline auto s_x { 5 };           // auto autorisé pour les membres statiques
+    static inline std::pair s_v { 1, 2.3 }; // CTAD autorisé pour les membres statiques
+
+public:
+    Foo() {};
+};
+
+int main()
+{
+    Foo foo{};
+
+    return 0;
+}
+</code></pre>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/static-member-variables/">https://www.learncpp.com/cpp-tutorial/static-member-variables/</a></em></p>
+</main>
+</body>
+</html>

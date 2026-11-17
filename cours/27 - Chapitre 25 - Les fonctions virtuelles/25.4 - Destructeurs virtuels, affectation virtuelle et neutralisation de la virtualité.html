@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25.4 — Destructeurs virtuels, affectation virtuelle et neutralisation de la virtualité</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="254-destructeurs-virtuels-affectation-virtuelle-et-neutralisation-de-la-virtualité">25.4 — Destructeurs virtuels, affectation virtuelle et neutralisation de la virtualité</h1>
+<h2 id="destructeurs-virtuels">Destructeurs virtuels</h2>
+<p>Bien que C++ fournisse un destructeur par défaut à vos classes si vous n'en écrivez pas vous-même, il arrive que vous souhaitiez fournir le vôtre (en particulier si la classe doit libérer de la mémoire). Vous devriez <em>toujours</em> rendre vos destructeurs virtuels lorsque vous travaillez avec l'héritage. Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+class Base
+{
+public:
+    ~Base() // note : non virtuel
+    {
+        std::cout &lt;&lt; &quot;Appel de ~Base()\n&quot;;
+    }
+};
+
+class Derived: public Base
+{
+private:
+    int* m_array {};
+
+public:
+    Derived(int length)
+      : m_array{ new int[length] }
+    {
+    }
+
+    ~Derived() // note : non virtuel (votre compilateur peut vous avertir à ce sujet)
+    {
+        std::cout &lt;&lt; &quot;Appel de ~Derived()\n&quot;;
+        delete[] m_array;
+    }
+};
+
+int main()
+{
+    Derived* derived { new Derived(5) };
+    Base* base { derived };
+
+    delete base;
+
+    return 0;
+}
+</code></pre>
+<p>Remarque : si vous compilez l'exemple ci-dessus, votre compilateur peut vous avertir du destructeur non virtuel (ce qui est intentionnel dans cet exemple). Vous devrez peut-être désactiver l'option du compilateur qui traite les avertissements comme des erreurs pour poursuivre.</p>
+<p>Comme <code>base</code> est un pointeur vers <code>Base</code>, lorsque <code>base</code> est supprimé, le programme vérifie si le destructeur de <code>Base</code> est virtuel. Ce n'est pas le cas, il suppose donc qu'il doit seulement appeler le destructeur de <code>Base</code>. Nous le constatons dans le fait que l'exemple ci-dessus affiche :</p>
+<pre><code>
+Appel de ~Base()
+</code></pre>
+<p>Or, nous voulons vraiment que l'opérateur <code>delete</code> appelle le destructeur de <code>Derived</code> (qui appellera à son tour le destructeur de <code>Base</code>), sans quoi <code>m_array</code> ne sera pas libéré. Nous y parvenons en rendant virtuel le destructeur de <code>Base</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+class Base
+{
+public:
+    virtual ~Base() // note : virtuel
+    {
+        std::cout &lt;&lt; &quot;Appel de ~Base()\n&quot;;
+    }
+};
+
+class Derived: public Base
+{
+private:
+    int* m_array {};
+
+public:
+    Derived(int length)
+      : m_array{ new int[length] }
+    {
+    }
+
+    virtual ~Derived() // note : virtuel
+    {
+        std::cout &lt;&lt; &quot;Appel de ~Derived()\n&quot;;
+        delete[] m_array;
+    }
+};
+
+int main()
+{
+    Derived* derived { new Derived(5) };
+    Base* base { derived };
+
+    delete base;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit désormais le résultat suivant :</p>
+<pre><code>
+Appel de ~Derived()
+Appel de ~Base()
+</code></pre>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Chaque fois que vous travaillez avec l'héritage, vous devriez rendre virtuels tous les destructeurs explicites.</p>
+</div>
+<p>Comme pour les fonctions membres virtuelles ordinaires, si une fonction de la classe de base est virtuelle, toutes les redéfinitions dérivées seront considérées comme virtuelles, qu'elles soient déclarées ainsi ou non. Il n'est pas nécessaire de créer un destructeur vide dans la classe dérivée uniquement pour le marquer comme virtuel.</p>
+<p>Notez que si vous voulez qu'une classe de base possède un destructeur virtuel qui est par ailleurs vide, vous pouvez le définir de cette façon :</p>
+<pre><code class="language-cpp">    virtual ~Base() = default; // génère un destructeur virtuel par défaut
+</code></pre>
+<h2 id="affectation-virtuelle">Affectation virtuelle</h2>
+<p>Il est possible de rendre virtuel l'opérateur d'affectation. Toutefois, contrairement au cas des destructeurs, où la virtualité est toujours une bonne idée, virtualiser l'opérateur d'affectation ouvre une boîte de Pandore et aborde des sujets avancés qui dépassent le cadre de ce tutoriel. Nous vous recommandons donc de laisser vos opérateurs d'affectation non virtuels pour l'instant, par souci de simplicité.</p>
+<h2 id="neutraliser-la-virtualité">Neutraliser la virtualité</h2>
+<p>Très rarement, vous pouvez souhaiter ignorer la virtualité d'une fonction. Par exemple, considérons le code suivant :</p>
+<pre><code class="language-cpp">#include &lt;string_view&gt;
+class Base
+{
+public:
+    virtual ~Base() = default;
+    virtual std::string_view getName() const { return &quot;Base&quot;; }
+};
+
+class Derived: public Base
+{
+public:
+    virtual std::string_view getName() const { return &quot;Derived&quot;; }
+};
+</code></pre>
+<p>Il peut arriver que vous souhaitiez qu'un pointeur <code>Base</code> vers un objet <code>Derived</code> appelle <code>Base::getName()</code> plutôt que <code>Derived::getName()</code>. Pour cela, utilisez simplement l'opérateur de résolution de portée :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+int main()
+{
+    Derived derived {};
+    const Base&amp; base { derived };
+
+    // Appelle Base::getName() au lieu de la fonction virtuelle Derived::getName()
+    std::cout &lt;&lt; base.Base::getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Vous n'en aurez probablement pas souvent besoin, mais il est bon de savoir que c'est possible.</p>
+<h2 id="faut-il-rendre-tous-les-destructeurs-virtuels">Faut-il rendre tous les destructeurs virtuels ?</h2>
+<p>C'est une question fréquente chez les programmeurs débutants. Comme indiqué dans le premier exemple, si le destructeur de la classe de base n'est pas marqué comme virtuel, le programme risque de fuir de la mémoire si un programmeur supprime ultérieurement un pointeur de classe de base qui pointe vers un objet dérivé. Une façon d'éviter cela serait de marquer tous vos destructeurs comme virtuels. Mais faut-il le faire ?</p>
+<p>Il est facile de répondre oui, afin de pouvoir par la suite utiliser n'importe quelle classe comme classe de base, mais cela a un coût en performance (un pointeur virtuel ajouté à chaque instance de votre classe). Il faut donc peser ce coût, ainsi que votre intention.</p>
+<p>Nous suggérons ceci : si une classe n'est pas explicitement conçue pour servir de classe de base, il est généralement préférable de n'avoir ni membres virtuels ni destructeur virtuel. La classe peut tout de même être utilisée par composition. Si une classe est conçue pour être utilisée comme classe de base et/ou possède des fonctions virtuelles, elle doit alors toujours avoir un destructeur virtuel.</p>
+<p>Si l'on décide qu'une classe ne doit pas pouvoir être héritée, la question suivante est de savoir s'il est possible de le garantir.</p>
+<p>La sagesse conventionnelle (initialement formulée par Herb Sutter, gourou du C++ très respecté) a suggéré d'éviter la situation de fuite de mémoire due à un destructeur non virtuel de la manière suivante : « Le destructeur d'une classe de base doit être soit public et virtuel, soit protégé et non virtuel. » Une classe de base dotée d'un destructeur protégé ne peut pas être supprimée via un pointeur de classe de base, ce qui empêche de supprimer un objet de classe dérivée à travers un pointeur de classe de base.</p>
+<p>Malheureusement, cela empêche également <em>toute</em> utilisation publique du destructeur de la classe de base. Cela signifie que :</p>
+<ul>
+<li>Nous ne devrions pas allouer dynamiquement des objets de la classe de base, car nous n'avons alors aucun moyen conventionnel de les supprimer (il existe des contournements non conventionnels, mais beurk).</li>
+<li>Nous ne pouvons même pas allouer statiquement des objets de la classe de base, car le destructeur n'est pas accessible lorsqu'ils sortent de leur portée.</li>
+</ul>
+<p>Autrement dit, avec cette méthode, pour rendre la classe dérivée sûre, nous devons rendre la classe de base pratiquement inutilisable par elle-même.</p>
+<p>Maintenant que le spécificateur <code>final</code> a été introduit dans le langage, nos recommandations sont les suivantes :</p>
+<ul>
+<li>Si vous destinez votre classe à être héritée, assurez-vous que son destructeur est virtuel et public.</li>
+<li>Si vous ne destinez pas votre classe à être héritée, marquez-la comme <code>final</code>. Cela empêchera d'autres classes d'en hériter, sans imposer d'autres restrictions d'utilisation à la classe elle-même.</li>
+</ul>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/virtual-destructors-virtual-assignment-and-overriding-virtualization/">https://www.learncpp.com/cpp-tutorial/virtual-destructors-virtual-assignment-and-overriding-virtualization/</a></em></p>
+</main>
+</body>
+</html>

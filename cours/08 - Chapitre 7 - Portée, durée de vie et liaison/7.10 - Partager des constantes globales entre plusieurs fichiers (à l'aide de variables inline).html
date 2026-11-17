@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.10 — Partager des constantes globales entre plusieurs fichiers (à l&#x27;aide de variables inline)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="710-partager-des-constantes-globales-entre-plusieurs-fichiers-à-laide-de-variables-inline">7.10 — Partager des constantes globales entre plusieurs fichiers (à l'aide de variables inline)</h1>
+<p>Dans certaines applications, certaines constantes symboliques peuvent devoir être utilisées partout dans votre code (et pas seulement à un seul endroit). Il peut s'agir de constantes physiques ou mathématiques qui ne changent pas (par exemple pi ou le nombre d'Avogadro), ou de valeurs de « réglage » propres à l'application (par exemple des coefficients de frottement ou de gravité). Plutôt que de redéfinir ces constantes dans chaque fichier qui en a besoin (ce qui viole la règle « Ne vous répétez pas » (Don't Repeat Yourself)), il est préférable de les déclarer une seule fois dans un emplacement central et de les utiliser partout où c'est nécessaire. Ainsi, si vous devez les modifier, il suffit de le faire à un seul endroit, et ces changements se propagent ensuite dans tout le programme.</p>
+<p>Cette leçon présente les façons les plus courantes d'y parvenir.</p>
+<h2 id="constantes-globales-sous-forme-de-variables-internes">Constantes globales sous forme de variables internes</h2>
+<p>Avant C++17, la solution suivante est la plus simple et la plus courante :</p>
+<ol>
+<li>Créer un fichier d'en-tête qui contiendra ces constantes</li>
+<li>Dans ce fichier d'en-tête, définir un espace de noms (abordé dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.2%20-%20Espaces%20de%20noms%20d%C3%A9finis%20par%20l%27utilisateur%20et%20op%C3%A9rateur%20de%20r%C3%A9solution%20de%20port%C3%A9e.html">7.2 -- Espaces de noms définis par l'utilisateur et opérateur de résolution de portée</a>)</li>
+<li>Placer toutes vos constantes dans cet espace de noms (assurez-vous qu'elles sont <em>constexpr</em>)</li>
+<li>Utiliser #include pour inclure cet en-tête partout où vous en avez besoin</li>
+</ol>
+<p>Par exemple :</p>
+<p>constants.h :</p>
+<pre><code class="language-cpp">#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+// Définir votre propre espace de noms pour contenir les constantes
+namespace constants
+{
+    // Les constantes globales ont par défaut un lien interne
+    constexpr double pi { 3.14159 };
+    constexpr double avogadro { 6.0221413e23 };
+    constexpr double myGravity { 9.2 }; // m/s^2 -- la gravité est faible sur cette planète
+    // ... autres constantes liées
+}
+#endif
+</code></pre>
+<p>Ensuite, pour accéder à vos constantes dans les fichiers .cpp, utilisez l'opérateur de résolution de portée (::) avec le nom de l'espace de noms à gauche et le nom de la variable à droite :</p>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;constants.h&quot; // inclut une copie de chaque constante dans ce fichier
+
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a radius: &quot;;
+    double radius{};
+    std::cin &gt;&gt; radius;
+
+    std::cout &lt;&lt; &quot;The circumference is: &quot; &lt;&lt; 2 * radius * constants::pi &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque cet en-tête est inclus dans un fichier .cpp, chacune des variables qu'il définit est copiée dans ce fichier de code à l'endroit de l'inclusion. Comme ces variables sont situées en dehors de toute fonction, elles sont traitées comme des variables globales dans le fichier où elles sont incluses, ce qui explique que vous puissiez les utiliser n'importe où dans ce fichier.</p>
+<p>Comme les globales const ont un lien interne, chaque fichier .cpp obtient une version indépendante de la variable globale, que l'éditeur de liens (linker) ne voit pas. Dans la plupart des cas, comme il s'agit de constexpr, le compilateur se contente d'éliminer ces variables lors de l'optimisation.</p>
+<p>Bien que cette méthode soit simple (et convienne pour les petits programmes), chaque fois que <em>constants.h</em> est inclus dans un fichier de code différent, chacune de ces variables est copiée dans le fichier qui l'inclut. Ainsi, si constants.h est inclus dans 20 fichiers de code différents, chacune de ces variables est dupliquée 20 fois. Les gardes d'inclusion n'empêchent pas ce phénomène : elles évitent seulement qu'un en-tête soit inclus plusieurs fois dans un même fichier, et non qu'il soit inclus une fois dans plusieurs fichiers de code différents. Cela pose deux problèmes :</p>
+<ol>
+<li>Modifier la valeur d'une seule constante obligerait à recompiler chaque fichier qui inclut l'en-tête des constantes, ce qui peut entraîner des temps de reconstruction longs pour les projets plus importants.</li>
+<li>Si les constantes sont volumineuses et ne peuvent pas être éliminées à l'optimisation, cela peut consommer beaucoup de mémoire.</li>
+</ol>
+<p>Avantages :</p>
+<ul>
+<li>Fonctionne avant C++17.</li>
+<li>Peut être utilisée dans des expressions constantes dans n'importe quelle unité de traduction qui les inclut.</li>
+</ul>
+<p>Inconvénients :</p>
+<ul>
+<li>Toute modification du fichier d'en-tête oblige à recompiler les fichiers qui l'incluent.</li>
+<li>Chaque unité de traduction qui inclut l'en-tête possède sa propre copie de la variable.</li>
+</ul>
+<h2 id="constantes-globales-sous-forme-de-variables-externes">Constantes globales sous forme de variables externes</h2>
+<p>Si vous modifiez souvent les valeurs ou ajoutez régulièrement de nouvelles constantes, la solution précédente peut poser problème, du moins jusqu'à ce que les choses se stabilisent.</p>
+<p>Une façon d'éviter ces problèmes consiste à transformer ces constantes en variables externes, puisqu'on peut alors disposer d'une seule variable (initialisée une fois) partagée par tous les fichiers. Dans cette méthode, on définit les constantes dans un fichier .cpp (pour que les définitions n'existent qu'à un seul endroit) et on place des déclarations anticipées (forward declarations) dans l'en-tête (qui sera inclus par les autres fichiers).</p>
+<p>constants.cpp :</p>
+<pre><code class="language-cpp">#include &quot;constants.h&quot;
+
+namespace constants
+{
+    // On utilise extern pour garantir que ces variables ont un lien externe
+    extern constexpr double pi { 3.14159 };
+    extern constexpr double avogadro { 6.0221413e23 };
+    extern constexpr double myGravity { 9.2 }; // m/s^2 -- la gravité est faible sur cette planète
+}
+</code></pre>
+<p>constants.h :</p>
+<pre><code class="language-cpp">#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+namespace constants
+{
+    // Comme les variables réelles se trouvent dans un espace de noms, les déclarations anticipées doivent aussi être dans cet espace de noms
+    // On ne peut pas déclarer à l'avance des variables constexpr, mais on peut les déclarer comme const (à l'exécution)
+    extern const double pi;
+    extern const double avogadro;
+    extern const double myGravity;
+}
+
+#endif
+</code></pre>
+<p>L'utilisation dans le fichier de code reste la même :</p>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;constants.h&quot; // inclut toutes les déclarations anticipées
+
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a radius: &quot;;
+    double radius{};
+    std::cin &gt;&gt; radius;
+
+    std::cout &lt;&lt; &quot;The circumference is: &quot; &lt;&lt; 2 * radius * constants::pi &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, les constantes symboliques ne sont instanciées qu'une seule fois (dans <em>constants.cpp</em>) au lieu de l'être dans chaque fichier de code où <em>constants.h</em> est inclus, et toutes les utilisations de ces constantes sont liées à la version instanciée dans <em>constants.cpp</em>. Toute modification de <em>constants.cpp</em> nécessite seulement de recompiler <em>constants.cpp</em>.</p>
+<p>Cette méthode présente toutefois quelques inconvénients. D'abord, comme seules les définitions de variables sont constexpr (les déclarations anticipées ne le sont pas, et ne peuvent pas l'être), ces constantes ne sont des expressions constantes que dans le fichier où elles sont réellement définies (<em>constants.cpp</em>). Dans les autres fichiers, le compilateur ne voit que la déclaration anticipée, qui ne définit pas de valeur constexpr (et doit être résolue par l'éditeur de liens). Cela signifie qu'en dehors du fichier de définition, ces variables ne peuvent pas être utilisées dans une expression constante. Ensuite, comme les expressions constantes peuvent généralement être davantage optimisées que les expressions évaluées à l'exécution, le compilateur risque de ne pas pouvoir les optimiser autant.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Pour qu'une variable puisse être utilisée dans un contexte de compilation, comme la taille d'un tableau, le compilateur doit voir la définition de la variable (et pas seulement une déclaration anticipée).</p>
+</div>
+<p>Comme le compilateur compile chaque fichier source individuellement, il ne peut voir que les définitions de variables qui apparaissent dans le fichier source compilé (y compris les en-têtes inclus). Par exemple, les définitions de variables de <em>constants.cpp</em> ne sont pas visibles lorsque le compilateur compile <em>main.cpp</em>. Pour cette raison, les variables constexpr ne peuvent pas être séparées entre un en-tête et un fichier source : elles doivent être définies dans le fichier d'en-tête.</p>
+<p>Compte tenu des inconvénients ci-dessus, privilégiez la définition de vos constantes dans un fichier d'en-tête (selon la section précédente ou la suivante). Si vous constatez que les valeurs de vos constantes changent souvent (par exemple parce que vous ajustez le programme) et que cela allonge fortement les temps de compilation, vous pouvez temporairement déplacer uniquement les constantes concernées dans un fichier .cpp (avec cette méthode), au besoin.</p>
+<p>Avantages :</p>
+<ul>
+<li>Fonctionne avant C++17.</li>
+<li>Une seule copie de chaque variable est nécessaire.</li>
+<li>Seule la recompilation d'un fichier est nécessaire si la valeur d'une constante change.</li>
+</ul>
+<p>Inconvénients :</p>
+<ul>
+<li>Les déclarations anticipées et les définitions de variables se trouvent dans des fichiers séparés, et doivent être tenues synchronisées.</li>
+<li>Les variables ne peuvent pas être utilisées dans des expressions constantes en dehors du fichier où elles sont définies.</li>
+</ul>
+<h2 id="constantes-globales-sous-forme-de-variables-inline-c17">Constantes globales sous forme de variables inline <em>(C++17)</em></h2>
+<p>Dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.9%20-%20Fonctions%20et%20variables%20inline.html">7.9 -- Fonctions et variables inline</a>, nous avons abordé les variables inline, c'est-à-dire des variables pouvant posséder plusieurs définitions, à condition que ces définitions soient identiques. En rendant nos variables constexpr inline, nous pouvons les définir dans un fichier d'en-tête, puis inclure celui-ci dans n'importe quel fichier .cpp qui en a besoin. Cela évite à la fois les violations de la règle de définition unique (ODR) et l'inconvénient des variables dupliquées.</p>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Les fonctions constexpr sont implicitement inline, mais les variables constexpr ne le sont pas implicitement. Si vous voulez une variable constexpr inline, vous devez explicitement la marquer avec <code>inline</code>.</p>
+</div>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les variables inline ont par défaut un lien externe, afin d'être visibles par l'éditeur de liens. C'est nécessaire pour que l'éditeur de liens puisse fusionner les définitions en double.</p>
+<p>Les variables constexpr non inline ont un lien interne. Si elles sont incluses dans plusieurs unités de traduction, chaque unité de traduction obtient sa propre copie de la variable. Ce n'est pas une violation de la règle ODR, car elles ne sont pas exposées à l'éditeur de liens.</p>
+</div>
+<p>constants.h :</p>
+<pre><code class="language-cpp">#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+// Définir votre propre espace de noms pour contenir les constantes
+namespace constants
+{
+    inline constexpr double pi { 3.14159 }; // note : désormais inline constexpr
+    inline constexpr double avogadro { 6.0221413e23 };
+    inline constexpr double myGravity { 9.2 }; // m/s^2 -- la gravité est faible sur cette planète
+    // ... autres constantes liées
+}
+#endif
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;constants.h&quot;
+
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a radius: &quot;;
+    double radius{};
+    std::cin &gt;&gt; radius;
+
+    std::cout &lt;&lt; &quot;The circumference is: &quot; &lt;&lt; 2 * radius * constants::pi &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Nous pouvons inclure <code>constants.h</code> dans autant de fichiers de code que nous le souhaitons : ces variables ne seront instanciées qu'une seule fois et partagées par tous les fichiers de code.</p>
+<p>Cette méthode conserve néanmoins l'inconvénient de devoir recompiler chaque fichier qui inclut l'en-tête des constantes si la valeur d'une constante est modifiée.</p>
+<p>Avantages :</p>
+<ul>
+<li>Peut être utilisée dans des expressions constantes dans n'importe quelle unité de traduction qui les inclut.</li>
+<li>Une seule copie de chaque variable est nécessaire.</li>
+</ul>
+<p>Inconvénients :</p>
+<ul>
+<li>Fonctionne uniquement à partir de C++17.</li>
+<li>Toute modification du fichier d'en-tête oblige à recompiler les fichiers qui l'incluent.</li>
+</ul>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous avez besoin de constantes globales et que votre compilateur prend en charge C++17, privilégiez la définition de variables globales inline constexpr dans un fichier d'en-tête.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Utilisez <code>std::string_view</code> pour les chaînes constexpr. Nous abordons ce sujet dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.8%20-%20Introduction%20%C3%A0%20std--string_view.html">5.8 -- Introduction à std::string_view</a>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous résumons la portée, la durée de vie et le lien de différents types de variables dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.12%20-%20R%C3%A9sum%C3%A9%20sur%20la%20port%C3%A9e%2C%20la%20dur%C3%A9e%20et%20la%20liaison.html">7.12 -- Résumé de la portée, de la durée et du lien</a>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/sharing-global-constants-across-multiple-files-using-inline-variables/">https://www.learncpp.com/cpp-tutorial/sharing-global-constants-across-multiple-files-using-inline-variables/</a></em></p>
+</main>
+</body>
+</html>

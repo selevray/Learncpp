@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.7 — Instanciation des fonctions template</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="117-instanciation-des-fonctions-template">11.7 — Instanciation des fonctions template</h1>
+<p>Dans la leçon précédente (<a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.6%20-%20Templates%20de%20fonctions.html">11.6 -- Modèles de fonctions</a>), nous avons présenté les fonctions template et transformé une fonction <code>max()</code> ordinaire en un modèle de fonction <code>max&lt;T&gt;</code> :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+T max(T x, T y)
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>Dans cette leçon, nous allons nous concentrer sur l'utilisation des fonctions template.</p>
+<h2 id="utiliser-une-fonction-template">Utiliser une fonction template</h2>
+<p>Les fonctions template ne sont pas vraiment des fonctions : leur code n'est pas compilé ni exécuté directement. Une fonction template a un seul rôle : générer des fonctions, qui, elles, sont compilées et exécutées.</p>
+<p>Pour utiliser notre modèle de fonction <code>max&lt;T&gt;</code>, nous pouvons effectuer un appel de fonction avec la syntaxe suivante :</p>
+<pre><code>
+max&lt;type_effectif&gt;(arg1, arg2); // type_effectif est un type réel, comme int ou double
+</code></pre>
+<p>Cela ressemble beaucoup à un appel de fonction ordinaire. La différence principale est l'ajout, entre chevrons, du type (appelé <strong>argument template</strong>), qui indique le type réel à utiliser à la place du type template <code>T</code>.</p>
+<p>Voyons cela dans un exemple simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T max(T x, T y)
+{
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n'; // instancie et appelle la fonction max&lt;int&gt;(int, int)
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque le compilateur rencontre l'appel <code>max&lt;int&gt;(1, 2)</code>, il détermine qu'une définition de <code>max&lt;int&gt;(int, int)</code> n'existe pas encore. Il utilise alors implicitement notre modèle <code>max&lt;T&gt;</code> pour en créer une.</p>
+<p>Le processus de création de fonctions (avec des types précis) à partir de fonctions template (avec des types template) s'appelle <strong>instanciation de fonction template</strong> (ou simplement <strong>instanciation</strong>). Lorsqu'une fonction est instanciée à cause d'un appel de fonction, on parle d'<strong>instanciation implicite</strong>. Une fonction instanciée à partir d'un modèle s'appelle techniquement une <strong>spécialisation</strong>, mais dans le langage courant on parle souvent d'<strong>instance de fonction</strong>. Le modèle à partir duquel une spécialisation est produite s'appelle un <strong>modèle primaire</strong>. Les instances de fonctions sont, à tous égards, des fonctions ordinaires.</p>
+<div class="callout quote"><p class="callout-title">Nomenclature</p>
+<p>Le terme « spécialisation » est plus souvent utilisé pour désigner la spécialisation explicite, qui nous permet de définir explicitement une spécialisation (au lieu de la laisser être instanciée implicitement à partir du modèle primaire). Nous abordons la spécialisation explicite dans la leçon <a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.3%20-%20Sp%C3%A9cialisation%20de%20fonctions%20template.html">26.3 -- Spécialisation de fonctions template</a>.</p>
+</div>
+<p>Le processus d'instanciation d'une fonction est simple : le compilateur clone essentiellement le modèle primaire et remplace le type template (<code>T</code>) par le type réel que nous avons spécifié (<code>int</code>).</p>
+<p>Ainsi, lorsque nous appelons <code>max&lt;int&gt;(1, 2)</code>, la spécialisation instanciée ressemble à ceci :</p>
+<pre><code class="language-cpp">template&lt;&gt; // ignorez cela pour l'instant
+int max&lt;int&gt;(int x, int y) // la fonction générée max&lt;int&gt;(int, int)
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>Voici le même exemple que précédemment, montrant ce que le compilateur compile réellement une fois toutes les instanciations effectuées :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// une déclaration de notre modèle de fonction (nous n'avons plus besoin de la définition)
+template &lt;typename T&gt; 
+T max(T x, T y);
+
+template&lt;&gt;
+int max&lt;int&gt;(int x, int y) // la fonction générée max&lt;int&gt;(int, int)
+{
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n'; // instancie et appelle la fonction max&lt;int&gt;(int, int)
+
+    return 0;
+}
+</code></pre>
+<p>Vous pouvez compiler ce programme vous-même et constater qu'il fonctionne. Un modèle de fonction n'est instancié que la première fois qu'un appel à la fonction est effectué dans chaque unité de traduction. Les appels suivants sont redirigés vers la fonction déjà instanciée.</p>
+<p>Inversement, si aucun appel n'est fait à un modèle de fonction, celui-ci ne sera pas instancié dans cette unité de traduction.</p>
+<p>Prenons un autre exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T max(T x, T y) // modèle de fonction pour max(T, T)
+{
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n';    // instancie et appelle la fonction max&lt;int&gt;(int, int)
+    std::cout &lt;&lt; max&lt;int&gt;(4, 3) &lt;&lt; '\n';    // appelle la fonction max&lt;int&gt;(int, int) déjà instanciée
+    std::cout &lt;&lt; max&lt;double&gt;(1, 2) &lt;&lt; '\n'; // instancie et appelle la fonction max&lt;double&gt;(double, double)
+
+    return 0;
+}
+</code></pre>
+<p>Cela fonctionne de manière similaire à l'exemple précédent, mais ici le modèle de fonction sert à générer deux fonctions : une fois en remplaçant <code>T</code> par <code>int</code>, et une autre fois en remplaçant <code>T</code> par <code>double</code>. Après toutes les instanciations, le programme ressemble à ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// une déclaration de notre modèle de fonction (nous n'avons plus besoin de la définition)
+template &lt;typename T&gt;
+T max(T x, T y); 
+
+template&lt;&gt;
+int max&lt;int&gt;(int x, int y) // la fonction générée max&lt;int&gt;(int, int)
+{
+    return (x &lt; y) ? y : x;
+}
+
+template&lt;&gt;
+double max&lt;double&gt;(double x, double y) // la fonction générée max&lt;double&gt;(double, double)
+{
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n';    // instancie et appelle la fonction max&lt;int&gt;(int, int)
+    std::cout &lt;&lt; max&lt;int&gt;(4, 3) &lt;&lt; '\n';    // appelle la fonction max&lt;int&gt;(int, int) déjà instanciée
+    std::cout &lt;&lt; max&lt;double&gt;(1, 2) &lt;&lt; '\n'; // instancie et appelle la fonction max&lt;double&gt;(double, double)
+
+    return 0;
+}
+</code></pre>
+<p>Une remarque supplémentaire : lorsque nous instancions <code>max&lt;double&gt;</code>, la fonction instanciée a des paramètres de type <code>double</code>. Comme nous avons fourni des arguments <code>int</code>, ces arguments sont implicitement convertis en <code>double</code>.</p>
+<h2 id="déduction-des-arguments-template">Déduction des arguments template</h2>
+<p>Dans la plupart des cas, les types réels que nous voulons utiliser pour l'instanciation correspondent au type de nos paramètres de fonction. Par exemple :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n'; // on précise que l'on veut appeler max&lt;int&gt;
+</code></pre>
+<p>Dans cet appel, nous avons indiqué que nous voulons remplacer <code>T</code> par <code>int</code>, et nous appelons aussi la fonction avec des arguments <code>int</code>.</p>
+<p>Lorsque le type des arguments correspond au type réel souhaité, nous n'avons pas besoin de le préciser. Nous pouvons alors utiliser la <strong>déduction des arguments template</strong> (template argument deduction), qui permet au compilateur de déduire le type réel à utiliser à partir des types des arguments de l'appel.</p>
+<p>Par exemple, au lieu d'écrire :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n'; // on précise que l'on veut appeler max&lt;int&gt;
+</code></pre>
+<p>Nous pouvons écrire l'une de ces deux formes :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; max&lt;&gt;(1, 2) &lt;&lt; '\n';
+std::cout &lt;&lt; max(1, 2) &lt;&lt; '\n';
+</code></pre>
+<p>Dans les deux cas, le compilateur constate que nous n'avons pas fourni de type réel. Il tente donc de déduire, à partir des arguments de la fonction, un type réel qui lui permet de générer une fonction <code>max()</code> dont tous les paramètres template correspondent au type des arguments fournis. Dans cet exemple, le compilateur déduit qu'utiliser le modèle de fonction <code>max&lt;T&gt;</code> avec le type réel <code>int</code> lui permet d'instancier <code>max&lt;int&gt;(int, int)</code>, de sorte que le type des deux paramètres (<code>int</code>) corresponde au type des arguments fournis (<code>int</code>).</p>
+<p>La différence entre les deux cas tient à la manière dont le compilateur résout l'appel de fonction parmi un ensemble de fonctions surchargées. Dans la première forme (avec les chevrons vides), le compilateur ne considère que les surcharges de fonctions template <code>max&lt;int&gt;</code> pour déterminer quelle fonction appeler. Dans la seconde forme (sans chevrons), le compilateur considère à la fois les surcharges template <code>max&lt;int&gt;</code> et les surcharges non-template <code>max</code>. Lorsque ce dernier cas aboutit à une fonction template et à une fonction non-template également viables, la fonction non-template est préférée.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La syntaxe d'appel de fonction normale préfère une fonction non-template à une fonction instanciée à partir d'un modèle, lorsque les deux sont tout aussi viables.</p>
+</div>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T max(T x, T y)
+{
+    std::cout &lt;&lt; &quot;called max&lt;int&gt;(int, int)\n&quot;;
+    return (x &lt; y) ? y : x;
+}
+
+int max(int x, int y)
+{
+    std::cout &lt;&lt; &quot;called max(int, int)\n&quot;;
+    return (x &lt; y) ? y : x;
+}
+
+int main()
+{
+    std::cout &lt;&lt; max&lt;int&gt;(1, 2) &lt;&lt; '\n'; // appelle max&lt;int&gt;(int, int)
+    std::cout &lt;&lt; max&lt;&gt;(1, 2) &lt;&lt; '\n';    // déduit max&lt;int&gt;(int, int) (les fonctions non-template ne sont pas considérées)
+    std::cout &lt;&lt; max(1, 2) &lt;&lt; '\n';      // appelle max(int, int)
+
+    return 0;
+}
+</code></pre>
+<p>Remarquez que la syntaxe de la seconde forme est identique à celle d'un appel de fonction normal ! Dans la plupart des cas, c'est cette syntaxe d'appel normale que nous utiliserons pour appeler des fonctions instanciées à partir d'un modèle de fonction.</p>
+<p>Plusieurs raisons à cela :</p>
+<ul>
+<li>La syntaxe est plus concise.</li>
+<li>Il est rare d'avoir à la fois une fonction non-template correspondante et un modèle de fonction.</li>
+<li>Si nous avons à la fois une fonction non-template et un modèle de fonction correspondants, nous préférerons généralement appeler la fonction non-template.</li>
+</ul>
+<p>Ce dernier point peut ne pas sembler évident. Un modèle de fonction a une implémentation qui fonctionne pour plusieurs types, et il doit donc être générique. Une fonction non-template ne traite qu'une combinaison précise de types. Son implémentation peut être plus optimisée ou plus spécialisée pour ces types précis que la version template. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Ce modèle de fonction peut traiter de nombreux types, donc son implémentation est générique
+template &lt;typename T&gt;
+void print(T x)
+{
+    std::cout &lt;&lt; x; // affiche T de la manière habituelle
+}
+
+// Cette fonction n'a qu'à gérer l'affichage d'un bool, elle peut donc spécialiser
+// l'affichage d'un bool
+void print(bool x)
+{
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; x; // affiche le bool sous la forme true ou false, et non 1 ou 0
+}
+
+int main()
+{
+    print&lt;bool&gt;(true); // appelle print&lt;bool&gt;(bool) -- affiche 1
+    std::cout &lt;&lt; '\n';
+
+    print&lt;&gt;(true);     // déduit print&lt;bool&gt;(bool) (les fonctions non-template ne sont pas considérées) -- affiche 1
+    std::cout &lt;&lt; '\n';
+
+    print(true);       // appelle print(bool) -- affiche true
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez la syntaxe d'appel de fonction normale lorsque vous appelez une fonction instanciée à partir d'un modèle de fonction (sauf si vous avez besoin que la version template soit préférée à une fonction non-template correspondante).</p>
+</div>
+<h2 id="fonctions-template-avec-des-paramètres-non-template">Fonctions template avec des paramètres non-template</h2>
+<p>Il est possible de créer des modèles de fonctions qui ont à la fois des paramètres template et des paramètres non-template. Les paramètres de type peuvent correspondre à n'importe quel type, et les paramètres non-template fonctionnent comme les paramètres des fonctions ordinaires.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">// T est un paramètre template de type
+// double est un paramètre non-template
+// Nous n'avons pas besoin de nommer ces paramètres puisqu'ils ne sont pas utilisés
+template &lt;typename T&gt;
+int someFcn(T, double)
+{
+    return 5;
+}
+
+int main()
+{
+    someFcn(1, 3.4); // correspond à someFcn(int, double)
+    someFcn(1, 3.4f); // correspond à someFcn(int, double) -- le float est promu en double
+    someFcn(1.2, 3.4); // correspond à someFcn(double, double)
+    someFcn(1.2f, 3.4); // correspond à someFcn(float, double)
+    someFcn(1.2f, 3.4f); // correspond à someFcn(float, double) -- le float est promu en double
+
+    return 0;
+}
+</code></pre>
+<p>Ce modèle de fonction a un premier paramètre templatisé, tandis que le second paramètre est fixé au type <code>double</code>. Notez que le type de retour peut lui aussi être quelconque. Dans ce cas, notre fonction renvoie toujours une valeur <code>int</code>.</p>
+<h2 id="les-fonctions-instanciées-ne-compilent-pas-toujours">Les fonctions instanciées ne compilent pas toujours</h2>
+<p>Considérons le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T addOne(T x)
+{
+    return x + 1;
+}
+
+int main()
+{
+    std::cout &lt;&lt; addOne(1) &lt;&lt; '\n';
+    std::cout &lt;&lt; addOne(2.3) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Le compilateur compile et exécute effectivement ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T addOne(T x);
+
+template&lt;&gt;
+int addOne&lt;int&gt;(int x)
+{
+    return x + 1;
+}
+
+template&lt;&gt;
+double addOne&lt;double&gt;(double x)
+{
+    return x + 1;
+}
+
+int main()
+{
+    std::cout &lt;&lt; addOne(1) &lt;&lt; '\n';   // appelle addOne&lt;int&gt;(int)
+    std::cout &lt;&lt; addOne(2.3) &lt;&lt; '\n'; // appelle addOne&lt;double&gt;(double)
+
+    return 0;
+}
+</code></pre>
+<p>ce qui produit le résultat suivant :</p>
+<pre><code>
+2
+3.3
+</code></pre>
+<p>Mais que se passe-t-il si nous essayons quelque chose comme ceci ?</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+template &lt;typename T&gt;
+T addOne(T x)
+{
+    return x + 1;
+}
+
+int main()
+{
+    std::string hello { &quot;Hello, world!&quot; };
+    std::cout &lt;&lt; addOne(hello) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque le compilateur tente de résoudre <code>addOne(hello)</code>, il ne trouve pas de fonction non-template correspondant à <code>addOne(std::string)</code>, mais il trouve notre modèle de fonction <code>addOne(T)</code> et détermine qu'il peut en générer une fonction <code>addOne(std::string)</code>. Le compilateur génère donc et compile ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+template &lt;typename T&gt;
+T addOne(T x);
+
+template&lt;&gt;
+std::string addOne&lt;std::string&gt;(std::string x)
+{
+    return x + 1;
+}
+
+int main()
+{
+    std::string hello{ &quot;Hello, world!&quot; };
+    std::cout &lt;&lt; addOne(hello) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, cela produira une erreur de compilation, car <code>x + 1</code> n'a pas de sens lorsque <code>x</code> est une <code>std::string</code>. La solution évidente consiste simplement à ne pas appeler <code>addOne()</code> avec un argument de type <code>std::string</code>.</p>
+<h2 id="les-fonctions-instanciées-nont-pas-toujours-de-sens-sémantiquement">Les fonctions instanciées n'ont pas toujours de sens sémantiquement</h2>
+<p>Le compilateur compilera avec succès une fonction template instanciée tant qu'elle est correcte syntaxiquement. Cependant, le compilateur n'a aucun moyen de vérifier qu'une telle fonction a un sens sur le plan sémantique.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T addOne(T x)
+{
+    return x + 1;
+}
+
+int main()
+{
+    std::cout &lt;&lt; addOne(&quot;Hello, world!&quot;) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, nous appelons <code>addOne()</code> sur un littéral de chaîne de style C. Qu'est-ce que cela signifie réellement sur le plan sémantique ? Qui sait !</p>
+<p>Étonnamment, comme C++ autorise syntaxiquement l'addition d'une valeur entière à un littéral de chaîne (nous aborderons ce point dans la future leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.9%20-%20Arithm%C3%A9tique%20des%20pointeurs%20et%20indexation.html">17.9 -- Arithmétique des pointeurs et indexation</a>), l'exemple ci-dessus compile et produit le résultat suivant :</p>
+<pre><code>
+ello, world!
+</code></pre>
+<div class="callout warning"><p class="callout-title">Avertissement</p>
+<p>Le compilateur instanciera et compilera des modèles de fonctions qui n'ont pas de sens sémantiquement, tant qu'ils sont syntaxiquement valides. C'est à vous de vous assurer d'appeler ces modèles de fonctions avec des arguments qui ont un sens.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Nous pouvons indiquer au compilateur que l'instanciation de modèles de fonctions avec certains arguments doit être interdite. Pour cela, on utilise la spécialisation de fonctions template, qui permet de surcharger un modèle de fonction pour un ensemble précis d'arguments template, ainsi que <code>= delete</code>, qui indique au compilateur que toute utilisation de la fonction doit provoquer une erreur de compilation.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+template &lt;typename T&gt;
+T addOne(T x)
+{
+    return x + 1;
+}
+
+// Utilise la spécialisation de fonctions template pour indiquer au compilateur que addOne(const char*) doit provoquer une erreur de compilation
+// const char* correspondra à un littéral de chaîne
+template &lt;&gt;
+const char* addOne(const char* x) = delete;
+
+int main()
+{
+    std::cout &lt;&lt; addOne(&quot;Hello, world!&quot;) &lt;&lt; '\n'; // erreur de compilation
+
+    return 0;
+}
+</code></pre>
+<p>Nous abordons la spécialisation de fonctions template dans la leçon <a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.3%20-%20Sp%C3%A9cialisation%20de%20fonctions%20template.html">26.3 -- Spécialisation de fonctions template</a>.</p>
+</div>
+<h2 id="modèles-de-fonctions-et-arguments-par-défaut-pour-les-paramètres-non-template">Modèles de fonctions et arguments par défaut pour les paramètres non-template</h2>
+<p>Comme pour les fonctions ordinaires, les modèles de fonctions peuvent avoir des arguments par défaut pour leurs paramètres non-template. Chaque fonction instanciée à partir du modèle utilisera le même argument par défaut.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+void print(T val, int times=1)
+{
+    while (times--)
+    {
+        std::cout &lt;&lt; val;        
+    }
+}
+
+int main()
+{
+    print(5);      // affiche 5 une fois
+    print('a', 3); // affiche 'a' trois fois
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+5aaa
+</code></pre>
+<h2 id="attention-aux-modèles-de-fonctions-avec-des-variables-statiques-locales-modifiables">Attention aux modèles de fonctions avec des variables statiques locales modifiables</h2>
+<p>Dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.11%20-%20Variables%20locales%20statiques.html">7.11 -- Variables locales statiques</a>, nous avons vu les variables locales statiques, c'est-à-dire des variables locales de durée statique (elles persistent pendant toute la durée du programme).</p>
+<p>Lorsqu'une variable locale statique est utilisée dans un modèle de fonction, chaque fonction instanciée à partir de ce modèle possède sa propre version de la variable locale statique. Ce n'est en général pas un problème si la variable locale statique est <code>const</code>. Mais si la variable locale statique est modifiée, les résultats peuvent être inattendus.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Voici un modèle de fonction avec une variable locale statique qui est modifiée
+template &lt;typename T&gt;
+void printIDAndValue(T value)
+{
+    static int id{ 0 };
+    std::cout &lt;&lt; ++id &lt;&lt; &quot;) &quot; &lt;&lt; value &lt;&lt; '\n';
+}
+
+int main()
+{
+    printIDAndValue(12);
+    printIDAndValue(13);
+
+    printIDAndValue(14.5);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+1) 12
+2) 13
+1) 14.5
+</code></pre>
+<p>Vous vous attendiez peut-être à ce que la dernière ligne affiche <code>3) 14.5</code>. Pourtant, voici ce que le compilateur compile et exécute réellement :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+void printIDAndValue(T value);
+
+template &lt;&gt;
+void printIDAndValue&lt;int&gt;(int value)
+{
+    static int id{ 0 };
+    std::cout &lt;&lt; ++id &lt;&lt; &quot;) &quot; &lt;&lt; value &lt;&lt; '\n';
+}
+
+template &lt;&gt;
+void printIDAndValue&lt;double&gt;(double value)
+{
+    static int id{ 0 };
+    std::cout &lt;&lt; ++id &lt;&lt; &quot;) &quot; &lt;&lt; value &lt;&lt; '\n';
+}
+
+int main()
+{
+    printIDAndValue(12);   // appelle printIDAndValue&lt;int&gt;()
+    printIDAndValue(13);   // appelle printIDAndValue&lt;int&gt;()
+
+    printIDAndValue(14.5); // appelle printIDAndValue&lt;double&gt;()
+
+    return 0;
+}
+</code></pre>
+<p>Notez que <code>printIDAndValue&lt;int&gt;</code> et <code>printIDAndValue&lt;double&gt;</code> ont chacune leur propre variable statique locale nommée <code>id</code>, indépendante de l'autre, et qu'elles ne partagent pas la même variable.</p>
+<h2 id="programmation-générique">Programmation générique</h2>
+<p>Comme les types template peuvent être remplacés par n'importe quel type réel, on qualifie parfois les types template de <strong>types génériques</strong>. Et comme les templates peuvent être écrits sans considération pour des types précis, la programmation avec des templates est parfois appelée <strong>programmation générique</strong>. Alors que C++ met typiquement l'accent sur les types et leur vérification, la programmation générique nous permet, à l'inverse, de nous concentrer sur la logique des algorithmes et la conception des structures de données, sans avoir à nous soucier autant des informations de type.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Une fois que vous serez habitué à écrire des modèles de fonctions, vous constaterez qu'ils ne demandent pas beaucoup plus de temps à écrire que des fonctions avec des types réels. Les modèles de fonctions peuvent réduire de façon significative la maintenance du code et le nombre d'erreurs, en minimisant la quantité de code à écrire et à maintenir.</p>
+<p>Les modèles de fonctions ont tout de même quelques inconvénients, qu'il serait malvenu de passer sous silence. D'abord, le compilateur créera (et compilera) une fonction pour chaque appel avec un ensemble unique de types d'arguments. Ainsi, même si les modèles de fonctions sont compacts à écrire, ils peuvent se développer en une quantité de code démesurée, ce qui peut entraîner un gonflement du code (code bloat) et des temps de compilation plus longs. Le plus gros inconvénient des modèles de fonctions est qu'ils produisent des messages d'erreur étranges, à la limite de l'illisible, bien plus difficiles à déchiffrer que ceux des fonctions ordinaires. Ces messages peuvent être assez intimidants, mais une fois que vous comprenez ce qu'ils cherchent à vous dire, les problèmes qu'ils signalent sont souvent assez simples à résoudre.</p>
+<p>Ces inconvénients sont relativement mineurs au regard de la puissance et de la sécurité que les templates apportent à votre boîte à outils de programmation. Utilisez donc les templates sans hésiter partout où vous avez besoin de flexibilité sur les types ! Une bonne règle empirique consiste à écrire d'abord des fonctions ordinaires, puis à les transformer en modèles de fonctions si vous constatez le besoin d'une surcharge pour différents types de paramètres.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez les modèles de fonctions pour écrire du code générique, capable de fonctionner avec une grande variété de types, chaque fois que le besoin se présente.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/function-template-instantiation/">https://www.learncpp.com/cpp-tutorial/function-template-instantiation/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25.10 — Conversion dynamique (dynamic_cast)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="2510-conversion-dynamique-dynamic_cast">25.10 — Conversion dynamique (dynamic_cast)</h1>
+<p>Au chapitre <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.6%20-%20Conversion%20explicite%20de%20type%20%28cast%29%20et%20static_cast.html">10.6 -- Explicit type conversion (casting) and static_cast</a>, nous avons étudié le concept de conversion de type (cast) et l'utilisation de static_cast pour convertir des variables d'un type à un autre.</p>
+<p>Dans cette leçon, nous allons poursuivre avec un autre type de conversion : dynamic_cast.</p>
+<p><strong>Le besoin de dynamic_cast</strong></p>
+<p>Lorsque vous travaillez avec le polymorphisme, vous rencontrerez souvent des cas où vous disposez d'un pointeur vers une classe de base, mais où vous voulez accéder à des informations qui n'existent que dans une classe dérivée.</p>
+<p>Considérons le programme suivant (un peu artificiel) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Base
+{
+protected:
+    int m_value{};
+
+public:
+    Base(int value)
+        : m_value{value}
+    {
+    }
+
+    virtual ~Base() = default;
+};
+
+class Derived : public Base
+{
+protected:
+    std::string m_name{};
+
+public:
+    Derived(int value, std::string_view name)
+        : Base{value}, m_name{name}
+    {
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+};
+
+Base* getObject(bool returnDerived)
+{
+    if (returnDerived)
+        return new Derived{1, &quot;Apple&quot;};
+    else
+        return new Base{2};
+}
+
+int main()
+{
+    Base* b{ getObject(true) };
+
+    // comment afficher le nom de l'objet Derived ici, alors que nous n'avons qu'un pointeur Base ?
+
+    delete b;
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce programme, la fonction getObject() renvoie toujours un pointeur Base, mais ce pointeur peut pointer soit vers un objet Base, soit vers un objet Derived. Dans le cas où le pointeur Base pointe effectivement vers un objet Derived, comment appeler Derived::getName() ?</p>
+<p>Une solution consisterait à ajouter à Base une fonction virtuelle appelée getName() (ainsi nous pourrions l'appeler avec un pointeur ou une référence Base, et elle se résoudrait dynamiquement en Derived::getName()). Mais que renverrait cette fonction si on l'appelait avec un pointeur ou une référence Base pointant en réalité vers un objet Base ? Il n'existe pas vraiment de valeur qui ait un sens. De plus, nous encombrerions la classe Base avec des éléments qui ne devraient réellement concerner que la classe Derived.</p>
+<p>Nous savons que C++ vous permet de convertir implicitement un pointeur Derived en pointeur Base (c'est d'ailleurs ce que fait getObject()). Ce processus est parfois appelé <strong>upcasting</strong> (conversion ascendante). Mais que se passerait-il s'il existait un moyen de reconvertir un pointeur Base en pointeur Derived ? Nous pourrions alors appeler Derived::getName() directement à l'aide de ce pointeur, sans nous soucier de la résolution des fonctions virtuelles.</p>
+<p><strong>dynamic_cast</strong></p>
+<p>C++ fournit un opérateur de conversion nommé <strong>dynamic_cast</strong> qui peut être utilisé précisément dans ce but. Bien que les conversions dynamiques aient plusieurs capacités, leur usage le plus courant est de convertir des pointeurs de classe de base en pointeurs de classe dérivée. Ce processus est appelé <strong>downcasting</strong> (conversion descendante).</p>
+<p>L'utilisation de dynamic_cast fonctionne comme celle de static_cast. Voici notre main() précédent, qui utilise un dynamic_cast pour reconvertir notre pointeur Base en pointeur Derived :</p>
+<pre><code class="language-cpp">int main()
+{
+    Base* b{ getObject(true) };
+
+    Derived* d{ dynamic_cast&lt;Derived*&gt;(b) }; // utilise un cast dynamique pour convertir le pointeur Base en pointeur Derived
+
+    std::cout &lt;&lt; &quot;The name of the Derived is: &quot; &lt;&lt; d-&gt;getName() &lt;&lt; '\n';
+
+    delete b;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+The name of the Derived is: Apple
+</code></pre>
+<p><strong>Échec de dynamic_cast</strong></p>
+<p>L'exemple ci-dessus fonctionne parce que b pointe effectivement vers un objet Derived, donc la conversion de b en pointeur Derived réussit.</p>
+<p>Cependant, nous avons fait une hypothèse très dangereuse : que b pointe vers un objet Derived. Que se passerait-il si b ne pointait pas vers un objet Derived ? Il suffit pour le vérifier de remplacer l'argument de getObject() de true à false. Dans ce cas, getObject() renverra un pointeur Base vers un objet Base. Lorsque nous essaierons de faire un dynamic_cast de celui-ci vers Derived, il échouera, car la conversion ne peut pas être effectuée.</p>
+<p>Si un dynamic_cast échoue, le résultat de la conversion est un pointeur nul.</p>
+<p>Comme nous n'avons pas vérifié si le résultat était un pointeur nul, nous accédons à d-&gt;getName(), ce qui tente de déréférencer un pointeur nul, entraînant un comportement indéfini (probablement un plantage).</p>
+<p>Pour rendre ce programme sûr, nous devons nous assurer que le résultat du dynamic_cast a bien réussi :</p>
+<pre><code class="language-cpp">int main()
+{
+    Base* b{ getObject(true) };
+
+    Derived* d{ dynamic_cast&lt;Derived*&gt;(b) }; // utilise un cast dynamique pour convertir le pointeur Base en pointeur Derived
+
+    if (d) // vérifie que d n'est pas nul
+        std::cout &lt;&lt; &quot;The name of the Derived is: &quot; &lt;&lt; d-&gt;getName() &lt;&lt; '\n';
+
+    delete b;
+
+    return 0;
+}
+</code></pre>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Vérifiez toujours que vos conversions dynamiques ont réussi en testant si le résultat est un pointeur nul.</p>
+</div>
+<p>Notez que, comme dynamic_cast effectue une vérification de cohérence à l'exécution (pour s'assurer que la conversion est possible), son utilisation entraîne une pénalité de performance.</p>
+<p>Notez également qu'il existe plusieurs cas où la conversion descendante avec dynamic_cast ne fonctionne pas :</p>
+<ol>
+<li>En cas d'héritage protégé (protected) ou privé (private).</li>
+<li>Pour les classes qui ne déclarent ni n'héritent aucune fonction virtuelle (et qui n'ont donc pas de table virtuelle).</li>
+<li>Dans certains cas impliquant des classes de base virtuelles (consultez <a href="https://msdn.microsoft.com/en-us/library/cby9kycs.aspx">cette page</a> pour un exemple de ces cas et la manière de les résoudre).</li>
+</ol>
+<p><strong>Conversion descendante avec static_cast</strong></p>
+<p>Il s'avère que la conversion descendante peut aussi être réalisée avec static_cast. La principale différence est que static_cast n'effectue aucune vérification de type à l'exécution pour s'assurer que ce que vous faites a un sens. Cela rend static_cast plus rapide, mais plus dangereux. Si vous convertissez un Base* en Derived*, la conversion « réussira » même si le pointeur Base ne pointe pas vers un objet Derived. Cela entraînera un comportement indéfini lorsque vous tenterez d'accéder au pointeur Derived obtenu (qui pointe en réalité vers un objet Base).</p>
+<p>Si vous êtes absolument certain que la conversion descendante du pointeur réussira, l'utilisation de static_cast est acceptable. Une façon de vous assurer de connaître le type de l'objet pointé est d'utiliser une fonction virtuelle. Voici une façon (pas très bonne) d'y parvenir :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+// Identifiant de classe
+enum class ClassID
+{
+    base,
+    derived
+    // D'autres pourront être ajoutés ici plus tard
+};
+
+class Base
+{
+protected:
+    int m_value{};
+
+public:
+    Base(int value)
+        : m_value{value}
+    {
+    }
+
+    virtual ~Base() = default;
+    virtual ClassID getClassID() const { return ClassID::base; }
+};
+
+class Derived : public Base
+{
+protected:
+    std::string m_name{};
+
+public:
+    Derived(int value, std::string_view name)
+        : Base{value}, m_name{name}
+    {
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+    ClassID getClassID() const override { return ClassID::derived; }
+
+};
+
+Base* getObject(bool bReturnDerived)
+{
+    if (bReturnDerived)
+        return new Derived{1, &quot;Apple&quot;};
+    else
+        return new Base{2};
+}
+
+int main()
+{
+    Base* b{ getObject(true) };
+
+    if (b-&gt;getClassID() == ClassID::derived)
+    {
+        // Nous savons déjà que b pointe vers un objet Derived, donc cela devrait toujours réussir
+        Derived* d{ static_cast&lt;Derived*&gt;(b) };
+        std::cout &lt;&lt; &quot;The name of the Derived is: &quot; &lt;&lt; d-&gt;getName() &lt;&lt; '\n';
+    }
+
+    delete b;
+
+    return 0;
+}
+</code></pre>
+<p>Mais si vous vous donnez tant de mal pour implémenter cela (et que vous acceptez le coût d'un appel de fonction virtuelle et du traitement de son résultat), autant utiliser directement dynamic_cast.</p>
+<p>Considérez aussi ce qui se passerait si notre objet était en réalité une classe dérivée de Derived (appelons-la <code>D2</code>). La vérification <code>b-&gt;getClassID() == ClassID::derived</code> ci-dessus échouerait, car <code>getClassId()</code> renverrait <code>ClassID::D2</code>, qui n'est pas égal à <code>ClassID::derived</code>. Or, la conversion dynamique de <code>D2</code> en <code>Derived</code> réussirait, puisqu'un <code>D2</code> est un <code>Derived</code> !</p>
+<p><strong>dynamic_cast et références</strong></p>
+<p>Bien que tous les exemples ci-dessus montrent la conversion dynamique de pointeurs (cas plus courant), dynamic_cast peut aussi être utilisé avec des références. Le fonctionnement est analogue à celui des pointeurs.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Base
+{
+protected:
+    int m_value;
+
+public:
+    Base(int value)
+        : m_value{value}
+    {
+    }
+
+    virtual ~Base() = default; 
+};
+
+class Derived : public Base
+{
+protected:
+    std::string m_name;
+
+public:
+    Derived(int value, std::string_view name)
+        : Base{value}, m_name{name}
+    {
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+};
+
+int main()
+{
+    Derived apple{1, &quot;Apple&quot;}; // crée une pomme
+    Base&amp; b{ apple }; // la référence de base désigne l'objet
+    Derived&amp; d{ dynamic_cast&lt;Derived&amp;&gt;(b) }; // conversion dynamique utilisant une référence au lieu d'un pointeur
+
+    std::cout &lt;&lt; &quot;The name of the Derived is: &quot; &lt;&lt; d.getName() &lt;&lt; '\n'; // nous pouvons accéder à Derived::getName via d
+
+    return 0;
+}
+</code></pre>
+<p>Comme C++ n'a pas de « référence nulle », dynamic_cast ne peut pas renvoyer de référence nulle en cas d'échec. À la place, si la conversion dynamique d'une référence échoue, une exception de type std::bad_cast est lancée. Nous parlerons des exceptions plus tard dans ce tutoriel.</p>
+<p><strong>dynamic_cast ou static_cast</strong></p>
+<p>Les nouveaux programmeurs hésitent parfois entre static_cast et dynamic_cast. La réponse est assez simple : utilisez static_cast sauf si vous effectuez une conversion descendante, auquel cas dynamic_cast est généralement le meilleur choix. Cependant, vous devriez aussi envisager d'éviter toute conversion et d'utiliser simplement des fonctions virtuelles.</p>
+<p><strong>Conversion descendante ou fonctions virtuelles</strong></p>
+<p>Certains développeurs estiment que dynamic_cast est un mal et révèle une mauvaise conception de classes. Ils préconisent plutôt l'usage des fonctions virtuelles.</p>
+<p>En général, l'usage d'une fonction virtuelle <em>devrait</em> être préféré à la conversion descendante. Cependant, il existe des situations où la conversion descendante est le meilleur choix :</p>
+<ul>
+<li>Lorsque vous ne pouvez pas modifier la classe de base pour y ajouter une fonction virtuelle (par exemple parce que la classe de base fait partie de la bibliothèque standard)</li>
+<li>Lorsque vous avez besoin d'accéder à quelque chose de spécifique à la classe dérivée (par exemple une fonction d'accès qui n'existe que dans la classe dérivée)</li>
+<li>Lorsque l'ajout d'une fonction virtuelle à la classe de base n'a pas de sens (par exemple parce qu'il n'existe aucune valeur appropriée que la classe de base pourrait renvoyer). Utiliser une fonction virtuelle pure peut être une option ici si vous n'avez pas besoin d'instancier la classe de base.</li>
+</ul>
+<p><strong>Attention à dynamic_cast et RTTI</strong></p>
+<p>L'identification de type à l'exécution (RTTI, Run-time type information) est une fonctionnalité de C++ qui expose des informations sur le type de données d'un objet à l'exécution. Cette capacité est exploitée par dynamic_cast. Comme la RTTI a un coût non négligeable en mémoire, certains compilateurs permettent de la désactiver comme optimisation. Inutile de dire que, si vous faites cela, dynamic_cast ne fonctionnera plus correctement.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/dynamic-casting/">https://www.learncpp.com/cpp-tutorial/dynamic-casting/</a></em></p>
+</main>
+</body>
+</html>

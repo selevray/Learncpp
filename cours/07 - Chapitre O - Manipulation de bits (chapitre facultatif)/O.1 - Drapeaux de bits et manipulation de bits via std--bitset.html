@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O.1 — Drapeaux de bits et manipulation de bits via std::bitset</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="o1-drapeaux-de-bits-et-manipulation-de-bits-via-stdbitset">O.1 — Drapeaux de bits et manipulation de bits via std::bitset</h1>
+<p>Sur les architectures informatiques modernes, la plus petite unité de mémoire adressable est l'octet. Comme tous les objets doivent avoir des adresses mémoire uniques, chaque objet occupe au moins un octet. Pour la plupart des types de variables, cela ne pose aucun problème. En revanche, pour les valeurs booléennes, c'est un gaspillage (jeu de mots intentionnel). Un type booléen ne possède que deux états : vrai (1) ou faux (0). Ces deux états ne nécessitent qu'un seul bit pour être stockés. Pourtant, comme une variable doit occuper au moins un octet, soit 8 bits, un booléen utilise 1 bit et laisse les 7 autres inutilisés.</p>
+<p>Dans la grande majorité des cas, cela n'a pas d'importance : nous ne manquons généralement pas de mémoire au point de devoir nous soucier de 7 bits perdus. Nous avons plutôt intérêt à optimiser la lisibilité et la maintenabilité. Toutefois, dans certains cas où le stockage est critique, il peut être utile de « compresser » 8 valeurs booléennes individuelles dans un seul octet afin de gagner de la place.</p>
+<p>Ces opérations nécessitent de pouvoir manipuler les objets au niveau du bit. Heureusement, C++ nous fournit les outils pour le faire. La modification de bits individuels dans un objet s'appelle la <strong>manipulation de bits</strong> (bit manipulation).</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>La manipulation de bits est très utilisée dans certains contextes de programmation (par exemple l'infographie, le chiffrement, la compression et l'optimisation), mais beaucoup moins en programmation générale.</p>
+<p>C'est pourquoi ce chapitre entier est facultatif. N'hésitez pas à le sauter ou à le parcourir rapidement, et à y revenir plus tard.</p>
+</div>
+<h2 id="drapeaux-de-bits">Drapeaux de bits</h2>
+<p>Jusqu'ici, nous avons utilisé des variables pour contenir une valeur unique :</p>
+<pre><code class="language-cpp">int foo { 5 }; // affecte à foo la valeur 5 (utilise probablement 32 bits de stockage)
+std::cout &lt;&lt; foo; // affiche la valeur 5
+</code></pre>
+<p>Cependant, plutôt que de considérer un objet comme contenant une seule valeur, nous pouvons traiter chaque bit de l'objet comme une valeur booléenne indépendante. Lorsque les bits d'un objet sont utilisés comme des valeurs booléennes, on les appelle des <strong>drapeaux de bits</strong> (bit flags).</p>
+<div class="callout quote"><p class="callout-title">Nomenclature</p>
+<p>Un bit valant <code>0</code> est dit « faux », « désactivé » ou « non positionné ».<br />
+Un bit valant <code>1</code> est dit « vrai », « activé » ou « positionné ».<br />
+Lorsqu'un bit passe de <code>0</code> à <code>1</code> ou de <code>1</code> à <code>0</code>, on dit qu'il a été « basculé » ou « inversé ».</p>
+</div>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>En informatique, un <strong>drapeau</strong> (flag) est une valeur qui signale l'existence d'une condition dans un programme. Avec un drapeau de bit, la valeur <code>true</code> signifie que la condition est remplie.</p>
+<p>De façon analogue, aux États-Unis, de nombreuses boîtes aux lettres possèdent de petits drapeaux physiques (généralement rouges) fixés sur le côté. Lorsqu'un courrier sortant attend d'être récupéré par le facteur, le drapeau est levé pour signaler la présence de ce courrier.</p>
+</div>
+<p>Pour définir un ensemble de drapeaux de bits, nous utilisons généralement un entier non signé de la taille appropriée (8 bits, 16 bits, 32 bits, etc., selon le nombre de drapeaux nécessaires), ou <code>std::bitset</code>.</p>
+<pre><code class="language-cpp">#include &lt;bitset&gt; // pour std::bitset
+
+std::bitset&lt;8&gt; mybitset {}; // une taille de 8 bits permet de stocker 8 drapeaux
+</code></pre>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>La manipulation de bits est l'un des rares cas où vous devriez, sans ambiguïté, utiliser des entiers non signés (ou <code>std::bitset</code>).</p>
+</div>
+<p>Dans cette leçon, nous montrerons comment réaliser la manipulation de bits de manière simple, grâce à <code>std::bitset</code>. Dans la prochaine série de leçons, nous verrons comment la réaliser de façon plus difficile, mais plus polyvalente.</p>
+<h2 id="numérotation-des-bits-et-positions-de-bits">Numérotation des bits et positions de bits</h2>
+<p>Pour une séquence de bits, on numérote généralement les bits de droite à gauche, en commençant par 0 (et non par 1). Chaque numéro désigne une <strong>position de bit</strong> (bit position).</p>
+<pre><code>
+76543210  Position du bit
+00000101  Séquence de bits
+</code></pre>
+<p>Pour la séquence de bits 0000 0101, les bits situés aux positions 0 et 2 ont la valeur 1, et les autres bits ont la valeur 0.</p>
+<h2 id="manipuler-des-bits-via-stdbitset">Manipuler des bits via <code>std::bitset</code></h2>
+<p>Dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.3%20-%20Syst%C3%A8mes%20de%20num%C3%A9ration%20%28d%C3%A9cimal%2C%20binaire%2C%20hexad%C3%A9cimal%20et%20octal%29.html">5.3 -- Systèmes de numération (décimal, binaire, hexadécimal et octal)</a>, nous avons déjà montré comment utiliser un <code>std::bitset</code> pour afficher des valeurs en binaire. Toutefois, ce n'est pas la seule chose utile que <code>std::bitset</code> sait faire.</p>
+<p><code>std::bitset</code> fournit 4 fonctions membres essentielles pour la manipulation de bits :</p>
+<ul>
+<li>test() permet de savoir si un bit vaut 0 ou 1.</li>
+<li>set() permet d'activer un bit (sans effet si le bit est déjà activé).</li>
+<li>reset() permet de désactiver un bit (sans effet si le bit est déjà désactivé).</li>
+<li>flip() permet de basculer la valeur d'un bit de 0 à 1 ou inversement.</li>
+</ul>
+<p>Chacune de ces fonctions prend pour unique argument la position du bit sur lequel on souhaite agir.</p>
+<p>Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;bitset&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::bitset&lt;8&gt; bits{ 0b0000'0101 }; // il nous faut 8 bits, on part du motif binaire 0000 0101
+    bits.set(3);   // place le bit en position 3 à 1 (on obtient maintenant 0000 1101)
+    bits.flip(4);  // bascule le bit 4 (on obtient maintenant 0001 1101)
+    bits.reset(4); // remet le bit 4 à 0 (on obtient maintenant 0000 1101)
+
+    std::cout &lt;&lt; &quot;All the bits: &quot; &lt;&lt; bits&lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Bit 3 has value: &quot; &lt;&lt; bits.test(3) &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Bit 4 has value: &quot; &lt;&lt; bits.test(4) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+All the bits: 00001101
+Bit 3 has value: 1
+Bit 4 has value: 0
+</code></pre>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Nous avons présenté les fonctions membres dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.7%20-%20Introduction%20%C3%A0%20%60std--string%60.html">5.7 -- Introduction à std::string</a>. Avec une fonction ordinaire, on appelle <code>function(object)</code>. Avec une fonction membre, on appelle <code>object.function()</code>.</p>
+<p>Nous avons abordé le préfixe de littéral binaire <code>0b</code> et le séparateur de chiffres <code>'</code> dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.3%20-%20Syst%C3%A8mes%20de%20num%C3%A9ration%20%28d%C3%A9cimal%2C%20binaire%2C%20hexad%C3%A9cimal%20et%20octal%29.html">5.3 -- Systèmes de numération (décimal, binaire, hexadécimal et octal)</a>.</p>
+</div>
+<p>Donner des noms à nos bits peut rendre notre code plus lisible :</p>
+<pre><code class="language-cpp">#include &lt;bitset&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    [[maybe_unused]] constexpr int  isHungry   { 0 };
+    [[maybe_unused]] constexpr int  isSad      { 1 };
+    [[maybe_unused]] constexpr int  isMad      { 2 };
+    [[maybe_unused]] constexpr int  isHappy    { 3 };
+    [[maybe_unused]] constexpr int  isLaughing { 4 };
+    [[maybe_unused]] constexpr int  isAsleep   { 5 };
+    [[maybe_unused]] constexpr int  isDead     { 6 };
+    [[maybe_unused]] constexpr int  isCrying   { 7 };
+
+    std::bitset&lt;8&gt; me{ 0b0000'0101 }; // il nous faut 8 bits, on part du motif binaire 0000 0101
+    me.set(isHappy);      // place le bit en position 3 à 1 (on obtient maintenant 0000 1101)
+    me.flip(isLaughing);  // bascule le bit 4 (on obtient maintenant 0001 1101)
+    me.reset(isLaughing); // remet le bit 4 à 0 (on obtient maintenant 0000 1101)
+
+    std::cout &lt;&lt; &quot;All the bits: &quot; &lt;&lt; me &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;I am happy: &quot; &lt;&lt; me.test(isHappy) &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;I am laughing: &quot; &lt;&lt; me.test(isLaughing) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons <code>[maybe_unused]</code> dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.4%20-%20Affectation%20et%20initialisation%20de%20variables.html">1.4 -- Affectation et initialisation des variables</a>.</p>
+<p>Dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.2%20-%20%C3%89num%C3%A9rations%20non%20d%C3%A9limit%C3%A9es.html">13.2 -- Énumérations non délimitées</a>, nous montrons comment les énumérateurs constituent une collection encore meilleure de bits nommés.</p>
+</div>
+<h2 id="que-faire-si-nous-voulons-lire-ou-écrire-plusieurs-bits-à-la-fois">Que faire si nous voulons lire ou écrire plusieurs bits à la fois</h2>
+<p><code>std::bitset</code> ne facilite pas cette tâche. Pour cela, ou si nous voulons utiliser des entiers non signés comme drapeaux de bits à la place de <code>std::bitset</code>, il faut recourir à des méthodes plus traditionnelles. Nous les verrons dans les deux ou trois prochaines leçons.</p>
+<h2 id="la-taille-de-stdbitset">La taille de <code>std::bitset</code></h2>
+<p>Une surprise possible est que <code>std::bitset</code> est optimisé pour la vitesse, et non pour l'économie de mémoire. La taille d'un <code>std::bitset</code> correspond généralement au nombre d'octets nécessaires pour contenir les bits, arrondi <em>au-dessus</em> au multiple de <code>sizeof(size_t)</code> le plus proche, soit 4 octets sur les machines 32 bits et 8 octets sur les machines 64 bits.</p>
+<p>Ainsi, un <code>std::bitset&lt;8&gt;</code> occupera généralement 4 ou 8 octets en mémoire, alors qu'il ne lui faudrait techniquement qu'un seul octet pour stocker 8 bits. <code>std::bitset</code> est donc surtout utile lorsque l'on recherche le confort d'utilisation, et non l'économie de mémoire.</p>
+<h2 id="interroger-un-stdbitset">Interroger un <code>std::bitset</code></h2>
+<p>Quelques autres fonctions membres sont souvent utiles :</p>
+<ul>
+<li>size() renvoie le nombre de bits du bitset.</li>
+<li>count() renvoie le nombre de bits du bitset qui valent <code>true</code>.</li>
+<li>all() renvoie un booléen indiquant si tous les bits valent <code>true</code>.</li>
+<li>any() renvoie un booléen indiquant si au moins un bit vaut <code>true</code>.</li>
+<li>none() renvoie un booléen indiquant si aucun bit ne vaut <code>true</code>.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;bitset&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::bitset&lt;8&gt; bits{ 0b0000'1101 };
+    std::cout &lt;&lt; bits.size() &lt;&lt; &quot; bits are in the bitset\n&quot;;
+    std::cout &lt;&lt; bits.count() &lt;&lt; &quot; bits are set to true\n&quot;;
+
+    std::cout &lt;&lt; std::boolalpha;
+    std::cout &lt;&lt; &quot;All bits are true: &quot; &lt;&lt; bits.all() &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Some bits are true: &quot; &lt;&lt; bits.any() &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;No bits are true: &quot; &lt;&lt; bits.none() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+8 bits are in the bitset
+3 bits are set to true
+All bits are true: false
+Some bits are true: true
+No bits are true: false
+</code></pre>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/bit-flags-and-bit-manipulation-via-stdbitset/">https://www.learncpp.com/cpp-tutorial/bit-flags-and-bit-manipulation-via-stdbitset/</a></em></p>
+</main>
+</body>
+</html>

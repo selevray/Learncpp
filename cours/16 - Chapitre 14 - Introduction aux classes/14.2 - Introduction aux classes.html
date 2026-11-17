@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.2 — Introduction aux classes</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="142-introduction-aux-classes">14.2 — Introduction aux classes</h1>
+<p>Dans le chapitre précédent, nous avons étudié les structs (<a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.7%20-%20Introduction%20aux%20structures%2C%20membres%20et%20s%C3%A9lection%20de%20membres.html">13.7 -- Introduction aux structs, membres et accès aux membres</a>) et vu qu'ils sont très pratiques pour regrouper plusieurs variables membres dans un seul objet, que l'on peut initialiser et passer en un bloc. Autrement dit, les structs offrent un moyen commode de stocker et de déplacer des valeurs de données liées entre elles.</p>
+<p>Considérez le struct suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Date
+{
+    int day{};
+    int month{};
+    int year{};
+};
+
+void printDate(const Date&amp; date)
+{
+    std::cout &lt;&lt; date.day &lt;&lt; '/' &lt;&lt; date.month &lt;&lt; '/' &lt;&lt; date.year; // on suppose le format JJ/MM/AA
+}
+
+int main()
+{
+    Date date{ 4, 10, 21 }; // initialisation par agrégat
+    printDate(date);        // on peut passer le struct entier à une fonction
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, nous créons un objet <code>Date</code>, puis nous le passons à une fonction qui affiche la date. Ce programme affiche :</p>
+<pre><code>
+4/10/21
+</code></pre>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Dans ces tutoriels, tous nos structs sont des agrégats. Nous abordons les agrégats dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.8%20-%20Initialisation%20par%20agr%C3%A9gat%20des%20structures.html">13.8 -- Initialisation par agrégat d'un struct</a>.</p>
+</div>
+<p>Aussi utiles que soient les structs, ils présentent un certain nombre de lacunes qui compliquent la construction de programmes grands et complexes (en particulier lorsqu'ils sont développés par plusieurs personnes).</p>
+<h2 id="le-problème-des-invariants-de-classe">Le problème des invariants de classe</h2>
+<p>La principale difficulté des structs est sans doute qu'ils ne fournissent aucun moyen efficace de documenter et de faire respecter les invariants de classe. Dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.6%20-%20Assert%20et%20static_assert.html">9.6 -- assert et static_assert</a>, nous avons défini un invariant comme « une condition qui doit être vraie pendant l'exécution d'un composant ».</p>
+<p>Dans le contexte des types classe (qui comprennent les structs, les classes et les unions), un <strong>invariant de classe</strong> est une condition qui doit rester vraie pendant toute la durée de vie d'un objet pour que celui-ci reste dans un état valide. Un objet dont l'invariant de classe est violé est dit dans un <strong>état invalide</strong>, et l'utilisation ultérieure de cet objet peut entraîner un comportement inattendu ou indéfini.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Utiliser un objet dont l'invariant de classe a été violé peut entraîner un comportement inattendu ou indéfini.</p>
+</div>
+<p>Considérons d'abord le struct suivant :</p>
+<pre><code class="language-cpp">struct Pair
+{
+    int first {};
+    int second {};
+};
+</code></pre>
+<p>Les membres <code>first</code> et <code>second</code> peuvent être modifiés indépendamment l'un de l'autre et prendre n'importe quelle valeur, donc le struct <code>Pair</code> n'a pas d'invariant.</p>
+<p>Considérons maintenant le struct suivant, presque identique :</p>
+<pre><code class="language-cpp">struct Fraction
+{
+    int numerator { 0 };
+    int denominator { 1 };
+};
+</code></pre>
+<p>Les mathématiques nous apprennent qu'une fraction dont le dénominateur vaut <code>0</code> n'est pas définie (la valeur d'une fraction est son numérateur divisé par son dénominateur, et une division par <code>0</code> n'a pas de sens). Nous voulons donc garantir que le membre <code>denominator</code> d'un objet Fraction ne vaut jamais <code>0</code>. Si c'est le cas, l'objet Fraction est dans un état invalide, et son utilisation ultérieure peut provoquer un comportement indéfini.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Fraction
+{
+    int numerator { 0 };
+    int denominator { 1 }; // invariant de classe : ne devrait jamais valoir 0
+};
+
+void printFractionValue(const Fraction&amp; f)
+{
+     std::cout &lt;&lt; f.numerator / f.denominator &lt;&lt; '\n';
+}
+
+int main()
+{
+    Fraction f { 5, 0 };   // création d'une Fraction avec un dénominateur nul
+    printFractionValue(f); // provoque une erreur de division par zéro
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, nous utilisons un commentaire pour documenter l'invariant de Fraction. Nous fournissons aussi un initialiseur de membre par défaut pour que <code>denominator</code> vaille <code>1</code> si l'utilisateur ne fournit pas de valeur d'initialisation. Ainsi, notre objet Fraction reste valide si l'utilisateur décide de l'initialiser par valeur. C'est un début acceptable.</p>
+<p>Mais rien ne nous empêche de violer explicitement cet invariant : lorsque nous créons <code>Fraction f</code>, nous utilisons l'initialisation par agrégat pour initialiser explicitement le dénominateur à <code>0</code>. Cela ne provoque pas de problème immédiat, mais notre objet est désormais dans un état invalide, et toute utilisation ultérieure peut causer un comportement inattendu ou indéfini.</p>
+<p>C'est exactement ce que l'on observe plus tard, lorsque nous appelons <code>printFractionValue(f)</code> : le programme se termine à cause d'une erreur de division par zéro.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Une petite amélioration consisterait à écrire <code>assert(f.denominator != 0);</code> en début de corps de <code>printFractionValue</code>. Cela ajoute de la valeur documentaire au code et rend plus évidente la précondition violée. Mais, du point de vue du comportement, cela ne change pas grand-chose. Nous voulons vraiment détecter ces problèmes à la source (lorsque le membre reçoit une mauvaise valeur à l'initialisation ou à l'affectation), et non en aval (lorsque cette mauvaise valeur est utilisée).</p>
+</div>
+<p>Vu la relative simplicité de l'exemple Fraction, il n'est pas très difficile d'éviter de créer des objets Fraction invalides. En revanche, dans une base de code plus complexe, qui utilise beaucoup de structs, des structs avec de nombreux membres ou des membres aux relations complexes, il n'est pas toujours évident de savoir quelles combinaisons de valeurs peuvent violer un invariant de classe.</p>
+<h2 id="un-invariant-de-classe-plus-complexe">Un invariant de classe plus complexe</h2>
+<p>L'invariant de Fraction est simple : le membre <code>denominator</code> ne peut pas valoir <code>0</code>. C'est facile à comprendre sur le plan conceptuel et assez simple à respecter.</p>
+<p>Les invariants de classe deviennent plus délicats lorsque les membres d'un struct doivent avoir des valeurs corrélées.</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+struct Employee
+{
+    std::string name { };
+    char firstInitial { }; // doit toujours contenir le premier caractère de `name` (ou `0`)
+};
+</code></pre>
+<p>Dans ce struct (mal conçu), le caractère stocké dans le membre <code>firstInitial</code> doit toujours correspondre au premier caractère de <code>name</code>.</p>
+<p>Lorsqu'un objet <code>Employee</code> est initialisé, c'est à l'utilisateur de s'assurer que l'invariant de classe est respecté. Et si <code>name</code> reçoit une nouvelle valeur, c'est encore à lui de veiller à mettre aussi <code>firstInitial</code> à jour. Cette corrélation peut ne pas être évidente pour le développeur qui utilise un objet Employee, et même si elle l'est, il peut oublier de la respecter.</p>
+<p>Même si nous écrivons des fonctions qui aident à créer et mettre à jour les objets Employee (en veillant à ce que <code>firstInitial</code> soit toujours calculé à partir du premier caractère de <code>name</code>), nous comptons toujours sur l'utilisateur pour connaître ces fonctions et les utiliser.</p>
+<p>En bref, compter sur l'utilisateur d'un objet pour qu'il respecte les invariants de classe risque fortement de produire du code problématique.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Compter sur l'utilisateur d'un objet pour qu'il respecte les invariants de classe risque fortement de causer des problèmes.</p>
+</div>
+<p>Idéalement, nous aimerions rendre nos types classe infaillibles, de sorte qu'un objet ne puisse pas être placé dans un état invalide, ou signale immédiatement qu'il l'est (plutôt que de laisser un comportement indéfini surgir à un moment imprévisible dans le futur).</p>
+<p>Les structs (en tant qu'agrégats) ne disposent tout simplement pas des mécanismes nécessaires pour résoudre ce problème de façon élégante.</p>
+<h2 id="introduction-aux-classes">Introduction aux classes</h2>
+<p>Lors du développement du C++, Bjarne Stroustrup voulait introduire des fonctionnalités permettant aux développeurs de créer des types définis par le programme, utilisables de manière plus intuitive. Il cherchait aussi des solutions élégantes à certains pièges fréquents et à certains problèmes de maintenance qui affectent les programmes grands et complexes (comme le problème de l'invariant de classe mentionné plus haut).</p>
+<p>S'appuyant sur son expérience d'autres langages de programmation (en particulier Simula, le premier langage orienté objet), Bjarne était convaincu qu'il était possible de concevoir un type défini par le programme suffisamment général et puissant pour servir à presque tout. En hommage à Simula, il a appelé ce type une <em>classe</em> (<em>class</em>).</p>
+<p>Tout comme les structs, une <strong>classe</strong> (<strong>class</strong>) est un type composé défini par le programme, qui peut avoir de nombreuses variables membres de types différents.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>D'un point de vue technique, les structs et les classes sont presque identiques : tout exemple implémenté avec un struct pourrait l'être avec une classe, et inversement. En pratique, toutefois, on n'utilise pas les structs et les classes de la même manière.</p>
+<p>Nous traitons les différences techniques et pratiques entre structs et classes dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.5%20-%20Membres%20publics%20et%20priv%C3%A9s%20et%20sp%C3%A9cificateurs%20d%27acc%C3%A8s.html">14.5 -- Membres publics et privés et spécificateurs d'accès</a>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous expliquons comment les classes résolvent le problème des invariants dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.8%20-%20Les%20avantages%20du%20masquage%20de%20donn%C3%A9es%20%28encapsulation%29.html">14.8 -- Les avantages du masquage des données (encapsulation)</a>.</p>
+</div>
+<h2 id="définir-une-classe">Définir une classe</h2>
+<p>Une classe étant un type de données défini par le programme, elle doit être définie avant d'être utilisée. Les classes se définissent de manière similaire aux structs, à ceci près que l'on utilise le mot-clé <code>class</code> au lieu de <code>struct</code>. Par exemple, voici la définition d'une classe employé simple :</p>
+<pre><code class="language-cpp">class Employee
+{
+    int m_id {};
+    int m_age {};
+    double m_wage {};
+};
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous expliquons dans la leçon à venir <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.5%20-%20Membres%20publics%20et%20priv%C3%A9s%20et%20sp%C3%A9cificateurs%20d%27acc%C3%A8s.html">14.5 -- Membres publics et privés et spécificateurs d'accès</a> pourquoi les variables membres d'une classe sont souvent préfixées par « m_ ».</p>
+</div>
+<p>Pour montrer à quel point classes et structs peuvent se ressembler, le programme suivant est équivalent à celui présenté en début de leçon, mais <code>Date</code> est maintenant une classe au lieu d'un struct :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Date       // on remplace struct par class
+{
+public:          // et on ajoute cette ligne, appelée spécificateur d'accès
+    int m_day{}; // et on ajoute le préfixe « m_ » à chaque nom de membre
+    int m_month{};
+    int m_year{};
+};
+
+void printDate(const Date&amp; date)
+{
+    std::cout &lt;&lt; date.m_day &lt;&lt; '/' &lt;&lt; date.m_month &lt;&lt; '/' &lt;&lt; date.m_year;
+}
+
+int main()
+{
+    Date date{ 4, 10, 21 };
+    printDate(date);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+4/10/21
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous expliquons ce qu'est un spécificateur d'accès dans la leçon à venir <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.5%20-%20Membres%20publics%20et%20priv%C3%A9s%20et%20sp%C3%A9cificateurs%20d%27acc%C3%A8s.html">14.5 -- Membres publics et privés et spécificateurs d'accès</a>.</p>
+</div>
+<h2 id="la-majeure-partie-de-la-bibliothèque-standard-du-c-est-constituée-de-classes">La majeure partie de la bibliothèque standard du C++ est constituée de classes</h2>
+<p>Vous utilisez déjà des objets de classe, peut-être sans le savoir. <code>std::string</code> et <code>std::string_view</code> sont tous deux définis comme des classes. En fait, la plupart des types de la bibliothèque standard qui ne sont pas des alias sont des classes !</p>
+<p>Les classes sont vraiment le cœur du C++ : elles sont si fondamentales que le C++ s'appelait à l'origine « C with classes » (« C avec des classes ») ! Une fois que vous maîtriserez les classes, une grande partie de votre temps en C++ sera consacrée à les écrire, les tester et les utiliser.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Étant donné un ensemble de valeurs (âges, numéros de rue, etc.), nous pouvons vouloir connaître les valeurs minimale et maximale de cet ensemble. Comme les valeurs minimale et maximale sont liées, nous pouvons les regrouper dans un struct, comme ceci :</p>
+<pre><code class="language-cpp">struct minMax
+{
+    int min; // contient la plus petite valeur rencontrée jusqu'ici
+    int max; // contient la plus grande valeur rencontrée jusqu'ici
+};
+</code></pre>
+<p>Toutefois, tel qu'il est écrit, ce struct possède un invariant de classe non précisé. Quel est cet invariant ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>L'invariant est <code>min &lt;= max</code>. Si <code>min</code> devient un jour supérieur à <code>max</code>, tout code qui utilise ce struct risque de mal fonctionner.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-classes/">https://www.learncpp.com/cpp-tutorial/introduction-to-classes/</a></em></p>
+</main>
+</body>
+</html>

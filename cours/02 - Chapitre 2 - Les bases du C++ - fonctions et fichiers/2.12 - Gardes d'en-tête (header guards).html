@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.12 — Gardes d&#x27;en-tête (header guards)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="212-gardes-den-tête-header-guards">2.12 — Gardes d'en-tête (header guards)</h1>
+<h2 id="le-problème-des-définitions-en-double">Le problème des définitions en double</h2>
+<p>Dans la leçon <a href="../02%20-%20Chapitre%202%20-%20Les%20bases%20du%20C%2B%2B%20-%20fonctions%20et%20fichiers/2.7%20-%20D%C3%A9clarations%20anticip%C3%A9es%20et%20d%C3%A9finitions.html">2.7 -- Déclarations anticipées et définitions</a>, nous avons vu qu'un identifiant de variable ou de fonction ne peut avoir qu'une seule définition (la règle de définition unique, ou ODR pour <em>one definition rule</em>). Ainsi, un programme qui définit plusieurs fois un même identifiant de variable provoquera une erreur de compilation :</p>
+<pre><code class="language-cpp">int main()
+{
+    int x; // ceci est une définition de la variable x
+    int x; // erreur de compilation : définition en double
+
+    return 0;
+}
+</code></pre>
+<p>De même, un programme qui définit plusieurs fois une même fonction provoquera une erreur de compilation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int foo() // ceci est une définition de la fonction foo
+{
+    return 5;
+}
+
+int foo() // erreur de compilation : définition en double
+{
+    return 5;
+}
+
+int main()
+{
+    std::cout &lt;&lt; foo();
+    return 0;
+}
+</code></pre>
+<p>Ces programmes sont faciles à corriger (il suffit de supprimer la définition en double). En revanche, avec les fichiers d'en-tête, il est très facile de se retrouver dans une situation où une définition contenue dans un fichier d'en-tête est incluse plus d'une fois. Cela peut arriver lorsqu'un fichier d'en-tête fait un #include d'un autre fichier d'en-tête, ce qui est courant.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Dans les exemples qui suivent, nous définirons certaines fonctions à l'intérieur de fichiers d'en-tête. En général, vous ne devriez pas faire cela.</p>
+<p>Nous le faisons ici car c'est la manière la plus efficace de illustrer certains concepts en utilisant des notions que nous avons déjà vues.</p>
+</div>
+<p>Considérons l'exemple académique suivant :</p>
+<p>square.h :</p>
+<pre><code class="language-cpp">int getSquareSides()
+{
+    return 4;
+}
+</code></pre>
+<p>wave.h :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot;
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot;
+#include &quot;wave.h&quot;
+
+int main()
+{
+    return 0;
+}
+</code></pre>
+<p>Ce programme, pourtant d'apparence anodine, ne compile pas ! Voici ce qui se passe. D'abord, <em>main.cpp</em> fait un #include de <em>square.h</em>, ce qui copie la définition de la fonction <em>getSquareSides</em> dans <em>main.cpp</em>. Ensuite, <em>main.cpp</em> fait un #include de <em>wave.h</em>, qui fait lui-même un #include de <em>square.h</em>. Le contenu de <em>square.h</em> (y compris la définition de la fonction <em>getSquareSides</em>) est donc copié dans <em>wave.h</em>, lequel est ensuite copié dans <em>main.cpp</em>.</p>
+<p>Ainsi, une fois toutes les directives #include résolues, <em>main.cpp</em> ressemble à ceci :</p>
+<pre><code class="language-cpp">int getSquareSides()  // issu de square.h
+{
+    return 4;
+}
+
+int getSquareSides() // issu de wave.h (via square.h)
+{
+    return 4;
+}
+
+int main()
+{
+    return 0;
+}
+</code></pre>
+<p>Nous obtenons des définitions en double, et donc une erreur de compilation. Chaque fichier, pris isolément, est correct. Cependant, comme <em>main.cpp</em> finit par inclure deux fois le contenu de <em>square.h</em>, le problème survient. Si <em>wave.h</em> a besoin de <em>getSquareSides()</em>, et que <em>main.cpp</em> a besoin à la fois de <em>wave.h</em> et de <em>square.h</em>, comment résoudriez-vous ce problème ?</p>
+<h2 id="les-gardes-den-tête">Les gardes d'en-tête</h2>
+<p>La bonne nouvelle est que nous pouvons éviter le problème ci-dessus grâce à un mécanisme appelé <strong>garde d'en-tête</strong> (<em>header guard</em>, ou <em>include guard</em>). Les gardes d'en-tête sont des directives de compilation conditionnelle qui prennent la forme suivante :</p>
+<pre><code class="language-cpp">#ifndef SOME_UNIQUE_NAME_HERE
+#define SOME_UNIQUE_NAME_HERE
+
+// vos déclarations (et certains types de définitions) ici
+
+#endif
+</code></pre>
+<p>Lorsque cet en-tête est inclus avec #include, le préprocesseur vérifie si <em>SOME_UNIQUE_NAME_HERE</em> a déjà été défini dans cette unité de traduction. S'il s'agit de la première inclusion de l'en-tête, <em>SOME_UNIQUE_NAME_HERE</em> n'a pas encore été défini. Par conséquent, le préprocesseur définit <em>SOME_UNIQUE_NAME_HERE</em> et inclut le contenu du fichier. Si l'en-tête est à nouveau inclus dans le même fichier, <em>SOME_UNIQUE_NAME_HERE</em> aura déjà été défini lors de la première inclusion, et le contenu de l'en-tête sera ignoré (grâce au #ifndef).</p>
+<p>Tous vos fichiers d'en-tête devraient posséder des gardes d'en-tête. <em>SOME_UNIQUE_NAME_HERE</em> peut être le nom de votre choix, mais, par convention, il correspond au nom complet du fichier d'en-tête, écrit en majuscules, les espaces et la ponctuation étant remplacés par des tirets bas. Par exemple, <em>square.h</em> aurait pour garde :</p>
+<p>square.h :</p>
+<pre><code class="language-cpp">#ifndef SQUARE_H
+#define SQUARE_H
+
+int getSquareSides()
+{
+    return 4;
+}
+
+#endif
+</code></pre>
+<p>Même les en-têtes de la bibliothèque standard utilisent des gardes d'en-tête. Si vous examinez le fichier d'en-tête iostream de Visual Studio, vous verrez :</p>
+<pre><code class="language-cpp">#ifndef _IOSTREAM_
+#define _IOSTREAM_
+
+// contenu ici
+
+#endif
+</code></pre>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Dans les grands programmes, il est possible d'avoir deux fichiers d'en-tête distincts (inclus depuis des répertoires différents) portant le même nom de fichier (par exemple directoryA\config.h et directoryB\config.h). Si seul le nom du fichier est utilisé pour la garde (par exemple CONFIG_H), ces deux fichiers peuvent finir par utiliser le même nom de garde. Dans ce cas, tout fichier qui inclut (directement ou indirectement) les deux fichiers config.h ne recevra pas le contenu du second fichier à inclure. Cela provoquera probablement une erreur de compilation.</p>
+<p>En raison de ce risque de conflit de noms de gardes, de nombreux développeurs recommandent d'utiliser un nom de garde plus complexe et plus unique. Parmi les bonnes suggestions figurent une convention de nommage de la forme PROJET_CHEMIN_FICHIER_H, FICHIER_NOMBRE-ALÉATOIRE-GRAND_H, ou FICHIER_DATE-DE-CRÉATION_H.</p>
+</div>
+<h2 id="mise-à-jour-de-notre-exemple-précédent-avec-des-gardes-den-tête">Mise à jour de notre exemple précédent avec des gardes d'en-tête</h2>
+<p>Reprenons l'exemple de <em>square.h</em>, en utilisant désormais des gardes d'en-tête. Par souci de rigueur, nous ajouterons également des gardes à <em>wave.h</em>.</p>
+<p>square.h :</p>
+<pre><code class="language-cpp">#ifndef SQUARE_H
+#define SQUARE_H
+
+int getSquareSides()
+{
+    return 4;
+}
+
+#endif
+</code></pre>
+<p>wave.h :</p>
+<pre><code class="language-cpp">#ifndef WAVE_H
+#define WAVE_H
+
+#include &quot;square.h&quot;
+
+#endif
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot;
+#include &quot;wave.h&quot;
+
+int main()
+{
+    return 0;
+}
+</code></pre>
+<p>Une fois que le préprocesseur a résolu toutes les directives #include, ce programme devient :</p>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">// square.h inclus depuis main.cpp
+#ifndef SQUARE_H // square.h inclus depuis main.cpp
+#define SQUARE_H // SQUARE_H est défini ici
+
+// et tout ce contenu est inclus
+int getSquareSides()
+{
+    return 4;
+}
+
+#endif // SQUARE_H
+
+#ifndef WAVE_H // wave.h inclus depuis main.cpp
+#define WAVE_H
+#ifndef SQUARE_H // square.h inclus depuis wave.h, SQUARE_H est déjà défini plus haut
+#define SQUARE_H // donc rien de ce contenu n'est inclus
+
+int getSquareSides()
+{
+    return 4;
+}
+
+#endif // SQUARE_H
+#endif // WAVE_H
+
+int main()
+{
+    return 0;
+}
+</code></pre>
+<p>Voyons comment cela s'évalue.</p>
+<p>D'abord, le préprocesseur évalue <code>#ifndef SQUARE_H</code>. <code>SQUARE_H</code> n'a pas encore été défini, donc le code situé entre ce <code>#ifndef</code> et le <code>#endif</code> suivant est inclus dans la compilation. Ce code définit <code>SQUARE_H</code> et contient la définition de la fonction <code>getSquareSides</code>.</p>
+<p>Ensuite, le <code>#ifndef SQUARE_H</code> suivant est évalué. Cette fois, <code>SQUARE_H</code> est défini (puisqu'il l'a été plus haut), donc le code situé entre ce <code>#ifndef</code> et le <code>#endif</code> suivant est exclu de la compilation.</p>
+<p>Les gardes d'en-tête empêchent les inclusions en double, car la première fois qu'une garde est rencontrée, la macro de garde n'est pas définie, et le contenu protégé est donc inclus. À partir de ce moment, la macro de garde est définie, si bien que toute copie ultérieure du contenu protégé est exclue.</p>
+<h2 id="les-gardes-den-tête-nempêchent-pas-un-en-tête-dêtre-inclus-une-fois-dans-différents-fichiers-de-code">Les gardes d'en-tête n'empêchent pas un en-tête d'être inclus une fois dans différents fichiers de code</h2>
+<p>Notez que l'objectif des gardes d'en-tête est d'empêcher un fichier de code de recevoir plus d'une copie d'un en-tête protégé. Par conception, les gardes d'en-tête n'empêchent <em>pas</em> qu'un fichier d'en-tête donné soit inclus (une fois) dans des fichiers de code distincts. Cela peut aussi causer des problèmes inattendus. Considérons :</p>
+<p>square.h :</p>
+<pre><code class="language-cpp">#ifndef SQUARE_H
+#define SQUARE_H
+
+int getSquareSides()
+{
+    return 4;
+}
+
+int getSquarePerimeter(int sideLength); // déclaration anticipée de getSquarePerimeter
+
+#endif
+</code></pre>
+<p>square.cpp :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot;  // square.h est inclus une fois ici
+
+int getSquarePerimeter(int sideLength)
+{
+    return sideLength * getSquareSides();
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot; // square.h est aussi inclus une fois ici
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;a square has &quot; &lt;&lt; getSquareSides() &lt;&lt; &quot; sides\n&quot;;
+    std::cout &lt;&lt; &quot;a square of length 5 has perimeter length &quot; &lt;&lt; getSquarePerimeter(5) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Notez que <em>square.h</em> est inclus à la fois depuis <em>main.cpp</em> et depuis <em>square.cpp</em>. Cela signifie que le contenu de <em>square.h</em> est inclus une fois dans <em>square.cpp</em> et une fois dans <em>main.cpp</em>.</p>
+<p>Examinons plus en détail pourquoi cela se produit. Lorsque <em>square.h</em> est inclus depuis <em>square.cpp</em>, <em>SQUARE_H</em> est défini jusqu'à la fin de <em>square.cpp</em>. Cette définition empêche <em>square.h</em> d'être inclus une deuxième fois dans <em>square.cpp</em> (c'est précisément le rôle des gardes d'en-tête). Cependant, une fois <em>square.cpp</em> terminé, <em>SQUARE_H</em> n'est plus considéré comme défini. Cela signifie que, lorsque le préprocesseur traite <em>main.cpp</em>, <em>SQUARE_H</em> n'est pas défini au départ dans <em>main.cpp</em>.</p>
+<p>Le résultat final est que <em>square.cpp</em> et <em>main.cpp</em> reçoivent chacun une copie de la définition de <em>getSquareSides</em>. Ce programme compile, mais l'éditeur de liens (linker) signalera que votre programme possède plusieurs définitions de l'identifiant <em>getSquareSides</em> !</p>
+<p>La meilleure façon de contourner ce problème consiste simplement à placer la définition de la fonction dans l'un des fichiers .cpp, de sorte que l'en-tête ne contienne qu'une déclaration anticipée :</p>
+<p>square.h :</p>
+<pre><code class="language-cpp">#ifndef SQUARE_H
+#define SQUARE_H
+
+int getSquareSides(); // déclaration anticipée de getSquareSides
+int getSquarePerimeter(int sideLength); // déclaration anticipée de getSquarePerimeter
+
+#endif
+</code></pre>
+<p>square.cpp :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot;
+
+int getSquareSides() // définition effective de getSquareSides
+{
+    return 4;
+}
+
+int getSquarePerimeter(int sideLength)
+{
+    return sideLength * getSquareSides();
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;square.h&quot; // square.h est aussi inclus une fois ici
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;a square has &quot; &lt;&lt; getSquareSides() &lt;&lt; &quot; sides\n&quot;;
+    std::cout &lt;&lt; &quot;a square of length 5 has perimeter length &quot; &lt;&lt; getSquarePerimeter(5) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, lors de la compilation, la fonction <em>getSquareSides</em> ne possède qu'une seule définition (dans <em>square.cpp</em>), et l'éditeur de liens est satisfait. Le fichier <em>main.cpp</em> peut appeler cette fonction (bien qu'elle soit définie dans <em>square.cpp</em>) parce qu'il inclut <em>square.h</em>, qui contient une déclaration anticipée de la fonction (l'éditeur de liens relie l'appel à <em>getSquareSides</em> depuis <em>main.cpp</em> à la définition de <em>getSquareSides</em> dans <em>square.cpp</em>).</p>
+<h2 id="ne-peut-on-pas-simplement-éviter-les-définitions-dans-les-fichiers-den-tête">Ne peut-on pas simplement éviter les définitions dans les fichiers d'en-tête ?</h2>
+<p>Nous vous avons généralement déconseillé d'inclure des définitions de fonctions dans vos en-têtes. Vous vous demandez peut-être pourquoi il faudrait alors ajouter des gardes d'en-tête, puisqu'elles vous protègent contre quelque chose que vous ne devriez pas faire.</p>
+<p>Il existe plusieurs cas, que nous vous présenterons plus tard, où il est nécessaire de placer des définitions autres que des fonctions dans un fichier d'en-tête. Par exemple, le C++ vous permet de créer vos propres types. Ces types personnalisés sont généralement définis dans des fichiers d'en-tête, afin que leurs définitions soient disponibles dans les fichiers de code qui en ont besoin. Sans garde d'en-tête, un fichier de code pourrait finir avec plusieurs copies (identiques) de la définition d'un même type, ce que le compilateur signalera comme une erreur.</p>
+<p>Ainsi, même s'il n'est pas strictement nécessaire à ce stade du tutoriel d'utiliser des gardes d'en-tête, nous établissons dès maintenant de bonnes habitudes, afin que vous n'ayez pas à désapprendre de mauvaises habitudes plus tard.</p>
+<h2 id="pragma-once">#pragma once</h2>
+<p>Les compilateurs modernes prennent en charge une forme plus simple de gardes d'en-tête, à l'aide de la directive de préprocesseur <code>#pragma</code> :</p>
+<pre><code class="language-cpp">#pragma once
+
+// votre code ici
+</code></pre>
+<p><code>#pragma once</code> a le même objectif que les gardes d'en-tête : empêcher qu'un fichier d'en-tête soit inclus plusieurs fois. Avec les gardes traditionnelles, le développeur est responsable de la protection de l'en-tête (en utilisant les directives de préprocesseur <code>#ifndef</code>, <code>#define</code> et <code>#endif</code>). Avec <code>#pragma once</code>, nous demandons au compilateur de protéger l'en-tête à notre place. La manière exacte dont il s'y prend relève d'un détail propre à chaque implémentation.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Il existe un cas connu où <code>#pragma once</code> échoue généralement. Si un fichier d'en-tête est copié de sorte qu'il existe à plusieurs endroits du système de fichiers, et que, pour une raison quelconque, les deux copies de l'en-tête sont incluses, les gardes d'en-tête élimineront avec succès les doublons identiques, mais <code>#pragma once</code> ne le fera pas (car le compilateur ne reconnaîtra pas que leur contenu est réellement identique).</p>
+</div>
+<p>Pour la plupart des projets, <code>#pragma once</code> fonctionne parfaitement, et de nombreux développeurs le préfèrent désormais, car il est plus simple et source de moins d'erreurs. De nombreux environnements de développement (IDE) ajoutent aussi automatiquement <code>#pragma once</code> en haut d'un nouveau fichier d'en-tête créé via l'IDE.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>La directive <code>#pragma</code> a été conçue pour que les implémenteurs de compilateurs l'utilisent à leur guise. Ainsi, les pragmas pris en charge et leur signification dépendent entièrement de l'implémentation. À l'exception de <code>#pragma once</code>, ne vous attendez pas à ce qu'un pragma fonctionnant sur un compilateur soit reconnu par un autre.</p>
+</div>
+<p>Comme <code>#pragma once</code> n'est pas défini par la norme C++, il est possible que certains compilateurs ne l'implémentent pas. Pour cette raison, certaines entreprises (comme Google) recommandent d'utiliser les gardes d'en-tête traditionnelles. Dans ce tutoriel, nous privilégierons les gardes d'en-tête, car elles constituent la méthode la plus conventionnelle pour protéger les en-têtes. Cependant, la prise en charge de <code>#pragma once</code> est aujourd'hui assez répandue, et si vous souhaitez utiliser <code>#pragma once</code> à la place, cela est généralement accepté en C++ moderne.</p>
+<h2 id="résumé">Résumé</h2>
+<p>Les gardes d'en-tête ont pour but de garantir que le contenu d'un fichier d'en-tête donné n'est pas copié plus d'une fois dans un même fichier, afin d'éviter les définitions en double.</p>
+<p>Les <em>déclarations</em> en double ne posent pas de problème, mais même si votre fichier d'en-tête ne contient que des déclarations (aucune définition), il reste une bonne pratique d'y ajouter des gardes d'en-tête.</p>
+<p>Notez que les gardes d'en-tête n'empêchent <em>pas</em> le contenu d'un fichier d'en-tête d'être copié (une fois) dans différents fichiers du projet. C'est une bonne chose, car nous avons souvent besoin de référencer le contenu d'un même en-tête depuis différents fichiers du projet.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Ajoutez des gardes d'en-tête à ce fichier d'en-tête :</p>
+<p>add.h :</p>
+<pre><code class="language-cpp">int add(int x, int y);
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#ifndef ADD_H
+#define ADD_H
+
+int add(int x, int y);
+
+#endif
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/header-guards/">https://www.learncpp.com/cpp-tutorial/header-guards/</a></em></p>
+</main>
+</body>
+</html>

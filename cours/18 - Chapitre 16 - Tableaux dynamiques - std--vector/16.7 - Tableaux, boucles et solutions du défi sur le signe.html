@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.7 — Tableaux, boucles et solutions du défi sur le signe</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="167-tableaux-boucles-et-solutions-du-défi-sur-le-signe">16.7 — Tableaux, boucles et solutions du défi sur le signe</h1>
+<p>Dans la leçon <a href="../04%20-%20Chapitre%204%20-%20Les%20types%20de%20donn%C3%A9es%20fondamentaux/4.5%20-%20Les%20entiers%20non%20sign%C3%A9s%20et%20pourquoi%20les%20%C3%A9viter.html">4.5 -- Les entiers non signés, et pourquoi il faut les éviter</a>, nous avons indiqué que nous préférons généralement utiliser des valeurs signées pour représenter des quantités, car les valeurs non signées peuvent se comporter de façon surprenante. Cependant, dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.3%20-%20std--vector%20et%20le%20probl%C3%A8me%20de%20la%20longueur%20non%20sign%C3%A9e%20et%20des%20indices.html">16.3 -- std::vector et le problème de la longueur et des indices non signés</a>, nous avons expliqué que <code>std::vector</code> (et les autres classes conteneurs) utilise le type entier non signé <code>std::size_t</code> pour la longueur et les indices.</p>
+<p>Cela peut conduire à des problèmes comme celui-ci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printReverse(const std::vector&lt;T&gt;&amp; arr)
+{
+    for (std::size_t index{ arr.size() - 1 }; index &gt;= 0; --index) // index est non signé
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    printReverse(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Ce code commence par afficher le tableau à l'envers :</p>
+<pre><code>
+9 1 2 8 3 7 6 4
+</code></pre>
+<p>Puis il provoque un comportement indéfini. Il peut afficher des valeurs aberrantes ou faire planter l'application.</p>
+<p>Il y a deux problèmes ici. Premièrement, notre boucle s'exécute tant que <code>index &gt;= 0</code> (autrement dit, tant que <code>index</code> est positif), ce qui est toujours vrai lorsque <code>index</code> est non signé. La boucle ne se termine donc jamais.</p>
+<p>Deuxièmement, lorsque nous décrémentons <code>index</code> alors qu'il vaut <code>0</code>, il revient à une grande valeur positive, que nous utilisons ensuite pour indexer le tableau à l'itération suivante. Cet indice est hors limites et provoque un comportement indéfini. Nous rencontrons le même problème si notre vecteur est vide.</p>
+<p>Bien qu'il existe de nombreuses façons de contourner ces problèmes précis, ce genre de situation est un véritable aimant à bogues.</p>
+<p>Utiliser un type signé pour la variable de boucle évite plus facilement ces problèmes, mais pose ses propres difficultés. Voici une version du problème ci-dessus qui utilise un indice signé :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printReverse(const std::vector&lt;T&gt;&amp; arr)
+{
+    for (int index{ static_cast&lt;int&gt;(arr.size()) - 1}; index &gt;= 0; --index) // index est signé
+    {
+        std::cout &lt;&lt; arr[static_cast&lt;std::size_t&gt;(index)] &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector arr{ 4, 6, 7, 3, 8, 2, 1, 9 };
+
+    printReverse(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Cette version fonctionne comme prévu, mais le code est encombré par deux conversions statiques (<code>static_cast</code>). <code>arr[static_cast&lt;std::size_t&gt;(index)]</code> est particulièrement difficile à lire. Dans ce cas, nous avons amélioré la sécurité au prix d'une lisibilité nettement réduite.</p>
+<p>Voici un autre exemple utilisant un indice signé :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+// Modèle de fonction calculant la valeur moyenne d'un std::vector
+template &lt;typename T&gt;
+T calculateAverage(const std::vector&lt;T&gt;&amp; arr)
+{
+    int length{ static_cast&lt;int&gt;(arr.size()) };
+
+    T average{ 0 };
+    for (int index{ 0 }; index &lt; length; ++index)
+        average += arr[static_cast&lt;std::size_t&gt;(index)];
+    average /= length;
+
+    return average;
+}
+
+int main()
+{
+    std::vector testScore1 { 84, 92, 76, 81, 56 };
+    std::cout &lt;&lt; &quot;The class 1 average is: &quot; &lt;&lt; calculateAverage(testScore1) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>L'encombrement du code par les conversions statiques est franchement pénible.</p>
+<p>Que faire alors ? Il n'existe pas de solution idéale dans ce domaine.</p>
+<p>Plusieurs options sont envisageables ; nous les présentons de ce que nous jugeons la moins bonne à la meilleure. Vous rencontrerez probablement toutes ces options dans du code écrit par d'autres.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Bien que nous en parlions dans le contexte de <code>std::vector</code>, tous les conteneurs de la bibliothèque standard (par exemple <code>std::array</code>) fonctionnent de façon similaire et posent les mêmes difficultés. La discussion qui suit s'applique à chacun d'eux.</p>
+</div>
+<h2 id="désactiver-les-avertissements-de-conversion-signénon-signé">Désactiver les avertissements de conversion signé/non signé</h2>
+<p>Si vous vous demandiez pourquoi les avertissements de conversion signé/non signé sont souvent désactivés par défaut, ce sujet en est l'une des raisons principales. Chaque fois que nous indexons un conteneur de la bibliothèque standard avec un indice signé, un avertissement de conversion de signe est généré. Cela remplit rapidement le journal de compilation de faux avertissements, noyant ceux qui sont réellement légitimes.</p>
+<p>Une façon d'éviter de devoir gérer de nombreux avertissements de conversion signé/non signé consiste donc simplement à les laisser désactivés.</p>
+<p>C'est la solution la plus simple, mais nous ne la recommandons pas, car elle supprime aussi les avertissements légitimes de conversion de signe, susceptibles de causer des bogues s'ils ne sont pas traités.</p>
+<h2 id="utiliser-une-variable-de-boucle-non-signée">Utiliser une variable de boucle non signée</h2>
+<p>Beaucoup de développeurs pensent que, puisque les types de tableaux de la bibliothèque standard ont été conçus pour utiliser des indices non signés, nous devrions nous aussi utiliser des indices non signés ! C'est une position tout à fait raisonnable. Il faut simplement être particulièrement attentif à ne pas rencontrer de discordances signé/non signé lorsqu'on procède ainsi. Si possible, n'utilisez la variable d'indice de boucle que pour indexer.</p>
+<p>Si nous décidons d'adopter cette approche, quel type non signé devrions-nous réellement utiliser ?</p>
+<p>Dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.3%20-%20std--vector%20et%20le%20probl%C3%A8me%20de%20la%20longueur%20non%20sign%C3%A9e%20et%20des%20indices.html#size_type">16.3 -- std::vector et le problème de la longueur et des indices non signés</a>, nous avons indiqué que les classes conteneurs de la bibliothèque standard définissent un typedef imbriqué <code>size_type</code>, qui est un type entier non signé utilisé pour les longueurs et les indices de tableaux. La fonction membre <code>size()</code> renvoie un <code>size_type</code>, et <code>operator[]</code> utilise un <code>size_type</code> comme indice. Utiliser <code>size_type</code> comme type de votre indice est donc techniquement le type non signé le plus cohérent et le plus sûr (il fonctionnera dans tous les cas, même dans le cas extrêmement rare où <code>size_type</code> serait autre chose que <code>size_t</code>). Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector arr { 1, 2, 3, 4, 5 };
+
+    for (std::vector&lt;int&gt;::size_type index { 0 }; index &lt; arr.size(); ++index)
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, <code>size_type</code> a un inconvénient majeur : comme c'est un type imbriqué, pour l'utiliser nous devons préfixer explicitement le nom par le nom complet, avec ses arguments de modèle, du conteneur (ce qui signifie qu'il faut écrire <code>std::vector&lt;int&gt;::size_type</code> plutôt que simplement <code>std::size_type</code>). Cela demande beaucoup de frappe, est difficile à lire et varie selon le conteneur et le type des éléments.</p>
+<p>Lorsqu'on l'utilise à l'intérieur d'un modèle de fonction, on peut employer <code>T</code> pour les arguments de modèle. Mais il faut aussi préfixer le type par le mot-clé <code>typename</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printArray(const std::vector&lt;T&gt;&amp; arr)
+{
+    // le préfixe typename est requis pour un type dépendant
+    for (typename std::vector&lt;T&gt;::size_type index { 0 }; index &lt; arr.size(); ++index)
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+}
+
+int main()
+{
+    std::vector arr { 9, 7, 5, 3, 1 };
+
+    printArray(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Si vous oubliez le mot-clé <code>typename</code>, votre compilateur vous rappellera probablement de l'ajouter.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Tout nom qui dépend d'un type contenant un paramètre de modèle est appelé un <strong>nom dépendant</strong> (dependent name). Les noms dépendants doivent être préfixés par le mot-clé <code>typename</code> pour être utilisés comme types.</p>
+<p>Dans l'exemple ci-dessus, <code>std::vector&lt;T&gt;</code> est un type avec un paramètre de modèle ; le type imbriqué <code>std::vector&lt;T&gt;::size_type</code> est donc un nom dépendant, et doit être préfixé par <code>typename</code> pour être utilisé comme type.</p>
+</div>
+<p>Vous pourrez parfois voir le type du tableau aliasé pour rendre la boucle plus lisible :</p>
+<pre><code class="language-cpp">    using arrayi = std::vector&lt;int&gt;;
+    for (arrayi::size_type index { 0 }; index &lt; arr.size(); ++index)
+</code></pre>
+<p>Une solution plus générale consiste à laisser le compilateur déterminer le type de l'objet tableau à notre place, afin de ne pas avoir à préciser explicitement le type du conteneur ni ses arguments de modèle. Pour cela, on peut utiliser le mot-clé <strong>decltype</strong>, qui renvoie le type de son paramètre.</p>
+<pre><code class="language-cpp">    // arr est un type non référence
+    for (decltype(arr)::size_type index { 0 }; index &lt; arr.size(); ++index) // decltype(arr) se résout en std::vector&lt;int&gt;
+</code></pre>
+<p>Cependant, si <code>arr</code> est un type référence (par exemple un tableau passé par référence), ce qui précède ne fonctionne pas. Il faut d'abord retirer la référence de <code>arr</code> :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+void printArray(const std::vector&lt;T&gt;&amp; arr)
+{
+    // arr peut être un type référence ou non référence
+    for (typename std::remove_reference_t&lt;decltype(arr)&gt;::size_type index { 0 }; index &lt; arr.size(); ++index)
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+}
+</code></pre>
+<p>Malheureusement, ce n'est plus très concis ni facile à retenir.</p>
+<p>Comme <code>size_type</code> est presque toujours un typedef de <code>size_t</code>, beaucoup de programmeurs se passent de <code>size_type</code> et utilisent directement <code>std::size_t</code>, plus facile à retenir et à taper :</p>
+<pre><code class="language-cpp">    for (std::size_t index { 0 }; index &lt; arr.size(); ++index)
+</code></pre>
+<p>Sauf si vous utilisez des allocateurs personnalisés (ce qui est probablement votre cas), nous estimons que cette approche est raisonnable.</p>
+<h2 id="utiliser-une-variable-de-boucle-signée">Utiliser une variable de boucle signée</h2>
+<p>Bien qu'elle rende le travail avec les types conteneurs de la bibliothèque standard un peu plus difficile, l'utilisation d'une variable de boucle signée est cohérente avec les bonnes pratiques appliquées dans le reste de notre code (privilégier les valeurs signées pour les quantités). Et plus nous pouvons appliquer nos bonnes pratiques de façon cohérente, moins nous aurons d'erreurs au total.</p>
+<p>Si nous décidons d'utiliser des variables de boucle signées, trois points doivent être traités :</p>
+<ul>
+<li>Quel type signé utiliser ?</li>
+<li>Obtenir la longueur du tableau sous forme de valeur signée</li>
+<li>Convertir la variable de boucle signée en indice non signé</li>
+</ul>
+<h2 id="quel-type-signé-utiliser">Quel type signé utiliser ?</h2>
+<p>Il existe trois options (parfois quatre) valables.</p>
+<ol>
+<li>Sauf si vous travaillez avec un très grand tableau, <code>int</code> devrait convenir (en particulier sur les architectures où <code>int</code> occupe 4 octets). <code>int</code> est le type entier signé par défaut que nous utilisons pour tout lorsque le type précis importe peu, et il y a peu de raisons de faire autrement ici.</li>
+<li>Si vous manipulez de très grands tableaux, ou si vous voulez être un peu plus défensif, vous pouvez utiliser le type au nom étrangement formé <code>std::ptrdiff_t</code>. Ce typedef sert souvent de contrepartie signée à <code>std::size_t</code>.</li>
+<li>Comme <code>std::ptrdiff_t</code> a un nom peu intuitif, une autre bonne approche consiste à définir votre propre alias de type pour les indices :</li>
+</ol>
+<pre><code class="language-cpp">using Index = std::ptrdiff_t;
+
+// Exemple de boucle utilisant Index
+for (Index index{ 0 }; index &lt; static_cast&lt;Index&gt;(arr.size()); ++index)
+</code></pre>
+<p>Nous montrerons un exemple complet de cela dans la section suivante.</p>
+<p>Définir votre propre alias de type présente aussi un avantage potentiel pour l'avenir : si la bibliothèque standard C++ publie un jour un type conçu pour être utilisé comme indice signé, il suffira de modifier <code>Index</code> pour qu'il désigne ce type, ou de remplacer <code>Index</code> par le nom de ce type.</p>
+<ol start="4">
+<li>Lorsque le type de la variable de boucle peut être déduit de son initialiseur, vous pouvez utiliser <code>auto</code> pour laisser le compilateur le déduire :</li>
+</ol>
+<pre><code class="language-cpp">    for (auto index{ static_cast&lt;std::ptrdiff_t&gt;(arr.size())-1 }; index &gt;= 0; --index)
+</code></pre>
+<p>En C++23, le suffixe <code>Z</code> peut être utilisé pour définir un littéral du type qui est la contrepartie signée de <code>std::size_t</code> (probablement <code>std::ptrdiff_t</code>) :</p>
+<pre><code class="language-cpp">    for (auto index{ 0Z }; index &lt; static_cast&lt;std::ptrdiff_t&gt;(arr.size()); ++index)
+</code></pre>
+<h2 id="obtenir-la-longueur-dun-tableau-sous-forme-de-valeur-signée">Obtenir la longueur d'un tableau sous forme de valeur signée</h2>
+<ol>
+<li>Avant C++20, la meilleure option consiste à faire un <code>static_cast</code> de la valeur renvoyée par la fonction membre <code>size()</code> ou par <code>std::size()</code> vers un type signé :</li>
+</ol>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+using Index = std::ptrdiff_t;
+
+int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+
+    for (auto index{ static_cast&lt;Index&gt;(arr.size())-1 }; index &gt;= 0; --index)
+        std::cout &lt;&lt; arr[static_cast&lt;std::size_t&gt;(index)] &lt;&lt; ' ';
+
+    return 0;
+}
+</code></pre>
+<p>Ainsi, la valeur non signée renvoyée par <code>arr.size()</code> est convertie en type signé, et notre opérateur de comparaison a deux opérandes signés. Et comme les indices signés ne débordent pas lorsqu'ils deviennent négatifs, nous n'avons pas le problème de retour à l'extrême rencontré avec les indices non signés.</p>
+<p>L'inconvénient de cette approche est qu'elle encombre la boucle et la rend moins lisible. Nous pouvons remédier à cela en sortant la longueur de la boucle :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+using Index = std::ptrdiff_t;
+
+int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+
+    auto length{ static_cast&lt;Index&gt;(arr.size()) }; 
+    for (auto index{ length-1 }; index &gt;= 0; --index)
+        std::cout &lt;&lt; arr[static_cast&lt;std::size_t&gt;(index)] &lt;&lt; ' ';
+
+    return 0;
+}
+</code></pre>
+<ol start="2">
+<li>En C++20, utilisez <code>std::ssize()</code> :</li>
+</ol>
+<p>Si vous voulez davantage de preuves que les concepteurs du C++ considèrent désormais que les indices signés sont la bonne voie, pensez à l'introduction de <code>std::ssize()</code> en C++20. Cette fonction renvoie la taille d'un tableau sous forme de type signé (probablement <code>ptrdiff_t</code>).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+
+    for (auto index{ std::ssize(arr)-1 }; index &gt;= 0; --index) // std::ssize introduit en C++20
+        std::cout &lt;&lt; arr[static_cast&lt;std::size_t&gt;(index)] &lt;&lt; ' ';
+
+    return 0;
+}
+</code></pre>
+<h2 id="convertir-la-variable-de-boucle-signée-en-indice-non-signé">Convertir la variable de boucle signée en indice non signé</h2>
+<p>Une fois que nous disposons d'une variable de boucle signée, nous allons rencontrer des avertissements de conversion de signe implicite chaque fois que nous essaierons de l'utiliser comme indice. Nous avons donc besoin d'un moyen de convertir la variable de boucle signée en valeur non signée partout où nous voulons l'utiliser comme indice.</p>
+<ol>
+<li>L'option évidente consiste à faire un <code>static_cast</code> de la variable de boucle signée vers un indice non signé. Nous l'avons montré dans l'exemple précédent. Malheureusement, il faut le faire à chaque fois que nous indexons le tableau, et cela rend les indices de tableau difficiles à lire.</li>
+<li>Utiliser une fonction de conversion au nom court :</li>
+</ol>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt; // pour std::is_integral et std::is_enum
+#include &lt;vector&gt;
+
+using Index = std::ptrdiff_t;
+
+// Fonction utilitaire convertissant `value` en objet de type std::size_t
+// UZ est le suffixe des littéraux de type std::size_t.
+template &lt;typename T&gt;
+constexpr std::size_t toUZ(T value)
+{
+    // s'assurer que T est un type entier
+    static_assert(std::is_integral&lt;T&gt;() || std::is_enum&lt;T&gt;());
+
+    return static_cast&lt;std::size_t&gt;(value);
+}
+
+int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+
+    auto length { static_cast&lt;Index&gt;(arr.size()) };  // en C++20, préférez std::ssize()
+    for (auto index{ length-1 }; index &gt;= 0; --index)
+        std::cout &lt;&lt; arr[toUZ(index)] &lt;&lt; ' '; // utilise toUZ() pour éviter l'avertissement de conversion de signe
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous avons créé une fonction nommée <code>toUZ()</code> destinée à convertir des valeurs entières en valeurs de type <code>std::size_t</code>. Cela nous permet d'indexer notre tableau par <code>arr[toUZ(index)]</code>, ce qui est assez lisible.</p>
+<ol start="3">
+<li>Utiliser une vue personnalisée</li>
+</ol>
+<p>Dans les leçons précédentes, nous avons vu que <code>std::string</code> possède une chaîne, alors que <code>std::string_view</code> est une vue sur une chaîne existant ailleurs. L'un des avantages de <code>std::string_view</code> est qu'elle peut visualiser différents types de chaînes (littéraux de chaîne de style C, <code>std::string</code> et d'autres <code>std::string_view</code>) tout en offrant une interface cohérente.</p>
+<p>Bien que nous ne puissions pas modifier les conteneurs de la bibliothèque standard pour qu'ils acceptent un indice entier signé, nous pouvons créer notre propre classe de vue personnalisée pour « visualiser » une classe conteneur de la bibliothèque standard. Ce faisant, nous pouvons définir notre propre interface et la faire fonctionner comme bon nous semble.</p>
+<p>Dans l'exemple suivant, nous définissons une classe de vue personnalisée capable de visualiser tout conteneur de la bibliothèque standard prenant en charge l'indexation. Notre interface fera deux choses :</p>
+<ul>
+<li>Permettre d'accéder aux éléments avec <code>operator[]</code> à l'aide d'un type entier signé.</li>
+<li>Obtenir la longueur du conteneur sous forme de type entier signé (puisque <code>std::ssize()</code> n'est disponible qu'en C++20).</li>
+</ul>
+<p>Cela utilise la surcharge d'opérateurs (que nous avons brièvement introduite dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.5%20-%20Introduction%20%C3%A0%20la%20surcharge%20des%20op%C3%A9rateurs%20d%27entr%C3%A9e%20et%20de%20sortie.html">13.5 -- Introduction à la surcharge des opérateurs d'entrée/sortie</a>) pour implémenter <code>operator[]</code>. Vous n'avez pas besoin de savoir comment <code>SignedArrayView</code> est implémentée pour l'utiliser.</p>
+<p>SignedArrayView.h :</p>
+<pre><code class="language-cpp">#ifndef SIGNED_ARRAY_VIEW_H
+#define SIGNED_ARRAY_VIEW_H
+
+#include &lt;cstddef&gt; // pour std::size_t et std::ptrdiff_t
+
+// SignedArrayView fournit une vue sur un conteneur prenant en charge l'indexation,
+// ce qui nous permet de manipuler ces types à l'aide d'indices signés
+template &lt;typename T&gt;
+class SignedArrayView // nécessite C++17
+{
+private:
+    T&amp; m_array;
+
+public:
+    using Index = std::ptrdiff_t;
+
+    SignedArrayView(T&amp; array)
+        : m_array{ array } {}
+
+    // Surcharge de operator[] pour accepter un indice signé
+    constexpr auto&amp; operator[](Index index) { return m_array[static_cast&lt;typename T::size_type&gt;(index)]; }
+    constexpr const auto&amp; operator[](Index index) const { return m_array[static_cast&lt;typename T::size_type&gt;(index)]; }
+    constexpr auto ssize() const { return static_cast&lt;Index&gt;(m_array.size()); }
+};
+
+#endif
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+#include &quot;SignedArrayView.h&quot;
+
+int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+    SignedArrayView sarr{ arr }; // Crée une vue signée de notre std::vector
+
+    for (auto index{ sarr.ssize() - 1 }; index &gt;= 0; --index)
+        std::cout &lt;&lt; sarr[index] &lt;&lt; ' '; // indexe à l'aide d'un type signé
+
+    return 0;
+}
+</code></pre>
+<h2 id="indexer-plutôt-le-tableau-de-style-c-sous-jacent">Indexer plutôt le tableau de style C sous-jacent</h2>
+<p>Dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.3%20-%20std--vector%20et%20le%20probl%C3%A8me%20de%20la%20longueur%20non%20sign%C3%A9e%20et%20des%20indices.html">16.3 -- std::vector et le problème de la longueur et des indices non signés</a>, nous avons indiqué qu'au lieu d'indexer le conteneur de la bibliothèque standard, nous pouvons appeler la fonction membre <code>data()</code> et indexer le résultat. Comme <code>data()</code> renvoie les données du tableau sous forme de tableau de style C, et que les tableaux de style C acceptent l'indexation avec des valeurs signées comme non signées, cela évite les problèmes de conversion de signe.</p>
+<pre><code class="language-cpp">int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+
+    auto length { static_cast&lt;Index&gt;(arr.size()) };  // en C++20, préférez std::ssize()
+    for (auto index{ length - 1 }; index &gt;= 0; --index)
+        std::cout &lt;&lt; arr.data()[index] &lt;&lt; ' ';       // utilise data() pour éviter l'avertissement de conversion de signe
+
+    return 0;
+}
+</code></pre>
+<p>Nous pensons que cette méthode est la meilleure des options d'indexation :</p>
+<ul>
+<li>Nous pouvons utiliser des variables de boucle et des indices signés.</li>
+<li>Nous n'avons pas besoin de définir de types personnalisés ni d'alias de type.</li>
+<li>La perte de lisibilité due à l'utilisation de <code>data()</code> est très faible.</li>
+<li>Il ne devrait pas y avoir de perte de performance dans le code optimisé.</li>
+</ul>
+<h2 id="le-seul-choix-raisonnable-éviter-complètement-lindexation">Le seul choix raisonnable : éviter complètement l'indexation !</h2>
+<p>Toutes les options présentées ci-dessus ont leurs inconvénients, il est donc difficile de recommander l'une plutôt qu'une autre. Il existe cependant un choix bien plus sensé que les autres : éviter complètement l'indexation par des valeurs entières.</p>
+<p>C++ propose plusieurs autres méthodes de parcours de tableaux qui n'utilisent pas du tout d'indices. Et sans indices, nous ne rencontrons plus tous ces problèmes de conversion signé/non signé.</p>
+<p>Deux méthodes courantes de parcours de tableau sans indices sont les boucles basées sur intervalle (range-based for loops) et les itérateurs.</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous traitons des boucles for basées sur intervalle dans la leçon suivante (<a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.8%20-%20Boucles%20for%20bas%C3%A9es%20sur%20un%20intervalle%20%28for-each%29.html">16.8 -- Boucles basées sur intervalle (for-each)</a>).<br />
+Nous traitons des itérateurs dans la prochaine leçon <a href="../20%20-%20Chapitre%2018%20-%20It%C3%A9rateurs%20et%20algorithmes%20%28en%20construction%29/18.2%20-%20Introduction%20aux%20it%C3%A9rateurs.html">18.2 -- Introduction aux itérateurs</a>.</p>
+</div>
+<p>Si vous n'utilisez la variable d'indice que pour parcourir le tableau, privilégiez une méthode qui n'utilise pas d'indices.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez autant que possible d'indexer un tableau par des valeurs entières.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/arrays-loops-and-sign-challenge-solutions/">https://www.learncpp.com/cpp-tutorial/arrays-loops-and-sign-challenge-solutions/</a></em></p>
+</main>
+</body>
+</html>

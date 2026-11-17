@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25.11 — Affichage de classes héritées à l&#x27;aide de operator&lt;&lt;</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="2511-affichage-de-classes-héritées-à-laide-de-operator">25.11 — Affichage de classes héritées à l'aide de operator&lt;&lt;</h1>
+<p>Considérez le programme suivant, qui utilise une fonction virtuelle :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    virtual void print() const { std::cout &lt;&lt; &quot;Base&quot;;  }
+};
+
+class Derived : public Base
+{
+public:
+    void print() const override { std::cout &lt;&lt; &quot;Derived&quot;; }
+};
+
+int main()
+{
+    Derived d{};
+    Base&amp; b{ d };
+    b.print(); // appelle Derived::print()
+
+    return 0;
+}
+</code></pre>
+<p>Vous devez maintenant être à l'aise avec le fait que <code>b.print()</code> appelle <code>Derived::print()</code> (parce que <code>b</code> référence un objet de classe <code>Derived</code>, que <code>Base::print()</code> est une fonction virtuelle et que <code>Derived::print()</code> en est une surcharge redéfinie).</p>
+<p>Appeler des fonctions membres de cette façon pour afficher des données est acceptable, mais ce style ne se marie pas bien avec <code>std::cout</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Derived d{};
+    Base&amp; b{ d };
+
+    std::cout &lt;&lt; &quot;b is a &quot;;
+    b.print(); // peu lisible : nous devons interrompre l'instruction d'affichage pour appeler cette fonction
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cette leçon, nous verrons comment surcharger <code>operator&lt;&lt;</code> pour des classes utilisant l'héritage, afin de pouvoir utiliser <code>operator&lt;&lt;</code> comme prévu, de cette façon :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; &quot;b is a &quot; &lt;&lt; b &lt;&lt; '\n'; // bien mieux
+</code></pre>
+<h2 id="les-difficultés-posées-par-operator">Les difficultés posées par operator&lt;&lt;</h2>
+<p>Commençons par surcharger <code>operator&lt;&lt;</code> de manière classique :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    virtual void print() const { std::cout &lt;&lt; &quot;Base&quot;; }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Base&amp; b)
+    {
+        out &lt;&lt; &quot;Base&quot;;
+        return out;
+    }
+};
+
+class Derived : public Base
+{
+public:
+    void print() const override { std::cout &lt;&lt; &quot;Derived&quot;; }
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Derived&amp; d)
+    {
+        out &lt;&lt; &quot;Derived&quot;;
+        return out;
+    }
+};
+
+int main()
+{
+    Base b{};
+    std::cout &lt;&lt; b &lt;&lt; '\n';
+
+    Derived d{};
+    std::cout &lt;&lt; d &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Comme aucune résolution de fonction virtuelle n'est nécessaire ici, ce programme fonctionne comme prévu et affiche :</p>
+<pre><code>
+Base
+Derived
+</code></pre>
+<p>Considérez maintenant la fonction <code>main()</code> suivante :</p>
+<pre><code class="language-cpp">int main()
+{
+    Derived d{};
+    Base&amp; bref{ d };
+    std::cout &lt;&lt; bref &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Base
+</code></pre>
+<p>Ce n'est probablement pas ce que nous attendions. Cela vient du fait que notre version de <code>operator&lt;&lt;</code> qui traite les objets <code>Base</code> n'est pas virtuelle : <code>std::cout &lt;&lt; bref</code> appelle donc la version de <code>operator&lt;&lt;</code> qui traite les objets <code>Base</code>, et non celle qui traite les objets <code>Derived</code>.</p>
+<p>C'est là toute la difficulté.</p>
+<h2 id="peut-on-rendre-operator-virtuel">Peut-on rendre operator&lt;&lt; virtuel ?</h2>
+<p>Si le problème vient du fait que <code>operator&lt;&lt;</code> n'est pas virtuel, ne peut-on pas simplement le rendre virtuel ?</p>
+<p>La réponse courte est non. Il y a plusieurs raisons à cela.</p>
+<p>Premièrement, seules les fonctions membres peuvent être virtuelles. C'est logique, puisque seules les classes peuvent hériter d'autres classes, et qu'il est impossible de redéfinir une fonction située en dehors d'une classe (vous pouvez surcharger des fonctions non membres, mais pas les redéfinir). Comme nous implémentons généralement <code>operator&lt;&lt;</code> comme fonction amie (<code>friend</code>), et que les fonctions amies ne sont pas considérées comme des fonctions membres, une version amie de <code>operator&lt;&lt;</code> ne peut pas être virtualisée. (Pour rappel des raisons pour lesquelles nous implémentons <code>operator&lt;&lt;</code> de cette façon, veuillez revoir la leçon <a href="../23%20-%20Chapitre%2021%20-%20Surcharge%20d%27op%C3%A9rateurs/21.5%20-%20Surcharge%20des%20op%C3%A9rateurs%20%C3%A0%20l%27aide%20de%20fonctions%20membres.html">21.5 — Surcharge des opérateurs à l'aide de fonctions membres</a>.)</p>
+<p>Deuxièmement, même si nous pouvions virtualiser <code>operator&lt;&lt;</code>, les paramètres de <code>Base::operator&lt;&lt;</code> et de <code>Derived::operator&lt;&lt;</code> diffèrent (la version de <code>Base</code> prendrait un paramètre <code>Base</code> et la version de <code>Derived</code> un paramètre <code>Derived</code>). En conséquence, la version de <code>Derived</code> ne serait pas considérée comme une redéfinition de la version de <code>Base</code>, et ne serait donc pas éligible à la résolution des fonctions virtuelles.</p>
+<p>Que doit faire le programmeur ?</p>
+<h2 id="une-solution">Une solution</h2>
+<p>La réponse, il s'avère, est étonnamment simple.</p>
+<p>Tout d'abord, nous déclarons <code>operator&lt;&lt;</code> comme fonction amie dans notre classe de base, comme d'habitude. Mais plutôt que de laisser <code>operator&lt;&lt;</code> déterminer ce qu'il faut afficher, nous lui faisons appeler une fonction membre ordinaire qui <em>peut</em> être virtualisée ! Cette fonction virtuelle se chargera de déterminer ce qu'il faut afficher pour chaque classe.</p>
+<p>Dans cette première solution, notre fonction membre virtuelle (que nous appelons <code>identify()</code>) renvoie une <code>std::string</code>, que <code>Base::operator&lt;&lt;</code> affiche :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    // Voici notre operator&lt;&lt; surchargé
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Base&amp; b)
+    {
+        // Appelle la fonction virtuelle identify() pour obtenir la chaîne à afficher
+        out &lt;&lt; b.identify();
+        return out;
+    }
+
+    // La fonction membre identify() renvoie la chaîne à afficher
+    // Comme identify() est une fonction membre ordinaire, elle peut être virtualisée
+    virtual std::string identify() const
+    {
+        return &quot;Base&quot;;
+    }
+};
+
+class Derived : public Base
+{
+public:
+    // Voici notre identify() redéfinie pour le cas Derived
+    std::string identify() const override
+    {
+        return &quot;Derived&quot;;
+    }
+};
+
+int main()
+{
+    Base b{};
+    std::cout &lt;&lt; b &lt;&lt; '\n';
+
+    Derived d{};
+    std::cout &lt;&lt; d &lt;&lt; '\n'; // notez que cela fonctionne même sans operator&lt;&lt; traitant explicitement les objets Derived
+
+    Base&amp; bref{ d };
+    std::cout &lt;&lt; bref &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche le résultat attendu :</p>
+<pre><code>
+Base
+Derived
+Derived
+</code></pre>
+<p>Examinons plus en détail le fonctionnement de ce code.</p>
+<p>Dans le cas de <code>Base b</code>, <code>operator&lt;&lt;</code> est appelé avec le paramètre <code>b</code>, qui référence l'objet <code>Base</code>. L'appel de fonction virtuelle <code>b.identify()</code> se résout donc en <code>Base::identify()</code>, qui renvoie « Base » à afficher. Rien de spécial jusqu'ici.</p>
+<p>Dans le cas de <code>Derived d</code>, le compilateur cherche d'abord un <code>operator&lt;&lt;</code> acceptant un objet <code>Derived</code>. Il n'en existe pas, car nous n'en avons pas défini. Ensuite, le compilateur cherche un <code>operator&lt;&lt;</code> acceptant un objet <code>Base</code>. Il en existe un : le compilateur effectue donc une conversion implicite ascendante (upcast) de notre objet <code>Derived</code> vers un <code>Base&amp;</code> et appelle la fonction. (Nous aurions pu effectuer cette conversion nous-mêmes, mais le compilateur nous facilite la tâche.) Comme le paramètre <code>b</code> référence un objet <code>Derived</code>, l'appel de fonction virtuelle <code>b.identify()</code> se résout en <code>Derived::identify()</code>, qui renvoie « Derived » à afficher.</p>
+<p>Notez que nous n'avons pas besoin de définir un <code>operator&lt;&lt;</code> pour chaque classe dérivée ! La version qui traite les objets <code>Base</code> fonctionne parfaitement pour les objets <code>Base</code> comme pour toute classe dérivée de <code>Base</code> !</p>
+<p>Le troisième cas est un mélange des deux premiers. D'abord, le compilateur associe la variable <code>bref</code> à l'<code>operator&lt;&lt;</code> qui prend une référence <code>Base</code>. Comme le paramètre <code>b</code> référence un objet <code>Derived</code>, <code>b.identify()</code> se résout en <code>Derived::identify()</code>, qui renvoie « Derived ».</p>
+<p>Problème résolu.</p>
+<h2 id="une-solution-plus-souple">Une solution plus souple</h2>
+<p>La solution précédente fonctionne très bien, mais présente deux limitations potentielles :</p>
+<ol>
+<li>Elle suppose que le résultat souhaité peut être représenté par une seule <code>std::string</code>.</li>
+<li>Notre fonction membre <code>identify()</code> n'a pas accès à l'objet flux.</li>
+</ol>
+<p>Cette seconde limitation pose problème lorsque nous avons besoin d'un objet flux, par exemple pour afficher la valeur d'une variable membre disposant d'un <code>operator&lt;&lt;</code> surchargé.</p>
+<p>Heureusement, il est facile de modifier l'exemple précédent pour résoudre ces deux problèmes. Dans la version précédente, la fonction virtuelle <code>identify()</code> renvoyait une chaîne affichée par <code>Base::operator&lt;&lt;</code>. Dans cette version, nous définissons plutôt une fonction membre virtuelle <code>print()</code> et lui déléguons <em>directement</em> la responsabilité de l'affichage.</p>
+<p>Voici un exemple qui illustre cette idée :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    // Voici notre operator&lt;&lt; surchargé
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Base&amp; b)
+    {
+        // Délègue la responsabilité de l'affichage à la fonction membre virtuelle print()
+        return b.print(out);
+    }
+
+    // La fonction membre print() effectue l'affichage proprement dit
+    // Comme print() est une fonction membre ordinaire, elle peut être virtualisée
+    virtual std::ostream&amp; print(std::ostream&amp; out) const
+    {
+        out &lt;&lt; &quot;Base&quot;;
+        return out;
+    }
+};
+
+// Une classe ou structure disposant d'un operator&lt;&lt; surchargé
+struct Employee
+{
+    std::string name{};
+    int id{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Employee&amp; e)
+    {
+        out &lt;&lt; &quot;Employee(&quot; &lt;&lt; e.name &lt;&lt; &quot;, &quot; &lt;&lt; e.id &lt;&lt; &quot;)&quot;;
+        return out;
+    }
+};
+
+class Derived : public Base
+{
+private:
+    Employee m_e{}; // Derived possède désormais un membre de type Employee
+
+public:
+    Derived(const Employee&amp; e)
+        : m_e{ e }
+    {
+    }
+
+    // Voici notre print() redéfinie pour le cas Derived
+    std::ostream&amp; print(std::ostream&amp; out) const override
+    {
+        out &lt;&lt; &quot;Derived: &quot;;
+
+        // Affiche le membre Employee à l'aide de l'objet flux
+        out &lt;&lt; m_e;
+
+        return out;
+    }
+};
+
+int main()
+{
+    Base b{};
+    std::cout &lt;&lt; b &lt;&lt; '\n';
+
+    Derived d{ Employee{&quot;Jim&quot;, 4}};
+    std::cout &lt;&lt; d &lt;&lt; '\n'; // notez que cela fonctionne même sans operator&lt;&lt; traitant explicitement les objets Derived
+
+    Base&amp; bref{ d };
+    std::cout &lt;&lt; bref &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Base
+Derived: Employee(Jim, 4)
+Derived: Employee(Jim, 4)
+</code></pre>
+<p>Dans cette version, <code>Base::operator&lt;&lt;</code> n'effectue aucun affichage lui-même. Il se contente d'appeler la fonction membre virtuelle <code>print()</code> et de lui transmettre l'objet flux. La fonction <code>print()</code> utilise alors cet objet flux pour effectuer son propre affichage. <code>Base::print()</code> utilise l'objet flux pour afficher « Base ». Plus intéressant encore, <code>Derived::print()</code> utilise l'objet flux pour afficher à la fois « Derived: » et, en appelant <code>Employee::operator&lt;&lt;</code>, la valeur du membre <code>m_e</code>. Ce dernier point aurait été bien plus difficile à réaliser dans l'exemple précédent !</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/printing-inherited-classes-using-operator/">https://www.learncpp.com/cpp-tutorial/printing-inherited-classes-using-operator/</a></em></p>
+</main>
+</body>
+</html>

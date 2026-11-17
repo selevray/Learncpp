@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.12 — Retour par référence et retour par adresse</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1212-retour-par-référence-et-retour-par-adresse">12.12 — Retour par référence et retour par adresse</h1>
+<p>Dans les leçons précédentes, nous avons vu que, lors d'un passage par valeur, une copie de l'argument est créée dans le paramètre de la fonction. Pour les types fondamentaux, qui sont peu coûteux à copier, cela ne pose pas de problème. Mais la copie est généralement coûteuse pour les types classe (comme <code>std::string</code>). Nous pouvons éviter cette copie coûteuse en utilisant un passage par référence (constante) ou par adresse.</p>
+<p>Nous rencontrons une situation similaire lors d'un retour par valeur : une copie de la valeur de retour est renvoyée à l'appelant. Si le type de retour de la fonction est un type classe, cela peut être coûteux.</p>
+<pre><code class="language-cpp">std::string returnByValue(); // renvoie une copie d'une std::string (coûteux)
+</code></pre>
+<h2 id="retour-par-référence">Retour par référence</h2>
+<p>Lorsque nous renvoyons un objet de type classe à l'appelant, nous pouvons vouloir (ou non) le renvoyer par référence. Le <strong>retour par référence</strong> renvoie une référence liée à l'objet retourné, ce qui évite de copier la valeur de retour. Pour retourner par référence, il suffit de définir le type de retour de la fonction comme un type référence :</p>
+<pre><code class="language-cpp">std::string&amp;       returnByReference(); // renvoie une référence à une std::string existante (peu coûteux)
+const std::string&amp; returnByReferenceToConst(); // renvoie une référence constante à une std::string existante (peu coûteux)
+</code></pre>
+<p>Voici un programme académique qui illustre le mécanisme du retour par référence :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+const std::string&amp; getProgramName() // renvoie une référence constante
+{
+    static const std::string s_programName { &quot;Calculator&quot; }; // a une durée de stockage statique, détruit à la fin du programme
+
+    return s_programName;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;This program is named &quot; &lt;&lt; getProgramName();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+This program is named Calculator
+</code></pre>
+<p>Comme <code>getProgramName()</code> renvoie une référence constante, lorsque la ligne <code>return s_programName</code> est exécutée, <code>getProgramName()</code> renvoie une référence constante vers <code>s_programName</code> (évitant ainsi une copie). Cette référence constante peut ensuite être utilisée par l'appelant pour accéder à la valeur de <code>s_programName</code>, qui est affichée.</p>
+<h2 id="lobjet-renvoyé-par-référence-doit-exister-après-le-retour-de-la-fonction">L'objet renvoyé par référence doit exister après le retour de la fonction</h2>
+<p>Le retour par référence présente un inconvénient majeur : le programmeur <em>doit</em> s'assurer que l'objet référencé survit à la fonction qui renvoie la référence. Sinon, la référence renvoyée devient pendante (elle référence un objet détruit), et son utilisation entraîne un comportement indéfini.</p>
+<p>Dans le programme ci-dessus, comme <code>s_programName</code> a une durée de stockage statique, il existe jusqu'à la fin du programme. Lorsque <code>main()</code> accède à la référence renvoyée, il accède en réalité à <code>s_programName</code>, ce qui est correct, car <code>s_programName</code> n'est détruit qu'à la fin.</p>
+<p>Modifions maintenant ce programme pour montrer ce qui se passe lorsque la fonction renvoie une référence pendante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+const std::string&amp; getProgramName()
+{
+    const std::string programName { &quot;Calculator&quot; }; // désormais une variable locale non statique, détruite à la fin de la fonction
+
+    return programName;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;This program is named &quot; &lt;&lt; getProgramName(); // comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>Le résultat de ce programme est indéfini. Au retour de <code>getProgramName()</code>, une référence liée à la variable locale <code>programName</code> est renvoyée. Or, <code>programName</code> est une variable locale à durée automatique, donc elle est détruite à la fin de la fonction. La référence renvoyée devient alors pendante, et l'utilisation de <code>programName</code> dans la fonction <code>main()</code> entraîne un comportement indéfini.</p>
+<p>Les compilateurs modernes produisent un avertissement ou une erreur si vous essayez de renvoyer par référence une variable locale (le programme ci-dessus pourrait donc ne même pas compiler), mais ils ont parfois du mal à détecter des cas plus complexes.</p>
+<div class="callout warning"><p class="callout-title">Avertissement</p>
+<p>Les objets renvoyés par référence doivent survivre à la portée de la fonction qui renvoie la référence, sinon une référence pendante en résulte. Ne renvoyez jamais par référence une variable locale (non statique) ou un temporaire.</p>
+</div>
+<h2 id="lextension-de-durée-de-vie-ne-fonctionne-pas-au-delà-des-frontières-de-fonction">L'extension de durée de vie ne fonctionne pas au-delà des frontières de fonction</h2>
+<p>Examinons un exemple où nous renvoyons un temporaire par référence :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+const int&amp; returnByConstReference()
+{
+    return 5; // renvoie une référence constante vers un objet temporaire
+}
+
+int main()
+{
+    const int&amp; ref { returnByConstReference() };
+
+    std::cout &lt;&lt; ref; // comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, <code>returnByConstReference()</code> renvoie un littéral entier, mais le type de retour de la fonction est <code>const int&amp;</code>. Il en résulte la création et le renvoi d'une référence temporaire liée à un objet temporaire contenant la valeur 5. Cette référence renvoyée est copiée dans une référence temporaire dans la portée de l'appelant. L'objet temporaire sort ensuite de sa portée, laissant pendante la référence temporaire dans la portée de l'appelant.</p>
+<p>Au moment où la référence temporaire de la portée de l'appelant est liée à la variable de référence constante <code>ref</code> (dans <code>main()</code>), il est trop tard pour prolonger la durée de vie de l'objet temporaire, qui a déjà été détruit. <code>ref</code> est donc une référence pendante, et l'utilisation de sa valeur entraîne un comportement indéfini.</p>
+<p>Voici un exemple moins évident qui ne fonctionne pas de la même façon :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+const int&amp; returnByConstReference(const int&amp; ref)
+{
+    return ref;
+}
+
+int main()
+{
+    // cas 1 : liaison directe
+    const int&amp; ref1 { 5 }; // prolonge la durée de vie
+    std::cout &lt;&lt; ref1 &lt;&lt; '\n'; // correct
+
+    // cas 2 : liaison indirecte
+    const int&amp; ref2 { returnByConstReference(5) }; // se lie à une référence pendante
+    std::cout &lt;&lt; ref2 &lt;&lt; '\n'; // comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>Dans le cas 2, un objet temporaire contenant la valeur <code>5</code> est créé, auquel le paramètre de fonction <code>ref</code> se lie. La fonction renvoie simplement cette référence à l'appelant, qui l'utilise pour initialiser <code>ref2</code>. Comme il ne s'agit pas d'une liaison directe à l'objet temporaire (la référence ayant transité par une fonction), l'extension de durée de vie ne s'applique pas. <code>ref2</code> reste donc pendante, et son utilisation ultérieure est un comportement indéfini.</p>
+<div class="callout warning"><p class="callout-title">Avertissement</p>
+<p>L'extension de durée de vie d'une référence ne fonctionne pas au-delà des frontières de fonction.</p>
+</div>
+<h2 id="ne-renvoyez-pas-par-référence-des-variables-locales-statiques-non-constantes">Ne renvoyez pas par référence des variables locales statiques non constantes</h2>
+<p>Dans l'exemple original ci-dessus, nous avons renvoyé par référence une variable locale statique constante pour illustrer simplement le mécanisme du retour par référence. Cependant, renvoyer par référence des variables locales statiques non constantes n'est pas idiomatique et doit généralement être évité. Voici un exemple simplifié qui illustre l'un des problèmes qui peuvent survenir :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+const int&amp; getNextId()
+{
+    static int s_x{ 0 }; // remarque : la variable n'est pas constante
+    ++s_x; // génère le prochain identifiant
+    return s_x; // et renvoie une référence vers celui-ci
+}
+
+int main()
+{
+    const int&amp; id1 { getNextId() }; // id1 est une référence
+    const int&amp; id2 { getNextId() }; // id2 est une référence
+
+    std::cout &lt;&lt; id1 &lt;&lt; id2 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+22
+</code></pre>
+<p>Cela se produit parce que <code>id1</code> et <code>id2</code> référencent le même objet (la variable statique <code>s_x</code>). Ainsi, lorsque quelque chose (par exemple <code>getNextId()</code>) modifie cette valeur, toutes les références accèdent à la valeur modifiée.</p>
+<p>L'exemple ci-dessus peut être corrigé en faisant de <code>id1</code> et <code>id2</code> des variables normales (et non des références), afin qu'elles conservent une copie de la valeur de retour plutôt qu'une référence vers <code>s_x</code>.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Voici un autre exemple, moins évident, du même problème :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+std::string&amp; getName()
+{
+    static std::string s_name{};
+    std::cout &lt;&lt; &quot;Enter a name: &quot;;
+    std::cin &gt;&gt; s_name;
+    return s_name;
+}
+
+void printFirstAlphabetical(const std::string&amp; s1, const std::string&amp; s2)
+{
+    if (s1 &lt; s2)
+        std::cout &lt;&lt; s1 &lt;&lt; &quot; comes before &quot; &lt;&lt; s2 &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; s2 &lt;&lt; &quot; comes before &quot; &lt;&lt; s1 &lt;&lt; '\n';
+}
+
+int main()
+{
+    printFirstAlphabetical(getName(), getName());
+
+    return 0;
+}
+</code></pre>
+<p>Voici le résultat d'une exécution de ce programme :</p>
+<pre><code>
+Enter a name: Dave
+Enter a name: Stan
+Stan comes before Stan
+</code></pre>
+<p>Dans cet exemple, <code>getName()</code> renvoie une référence vers la variable locale statique <code>s_name</code>. Initialiser un <code>const std::string&amp;</code> avec une référence à <code>s_name</code> fait que cette <code>std::string&amp;</code> se lie à <code>s_name</code> (sans en faire une copie).</p>
+<p>Ainsi, <code>s1</code> et <code>s2</code> désignent toutes deux <code>s_name</code> (qui a reçu le dernier nom saisi).</p>
+<p>Notez que si nous utilisons plutôt des paramètres <code>std::string_view</code>, le premier paramètre <code>std::string_view</code> sera invalidé lorsque la <code>std::string</code> sous-jacente sera modifiée.</p>
+</div>
+<p>Un autre problème fréquent avec les programmes qui renvoient par référence une variable statique locale non constante est qu'il n'existe pas de moyen standardisé de remettre <code>s_x</code> dans son état par défaut. Ces programmes doivent donc soit utiliser une solution non conventionnelle (par exemple un paramètre de fonction de réinitialisation), soit ne peuvent être réinitialisés qu'en quittant et en relançant le programme.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez de renvoyer des références vers des variables locales statiques non constantes.</p>
+</div>
+<p>Renvoyer une référence constante vers une variable locale statique <em>constante</em> est parfois fait lorsque la variable est coûteuse à créer et/ou à initialiser (afin de ne pas la recréer à chaque appel de fonction). Mais c'est rare.</p>
+<p>Renvoyer une référence constante vers une variable globale <em>constante</em> est également parfois fait comme moyen d'encapsuler l'accès à une variable globale. Nous en discutons dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.8%20-%20Pourquoi%20les%20variables%20globales%20%28non%20constantes%29%20sont%20n%C3%A9fastes.html">7.8 -- Pourquoi les variables globales (non constantes) sont néfastes</a>. Utilisé à dessein et avec précaution, cela est également acceptable.</p>
+<h2 id="initialiser-ou-affecter-une-variable-normale-avec-une-référence-renvoyée-crée-une-copie">Initialiser ou affecter une variable normale avec une référence renvoyée crée une copie</h2>
+<p>Si une fonction renvoie une référence, et que cette référence sert à initialiser ou à affecter une variable qui n'est pas une référence, la valeur de retour sera copiée (comme si elle avait été renvoyée par valeur).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+const int&amp; getNextId()
+{
+    static int s_x{ 0 };
+    ++s_x;
+    return s_x;
+}
+
+int main()
+{
+    const int id1 { getNextId() }; // id1 est désormais une variable normale et reçoit une copie de la valeur renvoyée par référence par getNextId()
+    const int id2 { getNextId() }; // id2 est désormais une variable normale et reçoit une copie de la valeur renvoyée par référence par getNextId()
+
+    std::cout &lt;&lt; id1 &lt;&lt; id2 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>getNextId()</code> renvoie une référence, mais <code>id1</code> et <code>id2</code> sont des variables qui ne sont pas des références. Dans ce cas, la valeur de la référence renvoyée est copiée dans la variable normale. Ce programme affiche donc :</p>
+<pre><code>
+12
+</code></pre>
+<p>Notez également que si un programme renvoie une référence pendante, celle-ci reste pendante avant que la copie ne soit faite, ce qui conduit à un comportement indéfini :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+const std::string&amp; getProgramName() // renverra une référence constante
+{
+    const std::string programName{ &quot;Calculator&quot; };
+
+    return programName;
+}
+
+int main()
+{
+    std::string name { getProgramName() }; // fait une copie d'une référence pendante
+    std::cout &lt;&lt; &quot;This program is named &quot; &lt;&lt; name &lt;&lt; '\n'; // comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<h2 id="il-est-correct-de-renvoyer-par-référence-des-paramètres-passés-par-référence">Il est correct de renvoyer par référence des paramètres passés par référence</h2>
+<p>De nombreux cas justifient de renvoyer des objets par référence, et nous en rencontrerons beaucoup dans les leçons à venir. Cependant, en voici un exemple utile que nous pouvons montrer dès maintenant.</p>
+<p>Si un paramètre est passé à une fonction par référence, il est sûr de renvoyer ce paramètre par référence. Cela a du sens : pour passer un argument à une fonction, l'argument doit exister dans la portée de l'appelant. Lorsque la fonction appelée retourne, cet objet doit toujours exister dans la portée de l'appelant.</p>
+<p>Voici un exemple simple d'une telle fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+// Prend deux objets std::string, renvoie celui qui vient en premier dans l'ordre alphabétique
+const std::string&amp; firstAlphabetical(const std::string&amp; a, const std::string&amp; b)
+{
+    return (a &lt; b) ? a : b; // On peut utiliser operator&lt; sur std::string pour déterminer lequel vient en premier alphabétiquement
+}
+
+int main()
+{
+    std::string hello { &quot;Hello&quot; };
+    std::string world { &quot;World&quot; };
+
+    std::cout &lt;&lt; firstAlphabetical(hello, world) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Hello
+</code></pre>
+<p>Dans la fonction ci-dessus, l'appelant transmet deux objets std::string par référence constante, et la chaîne qui vient en premier alphabétiquement est renvoyée par référence constante. Si nous avions utilisé un passage par valeur et un retour par valeur, nous aurions créé jusqu'à 3 copies de std::string (une pour chaque paramètre, une pour la valeur de retour). En utilisant le passage par référence et le retour par référence, nous évitons ces copies.</p>
+<h2 id="il-est-correct-de-renvoyer-par-référence-constante-un-rvalue-passé-par-référence-constante">Il est correct de renvoyer par référence constante un rvalue passé par référence constante</h2>
+<p>Lorsqu'un argument passé à un paramètre de référence constante est une rvalue, il reste correct de renvoyer ce paramètre par référence constante.</p>
+<p>En effet, les rvalues ne sont détruites qu'à la fin de l'expression complète dans laquelle elles sont créées.</p>
+<p>Examinons d'abord cet exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+std::string getHello()
+{
+    return &quot;Hello&quot;; // conversion implicite en std::string
+}
+
+int main()
+{
+    const std::string s{ getHello() };
+
+    std::cout &lt;&lt; s;
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce cas, <code>getHello()</code> renvoie une <code>std::string</code> par valeur, qui est une rvalue. Cette rvalue sert ensuite à initialiser <code>s</code>. Une fois l'initialisation de <code>s</code> terminée, l'expression dans laquelle la rvalue a été créée est évaluée entièrement, et la rvalue est détruite.</p>
+<p>Examinons maintenant cet exemple similaire :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+const std::string&amp; foo(const std::string&amp; s)
+{
+    return s;
+}
+
+std::string getHello()
+{
+    return &quot;Hello&quot;; // conversion implicite en std::string
+}
+
+int main()
+{
+    const std::string s{ foo(getHello()) };
+
+    std::cout &lt;&lt; s;
+
+    return 0;
+}
+</code></pre>
+<p>La seule différence dans ce cas est que la rvalue est passée par référence constante à <code>foo()</code>, puis renvoyée par référence constante à l'appelant avant d'être utilisée pour initialiser <code>s</code>. Tout le reste fonctionne de manière identique.</p>
+<p>Nous examinons un cas similaire dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.6%20-%20Fonctions%20d%27acc%C3%A8s.html">14.6 -- Fonctions d'accès</a>.</p>
+<h2 id="lappelant-peut-modifier-des-valeurs-via-la-référence">L'appelant peut modifier des valeurs via la référence</h2>
+<p>Lorsqu'un argument est passé à une fonction par référence non constante, la fonction peut utiliser cette référence pour modifier la valeur de l'argument.</p>
+<p>De même, lorsqu'une référence non constante est renvoyée par une fonction, l'appelant peut utiliser cette référence pour modifier la valeur renvoyée.</p>
+<p>Voici un exemple illustratif :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// prend deux entiers par référence non constante, et renvoie le plus grand par référence
+int&amp; max(int&amp; x, int&amp; y)
+{
+    return (x &gt; y) ? x : y;
+}
+
+int main()
+{
+    int a{ 5 };
+    int b{ 6 };
+
+    max(a, b) = 7; // affecte 7 au plus grand de a ou b
+
+    std::cout &lt;&lt; a &lt;&lt; b &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, <code>max(a, b)</code> appelle la fonction <code>max()</code> avec <code>a</code> et <code>b</code> comme arguments. Le paramètre de référence <code>x</code> se lie à l'argument <code>a</code>, et le paramètre de référence <code>y</code> se lie à l'argument <code>b</code>. La fonction détermine ensuite lequel de <code>x</code> (<code>5</code>) et <code>y</code> (<code>6</code>) est le plus grand. Ici, c'est <code>y</code>, donc la fonction renvoie <code>y</code> (toujours lié à <code>b</code>) à l'appelant. L'appelant affecte alors la valeur <code>7</code> à cette référence renvoyée.</p>
+<p>L'expression <code>max(a, b) = 7</code> se résout donc effectivement en <code>b = 7</code>.</p>
+<p>Ce programme affiche :</p>
+<pre><code>
+57
+</code></pre>
+<h2 id="retour-par-adresse">Retour par adresse</h2>
+<p>Le <strong>retour par adresse</strong> fonctionne presque de la même manière que le retour par référence, à ceci près qu'un pointeur vers un objet est renvoyé à la place d'une référence vers un objet. Le retour par adresse a la même mise en garde principale que le retour par référence : l'objet renvoyé par adresse doit survivre à la portée de la fonction qui renvoie l'adresse, sinon l'appelant reçoit un pointeur pendant.</p>
+<p>L'avantage majeur du retour par adresse par rapport au retour par référence est que la fonction peut renvoyer <code>nullptr</code> s'il n'existe aucun objet valide à renvoyer. Par exemple, supposons que nous disposions d'une liste d'étudiants dans laquelle nous voulons effectuer une recherche. Si nous trouvons l'étudiant recherché dans la liste, nous pouvons renvoyer un pointeur vers l'objet qui représente cet étudiant. Si aucun étudiant ne correspond, nous pouvons renvoyer <code>nullptr</code> pour indiquer qu'aucun objet étudiant correspondant n'a été trouvé.</p>
+<p>L'inconvénient majeur du retour par adresse est que l'appelant doit penser à vérifier que le pointeur n'est pas <code>nullptr</code> avant de le déréférencer, sinon un déréférencement de pointeur nul peut survenir et entraîner un comportement indéfini. À cause de ce danger, le retour par référence doit être préféré au retour par adresse, sauf si la possibilité de renvoyer « aucun objet » est nécessaire.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Préférez le retour par référence au retour par adresse, sauf si la possibilité de renvoyer « aucun objet » (à l'aide de <code>nullptr</code>) est importante.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Si vous avez besoin de pouvoir renvoyer « aucun objet » ou une valeur (plutôt qu'un objet), la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.15%20-%20std--optional.html">12.15 -- std::optional</a> décrit une bonne alternative.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Consultez la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.9%20-%20std--string_view%20%28partie%202%29.html#stringvsstringview">5.9 -- std::string_view (partie 2)</a> pour un guide rapide sur le moment où renvoyer un <code>std::string_view</code> plutôt qu'un <code>const std::string&amp;</code>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/return-by-reference-and-return-by-address/">https://www.learncpp.com/cpp-tutorial/return-by-reference-and-return-by-address/</a></em></p>
+</main>
+</body>
+</html>

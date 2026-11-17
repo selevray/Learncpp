@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.15 — std::optional</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1215-stdoptional">12.15 — std::optional</h1>
+<p>Dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.4%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs.html">9.4 -- Détection et gestion des erreurs</a>, nous avons vu les cas où une fonction rencontre une erreur qu'elle ne peut pas raisonnablement gérer elle-même. Prenons par exemple une fonction qui calcule et renvoie une valeur :</p>
+<pre><code class="language-cpp">int doIntDivision(int x, int y)
+{
+    return x / y;
+}
+</code></pre>
+<p>Si l'appelant passe une valeur sémantiquement invalide (comme <code>y</code> = <code>0</code>), cette fonction ne peut pas calculer de valeur à renvoyer, puisque la division par 0 est mathématiquement indéfinie. Que faire dans ce cas ? Comme les fonctions qui calculent un résultat ne devraient pas avoir d'effets de bord, cette fonction ne peut pas raisonnablement résoudre l'erreur elle-même. Dans ces situations, la solution habituelle consiste à faire détecter l'erreur par la fonction, puis à la transmettre à l'appelant, qui la traitera de la manière appropriée au programme.</p>
+<p>Dans la leçon citée précédemment, nous avons vu deux façons différentes pour une fonction de renvoyer une erreur à l'appelant :</p>
+<ul>
+<li>Faire renvoyer un <code>bool</code> par une fonction de type <code>void</code> (indiquant succès ou échec).</li>
+<li>Faire renvoyer une valeur sentinelle (une valeur particulière qui n'appartient pas à l'ensemble des valeurs que la fonction peut renvoyer normalement) par une fonction qui renvoie une valeur, pour signaler une erreur.</li>
+</ul>
+<p>Pour illustrer le second cas, la fonction <code>reciprocal()</code> suivante renvoie la valeur <code>0.0</code> (qui ne peut jamais être renvoyée autrement) si l'utilisateur passe un argument <code>x</code> sémantiquement invalide :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// L'inverse de x vaut 1/x, renvoie 0.0 si x=0
+double reciprocal(double x)
+{
+    if (x == 0.0) // si x est sémantiquement invalide
+       return 0.0; // renvoie 0.0 comme valeur sentinelle pour signaler une erreur
+
+    return 1.0 / x;
+}
+
+void testReciprocal(double d)
+{
+     double result { reciprocal(d) };
+     std::cout &lt;&lt; &quot;The reciprocal of &quot; &lt;&lt; d &lt;&lt; &quot; is &quot;;
+     if (result != 0.0)
+         std::cout &lt;&lt; result &lt;&lt; '\n';
+     else
+         std::cout &lt;&lt; &quot;undefined\n&quot;;
+}
+
+int main()
+{
+    testReciprocal(5.0);
+    testReciprocal(-4.0);
+    testReciprocal(0.0);
+
+    return 0;
+}
+</code></pre>
+<p>Cette solution est assez séduisante, mais elle présente plusieurs inconvénients potentiels :</p>
+<ul>
+<li>Le programmeur doit connaître la valeur sentinelle utilisée par la fonction pour signaler une erreur (et cette valeur peut différer d'une fonction à l'autre qui utilise cette méthode).</li>
+<li>Une version différente de la même fonction peut utiliser une autre valeur sentinelle.</li>
+<li>Cette méthode ne fonctionne pas pour les fonctions dont toutes les valeurs possibles sont des valeurs de retour valides.</li>
+</ul>
+<p>Reprenons notre fonction <code>doIntDivision()</code> ci-dessus. Quelle valeur pourrait-elle renvoyer si l'utilisateur passe <code>0</code> pour <code>y</code> ? Nous ne pouvons pas utiliser <code>0</code>, car <code>0</code> divisé par n'importe quoi donne <code>0</code>, qui est un résultat valide. En fait, il n'existe aucune valeur que nous pourrions renvoyer sans qu'elle puisse apparaître naturellement.</p>
+<p>Que faire alors ?</p>
+<p>Premièrement, nous pourrions choisir une valeur de retour (espérons-le) peu courante comme sentinelle et l'utiliser pour signaler une erreur :</p>
+<pre><code class="language-cpp">#include &lt;limits&gt; // pour std::numeric_limits
+
+// renvoie std::numeric_limits&lt;int&gt;::lowest() en cas d'échec
+int doIntDivision(int x, int y)
+{
+    if (y == 0)
+        return std::numeric_limits&lt;int&gt;::lowest();
+    return x / y;
+}
+</code></pre>
+<p><code>std::numeric_limits&lt;T&gt;::lowest()</code> est une fonction qui renvoie la valeur la plus négative du type <code>T</code>. Elle est l'équivalent de la fonction <code>std::numeric_limits&lt;T&gt;::max()</code> (qui renvoie la plus grande valeur positive du type <code>T</code>) que nous avons présentée dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.5%20-%20std--cin%20et%20gestion%20des%20entr%C3%A9es%20invalides.html">9.5 -- std::cin et gestion des entrées invalides</a>.</p>
+<p>Dans l'exemple ci-dessus, si <code>doIntDivision()</code> ne peut pas poursuivre son calcul, elle renvoie <code>std::numeric_limits&lt;int&gt;::lowest()</code>, c'est-à-dire la valeur int la plus négative, pour indiquer à l'appelant que la fonction a échoué.</p>
+<p>Cette méthode fonctionne globalement, mais elle présente deux inconvénients :</p>
+<ul>
+<li>À chaque appel de cette fonction, nous devons comparer la valeur renvoyée à <code>std::numeric_limits&lt;int&gt;::lowest()</code> pour savoir si l'appel a échoué. C'est verbeux et peu élégant.</li>
+<li>C'est un exemple du <a href="https://en.wikipedia.org/wiki/Semipredicate_problem">problème du semi-prédicat</a> : si l'utilisateur appelle <code>doIntDivision(std::numeric_limits&lt;int&gt;::lowest(), 1)</code>, la valeur renvoyée <code>std::numeric_limits&lt;int&gt;::lowest()</code> est ambiguë, car on ne peut pas savoir si la fonction a réussi ou échoué. Cela peut poser problème ou non selon l'usage réel de la fonction, mais c'est une difficulté de plus à gérer, et une nouvelle façon pour des erreurs de s'infiltrer dans le programme.</li>
+</ul>
+<p>Deuxièmement, nous pourrions renoncer à utiliser les valeurs de retour pour signaler les erreurs et recourir à un autre mécanisme, par exemple les exceptions. Cependant, les exceptions ont leurs propres complications et coûts en performance, et elles ne sont pas forcément appropriées ou souhaitées. Dans un cas comme celui-ci, c'est probablement excessif.</p>
+<p>Troisièmement, nous pourrions renoncer à renvoyer une seule valeur et en renvoyer deux : l'une (de type <code>bool</code>) indiquant si la fonction a réussi, et l'autre (du type de retour souhaité) contenant la valeur de retour réelle (si la fonction a réussi) ou une valeur indéterminée (si la fonction a échoué). C'est probablement la meilleure option du lot.</p>
+<p>Avant C++17, pour choisir cette dernière option, il fallait l'implémenter soi-même. Or, même si C++ offre plusieurs moyens de le faire, toute solution maison finit inévitablement par introduire des incohérences et des erreurs.</p>
+<h2 id="renvoyer-un-stdoptional">Renvoyer un <code>std::optional</code></h2>
+<p>C++17 introduit <code>std::optional</code>, un modèle de classe (class template) qui implémente une valeur optionnelle. Autrement dit, un <code>std::optional&lt;T&gt;</code> peut contenir une valeur de type <code>T</code>, ou ne rien contenir. Nous pouvons l'utiliser pour implémenter la troisième option ci-dessus :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;optional&gt; // pour std::optional (C++17)
+
+// Notre fonction renvoie maintenant optionnellement une valeur int
+std::optional&lt;int&gt; doIntDivision(int x, int y)
+{
+    if (y == 0)
+        return {}; // ou return std::nullopt
+    return x / y;
+}
+
+int main()
+{
+    std::optional&lt;int&gt; result1 { doIntDivision(20, 5) };
+    if (result1) // si la fonction a renvoyé une valeur
+        std::cout &lt;&lt; &quot;Result 1: &quot; &lt;&lt; *result1 &lt;&lt; '\n'; // récupère la valeur
+    else
+        std::cout &lt;&lt; &quot;Result 1: failed\n&quot;;
+
+    std::optional&lt;int&gt; result2 { doIntDivision(5, 0) };
+
+    if (result2)
+        std::cout &lt;&lt; &quot;Result 2: &quot; &lt;&lt; *result2 &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; &quot;Result 2: failed\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Result 1: 4
+Result 2: failed
+</code></pre>
+<p>Utiliser <code>std::optional</code> est assez simple. On peut construire un <code>std::optional&lt;T&gt;</code> avec ou sans valeur :</p>
+<pre><code class="language-cpp">std::optional&lt;int&gt; o1 { 5 };            // initialisation avec une valeur
+std::optional&lt;int&gt; o2 {};               // initialisation sans valeur
+std::optional&lt;int&gt; o3 { std::nullopt }; // initialisation sans valeur
+</code></pre>
+<p>Pour savoir si un <code>std::optional</code> contient une valeur, on peut utiliser l'une des méthodes suivantes :</p>
+<pre><code class="language-cpp">if (o1.has_value()) // appel de has_value() pour vérifier si o1 contient une valeur
+if (o2)             // conversion implicite en bool pour vérifier si o2 contient une valeur
+</code></pre>
+<p>Pour obtenir la valeur d'un <code>std::optional</code>, on peut utiliser l'une des méthodes suivantes :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; *o1;             // déréférencement pour obtenir la valeur stockée dans o1 (comportement indéfini si o1 n'a pas de valeur)
+std::cout &lt;&lt; o2.value();      // appel de value() pour obtenir la valeur stockée dans o2 (lève l'exception std::bad_optional_access si o2 n'a pas de valeur)
+std::cout &lt;&lt; o3.value_or(42); // appel de value_or() pour obtenir la valeur stockée dans o3 (ou la valeur `42` si o3 n'a pas de valeur)
+</code></pre>
+<p>Notez que la syntaxe d'utilisation de <code>std::optional</code> est pratiquement identique à celle d'un pointeur :</p>
+<table>
+<thead>
+<tr>
+<th>Comportement</th>
+<th>Pointeur</th>
+<th><code>std::optional</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ne contient aucune valeur</td>
+<td>initialisation/affectation avec <code>{}</code> ou <code>std::nullptr</code></td>
+<td>initialisation/affectation avec <code>{}</code> ou <code>std::nullopt</code></td>
+</tr>
+<tr>
+<td>Contient une valeur</td>
+<td>initialisation/affectation avec une adresse</td>
+<td>initialisation/affectation avec une valeur</td>
+</tr>
+<tr>
+<td>Vérifier la présence d'une valeur</td>
+<td>conversion implicite en bool</td>
+<td>conversion implicite en bool ou <code>has_value()</code></td>
+</tr>
+<tr>
+<td>Obtenir la valeur</td>
+<td>déréférencement</td>
+<td>déréférencement ou <code>value()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Cependant, d'un point de vue sémantique, un pointeur et un <code>std::optional</code> sont très différents.</p>
+<ul>
+<li>Un pointeur a une sémantique de référence : il désigne un autre objet, et l'affectation copie le pointeur, pas l'objet. Si nous renvoyons un pointeur par adresse, c'est le pointeur qui est copié vers l'appelant, pas l'objet pointé. Cela signifie qu'on ne peut pas renvoyer par adresse un objet local, car on renverrait l'adresse de cet objet, qui serait ensuite détruit, laissant le pointeur renvoyé pendant (dangling).</li>
+<li>Un <code>std::optional</code> a une sémantique de valeur : il contient réellement sa valeur, et l'affectation copie la valeur. Si nous renvoyons un <code>std::optional</code> par valeur, le <code>std::optional</code> (y compris la valeur qu'il contient) est copié vers l'appelant. Cela signifie qu'on peut renvoyer une valeur depuis la fonction vers l'appelant grâce à <code>std::optional</code>.</li>
+</ul>
+<p>Gardons cela en tête et regardons comment fonctionne notre exemple. Notre <code>doIntDivision()</code> renvoie maintenant un <code>std::optional&lt;int&gt;</code> au lieu d'un <code>int</code>. Dans le corps de la fonction, si nous détectons une erreur, nous renvoyons <code>{}</code>, ce qui renvoie implicitement un <code>std::optional</code> sans valeur. Si nous avons une valeur, nous la renvoyons, ce qui renvoie implicitement un <code>std::optional</code> contenant cette valeur.</p>
+<p>Dans <code>main()</code>, nous utilisons une conversion implicite en bool pour vérifier si le <code>std::optional</code> renvoyé contient une valeur. Si oui, nous déréférençons l'objet <code>std::optional</code> pour obtenir la valeur. Sinon, nous traitons la condition d'erreur. C'est tout !</p>
+<h2 id="avantages-et-inconvénients-de-renvoyer-un-stdoptional">Avantages et inconvénients de renvoyer un <code>std::optional</code></h2>
+<p>Renvoyer un <code>std::optional</code> présente plusieurs avantages :</p>
+<ul>
+<li>Utiliser <code>std::optional</code> documente clairement le fait qu'une fonction peut renvoyer une valeur ou non.</li>
+<li>Nous n'avons pas besoin de retenir quelle valeur sert de sentinelle.</li>
+<li>La syntaxe d'utilisation de <code>std::optional</code> est pratique et intuitive.</li>
+</ul>
+<p>Renvoyer un <code>std::optional</code> présente néanmoins quelques inconvénients :</p>
+<ul>
+<li>Nous devons nous assurer que le <code>std::optional</code> contient une valeur avant de la récupérer. Si nous déréférençons un <code>std::optional</code> qui ne contient pas de valeur, nous obtenons un comportement indéfini.</li>
+<li><code>std::optional</code> ne permet pas de transmettre des informations sur la raison de l'échec de la fonction.</li>
+</ul>
+<p>Sauf si votre fonction doit renvoyer des informations supplémentaires sur la raison de son échec (pour mieux comprendre l'erreur, ou pour distinguer différents types d'échec), <code>std::optional</code> est un excellent choix pour les fonctions qui peuvent renvoyer une valeur ou échouer.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Renvoyez un <code>std::optional</code> (plutôt qu'une valeur sentinelle) pour les fonctions susceptibles d'échouer, sauf si votre fonction doit renvoyer des informations supplémentaires sur la raison de son échec.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p><code>std::expected</code> (introduit en C++23) est conçu pour le cas où une fonction peut renvoyer soit une valeur attendue, soit un code d'erreur inattendu. Consultez la <a href="https://en.cppreference.com/w/cpp/utility/expected">référence de std::expected</a> pour plus d'informations.</p>
+</div>
+<h2 id="utiliser-stdoptional-comme-paramètre-de-fonction-optionnel">Utiliser <code>std::optional</code> comme paramètre de fonction optionnel</h2>
+<p>Dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.11%20-%20Passage%20par%20adresse%20%28partie%202%29.html">12.11 -- Passage par adresse (partie 2)</a>, nous avons vu comment le passage par adresse permet à une fonction d'accepter un argument « optionnel » (l'appelant peut passer <code>nullptr</code> pour représenter « aucun argument », ou un objet). Cependant, cette approche présente un inconvénient : un argument non nul doit être une lvalue (pour que son adresse puisse être passée à la fonction).</p>
+<p>Sans surprise (vu le nom), <code>std::optional</code> est une autre façon pour une fonction d'accepter un argument optionnel (utilisé uniquement comme paramètre d'entrée). Au lieu de ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printIDNumber(const int *id=nullptr)
+{
+    if (id)
+        std::cout &lt;&lt; &quot;Your ID number is &quot; &lt;&lt; *id &lt;&lt; &quot;.\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;Your ID number is not known.\n&quot;;
+}
+
+int main()
+{
+    printIDNumber(); // on ne connaît pas encore l'ID de l'utilisateur
+
+    int userid { 34 };
+    printIDNumber(&amp;userid); // on connaît maintenant l'ID de l'utilisateur
+
+    return 0;
+}
+</code></pre>
+<p>Vous pouvez écrire ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;optional&gt;
+
+void printIDNumber(std::optional&lt;const int&gt; id = std::nullopt)
+{
+    if (id)
+        std::cout &lt;&lt; &quot;Your ID number is &quot; &lt;&lt; *id &lt;&lt; &quot;.\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;Your ID number is not known.\n&quot;;
+}
+
+int main()
+{
+    printIDNumber(); // on ne connaît pas encore l'ID de l'utilisateur
+
+    int userid { 34 };
+    printIDNumber(userid); // on connaît maintenant l'ID de l'utilisateur
+
+    printIDNumber(62); // on peut aussi passer une rvalue
+
+    return 0;
+}
+</code></pre>
+<p>Cette approche présente deux avantages :</p>
+<ol>
+<li>Elle documente clairement le fait que le paramètre est optionnel.</li>
+<li>On peut passer une rvalue (puisque <code>std::optional</code> fera une copie).</li>
+</ol>
+<p>Cependant, comme <code>std::optional</code> copie son argument, cela devient problématique lorsque <code>T</code> est un type coûteux à copier (comme <code>std::string</code>). Avec les paramètres de fonction classiques, nous contournions ce problème en utilisant une référence lvalue constante, afin d'éviter la copie. Malheureusement, jusqu'à C++23 inclus, <code>std::optional</code> ne prend pas en charge les références.</p>
+<p>Nous recommandons donc d'utiliser <code>std::optional&lt;T&gt;</code> comme paramètre optionnel uniquement lorsque <code>T</code> serait normalement passé par valeur. Dans le cas contraire, utilisez <code>const T*</code>.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Bien que <code>std::optional</code> ne prenne pas directement en charge les références, vous pouvez utiliser <code>std::reference_wrapper</code> (que nous présentons dans la leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.5%20-%20Tableaux%20de%20r%C3%A9f%C3%A9rences%20via%20std--reference_wrapper.html">17.5 -- Tableaux de références via std::reference_wrapper</a>) pour imiter une référence. Voyons à quoi ressemble le programme ci-dessus avec un identifiant de type <code>std::string</code> et <code>std::reference_wrapper</code> :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;  // pour std::reference_wrapper
+#include &lt;iostream&gt;
+#include &lt;optional&gt;
+#include &lt;string&gt;
+
+struct Employee
+{
+    std::string name{}; // coûteux à copier
+    int id;
+};
+
+void printEmployeeID(std::optional&lt;std::reference_wrapper&lt;Employee&gt;&gt; e=std::nullopt)
+{
+    if (e)
+        std::cout &lt;&lt; &quot;Your ID number is &quot; &lt;&lt; e-&gt;get().id &lt;&lt; &quot;.\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;Your ID number is not known.\n&quot;;
+}
+
+int main()
+{
+    printEmployeeID(); // on ne connaît pas encore l'Employee
+
+    Employee e { &quot;James&quot;, 34 };
+    printEmployeeID(e); // on connaît maintenant l'ID de l'Employee
+
+    return 0;
+}
+</code></pre>
+<p>Et pour comparaison, la version avec pointeur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+struct Employee
+{
+    std::string name{}; // coûteux à copier
+    int id;
+};
+
+void printEmployeeID(const Employee* e=nullptr)
+{
+    if (e)
+        std::cout &lt;&lt; &quot;Your ID number is &quot; &lt;&lt; e-&gt;id &lt;&lt; &quot;.\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;Your ID number is not known.\n&quot;;
+}
+
+int main()
+{
+    printEmployeeID(); // on ne connaît pas encore l'Employee
+
+    Employee e { &quot;James&quot;, 34 };
+    printEmployeeID(&amp;e); // on connaît maintenant l'ID de l'Employee
+
+    return 0;
+}
+</code></pre>
+<p>Ces deux programmes sont presque identiques. Nous estimons que le premier n'est ni plus lisible ni plus facile à maintenir que le second, et qu'il ne vaut pas la peine d'introduire deux types supplémentaires dans votre programme.</p>
+</div>
+<p>Dans de nombreux cas, la surcharge de fonctions offre une solution supérieure :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+struct Employee
+{
+    std::string name{}; // coûteux à copier
+    int id;
+};
+
+void printEmployeeID()
+{
+    std::cout &lt;&lt; &quot;Your ID number is not known.\n&quot;;
+}
+
+void printEmployeeID(const Employee&amp; e)
+{
+    std::cout &lt;&lt; &quot;Your ID number is &quot; &lt;&lt; e.id &lt;&lt; &quot;.\n&quot;;
+}
+
+int main()
+{
+    printEmployeeID(); // on ne connaît pas encore l'Employee
+
+    Employee e { &quot;James&quot;, 34 };
+    printEmployeeID(e); // on connaît maintenant l'ID de l'Employee
+
+    printEmployeeID( { &quot;Dave&quot;, 62 } ); // on peut même passer des rvalues
+
+    return 0;
+}
+</code></pre>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez <code>std::optional</code> pour les types de retour optionnels.</p>
+<p>Privilégiez la surcharge de fonctions pour les paramètres optionnels (lorsque c'est possible). Sinon, utilisez <code>std::optional&lt;T&gt;</code> pour les arguments optionnels lorsque <code>T</code> serait normalement passé par valeur. Préférez <code>const T*</code> lorsque <code>T</code> est coûteux à copier.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdoptional/">https://www.learncpp.com/cpp-tutorial/stdoptional/</a></em></p>
+</main>
+</body>
+</html>

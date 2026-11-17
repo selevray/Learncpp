@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.4 — Surcharge des opérateurs d&#x27;entrée et de sortie</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="214-surcharge-des-opérateurs-dentrée-et-de-sortie">21.4 — Surcharge des opérateurs d'entrée et de sortie</h1>
+<p>Pour les classes qui possèdent plusieurs variables membres, afficher chacune d'elles à l'écran devient vite fastidieux. Par exemple, considérez la classe suivante :</p>
+<pre><code class="language-cpp">class Point
+{
+private:
+    double m_x{};
+    double m_y{};
+    double m_z{};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0)
+      : m_x{x}, m_y{y}, m_z{z}
+    {
+    }
+
+    double getX() const { return m_x; }
+    double getY() const { return m_y; }
+    double getZ() const { return m_z; }
+};
+</code></pre>
+<p>Si vous souhaitez afficher une instance de cette classe à l'écran, vous devriez faire quelque chose comme ceci :</p>
+<pre><code class="language-cpp">Point point { 5.0, 6.0, 7.0 };
+
+std::cout &lt;&lt; &quot;Point(&quot; &lt;&lt; point.getX() &lt;&lt; &quot;, &quot; &lt;&lt;
+    point.getY() &lt;&lt; &quot;, &quot; &lt;&lt;
+    point.getZ() &lt;&lt; ')';
+</code></pre>
+<p>Il est évidemment préférable d'en faire une fonction réutilisable. Dans les exemples précédents, nous avons déjà créé des fonctions <code>print()</code> qui fonctionnent ainsi :</p>
+<pre><code class="language-cpp">class Point
+{
+private:
+    double m_x{};
+    double m_y{};
+    double m_z{};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0)
+      : m_x{x}, m_y{y}, m_z{z}
+    {
+    }
+
+    double getX() const { return m_x; }
+    double getY() const { return m_y; }
+    double getZ() const { return m_z; }
+
+    void print() const
+    {
+        std::cout &lt;&lt; &quot;Point(&quot; &lt;&lt; m_x &lt;&lt; &quot;, &quot; &lt;&lt; m_y &lt;&lt; &quot;, &quot; &lt;&lt; m_z &lt;&lt; ')';
+    }
+};
+</code></pre>
+<p>C'est bien mieux, mais cette approche présente encore quelques inconvénients. Comme <code>print()</code> renvoie <code>void</code>, elle ne peut pas être appelée au milieu d'une instruction d'affichage. Il faut donc écrire ceci :</p>
+<pre><code class="language-cpp">int main()
+{
+    const Point point { 5.0, 6.0, 7.0 };
+
+    std::cout &lt;&lt; &quot;My point is: &quot;;
+    point.print();
+    std::cout &lt;&lt; &quot; in Cartesian space.\n&quot;;
+}
+</code></pre>
+<p>Il serait bien plus simple d'écrire directement :</p>
+<pre><code class="language-cpp">Point point{5.0, 6.0, 7.0};
+cout &lt;&lt; &quot;My point is: &quot; &lt;&lt; point &lt;&lt; &quot; in Cartesian space.\n&quot;;
+</code></pre>
+<p>et d'obtenir le même résultat. Il ne serait plus nécessaire de découper l'affichage en plusieurs instructions, ni de se souvenir du nom de la fonction d'affichage.</p>
+<p>Heureusement, en surchargeant <code>operator&lt;&lt;</code>, c'est possible !</p>
+<h2 id="surcharge-de-operator">Surcharge de <code>operator&lt;&lt;</code></h2>
+<p>La surcharge de <code>operator&lt;&lt;</code> ressemble à celle de <code>operator+</code> (ce sont tous deux des opérateurs binaires), à ceci près que les types des paramètres sont différents.</p>
+<p>Considérez l'expression <code>std::cout &lt;&lt; point</code>. Si l'opérateur est <code>&lt;&lt;</code>, quels sont les opérandes ? L'opérande de gauche est l'objet <code>std::cout</code>, et celui de droite est l'objet de votre classe <code>Point</code>. <code>std::cout</code> est en réalité un objet de type <code>std::ostream</code>. Notre fonction surchargée ressemblera donc à ceci :</p>
+<pre><code class="language-cpp">// std::ostream est le type de l'objet std::cout
+friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point);
+</code></pre>
+<p>L'implémentation de <code>operator&lt;&lt;</code> pour notre classe <code>Point</code> est assez simple : comme C++ sait déjà afficher des <code>double</code> avec <code>operator&lt;&lt;</code>, et que nos membres sont tous des <code>double</code>, nous pouvons simplement utiliser <code>operator&lt;&lt;</code> pour afficher les membres de données de notre <code>Point</code>. Voici la classe <code>Point</code> précédente, complétée par l'opérateur <code>operator&lt;&lt;</code> surchargé.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Point
+{
+private:
+    double m_x{};
+    double m_y{};
+    double m_z{};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0)
+      : m_x{x}, m_y{y}, m_z{z}
+    {
+    }
+
+    friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point);
+};
+
+std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point)
+{
+    // Comme operator&lt;&lt; est une fonction amie de la classe Point, nous pouvons accéder directement à ses membres.
+    out &lt;&lt; &quot;Point(&quot; &lt;&lt; point.m_x &lt;&lt; &quot;, &quot; &lt;&lt; point.m_y &lt;&lt; &quot;, &quot; &lt;&lt; point.m_z &lt;&lt; ')'; // l'affichage réel se fait ici
+
+    return out; // on renvoie std::ostream pour pouvoir enchaîner les appels à operator&lt;&lt;
+}
+
+int main()
+{
+    const Point point1 { 2.0, 3.0, 4.0 };
+
+    std::cout &lt;&lt; point1 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>C'est assez direct. Remarquez à quel point la ligne d'affichage ressemble à celle de la fonction <code>print()</code> écrite précédemment. La différence la plus notable est que <code>std::cout</code> est devenu le paramètre <code>out</code> (qui sera une référence à <code>std::cout</code> lors de l'appel de la fonction).</p>
+<p>La partie la plus délicate concerne le type de retour. Avec les opérateurs arithmétiques, nous calculions et renvoyions un résultat unique par valeur (puisque nous créions et renvoyions un nouveau résultat). En revanche, si vous essayez de renvoyer un <code>std::ostream</code> par valeur, vous obtiendrez une erreur de compilation. Cela vient du fait que <code>std::ostream</code> interdit explicitement d'être copié.</p>
+<p>Ici, nous renvoyons le paramètre de gauche par référence. Cela évite non seulement de copier le <code>std::ostream</code>, mais permet aussi d'« enchaîner » les commandes d'affichage, comme dans <code>std::cout &lt;&lt; point &lt;&lt; '\n'</code>.</p>
+<p>Voyons ce qui se passerait si notre <code>operator&lt;&lt;</code> renvoyait <code>void</code>. Lorsque le compilateur évalue <code>std::cout &lt;&lt; point &lt;&lt; '\n'</code>, en raison des règles de priorité et d'associativité, il évalue cette expression comme <code>(std::cout &lt;&lt; point) &lt;&lt; '\n';</code>. <code>std::cout &lt;&lt; point</code> appellerait notre fonction <code>operator&lt;&lt;</code> qui renvoie <code>void</code>. L'expression partiellement évaluée devient alors <code>void &lt;&lt; '\n';</code>, ce qui n'a aucun sens !</p>
+<p>En renvoyant plutôt le paramètre <code>out</code>, <code>(std::cout &lt;&lt; point)</code> renvoie <code>std::cout</code>. L'expression partiellement évaluée devient alors <code>std::cout &lt;&lt; '\n';</code>, qui est à son tour évaluée !</p>
+<p>Chaque fois que nous voulons que nos opérateurs binaires surchargés puissent être enchaînés de cette manière, l'opérande de gauche doit être renvoyé (par référence). Renvoyer par référence le paramètre de gauche est acceptable ici : comme ce paramètre a été passé par la fonction appelante, il doit encore exister quand la fonction appelée se termine. Nous n'avons donc pas à craindre de référencer un objet qui sortirait de portée et serait détruit à la fin de l'opérateur.</p>
+<p>Pour le prouver, considérez l'exemple suivant, qui utilise la classe <code>Point</code> avec l'opérateur <code>operator&lt;&lt;</code> surchargé écrit ci-dessus :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Point
+{
+private:
+    double m_x{};
+    double m_y{};
+    double m_z{};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0)
+      : m_x{x}, m_y{y}, m_z{z}
+    {
+    }
+
+    friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point);
+};
+
+std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point)
+{
+    // Comme operator&lt;&lt; est une fonction amie de la classe Point, nous pouvons accéder directement à ses membres.
+    out &lt;&lt; &quot;Point(&quot; &lt;&lt; point.m_x &lt;&lt; &quot;, &quot; &lt;&lt; point.m_y &lt;&lt; &quot;, &quot; &lt;&lt; point.m_z &lt;&lt; ')';
+
+    return out;
+}
+
+int main()
+{
+    Point point1 { 2.0, 3.5, 4.0 };
+    Point point2 { 6.0, 7.5, 8.0 };
+
+    std::cout &lt;&lt; point1 &lt;&lt; ' ' &lt;&lt; point2 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+Point(2, 3.5, 4) Point(6, 7.5, 8)
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>operator&lt;&lt;</code> est une fonction amie parce qu'elle a besoin d'un accès direct aux membres de <code>Point</code>. En revanche, si les membres pouvaient être lus via des accesseurs (getters), <code>operator&lt;&lt;</code> pourrait être implémenté comme une fonction non amie.</p>
+<h2 id="surcharge-de-operator_1">Surcharge de <code>operator&gt;&gt;</code></h2>
+<p>Il est également possible de surcharger l'opérateur d'entrée. Cela se fait de manière analogue à la surcharge de l'opérateur de sortie. L'élément clé à connaître est que <code>std::cin</code> est un objet de type <code>std::istream</code>. Voici notre classe <code>Point</code> avec un <code>operator&gt;&gt;</code> surchargé ajouté :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Point
+{
+private:
+    double m_x{};
+    double m_y{};
+    double m_z{};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0)
+      : m_x{x}, m_y{y}, m_z{z}
+    {
+    }
+
+    friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point);
+    friend std::istream&amp; operator&gt;&gt; (std::istream&amp; out, Point&amp; point);
+};
+
+std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Point&amp; point)
+{
+    // Comme operator&lt;&lt; est une fonction amie de la classe Point, nous pouvons accéder directement à ses membres.
+    out &lt;&lt; &quot;Point(&quot; &lt;&lt; point.m_x &lt;&lt; &quot;, &quot; &lt;&lt; point.m_y &lt;&lt; &quot;, &quot; &lt;&lt; point.m_z &lt;&lt; ')';
+
+    return out;
+}
+
+// notez que point doit être non const afin que nous puissions modifier l'objet
+std::istream&amp; operator&gt;&gt; (std::istream&amp; in, Point&amp; point)
+{
+    // Cette version est sujette aux problèmes d'extraction partielle (voir ci-dessous)
+    in &gt;&gt; point.m_x &gt;&gt; point.m_y &gt;&gt; point.m_z;
+
+    return in;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a point: &quot;;
+
+    Point point{ 1.0, 2.0, 3.0 }; // données de test non nulles
+    std::cin &gt;&gt; point;
+
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; point &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>En supposant que l'utilisateur saisisse <code>4.0 5.6 7.26</code>, le programme produit le résultat suivant :</p>
+<pre><code>
+You entered: Point(4, 5.6, 7.26)
+</code></pre>
+<p>Voyons maintenant ce qui se passe lorsque l'utilisateur saisit <code>4.0b 5.6 7.26</code> (remarquez le <code>b</code> après le <code>4.0</code>) :</p>
+<pre><code>
+You entered: Point(4, 0, 3)
+</code></pre>
+<p>Notre point est désormais un hybride étrange : une valeur provient de la saisie de l'utilisateur (<code>4.0</code>), une valeur a été initialisée à zéro (<code>0.0</code>), et une valeur n'a pas été modifiée par la fonction d'entrée (<code>3.0</code>). Ce n'est pas vraiment satisfaisant !</p>
+<h2 id="prévenir-lextraction-partielle">Prévenir l'extraction partielle</h2>
+<p>Lorsque nous extrayons une seule valeur, il n'existe que deux issues possibles : l'extraction échoue ou elle réussit. En revanche, lorsque nous extrayons plusieurs valeurs au cours d'une opération d'entrée, les choses se compliquent.</p>
+<p>L'implémentation ci-dessus de <code>operator&gt;&gt;</code> peut conduire à une extraction partielle, et c'est exactement ce que l'on observe avec la saisie <code>4.0b 5.6 7.26</code>. L'extraction vers <code>m_x</code> réussit à lire <code>4.0</code> dans la saisie de l'utilisateur, laissant <code>b 5.6 7.26</code> dans le flux d'entrée. L'extraction vers <code>m_y</code> échoue à lire <code>b</code>, donc <code>m_y</code> reçoit par copie la valeur <code>0.0</code> et le flux d'entrée passe en mode échec. Comme nous n'avons pas effacé ce mode d'échec, l'extraction vers <code>m_z</code> s'interrompt immédiatement, et <code>m_z</code> conserve sa valeur d'avant la tentative (<code>3.0</code>).</p>
+<p>Ce résultat n'est jamais souhaitable, et dans certains cas il peut même être dangereux. Imaginez que nous écrivions plutôt un <code>operator&gt;&gt;</code> pour un objet <code>Fraction</code>. Après avoir extrait avec succès le numérateur, une extraction échouée pour le dénominateur mettrait celui-ci à <code>0.0</code>, ce qui pourrait ensuite provoquer une division par zéro et faire planter l'application.</p>
+<p>Comment éviter cela ? Une solution consiste à rendre nos opérations transactionnelles. Une <strong>opération transactionnelle</strong> doit soit réussir complètement, soit échouer complètement : aucun succès ou échec partiel n'est autorisé. C'est ce que l'on appelle parfois le principe « tout ou rien ». Si un échec survient à n'importe quel moment de la transaction, les modifications déjà effectuées par l'opération doivent être annulées.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les transactions se produisent constamment dans la vie réelle. Prenons le cas où je souhaite transférer de l'argent d'un compte bancaire à un autre. Cela demande deux étapes : l'argent doit d'abord être débité d'un compte, puis crédité sur l'autre. Lors de l'exécution de cette opération, trois issues sont possibles :</p>
+<ul>
+<li>L'étape de débit échoue (par exemple, fonds insuffisants). La transaction échoue, et aucun des deux soldes ne reflète le transfert.</li>
+<li>L'étape de crédit échoue (par exemple, à cause d'un problème technique). Dans ce cas, le débit, qui a déjà réussi, doit être annulé. La transaction échoue, et aucun des deux soldes ne reflète le transfert.</li>
+<li>Les deux étapes réussissent. La transaction est un succès, et les deux soldes reflètent le transfert.</li>
+</ul>
+<p>Au final, il n'existe que deux issues possibles : soit le transfert échoue complètement et les soldes restent inchangés, soit il réussit et les deux soldes sont modifiés.</p>
+</div>
+<p>Réimplémentons notre <code>operator&gt;&gt;</code> surchargé pour <code>Point</code> comme une opération transactionnelle :</p>
+<pre><code class="language-cpp">// notez que point doit être non const afin que nous puissions modifier l'objet
+// notez que cette implémentation est une fonction non amie
+std::istream&amp; operator&gt;&gt; (std::istream&amp; in, Point&amp; point)
+{
+    double x{};
+    double y{};
+    double z{};
+
+    if (in &gt;&gt; x &gt;&gt; y &gt;&gt; z)      // si toutes les extractions ont réussi
+        point = Point{x, y, z}; // on remplace notre point existant
+
+    return in;
+}
+</code></pre>
+<p>Dans cette implémentation, nous n'écrasons pas directement les membres de données avec la saisie de l'utilisateur. Nous extrayons plutôt cette saisie dans des variables temporaires (<code>x</code>, <code>y</code> et <code>z</code>). Une fois toutes les tentatives d'extraction terminées, nous vérifions si elles ont toutes réussi. Si c'est le cas, nous mettons à jour tous les membres de <code>Point</code> en même temps. Sinon, nous n'en mettons à jour aucun.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p><code>if (in &gt;&gt; x &gt;&gt; y &gt;&gt; z)</code> est équivalent à <code>in &gt;&gt; x &gt;&gt; y &gt;&gt; z; if (in)</code>. Rappelez-vous que chaque extraction renvoie <code>in</code> afin que plusieurs extractions puissent être enchaînées. La version en une seule instruction utilise le <code>in</code> renvoyé par la dernière extraction comme condition de l'instruction <code>if</code>, alors que la version en plusieurs instructions utilise explicitement <code>in</code>.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Les opérations transactionnelles peuvent être implémentées selon plusieurs stratégies. Par exemple :</p>
+<ul>
+<li>Modifier en cas de succès : on stocke le résultat de chaque sous-opération. Si toutes les sous-opérations réussissent, on remplace les données concernées par les résultats stockés. C'est la stratégie utilisée dans l'exemple <code>Point</code> ci-dessus.</li>
+<li>Restaurer en cas d'échec : on copie toutes les données susceptibles d'être modifiées. Si une sous-opération échoue, les modifications apportées par les sous-opérations précédentes peuvent être annulées à l'aide de la copie.</li>
+<li>Annuler (rollback) en cas d'échec : si une sous-opération échoue, chaque sous-opération précédente est annulée au moyen d'une sous-opération inverse. Cette stratégie est souvent utilisée dans les bases de données, où les données sont trop volumineuses pour être sauvegardées, et où le résultat des sous-opérations ne peut pas être stocké.</li>
+</ul>
+</div>
+<p>Bien que l'<code>operator&gt;&gt;</code> ci-dessus empêche les extractions partielles, il est incohérent avec le comportement de <code>operator&gt;&gt;</code> pour les types fondamentaux. Lorsqu'une extraction vers un objet de type fondamental échoue, l'objet n'est pas laissé inchangé : il reçoit par copie la valeur <code>0</code> (cela garantit que l'objet possède une valeur cohérente si la tentative d'extraction a lieu alors qu'il n'était pas initialisé). Pour rester cohérent, vous pouvez donc souhaiter qu'une extraction échouée réinitialise l'objet à son état par défaut (du moins lorsqu'un tel état existe).</p>
+<p>Voici une version alternative de <code>operator&gt;&gt;</code> qui réinitialise <code>Point</code> à son état par défaut si une extraction échoue :</p>
+<pre><code class="language-cpp">// notez que point doit être non const afin que nous puissions modifier l'objet
+// notez que cette implémentation est une fonction non amie
+std::istream&amp; operator&gt;&gt; (std::istream&amp; in, Point&amp; point)
+{
+    double x{};
+    double y{};
+    double z{};
+
+    in &gt;&gt; x &gt;&gt; y &gt;&gt; z;
+    point = in ? Point{x, y, z} : Point{};
+
+    return in;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Une telle opération n'est plus à proprement parler transactionnelle (puisqu'un échec ne « ne fait rien »). Il ne semble pas exister de terme général pour désigner les opérations qui garantissent l'absence de résultats partiels. Peut-être « opération indivisible ».</p>
+</div>
+<h2 id="gérer-les-saisies-sémantiquement-invalides">Gérer les saisies sémantiquement invalides</h2>
+<p>L'extraction peut échouer de différentes manières.</p>
+<p>Lorsque <code>operator&gt;&gt;</code> ne parvient tout simplement pas à extraire quoi que ce soit dans une variable, <code>std::cin</code> passe automatiquement en mode échec (ce que nous étudions dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.5%20-%20std--cin%20et%20gestion%20des%20entr%C3%A9es%20invalides.html">9.5 — std::cin et gestion des entrées invalides</a>). L'appelant de cette fonction peut alors vérifier <code>std::cin</code> pour savoir si l'opération a échoué, et traiter ce cas comme il convient.</p>
+<p>Mais qu'en est-il des cas où l'utilisateur saisit une valeur extractible mais sémantiquement invalide (par exemple, une <code>Fraction</code> dont le dénominateur vaut <code>0</code>) ? Comme <code>std::cin</code> a bien extrait quelque chose, il ne passe pas automatiquement en mode échec. L'appelant ne se rendra alors probablement pas compte qu'une erreur s'est produite.</p>
+<p>Pour y remédier, notre <code>operator&gt;&gt;</code> surchargé peut déterminer si l'une des valeurs extraites est sémantiquement invalide et, le cas échéant, placer manuellement le flux d'entrée en mode échec. Cela se fait en appelant <code>std::cin.setstate(std::ios_base::failbit);</code>.</p>
+<p>Voici un exemple d'<code>operator&gt;&gt;</code> transactionnel surchargé pour <code>Point</code> qui fera passer le flux d'entrée en mode échec si l'utilisateur saisit une valeur négative extractible :</p>
+<pre><code class="language-cpp">std::istream&amp; operator&gt;&gt; (std::istream&amp; in, Point&amp; point)
+{
+    double x{};
+    double y{};
+    double z{};
+
+    in &gt;&gt; x &gt;&gt; y &gt;&gt; z;
+    if (x &lt; 0.0 || y &lt; 0.0 || z &lt; 0.0)       // si une valeur saisie et extraite est négative
+        in.setstate(std::ios_base::failbit); // on passe manuellement en mode échec
+    point = in ? Point{x, y, z} : Point{};
+
+    return in;
+}
+</code></pre>
+<h2 id="conclusion">Conclusion</h2>
+<p>La surcharge de <code>operator&lt;&lt;</code> et de <code>operator&gt;&gt;</code> permet d'afficher facilement votre classe à l'écran et d'accepter la saisie de l'utilisateur depuis la console.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Prenez la classe <code>Fraction</code> ci-dessous et ajoutez-lui des surcharges de <code>operator&lt;&lt;</code> et <code>operator&gt;&gt;</code>. Votre <code>operator&gt;&gt;</code> doit éviter les extractions partielles et échouer si l'utilisateur saisit un dénominateur égal à <code>0</code>. Il ne doit pas réinitialiser la <code>Fraction</code> à son état par défaut en cas d'échec.</p>
+<p>Le programme suivant doit compiler :</p>
+<pre><code class="language-cpp">int main()
+{
+    Fraction f1{};
+    std::cout &lt;&lt; &quot;Enter fraction 1: &quot;;
+    std::cin &gt;&gt; f1;
+
+    Fraction f2{};
+    std::cout &lt;&lt; &quot;Enter fraction 2: &quot;;
+    std::cin &gt;&gt; f2;
+
+    std::cout &lt;&lt; f1 &lt;&lt; &quot; * &quot; &lt;&lt; f2 &lt;&lt; &quot; is &quot; &lt;&lt; f1 * f2 &lt;&lt; '\n'; // note : le résultat de f1 * f2 est une valeur r
+
+    return 0;
+}
+</code></pre>
+<p>Et produire le résultat suivant :</p>
+<pre><code>
+Enter fraction 1: 2/3
+Enter fraction 2: 3/8
+2/3 * 3/8 is 1/4
+</code></pre>
+<p>Voici la classe <code>Fraction</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;numeric&gt; // pour std::gcd
+
+class Fraction
+{
+private:
+    int m_numerator{};
+    int m_denominator{};
+
+public:
+    Fraction(int numerator=0, int denominator=1):
+        m_numerator{numerator}, m_denominator{denominator}
+    {
+        // Nous plaçons reduce() dans le constructeur pour garantir que toute nouvelle fraction créée est réduite !
+        // Les fractions écrasées devront être réduites à nouveau
+        reduce();
+    }
+
+    void reduce()
+    {
+        int gcd{ std::gcd(m_numerator, m_denominator) };
+        if (gcd)
+        {
+            m_numerator /= gcd;
+            m_denominator /= gcd;
+        }
+    }
+
+    friend Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2);
+    friend Fraction operator*(const Fraction&amp; f1, int value);
+    friend Fraction operator*(int value, const Fraction&amp; f1);
+
+    void print() const
+    {
+        std::cout &lt;&lt; m_numerator &lt;&lt; '/' &lt;&lt; m_denominator &lt;&lt; '\n';
+    }
+};
+
+Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2)
+{
+    return Fraction { f1.m_numerator * f2.m_numerator, f1.m_denominator * f2.m_denominator };
+}
+
+Fraction operator*(const Fraction&amp; f1, int value)
+{
+    return Fraction { f1.m_numerator * value, f1.m_denominator };
+}
+
+Fraction operator*(int value, const Fraction&amp; f1)
+{
+    return Fraction { f1.m_numerator * value, f1.m_denominator };
+}
+</code></pre>
+<p>Si vous utilisez un compilateur antérieur à C++17, vous pouvez remplacer <code>std::gcd</code> par cette fonction :</p>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+
+int gcd(int a, int b) {
+    return (b == 0) ? std::abs(a) : gcd(b, a % b);
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;numeric&gt; // pour std::gcd
+
+class Fraction
+{
+private:
+    int m_numerator{ 0 };
+    int m_denominator{ 1 };
+
+public:
+    Fraction(int numerator=0, int denominator = 1) :
+        m_numerator{ numerator }, m_denominator{ denominator }
+    {
+        // Nous plaçons reduce() dans le constructeur pour garantir que toute nouvelle fraction créée est réduite !
+        // Les fractions écrasées devront être réduites à nouveau
+        reduce();
+    }
+
+    void reduce()
+    {
+        int gcd{ std::gcd(m_numerator, m_denominator) };
+        if (gcd)
+        {
+            m_numerator /= gcd;
+            m_denominator /= gcd;
+        }
+    }
+
+    friend Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2);
+    friend Fraction operator*(const Fraction&amp; f1, int value);
+    friend Fraction operator*(int value, const Fraction&amp; f1);
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Fraction&amp; f1);
+
+    void print() const
+    {
+        std::cout &lt;&lt; m_numerator &lt;&lt; '/' &lt;&lt; m_denominator &lt;&lt; '\n';
+    }
+};
+
+Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2)
+{
+    return Fraction { f1.m_numerator * f2.m_numerator, f1.m_denominator * f2.m_denominator };
+}
+
+Fraction operator*(const Fraction&amp; f1, int value)
+{
+    return Fraction { f1.m_numerator * value, f1.m_denominator };
+}
+
+Fraction operator*(int value, const Fraction&amp; f1)
+{
+    return Fraction { f1.m_numerator * value, f1.m_denominator };
+}
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Fraction&amp; f1)
+{
+    out &lt;&lt; f1.m_numerator &lt;&lt; '/' &lt;&lt; f1.m_denominator;
+    return out;
+}
+
+std::istream&amp; operator&gt;&gt;(std::istream&amp; in, Fraction&amp; f1)
+{
+    int numerator {};
+    char ignore {};
+    int denominator {};
+
+    in &gt;&gt; numerator &gt;&gt; ignore &gt;&gt; denominator;
+    if (denominator == 0)                       // si notre dénominateur est sémantiquement invalide
+        in.setstate(std::ios_base::failbit);    // on passe manuellement en mode échec
+    if (in)                                     // si nous ne sommes pas en mode échec
+        f1 = Fraction {numerator, denominator}; // on met à jour notre objet avec les valeurs extraites
+
+    return in;
+}
+
+int main()
+{
+    Fraction f1{};
+    std::cout &lt;&lt; &quot;Enter fraction 1: &quot;;
+    std::cin &gt;&gt; f1;
+
+    Fraction f2{};
+    std::cout &lt;&lt; &quot;Enter fraction 2: &quot;;
+    std::cin &gt;&gt; f2;
+
+    std::cout &lt;&lt; f1 &lt;&lt; &quot; * &quot; &lt;&lt; f2 &lt;&lt; &quot; is &quot; &lt;&lt; f1 * f2 &lt;&lt; '\n'; // note : le résultat de f1 * f2 est une valeur r
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-the-io-operators/">https://www.learncpp.com/cpp-tutorial/overloading-the-io-operators/</a></em></p>
+</main>
+</body>
+</html>

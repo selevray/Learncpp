@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9.1 — Introduction aux tests de votre code</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="91-introduction-aux-tests-de-votre-code">9.1 — Introduction aux tests de votre code</h1>
+<p>Vous avez écrit un programme, il compile, et il semble même fonctionner ! Et maintenant ?</p>
+<p>Cela dépend. Si vous avez écrit votre programme pour qu'il ne soit exécuté qu'une seule fois puis jeté, alors vous avez terminé. Dans ce cas, peu importe qu'il ne fonctionne pas dans tous les cas : s'il fonctionne pour le seul cas dont vous aviez besoin, et que vous ne comptez l'exécuter qu'une fois, c'est fini.</p>
+<p>Si votre programme est entièrement linéaire (il ne contient aucune condition, comme des <em>instructions if</em> ou des <em>instructions switch</em>), ne prend aucune entrée et produit la bonne réponse, alors vous avez probablement terminé. Dans ce cas, vous avez déjà testé le programme entier en l'exécutant et en validant sa sortie. Vous voudrez peut-être compiler et exécuter le programme sur plusieurs systèmes différents pour vérifier qu'il se comporte de manière cohérente (si ce n'est pas le cas, vous avez probablement fait quelque chose qui produit un comportement indéfini et qui, par hasard, fonctionne quand même sur votre système initial).</p>
+<p>Mais il est plus probable que vous ayez écrit un programme que vous comptez exécuter de nombreuses fois, qui utilise des boucles et une logique conditionnelle, et qui accepte une forme de saisie utilisateur. Vous avez peut-être écrit des fonctions réutilisables dans de futurs programmes. Vous avez peut-être connu un peu de <strong>dérive du périmètre</strong> (scope creep), c'est-à-dire l'ajout de nouvelles fonctionnalités qui n'étaient pas prévues à l'origine. Vous envisagez peut-être même de distribuer ce programme à d'autres personnes, qui sont susceptibles d'essayer des choses auxquelles vous n'avez pas pensé. Dans ce cas, vous devriez vraiment vérifier que votre programme fonctionne comme vous le pensez dans un large éventail de conditions, et cela demande des tests proactifs.</p>
+<p>Le fait que votre programme ait fonctionné pour un jeu de données ne signifie pas qu'il fonctionnera correctement dans tous les cas.</p>
+<p>Le <strong>test logiciel</strong> (aussi appelé <strong>validation logicielle</strong>, ou <em>software testing</em> en anglais) est le processus qui consiste à déterminer si le logiciel fonctionne réellement comme prévu.</p>
+<h2 id="le-défi-des-tests">Le défi des tests</h2>
+<p>Avant de parler de manières pratiques de tester votre code, voyons pourquoi il est difficile de tester votre programme de façon exhaustive.</p>
+<p>Considérons ce programme simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void compare(int x, int y)
+{
+    if (x &gt; y)
+        std::cout &lt;&lt; x &lt;&lt; &quot; is greater than &quot; &lt;&lt; y &lt;&lt; '\n'; // case 1
+    else if (x &lt; y)
+        std::cout &lt;&lt; x &lt;&lt; &quot; is less than &quot; &lt;&lt; y &lt;&lt; '\n'; // case 2
+    else
+        std::cout &lt;&lt; x &lt;&lt; &quot; is equal to &quot; &lt;&lt; y &lt;&lt; '\n'; // case 3
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    std::cout &lt;&lt; &quot;Enter another number: &quot;;
+    int y{};
+    std::cin &gt;&gt; y;
+
+    compare(x, y);
+
+    return 0;
+}
+</code></pre>
+<p>En supposant un entier de 4 octets, tester explicitement ce programme avec chaque combinaison possible d'entrées nécessiterait de l'exécuter 18 446 744 073 709 551 616 fois (environ 18 quintillions). Ce n'est évidemment pas une tâche réalisable !</p>
+<p>Chaque fois que nous demandons une saisie utilisateur, ou que nous avons une condition dans notre code, nous multiplions le nombre de chemins d'exécution possibles de notre programme par un certain facteur. Pour tous sauf les programmes les plus simples, tester explicitement chaque combinaison d'entrées devient impossible presque immédiatement.</p>
+<p>Votre intuition devrait vous dire qu'il n'est pas nécessaire d'exécuter le programme ci-dessus 18 quintillions de fois pour s'assurer qu'il fonctionne. Vous pouvez raisonnablement conclure que si le cas 1 fonctionne pour une paire de valeurs <code>x</code> et <code>y</code> où <code>x &gt; y</code>, il devrait fonctionner pour toute paire où <code>x &gt; y</code>. Dans ces conditions, il apparaît que nous n'avons besoin d'exécuter ce programme qu'environ trois fois (une fois pour chacun des trois cas de la fonction <code>compare()</code>) pour avoir une grande confiance dans son bon fonctionnement. Il existe d'autres astuces similaires qui permettent de réduire considérablement le nombre de fois où nous devons tester quelque chose, afin de rendre les tests gérables.</p>
+<p>On pourrait écrire beaucoup de choses sur les méthodologies de test ; on pourrait même y consacrer un chapitre entier. Mais comme il ne s'agit pas d'un sujet propre au C++, nous nous en tiendrons à une introduction brève et informelle, du point de vue de vous, en tant que développeur, qui testez votre propre code. Dans les sous-sections suivantes, nous parlerons de quelques éléments <em>pratiques</em> auxquels vous devriez penser en testant votre code.</p>
+<h2 id="testez-vos-programmes-par-petites-parties">Testez vos programmes par petites parties</h2>
+<p>Imaginez un constructeur automobile qui conçoit une voiture-concept personnalisée. Lequel des deux scénarios suivants pensez-vous qu'il mette en œuvre ?
+a) Construire (ou acheter) et tester chaque composant individuellement avant de l'installer. Une fois qu'un composant a fait ses preuves, l'intégrer à la voiture et le retester pour s'assurer que l'intégration s'est bien passée. À la fin, tester la voiture complète, comme validation finale que tout semble correct.
+b) Assembler une voiture avec tous les composants d'un seul coup, puis tester l'ensemble pour la première fois à la toute fin.</p>
+<p>Il semble évident que l'option a) est le meilleur choix. Et pourtant, de nombreux programmeurs débutants écrivent du code selon le modèle b) !</p>
+<p>Dans le cas b), si l'une des pièces de la voiture ne fonctionne pas comme prévu, le mécanicien doit diagnostiquer l'ensemble de la voiture pour déterminer ce qui ne va pas, et le problème peut se trouver n'importe où. Un symptôme peut avoir de nombreuses causes : la voiture ne démarre pas à cause d'une bougie défectueuse, d'une batterie, d'une pompe à essence ou d'autre chose ? Cela fait perdre beaucoup de temps à identifier précisément où se trouvent les problèmes et à décider quoi faire. Et si un problème est découvert, les conséquences peuvent être désastreuses : un changement dans un domaine peut provoquer des « effets de ricochet » (des modifications) à plusieurs autres endroits. Par exemple, une pompe à essence trop petite peut conduire à repenser le moteur, ce qui conduit à repenser le châssis. Dans le pire des cas, vous pourriez finir par redessiner une grande partie de la voiture simplement pour accommoder ce qui, au départ, n'était qu'un petit problème !</p>
+<p>Dans le cas a), l'entreprise teste au fur et à mesure. Si un composant est défectueux dès sa sortie d'emballage, elle le saura immédiatement et pourra le réparer ou le remplacer. Rien n'est intégré à la voiture tant qu'il n'a pas fait ses preuves seul, et cette pièce est à nouveau testée dès qu'elle est intégrée à la voiture. Ainsi, les problèmes inattendus sont découverts le plus tôt possible, alors qu'ils sont encore petits et faciles à corriger.</p>
+<p>Au moment où l'on assemble enfin la voiture complète, on devrait avoir une confiance raisonnable dans son bon fonctionnement : après tout, toutes les pièces ont été testées isolément, puis lors de leur première intégration. Il reste possible que des problèmes inattendus apparaissent à ce stade, mais ce risque est minimisé grâce à tous les tests effectués auparavant.</p>
+<p>L'analogie ci-dessus s'applique aussi aux programmes, même si, pour une raison ou une autre, les programmeurs débutants ne s'en rendent souvent pas compte. Vous avez tout intérêt à écrire de petites fonctions (ou de petites classes), puis à les compiler et à les tester immédiatement. Ainsi, si vous faites une erreur, vous saurez qu'elle se trouve forcément dans la petite quantité de code que vous avez modifiée depuis la dernière compilation et le dernier test. Il y a alors moins d'endroits où chercher, et beaucoup moins de temps passé au débogage.</p>
+<p>Tester une petite partie de votre code isolément pour s'assurer que cette « unité » de code est correcte s'appelle le <strong>test unitaire</strong> (<em>unit testing</em>). Chaque <strong>test unitaire</strong> (<em>unit test</em>) est conçu pour vérifier qu'un comportement particulier de l'unité est correct.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Écrivez votre programme en petites unités bien définies (fonctions ou classes), compilez souvent et testez votre code au fur et à mesure.</p>
+</div>
+<p>Si le programme est court et accepte une saisie utilisateur, essayer diverses saisies peut suffire. Mais à mesure que les programmes s'allongent, cela devient de moins en moins suffisant, et il est plus utile de tester individuellement les fonctions ou les classes avant de les intégrer au reste du programme.</p>
+<p>Alors, comment tester notre code par unités ?</p>
+<h2 id="test-informel">Test informel</h2>
+<p>Une façon de tester du code consiste à effectuer des tests informels pendant que vous écrivez le programme. Après avoir écrit une unité de code (une fonction, une classe, ou un autre « paquet » de code distinct), vous pouvez écrire du code pour tester l'unité qui vient d'être ajoutée, puis supprimer ce test une fois qu'il réussit. Par exemple, pour la fonction <code>isLowerVowel()</code> suivante, vous pourriez écrire le code suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// We want to test the following function
+// For simplicity, we'll ignore that 'y' is sometimes counted as a vowel
+bool isLowerVowel(char c)
+{
+    switch (c)
+    {
+    case 'a':
+    case 'e':
+    case 'i':
+    case 'o':
+    case 'u':
+        return true;
+    default:
+        return false;
+    }
+}
+
+int main()
+{
+    // So here's our temporary tests to validate it works
+    std::cout &lt;&lt; isLowerVowel('a') &lt;&lt; '\n'; // temporary test code, should produce 1
+    std::cout &lt;&lt; isLowerVowel('q') &lt;&lt; '\n'; // temporary test code, should produce 0
+
+    return 0;
+}
+</code></pre>
+<p>Si les résultats sont <code>1</code> et <code>0</code>, alors tout est bon. Vous savez que votre fonction fonctionne pour quelques cas de base, et vous pouvez raisonnablement en déduire, en regardant le code, qu'elle fonctionnera pour les cas que vous n'avez pas testés (‘e’, ‘i’, ‘o’ et ‘u’). Vous pouvez donc supprimer ce code de test temporaire et poursuivre la programmation.</p>
+<h2 id="conserver-vos-tests">Conserver vos tests</h2>
+<p>Même si l'écriture de tests temporaires est un moyen rapide et simple de tester du code, elle ne tient pas compte du fait qu'à un moment donné, vous voudrez peut-être tester à nouveau ce même code. Vous avez peut-être modifié une fonction pour lui ajouter une nouvelle capacité, et voulez vous assurer que vous n'avez rien cassé de ce qui fonctionnait déjà. Pour cette raison, il peut être plus judicieux de conserver vos tests afin qu'ils puissent être relancés plus tard. Par exemple, au lieu de supprimer votre code de test temporaire, vous pouvez le déplacer dans une fonction <code>testVowel()</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+bool isLowerVowel(char c)
+{
+    switch (c)
+    {
+    case 'a':
+    case 'e':
+    case 'i':
+    case 'o':
+    case 'u':
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Not called from anywhere right now
+// But here if you want to retest things later
+void testVowel()
+{
+    std::cout &lt;&lt; isLowerVowel('a') &lt;&lt; '\n'; // temporary test code, should produce 1
+    std::cout &lt;&lt; isLowerVowel('q') &lt;&lt; '\n'; // temporary test code, should produce 0
+}
+
+int main()
+{
+    return 0;
+}
+</code></pre>
+<p>Au fur et à mesure que vous créez de nouveaux tests, vous pouvez simplement les ajouter à la fonction <code>testVowel()</code>.</p>
+<h2 id="automatiser-vos-fonctions-de-test">Automatiser vos fonctions de test</h2>
+<p>Un problème de la fonction de test ci-dessus est qu'elle vous oblige à vérifier manuellement les résultats lorsque vous l'exécutez. Au pire, cela vous oblige à vous souvenir de la réponse attendue (en supposant que vous ne l'ayez pas documentée), et à comparer manuellement les résultats obtenus avec les résultats attendus.</p>
+<p>Nous pouvons faire mieux en écrivant une fonction de test qui contient à la fois les tests ET les réponses attendues, et qui les compare à notre place.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+bool isLowerVowel(char c)
+{
+    switch (c)
+    {
+    case 'a':
+    case 'e':
+    case 'i':
+    case 'o':
+    case 'u':
+        return true;
+    default:
+        return false;
+    }
+}
+
+// returns the number of the test that failed, or 0 if all tests passed
+int testVowel()
+{
+    if (!isLowerVowel('a')) return 1;
+    if (isLowerVowel('q')) return 2;
+
+    return 0;
+}
+
+int main()
+{
+    int result { testVowel() };
+    if (result != 0)
+        std::cout &lt;&lt; &quot;testVowel() test &quot; &lt;&lt; result &lt;&lt; &quot; failed.\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;testVowel() tests passed.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, vous pouvez appeler <code>testVowel()</code> à tout moment pour prouver à nouveau que vous n'avez rien cassé, et la routine de test fera tout le travail à votre place, en renvoyant soit un signal « tout est bon » (valeur de retour <code>0</code>), soit le numéro du test qui n'a pas réussi, afin que vous puissiez examiner pourquoi il ne fonctionne plus. C'est particulièrement utile lorsque vous revenez modifier du code ancien, pour vous assurer que vous n'avez pas accidentellement cassé quoi que ce soit !</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Une meilleure méthode consiste à utiliser <code>assert</code>, qui interrompt le programme avec un message d'erreur si un test échoue. Nous n'avons alors pas besoin de créer et de gérer des numéros de cas de test.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt; // for assert
+#include &lt;cstdlib&gt; // for std::abort
+#include &lt;iostream&gt;
+
+bool isLowerVowel(char c)
+{
+    switch (c)
+    {
+    case 'a':
+    case 'e':
+    case 'i':
+    case 'o':
+    case 'u':
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Program will halt on any failed test case
+int testVowel()
+{
+#ifdef NDEBUG
+    // If NDEBUG is defined, asserts are compiled out.
+    // Since this function requires asserts to not be compiled out, we'll terminate the program if this function is called when NDEBUG is defined.
+    std::cerr &lt;&lt; &quot;Tests run with NDEBUG defined (asserts compiled out)&quot;;
+    std::abort();
+#endif
+
+    assert(isLowerVowel('a'));
+    assert(isLowerVowel('e'));
+    assert(isLowerVowel('i'));
+    assert(isLowerVowel('o'));
+    assert(isLowerVowel('u'));
+    assert(!isLowerVowel('b'));
+    assert(!isLowerVowel('q'));
+    assert(!isLowerVowel('y'));
+    assert(!isLowerVowel('z'));
+
+    return 0;
+}
+
+int main()
+{
+    testVowel();
+
+    // If we reached here, all tests must have passed
+    std::cout &lt;&lt; &quot;All tests succeeded\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Nous traitons <code>assert</code> dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.6%20-%20Assert%20et%20static_assert.html">9.6 -- Assert et static_assert</a>.</p>
+</div>
+<h2 id="frameworks-de-tests-unitaires">Frameworks de tests unitaires</h2>
+<p>Comme écrire des fonctions qui exercent d'autres fonctions est si courant et si utile, il existe des frameworks entiers (appelés <strong>frameworks de tests unitaires</strong>, ou <em>unit testing frameworks</em>) conçus pour simplifier l'écriture, la maintenance et l'exécution des tests unitaires. Comme ils font appel à des logiciels tiers, nous ne les aborderons pas ici, mais vous devez savoir qu'ils existent.</p>
+<h2 id="tests-dintégration">Tests d'intégration</h2>
+<p>Une fois chacune de vos unités testée isolément, elles peuvent être intégrées à votre programme et retestées pour s'assurer qu'elles ont été intégrées correctement. C'est ce qu'on appelle un <strong>test d'intégration</strong> (<em>integration test</em>). Les tests d'intégration tendent à être plus compliqués : pour l'instant, exécuter votre programme quelques fois et vérifier par sondage le comportement de l'unité intégrée suffira.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Quand devriez-vous commencer à tester votre code ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Dès que vous avez écrit une fonction non triviale.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-testing-your-code/">https://www.learncpp.com/cpp-tutorial/introduction-to-testing-your-code/</a></em></p>
+</main>
+</body>
+</html>
