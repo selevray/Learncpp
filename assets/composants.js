@@ -15,12 +15,53 @@
   const script = document.currentScript;
   const racine = script ? script.src.replace(/assets\/composants\.js.*$/, "") : "./";
 
-  /* Thème */
+  /* Thème
+   * Firefox donne à chaque fichier file:// son propre localStorage : le choix
+   * enregistré sur une page n'est pas visible depuis les autres. Le thème voyage
+   * donc aussi dans l'URL (?theme=dark) à chaque lien interne suivi. */
   const cle = "apprendre-cpp-theme";
-  try {
-    const t = localStorage.getItem(cle);
-    if (t) document.documentElement.dataset.theme = t;
-  } catch (e) {}
+  const valide = (t) => t === "light" || t === "dark";
+  let theme = new URLSearchParams(location.search).get("theme");
+  if (!valide(theme)) {
+    try { theme = localStorage.getItem(cle); } catch (e) { theme = null; }
+  }
+  if (valide(theme)) {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem(cle, theme); } catch (e) {}
+  }
+
+  /* Ajoute ?theme=… à une adresse interne (même protocole, page .html). */
+  function lienAvecTheme(href) {
+    const t = document.documentElement.dataset.theme;
+    if (!valide(t)) return href;
+    let url;
+    try { url = new URL(href, location.href); } catch (e) { return href; }
+    if (url.protocol !== location.protocol || !url.pathname.endsWith(".html")) return href;
+    url.searchParams.set("theme", t);
+    return url.href;
+  }
+
+  function propagerTheme() {
+    const surLien = (e) => {
+      const a = e.target.closest && e.target.closest("a[href]");
+      if (a && !a.getAttribute("href").startsWith("#")) a.href = lienAvecTheme(a.href);
+    };
+    document.addEventListener("click", surLien, true);
+    document.addEventListener("auxclick", surLien, true); // clic molette : nouvel onglet
+    document.addEventListener("submit", (e) => {
+      const f = e.target;
+      if (!valide(document.documentElement.dataset.theme) || f.method !== "get") return;
+      if (lienAvecTheme(f.action) === f.action) return; // formulaire externe
+      let champ = f.querySelector('input[name="theme"]');
+      if (!champ) {
+        champ = document.createElement("input");
+        champ.type = "hidden";
+        champ.name = "theme";
+        f.append(champ);
+      }
+      champ.value = document.documentElement.dataset.theme;
+    }, true);
+  }
 
   function basculerTheme() {
     const sombre = document.documentElement.dataset.theme
@@ -29,6 +70,18 @@
     const nouveau = sombre ? "light" : "dark";
     document.documentElement.dataset.theme = nouveau;
     try { localStorage.setItem(cle, nouveau); } catch (e) {}
+    themeHljs();
+  }
+
+  /* Les feuilles highlight.js suivent le thème choisi (data-theme),
+     et seulement à défaut la préférence du système. */
+  function themeHljs() {
+    const clair = document.getElementById("hljs-clair");
+    const sombre = document.getElementById("hljs-sombre");
+    if (!clair || !sombre) return;
+    const t = document.documentElement.dataset.theme;
+    clair.media = t ? (t === "light" ? "all" : "not all") : "(prefers-color-scheme: light)";
+    sombre.media = t ? (t === "dark" ? "all" : "not all") : "(prefers-color-scheme: dark)";
   }
 
   /* Conseil Claude */
@@ -65,7 +118,6 @@
 
   /* Barre du haut */
   function ajouterBarre() {
-    if (document.body.hasAttribute("data-sans-barre")) return;
     const barre = document.createElement("nav");
     barre.className = "barre";
     barre.innerHTML =
@@ -95,12 +147,13 @@
       const css = document.createElement("link");
       css.rel = "stylesheet";
       css.href = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css";
-      css.media = "(prefers-color-scheme: light)";
+      css.id = "hljs-clair";
       const cssSombre = document.createElement("link");
       cssSombre.rel = "stylesheet";
       cssSombre.href = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css";
-      cssSombre.media = "(prefers-color-scheme: dark)";
+      cssSombre.id = "hljs-sombre";
       document.head.append(css, cssSombre);
+      themeHljs();
       const s = document.createElement("script");
       s.src = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js";
       s.onload = () => ok(window.hljs);
@@ -121,9 +174,15 @@
     });
   }
 
+  /* Pour les pages qui gèrent leur propre barre (recherche.html). */
+  window.ApprendreCpp = { basculerTheme, lienAvecTheme };
+
   function init() {
-    ajouterBarre();
-    raccourciRecherche();
+    propagerTheme();
+    if (!document.body.hasAttribute("data-sans-barre")) {
+      ajouterBarre();
+      raccourciRecherche();
+    }
     colorer(document);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
