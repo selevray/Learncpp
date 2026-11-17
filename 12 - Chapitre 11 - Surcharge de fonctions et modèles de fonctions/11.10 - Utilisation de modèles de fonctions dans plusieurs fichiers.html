@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11.10 — Utilisation de modèles de fonctions dans plusieurs fichiers</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1110-utilisation-de-modèles-de-fonctions-dans-plusieurs-fichiers">11.10 — Utilisation de modèles de fonctions dans plusieurs fichiers</h1>
+<p>Considérons le programme suivant, qui ne fonctionne pas correctement :</p>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+T addOne(T x); // déclaration anticipée (forward declaration) du modèle de fonction
+
+int main()
+{
+    std::cout &lt;&lt; addOne(1) &lt;&lt; '\n';
+    std::cout &lt;&lt; addOne(2.3) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>add.cpp :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+T addOne(T x) // définition du modèle de fonction
+{
+    return x + 1;
+}
+</code></pre>
+<p>Si <code>addOne</code> était une fonction non template, ce programme fonctionnerait parfaitement : dans <em>main.cpp</em>, le compilateur se contenterait de la déclaration anticipée de <code>addOne</code>, et l'éditeur de liens (linker) relierait l'appel à <code>addOne()</code> dans <em>main.cpp</em> à la définition de la fonction dans <em>add.cpp</em>.</p>
+<p>Mais comme <code>addOne</code> est un template, ce programme ne fonctionne pas, et nous obtenons une erreur de l'éditeur de liens :</p>
+<pre><code>
+1&gt;Project6.obj : error LNK2019: unresolved external symbol &quot;int __cdecl addOne&lt;int&gt;(int)&quot; (??$addOne@H@@YAHH@Z) referenced in function _main
+1&gt;Project6.obj : error LNK2019: unresolved external symbol &quot;double __cdecl addOne&lt;double&gt;(double)&quot; (??$addOne@N@@YANN@Z) referenced in function _main
+</code></pre>
+<p>Dans <em>main.cpp</em>, nous appelons <code>addOne&lt;int&gt;</code> et <code>addOne&lt;double&gt;</code>. Cependant, comme le compilateur ne voit pas la définition du modèle de fonction <code>addOne</code>, il ne peut pas instancier ces fonctions dans <em>main.cpp</em>. Il voit en revanche la déclaration anticipée de <code>addOne</code> et supposera que ces fonctions existent ailleurs et seront liées plus tard.</p>
+<p>Lorsque le compilateur compile <em>add.cpp</em>, il voit la définition du modèle de fonction <code>addOne</code>. Cependant, ce modèle n'est utilisé nulle part dans <em>add.cpp</em>, donc le compilateur n'instancie rien. Le résultat final est que l'éditeur de liens ne peut pas relier les appels à <code>addOne&lt;int&gt;</code> et <code>addOne&lt;double&gt;</code> dans <em>main.cpp</em> aux fonctions réelles, car ces fonctions n'ont jamais été instanciées.</p>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Si <em>add.cpp</em> avait instancié ces fonctions, le programme aurait été compilé et lié sans problème. Mais de telles solutions sont fragiles et doivent être évitées : si le code de <em>add.cpp</em> était ultérieurement modifié de sorte que ces fonctions ne soient plus instanciées, le programme ne serait de nouveau pas lié. De même, si <em>main.cpp</em> appelait une autre version de <code>addOne</code> (comme <code>addOne&lt;float&gt;</code>) qui n'a pas été instanciée dans <em>add.cpp</em>, on rencontrerait le même problème.</p>
+</div>
+<p>La manière la plus classique de résoudre ce problème consiste à placer tout le code de vos templates dans un fichier d'en-tête (.h) plutôt que dans un fichier source (.cpp) :</p>
+<p>add.h :</p>
+<pre><code class="language-cpp">#ifndef ADD_H
+#define ADD_H
+
+template &lt;typename T&gt;
+T addOne(T x) // définition du modèle de fonction
+{
+    return x + 1;
+}
+
+#endif
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;add.h&quot; // importe la définition du modèle de fonction
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; addOne(1) &lt;&lt; '\n';
+    std::cout &lt;&lt; addOne(2.3) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ainsi, tout fichier ayant besoin du template peut <code>#include</code> l'en-tête correspondant, et la définition du template sera recopiée par le préprocesseur dans le fichier source. Le compilateur pourra alors instancier toutes les fonctions nécessaires.</p>
+<p>Vous vous demandez peut-être pourquoi cela ne viole pas la règle de définition unique (ODR, <em>One Definition Rule</em>). La règle ODR indique que les types, les templates, les fonctions inline et les variables inline peuvent avoir des définitions identiques dans différents fichiers. Il n'y a donc aucun problème si la définition d'un template est recopiée dans plusieurs fichiers (à condition que chaque définition soit identique).</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous avons abordé la règle ODR dans la leçon <a href="../02%20-%20Chapitre%202%20-%20Les%20bases%20du%20C%2B%2B%20-%20fonctions%20et%20fichiers/2.7%20-%20D%C3%A9clarations%20anticip%C3%A9es%20et%20d%C3%A9finitions.html#ODR">2.7 -- Déclarations anticipées et définitions</a>.</p>
+</div>
+<p>Mais qu'en est-il des fonctions instanciées elles-mêmes ? Si une fonction est instanciée dans plusieurs fichiers, comment cela ne viole-t-il pas la règle ODR ? La réponse est que les fonctions instanciées implicitement à partir de templates sont implicitement inline. Or, comme vous le savez, les fonctions inline peuvent être définies dans plusieurs fichiers, à condition que la définition soit identique dans chacun.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les définitions de templates sont exemptées de la partie de la règle de définition unique qui exige une seule définition par programme. Il n'est donc pas problématique d'<code>#include</code> la même définition de template dans plusieurs fichiers source. De plus, les fonctions instanciées implicitement à partir de modèles de fonctions sont implicitement inline, elles peuvent donc être définies dans plusieurs fichiers, à condition que chaque définition soit identique.</p>
+<p>Les templates eux-mêmes ne sont pas inline, car le concept d'inline ne s'applique qu'aux variables et aux fonctions.</p>
+</div>
+<p>Voici un autre exemple de modèle de fonction placé dans un fichier d'en-tête, afin de pouvoir être inclus dans plusieurs fichiers source :</p>
+<p>max.h :</p>
+<pre><code class="language-cpp">#ifndef MAX_H
+#define MAX_H
+
+template &lt;typename T&gt;
+T max(T x, T y)
+{
+    return (x &lt; y) ? y : x;
+}
+
+#endif
+</code></pre>
+<p>foo.cpp :</p>
+<pre><code class="language-cpp">#include &quot;max.h&quot; // importe la définition du template max&lt;T&gt;(T, T)
+#include &lt;iostream&gt;
+
+void foo()
+{
+    std::cout &lt;&lt; max(3, 2) &lt;&lt; '\n';
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;max.h&quot; // importe la définition du template max&lt;T&gt;(T, T)
+#include &lt;iostream&gt;
+
+void foo(); // déclaration anticipée de la fonction foo
+
+int main()
+{
+    std::cout &lt;&lt; max(3, 5) &lt;&lt; '\n';
+    foo();
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <em>main.cpp</em> et <em>foo.cpp</em> font tous deux <code>#include "max.h"</code>, de sorte que le code des deux fichiers peut utiliser le modèle de fonction <code>max&lt;T&gt;(T, T)</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Les templates nécessaires dans plusieurs fichiers doivent être définis dans un fichier d'en-tête, puis <code>#include</code>s partout où ils sont nécessaires. Cela permet au compilateur de voir la définition complète du template et d'instancier celui-ci lorsque c'est nécessaire.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/using-function-templates-in-multiple-files/">https://www.learncpp.com/cpp-tutorial/using-function-templates-in-multiple-files/</a></em></p>
+</main>
+</body>
+</html>

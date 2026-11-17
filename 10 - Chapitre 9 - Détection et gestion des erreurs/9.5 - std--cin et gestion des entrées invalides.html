@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9.5 — std::cin et gestion des entrées invalides</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="95-stdcin-et-gestion-des-entrées-invalides">9.5 — std::cin et gestion des entrées invalides</h1>
+<p>La plupart des programmes qui disposent d'une interface utilisateur doivent traiter les saisies de l'utilisateur. Dans les programmes que vous avez écrits jusqu'ici, vous avez utilisé <code>std::cin</code> pour demander à l'utilisateur de saisir du texte. Comme la saisie de texte est très libre (l'utilisateur peut taper n'importe quoi), il est très facile qu'il saisisse une entrée inattendue.</p>
+<p>Lorsque vous écrivez un programme, vous devez toujours considérer la manière dont les utilisateurs pourraient le mal utiliser, que ce soit involontairement ou non. Un programme bien écrit anticipe ces mauvais usages et soit gère ces cas avec élégance, soit les empêche de se produire (si c'est possible). On dit qu'un programme qui gère bien les cas d'erreur est <strong>robuste</strong>.</p>
+<p>Dans cette leçon, nous examinerons spécifiquement les moyens par lesquels l'utilisateur peut saisir une entrée textuelle invalide via <code>std::cin</code>, et nous vous montrerons différentes façons de gérer ces cas.</p>
+<p>Avant de discuter des échecs possibles de <code>std::cin</code> et de <code>operator&gt;&gt;</code>, rappelons leur fonctionnement. Nous avons vu cette matière dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.5%20-%20Introduction%20%C3%A0%20iostream%20-%20cout%2C%20cin%20et%20endl.html#extraction">1.5 -- Introduction à iostream : cout, cin et endl</a>.</p>
+<p>Voici une vue simplifiée du fonctionnement de <code>operator&gt;&gt;</code> pour une saisie :</p>
+<ol>
+<li>Tout d'abord, les espaces de début (espaces, tabulations et retours à la ligne au début du tampon) sont supprimés du tampon d'entrée. Cela élimine tout caractère de retour à la ligne non extrait restant d'une saisie précédente.</li>
+<li>Si le tampon d'entrée est maintenant vide, <code>operator&gt;&gt;</code> attend que l'utilisateur saisisse davantage de données. Les espaces de début sont à nouveau supprimés.</li>
+<li><code>operator&gt;&gt;</code> extrait ensuite autant de caractères consécutifs qu'il le peut, jusqu'à rencontrer soit un caractère de retour à la ligne (qui marque la fin de la ligne de saisie), soit un caractère qui n'est pas valide pour la variable à laquelle on affecte la valeur.</li>
+</ol>
+<p>Le résultat de l'extraction est le suivant :</p>
+<ul>
+<li>Si des caractères ont été extraits à l'étape 3 ci-dessus, l'extraction réussit. Les caractères extraits sont convertis en une valeur qui est ensuite affectée à la variable.</li>
+<li>Si aucun caractère n'a pu être extrait à l'étape 3 ci-dessus, l'extraction échoue. L'objet vers lequel on extrayait reçoit la valeur <code>0</code> (depuis C++11), et toutes les extractions suivantes échoueront immédiatement (jusqu'à ce que <code>std::cin</code> soit réinitialisé).</li>
+</ul>
+<h2 id="valider-la-saisie">Valider la saisie</h2>
+<p>Le processus qui consiste à vérifier si la saisie de l'utilisateur correspond à ce que le programme attend s'appelle <strong>validation de la saisie</strong> (input validation).</p>
+<p>Il existe trois façons fondamentales de valider une saisie :</p>
+<p>Au fil de la frappe (en ligne) :</p>
+<ol>
+<li>Empêcher l'utilisateur de taper une saisie invalide dès le départ.</li>
+</ol>
+<p>Après la saisie (a posteriori) :</p>
+<ol start="2">
+<li>Laisser l'utilisateur saisir ce qu'il veut dans une chaîne, puis vérifier si la chaîne est correcte et, si c'est le cas, convertir la chaîne dans le format final de la variable.</li>
+<li>Laisser l'utilisateur saisir ce qu'il veut, laisser <code>std::cin</code> et <code>operator&gt;&gt;</code> tenter d'extraire la valeur, puis gérer les cas d'erreur.</li>
+</ol>
+<p>Certaines interfaces graphiques et certaines interfaces textuelles avancées permettent de valider la saisie au fur et à mesure qu'elle est tapée (caractère par caractère). En général, le programmeur fournit une fonction de validation qui accepte la saisie déjà effectuée par l'utilisateur et renvoie <code>true</code> si cette saisie est valide, et <code>false</code> sinon. Cette fonction est appelée à chaque frappe de touche. Si la fonction de validation renvoie <code>true</code>, la touche que l'utilisateur vient d'appuyer est acceptée. Si elle renvoie <code>false</code>, le caractère tapé est rejeté (et n'apparaît pas à l'écran). Avec cette méthode, vous pouvez garantir que toute saisie de l'utilisateur est valide, car les frappes invalides sont détectées et rejetées immédiatement. Malheureusement, <code>std::cin</code> ne prend pas en charge ce style de validation.</p>
+<p>Comme les chaînes n'imposent aucune restriction sur les caractères saisis, l'extraction réussit toujours (mais gardez à l'esprit que <code>std::cin</code> s'arrête au premier caractère d'espacement qui n'est pas en début de saisie). Une fois qu'une chaîne est saisie, le programme peut ensuite l'analyser pour savoir si elle est valide ou non. Cependant, analyser des chaînes et convertir une saisie textuelle vers d'autres types (par exemple des nombres) peut être délicat, c'est pourquoi on ne le fait que dans de rares cas.</p>
+<p>Le plus souvent, nous laissons <code>std::cin</code> et l'opérateur d'extraction faire le gros du travail. Avec cette méthode, nous laissons l'utilisateur saisir ce qu'il veut, nous demandons à <code>std::cin</code> et <code>operator&gt;&gt;</code> d'extraire la valeur, et nous gérons les conséquences en cas d'échec. C'est la méthode la plus simple, et celle dont nous parlerons davantage ci-dessous.</p>
+<h2 id="un-exemple-de-programme">Un exemple de programme</h2>
+<p>Considérez le programme de calculatrice suivant, qui ne gère aucune erreur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+double getDouble()
+{
+    std::cout &lt;&lt; &quot;Enter a decimal number: &quot;;
+    double x{};
+    std::cin &gt;&gt; x;
+    return x;
+}
+
+char getOperator()
+{
+    std::cout &lt;&lt; &quot;Enter one of the following: +, -, *, or /: &quot;;
+    char op{};
+    std::cin &gt;&gt; op;
+    return op;
+}
+
+void printResult(double x, char operation, double y)
+{
+    std::cout &lt;&lt; x &lt;&lt; ' ' &lt;&lt; operation &lt;&lt; ' ' &lt;&lt; y &lt;&lt; &quot; is &quot;;
+
+    switch (operation)
+    {
+    case '+':
+        std::cout &lt;&lt; x + y &lt;&lt; '\n';
+        return;
+    case '-':
+        std::cout &lt;&lt; x - y &lt;&lt; '\n';
+        return;
+    case '*':
+        std::cout &lt;&lt; x * y &lt;&lt; '\n';
+        return;
+    case '/':
+        std::cout &lt;&lt; x / y &lt;&lt; '\n';
+        return;
+    }
+}
+
+int main()
+{
+    double x{ getDouble() };
+    char operation{ getOperator() };
+    double y{ getDouble() };
+
+    printResult(x, operation, y);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme simple demande à l'utilisateur de saisir deux nombres et un opérateur mathématique.</p>
+<pre><code>
+Enter a decimal number: 5
+Enter one of the following: +, -, *, or /: *
+Enter a decimal number: 7
+5 * 7 is 35
+</code></pre>
+<p>Examinons maintenant les endroits où une saisie invalide pourrait faire échouer ce programme.</p>
+<p>Tout d'abord, nous demandons à l'utilisateur de saisir des nombres. Que se passe-t-il s'il saisit autre chose qu'un nombre (par exemple « q ») ? Dans ce cas, l'extraction échoue.</p>
+<p>Ensuite, nous demandons à l'utilisateur de saisir l'un des quatre symboles possibles. Que se passe-t-il s'il saisit un caractère différent de ceux que nous attendons ? Nous pourrons extraire la saisie, mais nous ne gérons pas actuellement ce qui se passe ensuite.</p>
+<p>Enfin, que se passe-t-il si nous demandons à l'utilisateur de saisir un symbole et qu'il saisit une chaîne comme <code>"*q hello"</code> ? Bien que nous puissions extraire le caractère <code>'*'</code> dont nous avons besoin, il reste de la saisie dans le tampon, ce qui pourrait poser des problèmes par la suite.</p>
+<h2 id="types-de-saisies-textuelles-invalides">Types de saisies textuelles invalides</h2>
+<p>On peut généralement classer les erreurs de saisie textuelle en quatre types :</p>
+<ul>
+<li>L'extraction de la saisie réussit, mais la saisie n'a aucun sens pour le programme (par exemple, saisir « k » comme opérateur mathématique).</li>
+<li>L'extraction de la saisie réussit, mais l'utilisateur saisit des données supplémentaires (par exemple, saisir « *q hello » comme opérateur mathématique).</li>
+<li>L'extraction de la saisie échoue (par exemple, saisir « q » dans une saisie numérique).</li>
+<li>L'extraction de la saisie réussit, mais l'utilisateur provoque un dépassement de capacité d'une valeur numérique.</li>
+</ul>
+<p>Ainsi, pour rendre nos programmes robustes, chaque fois que nous demandons une saisie à l'utilisateur, nous devrions idéalement déterminer si chacun des cas ci-dessus peut se produire et, si c'est le cas, écrire du code pour les gérer.</p>
+<p>Examinons chacun de ces cas et la manière de les gérer avec <code>std::cin</code>.</p>
+<h2 id="cas-derreur-1-lextraction-réussit-mais-la-saisie-na-pas-de-sens">Cas d'erreur 1 : l'extraction réussit mais la saisie n'a pas de sens</h2>
+<p>C'est le cas le plus simple. Considérez l'exécution suivante du programme ci-dessus :</p>
+<pre><code>
+Enter a decimal number: 5
+Enter one of the following: +, -, *, or /: k
+Enter a decimal number: 7
+</code></pre>
+<p>Ici, nous avons demandé à l'utilisateur de saisir l'un des quatre symboles, mais il a saisi « k ». « k » est un caractère valide, donc <code>std::cin</code> l'extrait sans problème dans la variable <code>op</code>, et cette valeur est renvoyée à <code>main</code>. Mais notre programme ne s'attendait pas à cela, et il ne gère donc pas correctement ce cas. Par conséquent, il affiche :</p>
+<pre><code>
+5 k 7 is
+</code></pre>
+<p>La solution est simple : effectuer une validation de la saisie. Cela consiste généralement en trois étapes :</p>
+<ol>
+<li>Vérifier si la saisie de l'utilisateur correspond à ce que vous attendiez.</li>
+<li>Si oui, renvoyer la valeur à l'appelant.</li>
+<li>Si non, informer l'utilisateur que quelque chose s'est mal passé et lui demander de réessayer.</li>
+</ol>
+<p>Voici une version mise à jour de la fonction <code>getOperator()</code> qui effectue une validation de la saisie.</p>
+<pre><code class="language-cpp">char getOperator()
+{
+    while (true) // Loop until user enters a valid input
+    {
+        std::cout &lt;&lt; &quot;Enter one of the following: +, -, *, or /: &quot;;
+        char operation{};
+        std::cin &gt;&gt; operation;
+
+        // Check whether the user entered meaningful input
+        switch (operation)
+        {
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+            return operation; // return it to the caller
+        default: // otherwise tell the user what went wrong
+            std::cout &lt;&lt; &quot;Oops, that input is invalid.  Please try again.\n&quot;;
+        }
+    } // and try again
+}
+</code></pre>
+<p>Comme vous pouvez le voir, nous utilisons une boucle <code>while</code> pour boucler en continu jusqu'à ce que l'utilisateur fournisse une saisie valide. S'il ne le fait pas, nous lui demandons de réessayer, jusqu'à ce qu'il nous donne une saisie valide, qu'il arrête le programme, ou qu'il détruise son ordinateur.</p>
+<h2 id="cas-derreur-2-lextraction-réussit-mais-avec-des-données-superflues">Cas d'erreur 2 : l'extraction réussit mais avec des données superflues</h2>
+<p>Considérez l'exécution suivante du programme ci-dessus :</p>
+<pre><code>
+Enter a decimal number: 5*7
+</code></pre>
+<p>Que pensez-vous qu'il se passe ensuite ?</p>
+<pre><code>
+Enter a decimal number: 5*7
+Enter one of the following: +, -, *, or /: Enter a decimal number: 5 * 7 is 35
+</code></pre>
+<p>Le programme affiche la bonne réponse, mais la mise en forme est complètement désordonnée. Examinons de plus près la raison.</p>
+<p>Lorsque l'utilisateur saisit <code>5*7</code>, cette saisie est placée dans le tampon. Ensuite, <code>operator&gt;&gt;</code> extrait le 5 vers la variable <code>x</code>, laissant <code>*7\n</code> dans le tampon. Ensuite, le programme affiche « Enter one of the following: +, -, *, or /: ». Cependant, lors de l'appel de l'opérateur d'extraction, il voit <code>*7\n</code> en attente dans le tampon, il utilise donc cette valeur au lieu de demander davantage de saisie à l'utilisateur. Par conséquent, il extrait le caractère « * », laissant <code>7\n</code> dans le tampon.</p>
+<p>Après avoir demandé à l'utilisateur de saisir un autre nombre décimal, le <code>7</code> présent dans le tampon est extrait sans que l'utilisateur soit sollicité. Comme l'utilisateur n'a jamais eu l'occasion de saisir des données supplémentaires et d'appuyer sur Entrée (ce qui produit un retour à la ligne), les invites s'affichent les unes à la suite des autres sur la même ligne.</p>
+<p>Bien que le programme ci-dessus fonctionne, son exécution est désordonnée. Il serait préférable que les caractères superflus saisis soient simplement ignorés. Heureusement, il est facile d'ignorer des caractères :</p>
+<pre><code class="language-cpp">std::cin.ignore(100, '\n');  // clear up to 100 characters out of the buffer, or until a '\n' character is removed
+</code></pre>
+<p>Cet appel supprime jusqu'à 100 caractères, mais si l'utilisateur a saisi plus de 100 caractères, nous obtiendrons à nouveau un affichage désordonné. Pour ignorer tous les caractères jusqu'au prochain « \n », nous pouvons passer <code>std::numeric_limits&lt;std::streamsize&gt;::max()</code> à <code>std::cin.ignore()</code>. <code>std::numeric_limits&lt;std::streamsize&gt;::max()</code> renvoie la plus grande valeur pouvant être stockée dans une variable de type <code>std::streamsize</code>. Passer cette valeur à <code>std::cin.ignore()</code> désactive la vérification du nombre de caractères.</p>
+<p>Pour ignorer tout jusqu'au caractère « \n » suivant inclus, nous appelons</p>
+<pre><code class="language-cpp">std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+</code></pre>
+<p>Comme cette ligne est assez longue pour ce qu'elle fait, il est pratique de l'encapsuler dans une fonction que l'on peut appeler à la place de <code>std::cin.ignore()</code>.</p>
+<pre><code class="language-cpp">#include &lt;limits&gt; // for std::numeric_limits
+
+void ignoreLine()
+{
+    std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+}
+</code></pre>
+<p>Comme le dernier caractère saisi par l'utilisateur est généralement un « \n », nous pouvons demander à <code>std::cin</code> d'ignorer les caractères du tampon jusqu'à trouver un caractère de retour à la ligne (qui est également supprimé).</p>
+<p>Mettons à jour notre fonction <code>getDouble()</code> pour ignorer toute saisie superflue :</p>
+<pre><code class="language-cpp">double getDouble()
+{
+    std::cout &lt;&lt; &quot;Enter a decimal number: &quot;;
+    double x{};
+    std::cin &gt;&gt; x;
+
+    ignoreLine();
+    return x;
+}
+</code></pre>
+<p>Désormais, notre programme fonctionnera comme prévu, même si nous saisissons <code>5*7</code> pour la première entrée : le 5 sera extrait, et les autres caractères seront supprimés du tampon d'entrée. Comme le tampon d'entrée est maintenant vide, l'utilisateur sera correctement sollicité lors de la prochaine opération d'extraction !</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Dans certains cas, il peut être préférable de traiter une saisie superflue comme un échec (plutôt que de simplement l'ignorer). On peut alors demander à l'utilisateur de ressaisir sa valeur.</p>
+<p>Voici une variante de <code>getDouble()</code> qui demande à l'utilisateur de ressaisir sa valeur s'il a saisi des données superflues :</p>
+<pre><code class="language-cpp">// returns true if std::cin has unextracted input on the current line, false otherwise
+bool hasUnextractedInput()
+{
+    return !std::cin.eof() &amp;&amp; std::cin.peek() != '\n';
+}
+
+double getDouble()
+{
+    while (true) // Loop until user enters a valid input
+    {
+        std::cout &lt;&lt; &quot;Enter a decimal number: &quot;;
+        double x{};
+        std::cin &gt;&gt; x;
+
+        // NOTE: YOU SHOULD CHECK FOR A FAILED EXTRACTION HERE (see section below)
+
+        // If there is extraneous input, treat as failure case
+        if (hasUnextractedInput())
+        {
+            ignoreLine(); // remove extraneous input
+            continue;
+        }
+
+        return x;
+    }
+}
+</code></pre>
+<p>Le fragment ci-dessus utilise deux fonctions que nous n'avons pas encore vues :</p>
+<ul>
+<li>La fonction <code>std::cin.eof()</code> renvoie <code>true</code> si la dernière opération de saisie (ici, l'extraction vers <code>x</code>) a atteint la fin du flux d'entrée.</li>
+<li>La fonction <code>std::cin.peek()</code> permet de regarder le caractère suivant du flux d'entrée sans l'extraire.</li>
+</ul>
+<p>Voici comment fonctionne cette fonction. Après que la saisie de l'utilisateur a été extraite vers <code>x</code>, il peut rester ou non des caractères non extraits dans <code>std::cin</code>.</p>
+<p>Tout d'abord, nous appelons <code>std::cin.eof()</code> pour vérifier si l'extraction vers <code>x</code> a atteint la fin du flux d'entrée. Si c'est le cas, cela signifie que tous les caractères ont été extraits, ce qui constitue un succès.</p>
+<p>Sinon, il reste forcément des caractères dans <code>std::cin</code> en attente d'extraction. Dans ce cas, nous appelons <code>std::cin.peek()</code> pour regarder le prochain caractère en attente sans l'extraire réellement. Si ce caractère suivant est un <code>'\n'</code>, cela signifie que nous avons déjà extrait tous les caractères de cette ligne de saisie vers <code>x</code>. C'est également un succès.</p>
+<p>En revanche, si le caractère suivant est différent de <code>'\n'</code>, l'utilisateur a forcément saisi des données superflues qui n'ont pas été extraites vers <code>x</code>. C'est notre cas d'échec. Nous supprimons toutes ces données superflues, et <code>continue</code> nous renvoie au début de la boucle pour réessayer.</p>
+<p>Si vous avez du mal à comprendre comment l'expression booléenne de <code>hasUnextractedInput()</code> s'évalue, ce n'est pas surprenant : les expressions booléennes avec des négations peuvent être difficiles à lire. Dans ce cas, la loi de De Morgan peut aider. Une expression équivalente est <code>return !(std::cin.eof() || std::cin.peek() == '\n');</code>. Cela rend plus clair le fait que nous testons la fin de fichier (EOF) ou un retour à la ligne. Si l'un des deux est vrai, alors nous avons extrait toute la saisie. Nous appliquons ensuite <code>operator!</code> pour savoir si nous n'avons pas extrait toute la saisie, c'est-à-dire s'il reste des données non extraites.</p>
+</div>
+<h2 id="cas-derreur-3-lextraction-échoue">Cas d'erreur 3 : l'extraction échoue</h2>
+<p>L'extraction échoue lorsqu'aucune saisie ne peut être extraite vers la variable indiquée.</p>
+<p>Considérez maintenant l'exécution suivante de notre programme de calculatrice mis à jour :</p>
+<pre><code>
+Enter a decimal number: a
+</code></pre>
+<p>Vous ne serez pas surpris que le programme ne fonctionne pas comme prévu, mais la manière dont il échoue est intéressante :</p>
+<pre><code>
+Enter a decimal number: a
+Enter one of the following: +, -, *, or /: Oops, that input is invalid.  Please try again.
+Enter one of the following: +, -, *, or /: Oops, that input is invalid.  Please try again.
+Enter one of the following: +, -, *, or /: Oops, that input is invalid.  Please try again.
+</code></pre>
+<p>et cette dernière ligne continue de s'afficher jusqu'à la fermeture du programme.</p>
+<p>Cela ressemble beaucoup au cas des données superflues, mais c'est un peu différent. Examinons-le de plus près.</p>
+<p>Lorsque l'utilisateur saisit « a », ce caractère est placé dans le tampon. Ensuite, <code>operator&gt;&gt;</code> tente d'extraire « a » vers la variable <code>x</code>, qui est de type <code>double</code>. Comme « a » ne peut pas être converti en <code>double</code>, <code>operator&gt;&gt;</code> ne peut pas effectuer l'extraction. À ce moment, deux choses se produisent : « a » reste dans le tampon, et <code>std::cin</code> passe en « mode échec ».</p>
+<p>Une fois en « mode échec », les demandes d'extraction suivantes échouent silencieusement. Ainsi, dans notre programme de calculatrice, les invites s'affichent toujours, mais toutes les demandes d'extraction ultérieures sont ignorées. Cela signifie qu'au lieu d'attendre que nous saisissions une opération, l'invite de saisie est sautée, et nous restons bloqués dans une boucle infinie, car il n'y a aucun moyen d'atteindre l'un des cas valides.</p>
+<p>Pour remettre <code>std::cin</code> en état de fonctionnement normal, nous devons généralement faire trois choses :</p>
+<ul>
+<li>Détecter qu'une extraction précédente a échoué.</li>
+<li>Remettre <code>std::cin</code> en mode de fonctionnement normal.</li>
+<li>Supprimer la saisie qui a provoqué l'échec (afin que la demande d'extraction suivante n'échoue pas de la même manière).</li>
+</ul>
+<p>Voici ce que cela donne :</p>
+<pre><code class="language-cpp">if (std::cin.fail()) // If the previous extraction failed
+{
+    // Let's handle the failure
+    std::cin.clear(); // Put us back in 'normal' operation mode
+    ignoreLine();     // And remove the bad input
+}
+</code></pre>
+<p>Comme <code>std::cin</code> dispose d'une conversion booléenne indiquant si la dernière saisie a réussi, il est plus idiomatique d'écrire le code ci-dessus de la manière suivante :</p>
+<pre><code class="language-cpp">if (!std::cin) // If the previous extraction failed
+{
+    // Let's handle the failure
+    std::cin.clear(); // Put us back in 'normal' operation mode
+    ignoreLine();     // And remove the bad input
+}
+</code></pre>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Une fois qu'une extraction a échoué, les demandes d'extraction suivantes (y compris les appels à <code>ignore()</code>) échouent silencieusement jusqu'à l'appel de la fonction <code>clear()</code>. Ainsi, après avoir détecté une extraction échouée, appeler <code>clear()</code> est généralement la première chose à faire.</p>
+</div>
+<p>Intégrons cela dans notre fonction <code>getDouble()</code> :</p>
+<pre><code class="language-cpp">double getDouble()
+{
+    while (true) // Loop until user enters a valid input
+    {
+        std::cout &lt;&lt; &quot;Enter a decimal number: &quot;;
+        double x{};
+        std::cin &gt;&gt; x;
+
+        if (!std::cin) // If the previous extraction failed
+        {
+            // Let's handle the failure
+            std::cin.clear(); // Put us back in 'normal' operation mode
+            ignoreLine();     // And remove the bad input
+            continue;
+        }
+
+        // Our extraction succeeded
+        ignoreLine(); // Ignore any additional input on this line
+        return x;     // Return the value we extracted
+    }
+}
+</code></pre>
+<p>Pour les types fondamentaux, une extraction échouée à cause d'une saisie invalide affecte à la variable la valeur <code>0</code> (ou la valeur que <code>0</code> donne une fois convertie dans le type de la variable).</p>
+<p>Il n'y a aucun problème à appeler <code>clear()</code> même si l'extraction n'a pas échoué : cela ne fait rien. Dans les cas où nous allons appeler <code>ignoreLine()</code> dans tous les cas, qu'il y ait eu réussite ou échec, nous pouvons combiner les deux situations :</p>
+<pre><code class="language-cpp">double getDouble()
+{
+    while (true) // Loop until user enters a valid input
+    {
+        std::cout &lt;&lt; &quot;Enter a decimal number: &quot;;
+        double x{};
+        std::cin &gt;&gt; x;
+
+        bool success { std::cin }; // Remember whether we had a successful extraction
+        std::cin.clear();          // Put us back in 'normal' operation mode (in case we failed)
+        ignoreLine();              // Ignore any additional input on this line (regardless)
+
+        if (success)               // If we actually extracted a value
+            return x;              // Return it (otherwise, we go back to top of loop)
+    }
+}
+</code></pre>
+<h2 id="vérifier-la-fin-de-fichier-eof">Vérifier la fin de fichier (EOF)</h2>
+<p>Il existe encore un autre cas à traiter.</p>
+<p>La fin de fichier (EOF, pour <em>end-of-file</em>) est un état d'erreur particulier qui signifie « Plus aucune donnée disponible ». Il est généralement généré <strong>après</strong> qu'une opération de saisie a échoué faute de données disponibles. Par exemple, si vous lisez le contenu d'un fichier sur le disque et que vous tentez de lire davantage de données après avoir déjà atteint la fin du fichier, une EOF sera générée pour indiquer qu'il n'y a plus de données. Dans le cas d'une lecture de fichier, ce n'est pas un problème : il suffit de fermer le fichier et de continuer.</p>
+<p>Considérons maintenant <code>std::cin</code>. Si nous essayons d'extraire une saisie de <code>std::cin</code> et qu'il n'y en a aucune, par conception, il ne générera pas d'EOF : il attendra simplement que l'utilisateur saisisse davantage de données. Cependant, <code>std::cin</code> peut générer une EOF dans certains cas, le plus souvent lorsque l'utilisateur appuie sur une combinaison de touches spéciale propre à son système d'exploitation. Unix (via ctrl-D) et Windows (via ctrl-Z suivi de ENTRÉE) prennent tous deux en charge la saisie d'un « caractère de fin de fichier » au clavier.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>En C++, EOF est un état d'erreur, pas un caractère. Les différents systèmes d'exploitation disposent de combinaisons de caractères spéciales qui sont traitées comme une « demande de fin de fichier » saisie par l'utilisateur. On les appelle parfois « caractères EOF ».</p>
+</div>
+<p>Lorsque des données sont extraites vers <code>std::cin</code> et que l'utilisateur saisit un caractère EOF, le comportement dépend du système d'exploitation. Voici ce qui se produit généralement :</p>
+<ul>
+<li>Si l'EOF n'est pas le premier caractère de la saisie : toute la saisie précédant l'EOF sera vidée, et le caractère EOF est ignoré. Sous Windows, tous les caractères saisis après l'EOF sont ignorés, à l'exception du retour à la ligne.</li>
+<li>Si l'EOF est le premier caractère saisi : l'erreur EOF est activée. Le flux d'entrée peut (ou non) être déconnecté.</li>
+</ul>
+<p>Bien que <code>std::cin.clear()</code> efface une erreur EOF, si le flux d'entrée est déconnecté, la prochaine demande de saisie générera une autre erreur EOF. C'est problématique lorsque notre saisie se trouve dans une boucle <code>while(true)</code>, car nous risquons de rester bloqués dans une boucle infinie d'erreurs EOF.</p>
+<p>Comme l'intention d'un caractère EOF saisi au clavier est de mettre fin au flux d'entrée, le mieux est de détecter l'EOF (via <code>std::cin.eof()</code>) puis de terminer le programme.</p>
+<p>Comme la remise à zéro d'un flux d'entrée en échec est une opération que nous serons amenés à vérifier très souvent, c'est un bon candidat pour une fonction réutilisable :</p>
+<pre><code class="language-cpp">#include &lt;limits&gt; // for std::numeric_limits
+
+void ignoreLine()
+{
+    std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+}
+
+// returns true if extraction failed, false otherwise
+bool clearFailedExtraction()
+{
+    // Check for failed extraction
+    if (!std::cin) // If the previous extraction failed
+    {
+        if (std::cin.eof()) // If the user entered an EOF
+        {
+            std::exit(0); // Shut down the program now
+        }
+
+        // Let's handle the failure
+        std::cin.clear(); // Put us back in 'normal' operation mode
+        ignoreLine();     // And remove the bad input
+
+        return true;
+    }
+
+    return false;
+}
+</code></pre>
+<h2 id="cas-derreur-4-lextraction-réussit-mais-lutilisateur-provoque-un-dépassement-de-capacité-dune-valeur-numérique">Cas d'erreur 4 : l'extraction réussit mais l'utilisateur provoque un dépassement de capacité d'une valeur numérique</h2>
+<p>Considérez l'exemple simple suivant :</p>
+<pre><code class="language-cpp">#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::int16_t x{}; // x is 16 bits, holds from -32768 to 32767
+    std::cout &lt;&lt; &quot;Enter a number between -32768 and 32767: &quot;;
+    std::cin &gt;&gt; x;
+
+    std::int16_t y{}; // y is 16 bits, holds from -32768 to 32767
+    std::cout &lt;&lt; &quot;Enter another number between -32768 and 32767: &quot;;
+    std::cin &gt;&gt; y;
+
+    std::cout &lt;&lt; &quot;The sum is: &quot; &lt;&lt; x + y &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Que se passe-t-il si l'utilisateur saisit un nombre trop grand (par exemple 40000) ?</p>
+<pre><code>
+Enter a number between -32768 and 32767: 40000
+Enter another number between -32768 and 32767: The sum is: 32767
+</code></pre>
+<p>Dans le cas ci-dessus, <code>std::cin</code> passe immédiatement en « mode échec », mais il affecte aussi à la variable la valeur valide la plus proche. Lorsque la valeur saisie est supérieure à la plus grande valeur possible pour le type, la valeur valide la plus proche est la plus grande valeur possible pour ce type. Par conséquent, <code>x</code> reçoit la valeur affectée <code>32767</code>. Les saisies suivantes sont sautées, laissant <code>y</code> avec la valeur initiale <code>0</code>. Nous pouvons gérer ce type d'erreur de la même manière qu'une extraction échouée.</p>
+<h2 id="tout-assembler">Tout assembler</h2>
+<p>Voici notre calculatrice d'exemple, mise à jour avec quelques vérifications d'erreurs supplémentaires :</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt; // for std::exit
+#include &lt;iostream&gt;
+#include &lt;limits&gt; // for std::numeric_limits
+
+void ignoreLine()
+{
+    std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+}
+
+// returns true if extraction failed, false otherwise
+bool clearFailedExtraction()
+{
+    // Check for failed extraction
+    if (!std::cin) // If the previous extraction failed
+    {
+        if (std::cin.eof()) // If the stream was closed
+        {
+            std::exit(0); // Shut down the program now
+        }
+
+        // Let's handle the failure
+        std::cin.clear(); // Put us back in 'normal' operation mode
+        ignoreLine();     // And remove the bad input
+
+        return true;
+    }
+
+    return false;
+}
+
+double getDouble()
+{
+    while (true) // Loop until user enters a valid input
+    {
+        std::cout &lt;&lt; &quot;Enter a decimal number: &quot;;
+        double x{};
+        std::cin &gt;&gt; x;
+
+        if (clearFailedExtraction())
+        {
+            std::cout &lt;&lt; &quot;Oops, that input is invalid.  Please try again.\n&quot;;
+            continue;
+        }
+
+        ignoreLine(); // Remove any extraneous input
+        return x;     // Return the value we extracted
+    }
+}
+
+char getOperator()
+{
+    while (true) // Loop until user enters a valid input
+    {
+        std::cout &lt;&lt; &quot;Enter one of the following: +, -, *, or /: &quot;;
+        char operation{};
+        std::cin &gt;&gt; operation;
+
+        if (!clearFailedExtraction()) // we'll handle error messaging if extraction failed below
+             ignoreLine(); // remove any extraneous input (only if extraction succeded)
+
+        // Check whether the user entered meaningful input
+        switch (operation)
+        {
+        case '+':
+        case '-':
+        case '*':
+        case '/':
+            return operation; // Return the entered char to the caller
+        default: // Otherwise tell the user what went wrong
+            std::cout &lt;&lt; &quot;Oops, that input is invalid.  Please try again.\n&quot;;
+        }
+    }
+}
+
+void printResult(double x, char operation, double y)
+{
+    std::cout &lt;&lt; x &lt;&lt; ' ' &lt;&lt; operation &lt;&lt; ' ' &lt;&lt; y &lt;&lt; &quot; is &quot;;
+
+    switch (operation)
+    {
+    case '+':
+        std::cout &lt;&lt; x + y &lt;&lt; '\n';
+        return;
+    case '-':
+        std::cout &lt;&lt; x - y &lt;&lt; '\n';
+        return;
+    case '*':
+        std::cout &lt;&lt; x * y &lt;&lt; '\n';
+        return;
+    case '/':
+        if (y == 0.0)
+            break;
+
+        std::cout &lt;&lt; x / y &lt;&lt; '\n';
+        return;
+    }
+
+    std::cout &lt;&lt; &quot;???&quot;;  // Being robust means handling unexpected parameters as well, even though getOperator() guarantees operation is valid in this particular program
+}
+
+int main()
+{
+    double x{ getDouble() };
+    char operation{ getOperator() };
+    double y{ getDouble() };
+
+    // Handle division by 0
+    while (operation == '/' &amp;&amp; y == 0.0)
+    {
+        std::cout &lt;&lt; &quot;The denominator cannot be zero.  Try again.\n&quot;;
+        y = getDouble();
+    }
+
+    printResult(x, operation, y);
+
+    return 0;
+}
+</code></pre>
+<h2 id="conclusion">Conclusion</h2>
+<p>Lorsque vous écrivez vos programmes, réfléchissez à la manière dont les utilisateurs pourraient mal utiliser votre programme, en particulier pour la saisie de texte. Pour chaque point de saisie textuelle, demandez-vous :</p>
+<ul>
+<li>L'extraction pourrait-elle échouer ?</li>
+<li>L'utilisateur pourrait-il saisir plus de données que prévu ?</li>
+<li>L'utilisateur pourrait-il saisir des données dénuées de sens ?</li>
+<li>L'utilisateur pourrait-il provoquer un dépassement de capacité d'une saisie ?</li>
+</ul>
+<p>Vous pouvez utiliser des instructions <code>if</code> et la logique booléenne pour vérifier qu'une saisie est attendue et qu'elle a du sens.</p>
+<p>Le code suivant supprime toute saisie superflue :</p>
+<pre><code class="language-cpp">#include &lt;limits&gt; // for std::numeric_limits
+
+void ignoreLine()
+{
+    std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+}
+</code></pre>
+<p>Le code suivant détecte et corrige les extractions échouées ou les dépassements de capacité (et supprime les données superflues) :</p>
+<pre><code class="language-cpp">// returns true if extraction failed, false otherwise
+bool clearFailedExtraction()
+{
+    // Check for failed extraction
+    if (!std::cin) // If the previous extraction failed
+    {
+        if (std::cin.eof()) // If the stream was closed
+        {
+            std::exit(0); // Shut down the program now
+        }
+
+        // Let's handle the failure
+        std::cin.clear(); // Put us back in 'normal' operation mode
+        ignoreLine();     // And remove the bad input
+
+        return true;
+    }
+
+    return false;
+}
+</code></pre>
+<p>Nous pouvons vérifier s'il reste une saisie non extraite (autre qu'un retour à la ligne) de la manière suivante :</p>
+<pre><code class="language-cpp">// returns true if std::cin has unextracted input on the current line, false otherwise
+bool hasUnextractedInput()
+{
+    return !std::cin.eof() &amp;&amp; std::cin.peek() != '\n';
+}
+</code></pre>
+<p>Enfin, utilisez des boucles pour demander à l'utilisateur de ressaisir sa valeur si la saisie initiale était invalide.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>La validation de la saisie est importante et utile, mais elle rend aussi les exemples plus compliqués et plus difficiles à suivre. C'est pourquoi, dans les leçons suivantes, nous n'effectuerons généralement aucune validation de saisie, sauf si elle est pertinente pour ce que nous cherchons à enseigner.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdcin-and-handling-invalid-input/">https://www.learncpp.com/cpp-tutorial/stdcin-and-handling-invalid-input/</a></em></p>
+</main>
+</body>
+</html>

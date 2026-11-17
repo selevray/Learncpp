@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28.7 — Accès aléatoire aux fichiers</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="287-accès-aléatoire-aux-fichiers">28.7 — Accès aléatoire aux fichiers</h1>
+<p><strong>Le pointeur de fichier</strong></p>
+<p>Chaque classe de flux de fichier contient un pointeur de fichier (file pointer) qui sert à suivre la position courante de lecture/écriture dans le fichier. Lorsqu'une donnée est lue depuis le fichier ou écrite dans celui-ci, l'opération a lieu à l'emplacement courant du pointeur de fichier. Par défaut, lorsqu'un fichier est ouvert en lecture ou en écriture, le pointeur de fichier est placé au début du fichier. Cependant, si un fichier est ouvert en mode ajout (append), le pointeur de fichier est déplacé à la fin du fichier, de sorte que l'écriture n'écrase aucun des contenus actuels du fichier.</p>
+<p><strong>Accès aléatoire aux fichiers avec seekg() et seekp()</strong></p>
+<p>Jusqu'à présent, tous les accès aux fichiers que nous avons effectués étaient séquentiels, c'est-à-dire que nous avons lu ou écrit le contenu des fichiers dans l'ordre. Il est toutefois possible d'effectuer un accès aléatoire, c'est-à-dire de sauter à différents endroits du fichier pour en lire le contenu. Cela peut être utile lorsque votre fichier contient de nombreux enregistrements et que vous souhaitez en récupérer un en particulier. Plutôt que de lire tous les enregistrements jusqu'à atteindre celui qui vous intéresse, vous pouvez sauter directement à l'enregistrement que vous voulez récupérer.</p>
+<p>L'accès aléatoire se fait en manipulant le pointeur de fichier à l'aide de la fonction seekg() (pour l'entrée) ou de la fonction seekp() (pour la sortie). Si vous vous demandez pourquoi, le g signifie « get » et le p signifie « put ». Pour certains types de flux, seekg() (qui modifie la position de lecture) et seekp() (qui modifie la position d'écriture) fonctionnent de manière indépendante. En revanche, pour les flux de fichiers, la position de lecture et la position d'écriture sont toujours identiques, de sorte que seekg et seekp peuvent être utilisées indifféremment.</p>
+<p>Les fonctions seekg() et seekp() prennent deux paramètres. Le premier est un décalage (offset) qui détermine de combien d'octets déplacer le pointeur de fichier. Le second est un drapeau ios qui précise à partir de quel point le décalage doit être compté.</p>
+<table>
+<thead>
+<tr>
+<th>Drapeau de positionnement ios</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>beg</td>
+<td>Le décalage est relatif au début du fichier (par défaut)</td>
+</tr>
+<tr>
+<td>cur</td>
+<td>Le décalage est relatif à la position courante du pointeur de fichier</td>
+</tr>
+<tr>
+<td>end</td>
+<td>Le décalage est relatif à la fin du fichier</td>
+</tr>
+</tbody>
+</table>
+<p>Un décalage positif déplace le pointeur de fichier vers la fin du fichier, tandis qu'un décalage négatif le déplace vers le début du fichier.</p>
+<p>Voici quelques exemples :</p>
+<pre><code class="language-cpp">inf.seekg(14, std::ios::cur); // avance de 14 octets
+inf.seekg(-18, std::ios::cur); // recule de 18 octets
+inf.seekg(22, std::ios::beg); // se place sur le 22e octet du fichier
+inf.seekg(24); // se place sur le 24e octet du fichier
+inf.seekg(-28, std::ios::end); // se place sur le 28e octet avant la fin du fichier
+</code></pre>
+<p>Se placer au début ou à la fin du fichier est facile :</p>
+<pre><code class="language-cpp">inf.seekg(0, std::ios::beg); // se place au début du fichier
+inf.seekg(0, std::ios::end); // se place à la fin du fichier
+</code></pre>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Dans un fichier texte, se positionner ailleurs qu'au début du fichier peut produire un comportement inattendu.</p>
+<p>En programmation, un saut de ligne (‘\n’) est en réalité une abstraction.</p>
+<ul>
+<li>Sous Windows, un saut de ligne est représenté par la séquence de deux caractères CR (retour chariot, carriage return) puis LF (saut de ligne, line feed), qui occupent donc 2 octets.</li>
+<li>Sous Unix, un saut de ligne est représenté par un seul caractère LF (line feed), qui occupe 1 octet.</li>
+</ul>
+<p>Franchir un saut de ligne dans un sens ou dans l'autre occupe un nombre d'octets variable selon l'encodage du fichier, ce qui signifie que les résultats varient selon l'encodage utilisé.</p>
+<p>Par ailleurs, sur certains systèmes d'exploitation, les fichiers peuvent être complétés par des octets nuls (octets de valeur 0) en fin de fichier. Se positionner à la fin du fichier (ou à un décalage par rapport à la fin du fichier) produira alors des résultats différents sur de tels fichiers.</p>
+</div>
+<p>Pour vous donner une idée de leur fonctionnement, faisons un exemple utilisant seekg() avec le fichier d'entrée que nous avons créé dans la leçon précédente. Ce fichier d'entrée ressemble à ceci :</p>
+<pre><code>
+This is line 1
+This is line 2
+This is line 3
+This is line 4
+</code></pre>
+<p>Voici l'exemple :</p>
+<pre><code class="language-cpp">#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::ifstream inf{ &quot;Sample.txt&quot; };
+
+    // Si nous n'avons pas pu ouvrir le flux d'entrée en lecture
+    if (!inf)
+    {
+        // Affiche une erreur et quitte
+        std::cerr &lt;&lt; &quot;Uh oh, Sample.txt could not be opened for reading!\n&quot;;
+        return 1;
+    }
+
+    std::string strData;
+
+    inf.seekg(5); // se place sur le 5e caractère
+    // Récupère le reste de la ligne et l'affiche, en passant à la ligne 2
+    std::getline(inf, strData);
+    std::cout &lt;&lt; strData &lt;&lt; '\n';
+
+    inf.seekg(8, std::ios::cur); // avance de 8 octets supplémentaires dans le fichier
+    // Récupère le reste de la ligne et l'affiche
+    std::getline(inf, strData);
+    std::cout &lt;&lt; strData &lt;&lt; '\n';
+
+    inf.seekg(-14, std::ios::end); // se place 14 octets avant la fin du fichier
+    // Récupère le reste de la ligne et l'affiche
+    std::getline(inf, strData); // comportement indéfini
+    std::cout &lt;&lt; strData &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+is line 1
+line 2
+This is line 4
+</code></pre>
+<p>Vous pouvez obtenir un résultat différent pour la troisième ligne selon l'encodage de votre fichier.</p>
+<p>seekg() et seekp() sont plutôt utilisées avec des fichiers binaires. Vous pouvez ouvrir le fichier ci-dessus en mode binaire avec :</p>
+<pre><code class="language-cpp">    std::ifstream inf {&quot;Sample.txt&quot;, std::ifstream::binary};
+</code></pre>
+<p>Deux autres fonctions utiles sont tellg() et tellp(), qui renvoient la position absolue du pointeur de fichier. Elles permettent de déterminer la taille d'un fichier :</p>
+<pre><code class="language-cpp">std::ifstream inf {&quot;Sample.txt&quot;};
+inf.seekg(0, std::ios::end); // se place à la fin du fichier
+std::cout &lt;&lt; inf.tellg();
+</code></pre>
+<p>Sur la machine de l'auteur, cela affiche :</p>
+<pre><code>
+64
+</code></pre>
+<p>ce qui correspond à la taille de sample.txt en octets (en supposant un saut de ligne après la dernière ligne).</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Le résultat <code>64</code> de l'exemple précédent a été obtenu sous Windows. Si vous exécutez l'exemple sous Unix, vous obtiendrez <code>60</code> à la place, en raison de la représentation plus courte du saut de ligne. Vous pouvez obtenir un autre résultat si votre fichier est complété par des octets nuls en fin de fichier.</p>
+</div>
+<p><strong>Lire et écrire dans un fichier simultanément avec fstream</strong></p>
+<p>La classe fstream est capable de lire et d'écrire dans un fichier en même temps, presque ! La principale restriction est qu'il n'est pas possible de passer de la lecture à l'écriture à tout moment. Une fois une lecture ou une écriture effectuée, le seul moyen de passer de l'une à l'autre est d'exécuter une opération qui modifie la position dans le fichier (par exemple un seek). Si vous ne souhaitez pas réellement déplacer le pointeur de fichier (parce qu'il se trouve déjà à l'endroit voulu), vous pouvez toujours vous positionner à la position courante :</p>
+<pre><code class="language-cpp">// supposons que iofile est un objet de type fstream
+iofile.seekg(iofile.tellg(), std::ios::beg); // se place à la position courante du fichier
+</code></pre>
+<p>Si vous ne faites pas cela, un nombre quelconque de comportements étranges et bizarres peut se produire.</p>
+<p>(Remarque : bien qu'il semble que <code>iofile.seekg(0, std::ios::cur)</code> devrait aussi fonctionner, il semble que certains compilateurs puissent l'optimiser et le supprimer.)</p>
+<p>Autre subtilité : contrairement à ifstream, pour laquelle on pouvait écrire <code>while (inf)</code> afin de savoir s'il restait des données à lire, cela ne fonctionne pas avec fstream.</p>
+<p>Faisons un exemple d'entrées/sorties de fichier avec fstream. Nous allons écrire un programme qui ouvre un fichier, lit son contenu et remplace chaque voyelle trouvée par un symbole '#'.</p>
+<pre><code class="language-cpp">#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    // Notez que nous devons préciser à la fois in et out, car nous utilisons fstream
+    std::fstream iofile{ &quot;Sample.txt&quot;, std::ios::in | std::ios::out };
+
+    // Si nous n'avons pas pu ouvrir iofile, affiche une erreur
+    if (!iofile)
+    {
+        // Affiche une erreur et quitte
+        std::cerr &lt;&lt; &quot;Uh oh, Sample.txt could not be opened!\n&quot;;
+        return 1;
+    }
+
+    char chChar{}; // nous allons traiter caractère par caractère
+
+    // Tant qu'il reste des données à traiter
+    while (iofile.get(chChar))
+    {
+        switch (chChar)
+        {
+            // Si nous trouvons une voyelle
+            case 'a':
+            case 'e':
+            case 'i':
+            case 'o':
+            case 'u':
+            case 'A':
+            case 'E':
+            case 'I':
+            case 'O':
+            case 'U':
+
+                // Recule d'un caractère
+                iofile.seekg(-1, std::ios::cur);
+
+                // Comme nous avons effectué un seek, nous pouvons maintenant écrire
+                // en toute sécurité, donc écrivons un # par-dessus la voyelle
+                iofile &lt;&lt; '#';
+
+                // Nous voulons maintenant revenir en mode lecture pour que le prochain
+                // appel à get() fonctionne correctement. Nous utilisons seekg() vers la position
+                // courante car nous ne voulons pas déplacer le pointeur de fichier.
+                iofile.seekg(iofile.tellg(), std::ios::beg);
+
+                break;
+        }
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Après l'exécution de ce programme, notre fichier Sample.txt ressemblera à ceci :</p>
+<pre><code>
+Th#s #s l#n# 1
+Th#s #s l#n# 2
+Th#s #s l#n# 3
+Th#s #s l#n# 4
+</code></pre>
+<p><strong>Autres fonctions utiles pour les fichiers</strong></p>
+<p>Pour supprimer un fichier, utilisez simplement la fonction remove().</p>
+<p>Par ailleurs, la fonction is_open() renvoie true si le flux est actuellement ouvert, et false sinon.</p>
+<p><strong>Attention à l'écriture de pointeurs sur le disque</strong></p>
+<p>Bien que la sortie de variables vers un fichier soit assez simple, les choses se compliquent lorsqu'il s'agit de pointeurs. Rappelez-vous qu'un pointeur contient simplement l'adresse de la variable qu'il pointe. Il est possible d'écrire et de lire des adresses sur le disque, mais c'est extrêmement dangereux. En effet, l'adresse d'une variable peut différer d'une exécution à l'autre. Par conséquent, bien qu'une variable puisse se trouver à l'adresse 0x0012FF7C au moment où vous écrivez cette adresse sur le disque, elle ne s'y trouvera peut-être plus lorsque vous relirez cette adresse !</p>
+<p>Par exemple, supposons que vous ayez un entier nommé nValue situé à l'adresse 0x0012FF7C. Vous lui affectez la valeur 5. Vous déclarez aussi un pointeur nommé *pnValue qui pointe vers nValue. pnValue contient l'adresse de nValue, 0x0012FF7C. Vous voulez conserver ces valeurs pour plus tard, donc vous écrivez sur le disque la valeur 5 et l'adresse 0x0012FF7C.</p>
+<p>Quelques semaines plus tard, vous relancez le programme et relisez ces valeurs depuis le disque. Vous lisez la valeur 5 dans une autre variable nommée nValue, située à l'adresse 0x0012FF78. Vous lisez l'adresse 0x0012FF7C dans un nouveau pointeur nommé *pnValue. Comme pnValue pointe maintenant vers 0x0012FF7C alors que nValue se trouve à 0x0012FF78, pnValue ne pointe plus vers nValue, et tenter d'accéder à pnValue vous causera des ennuis.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>N'écrivez jamais d'adresses mémoire dans des fichiers. Les variables qui se trouvaient à ces adresses peuvent être situées à d'autres adresses lorsque vous relisez leurs valeurs depuis le disque, et les adresses deviennent alors invalides.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/random-file-io/">https://www.learncpp.com/cpp-tutorial/random-file-io/</a></em></p>
+</main>
+</body>
+</html>

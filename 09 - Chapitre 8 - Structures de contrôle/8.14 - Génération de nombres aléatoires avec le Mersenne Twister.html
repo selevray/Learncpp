@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.14 — Génération de nombres aléatoires avec le Mersenne Twister</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="814-génération-de-nombres-aléatoires-avec-le-mersenne-twister">8.14 — Génération de nombres aléatoires avec le Mersenne Twister</h1>
+<p>Dans la leçon précédente <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.13%20-%20Introduction%20%C3%A0%20la%20g%C3%A9n%C3%A9ration%20de%20nombres%20al%C3%A9atoires.html">8.13 -- Introduction à la génération de nombres aléatoires</a>, nous avons présenté le concept de génération de nombres aléatoires et expliqué comment les algorithmes de PRNG sont généralement utilisés pour simuler le hasard dans les programmes.</p>
+<p>Dans cette leçon, nous allons voir comment générer des nombres aléatoires dans vos programmes. Pour accéder aux fonctionnalités de randomisation de C++, on inclut l'en-tête <code>&lt;random&gt;</code> de la bibliothèque standard.</p>
+<h2 id="générer-des-nombres-aléatoires-en-c-avec-le-mersenne-twister">Générer des nombres aléatoires en C++ avec le Mersenne Twister</h2>
+<p>Le PRNG Mersenne Twister, en plus d'avoir un nom formidable, est probablement le PRNG le plus populaire, tous langages confondus. Bien qu'il soit un peu ancien selon les standards actuels, il produit généralement des résultats de bonne qualité et possède des performances correctes. La bibliothèque random prend en charge deux types Mersenne Twister :</p>
+<ul>
+<li><code>mt19937</code> est un Mersenne Twister qui génère des entiers non signés de 32 bits</li>
+<li><code>mt19937_64</code> est un Mersenne Twister qui génère des entiers non signés de 64 bits</li>
+</ul>
+<p>Utiliser le Mersenne Twister est simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;random&gt; // for std::mt19937
+
+int main()
+{
+    std::mt19937 mt{}; // Instancie un Mersenne Twister 32 bits
+
+    // Affiche une série de nombres aléatoires
+    for (int count{ 1 }; count &lt;= 40; ++count)
+    {
+        std::cout &lt;&lt; mt() &lt;&lt; '\t'; // génère un nombre aléatoire
+
+        // Si nous avons affiché 5 nombres, on commence une nouvelle ligne
+        if (count % 5 == 0)
+            std::cout &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+3499211612      581869302       3890346734      3586334585      545404204
+4161255391      3922919429      949333985       2715962298      1323567403
+418932835       2350294565      1196140740      809094426       2348838239
+4264392720      4112460519      4279768804      4144164697      4156218106
+676943009       3117454609      4168664243      4213834039      4111000746
+471852626       2084672536      3427838553      3437178460      1275731771
+609397212       20544909        1811450929      483031418       3933054126
+2747762695      3402504553      3772830893      4120988587      2163214728
+</code></pre>
+<p>Tout d'abord, nous incluons l'en-tête &lt;random&gt;, car c'est là que se trouvent toutes les fonctionnalités liées aux nombres aléatoires. Ensuite, nous instancions un moteur Mersenne Twister 32 bits avec l'instruction <code>std::mt19937 mt</code>. Puis, chaque fois que nous voulons générer un entier non signé aléatoire de 32 bits, nous appelons <code>mt()</code>.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Puisque <code>mt</code> est une variable, vous vous demandez peut-être ce que signifie <code>mt()</code>.</p>
+<p>Dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.7%20-%20Introduction%20%C3%A0%20%60std--string%60.html">5.7 -- Introduction à std::string</a>, nous avons montré un exemple où nous appelions la fonction <code>name.length()</code>, ce qui invoquait la fonction <code>length()</code> sur la variable <code>std::string</code> <code>name</code>.</p>
+<p><code>mt()</code> est une syntaxe concise pour appeler la fonction <code>mt.operator()</code>, qui, pour ces types de PRNG, a été définie pour renvoyer le prochain résultat de la séquence. L'avantage d'utiliser <code>operator()</code> plutôt qu'une fonction nommée est que nous n'avons pas besoin de nous souvenir du nom de la fonction, et que la syntaxe concise demande moins de frappe.</p>
+</div>
+<h2 id="lancer-un-dé-avec-le-mersenne-twister">Lancer un dé avec le Mersenne Twister</h2>
+<p>Un PRNG 32 bits génère des nombres aléatoires compris entre 0 et 4 294 967 295, mais nous ne voulons pas toujours des nombres dans cet intervalle. Si notre programme simule un jeu de plateau ou un jeu de dés, nous voudrons probablement simuler le lancer d'un dé à 6 faces en générant des nombres aléatoires entre 1 et 6. Si notre programme est un donjon d'aventure, et que le joueur possède une épée infligeant entre 7 et 11 points de dégâts aux monstres, nous voudrons générer des nombres aléatoires entre 7 et 11 chaque fois que le joueur touche un monstre.</p>
+<p>Malheureusement, les PRNG ne peuvent pas faire cela : ils ne peuvent générer que des nombres sur l'intervalle complet. Ce dont nous avons besoin, c'est d'un moyen de convertir un nombre produit par notre PRNG en une valeur dans l'intervalle plus petit souhaité (avec une probabilité égale pour chaque valeur). Bien que nous puissions écrire nous-mêmes une fonction pour cela, le faire de manière non biaisée n'est pas trivial.</p>
+<p>Heureusement, la bibliothèque random peut nous aider ici, sous la forme de distributions de nombres aléatoires. Une <strong>distribution de nombres aléatoires</strong> convertit la sortie d'un PRNG en une autre distribution de nombres.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Pour les amateurs de statistiques : une distribution de nombres aléatoires est simplement une distribution de probabilité conçue pour prendre en entrée les valeurs d'un PRNG.</p>
+</div>
+<p>La bibliothèque random propose de nombreuses distributions de nombres aléatoires, dont la plupart ne vous serviront jamais, sauf si vous faites de l'analyse statistique. Mais il existe une distribution très utile : la <strong>distribution uniforme</strong> est une distribution de nombres aléatoires qui produit des valeurs comprises entre deux nombres X et Y (inclus) avec une probabilité égale.</p>
+<p>Voici un programme semblable au précédent, utilisant une distribution uniforme pour simuler le lancer d'un dé à 6 faces :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;random&gt; // for std::mt19937 and std::uniform_int_distribution
+
+int main()
+{
+    std::mt19937 mt{};
+
+    // Crée un générateur de nombres aléatoires réutilisable, produisant des nombres uniformes entre 1 et 6
+    std::uniform_int_distribution die6{ 1, 6 }; // for C++14, use std::uniform_int_distribution&lt;&gt; die6{ 1, 6 };
+
+    // Affiche une série de nombres aléatoires
+    for (int count{ 1 }; count &lt;= 40; ++count)
+    {
+        std::cout &lt;&lt; die6(mt) &lt;&lt; '\t'; // génère un lancer de dé ici
+
+        // Si nous avons affiché 10 nombres, on commence une nouvelle ligne
+        if (count % 10 == 0)
+            std::cout &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+3       1       3       6       5       2       6       6       1       2
+2       6       1       1       6       1       4       5       2       5
+6       2       6       2       1       3       5       4       5       6
+1       4       2       3       1       2       2       6       2       1
+</code></pre>
+<p>Il n'y a que deux différences notables avec l'exemple précédent. Premièrement, nous avons créé une variable de distribution uniforme (nommée <code>die6</code>) pour générer des nombres entre 1 et 6. Deuxièmement, au lieu d'appeler <code>mt()</code> pour générer des entiers non signés aléatoires de 32 bits, nous appelons maintenant <code>die6(mt)</code> pour obtenir une valeur entre 1 et 6.</p>
+<h2 id="le-programme-ci-dessus-nest-pas-aussi-aléatoire-quil-y-paraît">Le programme ci-dessus n'est pas aussi aléatoire qu'il y paraît</h2>
+<p>Bien que les résultats de notre exemple de lancer de dé soient assez aléatoires, le programme présente un défaut majeur. Exécutez le programme 3 fois et essayez de trouver lequel. Allez-y, nous attendons.</p>
+<p><em>Musique de jeopardy</em></p>
+<p>Si vous exécutez le programme plusieurs fois, vous remarquerez qu'il affiche les mêmes nombres à chaque fois ! Si chaque nombre de la séquence est aléatoire par rapport au précédent, la séquence entière n'est absolument pas aléatoire ! Chaque exécution de notre programme produit exactement le même résultat.</p>
+<p>Imaginez que vous écriviez un jeu de « plus ou moins », où l'utilisateur dispose de 10 essais pour deviner un nombre choisi au hasard, et où l'ordinateur indique si la proposition est trop haute ou trop basse. Si l'ordinateur choisit le même nombre aléatoire à chaque fois, le jeu ne sera plus intéressant après la première partie. Examinons donc plus en détail pourquoi cela se produit et comment y remédier.</p>
+<p>Dans la leçon précédente (<a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.13%20-%20Introduction%20%C3%A0%20la%20g%C3%A9n%C3%A9ration%20de%20nombres%20al%C3%A9atoires.html">8.13 -- Introduction à la génération de nombres aléatoires</a>), nous avons vu que chaque nombre d'une séquence de PRNG est produit de manière déterministe, et que l'état du PRNG est initialisé à partir de la valeur de graine (seed). Ainsi, pour une graine de départ donnée, un PRNG génère toujours la même séquence de nombres.</p>
+<p>Comme nous initialisons notre Mersenne Twister par valeur, il est initialisé avec la même graine à chaque exécution du programme. Et comme la graine est identique, les nombres aléatoires générés sont eux aussi identiques.</p>
+<p>Pour que toute la séquence soit différente à chaque exécution, nous devons choisir une graine qui ne soit pas un nombre fixe. La première idée qui vient probablement à l'esprit est d'utiliser un nombre aléatoire comme graine ! C'est une bonne pensée, mais si nous avons besoin d'un nombre aléatoire pour générer des nombres aléatoires, nous tournons en rond. En fait, nous n'avons pas vraiment besoin que la graine soit aléatoire : il suffit de choisir quelque chose qui change à chaque exécution du programme. Nous pouvons alors utiliser notre PRNG pour générer une séquence unique de nombres pseudo-aléatoires à partir de cette graine.</p>
+<p>Deux méthodes sont couramment utilisées pour cela :</p>
+<ul>
+<li>Utiliser l'horloge système</li>
+<li>Utiliser le périphérique aléatoire du système</li>
+</ul>
+<h2 id="initialiser-la-graine-avec-lhorloge-système">Initialiser la graine avec l'horloge système</h2>
+<p>Qu'est-ce qui change à chaque exécution de votre programme ? À moins de parvenir à lancer deux fois votre programme exactement au même instant, la réponse est : l'heure actuelle. Par conséquent, si nous utilisons l'heure courante comme valeur de graine, notre programme produira un ensemble différent de nombres aléatoires à chaque exécution. C et C++ ont une longue tradition d'initialisation des PRNG avec l'heure courante (à l'aide de la fonction <code>std::time()</code>), vous en verrez donc probablement dans beaucoup de code existant.</p>
+<p>Heureusement, C++ dispose de la bibliothèque chrono, qui contient plusieurs horloges utilisables pour générer une valeur de graine. Pour minimiser la probabilité que deux valeurs temporelles soient identiques si le programme est lancé rapidement à plusieurs reprises, nous voulons utiliser une mesure de temps qui change le plus vite possible. Pour cela, nous demanderons à l'horloge le temps écoulé depuis le plus ancien instant qu'elle puisse mesurer. Ce temps est mesuré en « ticks », une unité de temps très petite (généralement des nanosecondes, mais parfois des millisecondes).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;random&gt; // for std::mt19937
+#include &lt;chrono&gt; // for std::chrono
+
+int main()
+{
+    // Initialise notre Mersenne Twister avec steady_clock
+    std::mt19937 mt{ static_cast&lt;std::mt19937::result_type&gt;(
+        std::chrono::steady_clock::now().time_since_epoch().count()
+        ) };
+
+    // Crée un générateur de nombres aléatoires réutilisable, produisant des nombres uniformes entre 1 et 6
+    std::uniform_int_distribution die6{ 1, 6 }; // for C++14, use std::uniform_int_distribution&lt;&gt; die6{ 1, 6 };
+
+    // Affiche une série de nombres aléatoires
+    for (int count{ 1 }; count &lt;= 40; ++count)
+    {
+        std::cout &lt;&lt; die6(mt) &lt;&lt; '\t'; // génère un lancer de dé ici
+
+        // Si nous avons affiché 10 nombres, on commence une nouvelle ligne
+        if (count % 10 == 0)
+            std::cout &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme ne diffère du précédent que sur deux points. Premièrement, nous incluons &lt;chrono&gt;, qui nous donne accès à l'horloge. Deuxièmement, nous utilisons l'heure courante fournie par l'horloge comme valeur de graine pour notre Mersenne Twister.</p>
+<p>Les résultats produits par ce programme devraient maintenant être différents à chaque exécution, ce que vous pouvez vérifier expérimentalement en l'exécutant plusieurs fois.</p>
+<p>L'inconvénient de cette approche est que, si le programme est lancé plusieurs fois en succession rapide, les graines générées pour chaque exécution ne seront pas très différentes, ce qui peut nuire à la qualité statistique des résultats aléatoires. Pour les programmes ordinaires, cela n'a pas d'importance, mais pour les programmes qui exigent des résultats indépendants de haute qualité, cette méthode d'initialisation peut être insuffisante.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p><code>std::chrono::high_resolution_clock</code> est un choix populaire à la place de <code>std::chrono::steady_clock</code>. <code>std::chrono::high_resolution_clock</code> est l'horloge qui utilise l'unité de temps la plus fine, mais elle peut utiliser l'horloge système pour l'heure courante, laquelle peut être modifiée ou ramenée en arrière par les utilisateurs. <code>std::chrono::steady_clock</code> peut avoir une résolution de tick moins fine, mais c'est la seule horloge garantissant que les utilisateurs ne peuvent pas la modifier.</p>
+</div>
+<h2 id="initialiser-la-graine-avec-le-périphérique-aléatoire">Initialiser la graine avec le périphérique aléatoire</h2>
+<p>La bibliothèque random contient un type appelé <code>std::random_device</code>, qui est un PRNG dépendant de l'implémentation. Normalement, nous évitons les fonctionnalités dépendant de l'implémentation, car elles ne garantissent ni qualité ni portabilité, mais c'est l'un des cas d'exception. En général, <code>std::random_device</code> demande au système d'exploitation un nombre pseudo-aléatoire (la manière de procéder dépend du système).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;random&gt; // for std::mt19937 and std::random_device
+
+int main()
+{
+    std::mt19937 mt{ std::random_device{}() };
+
+    // Crée un générateur de nombres aléatoires réutilisable, produisant des nombres uniformes entre 1 et 6
+    std::uniform_int_distribution die6{ 1, 6 }; // for C++14, use std::uniform_int_distribution&lt;&gt; die6{ 1, 6 };
+
+    // Affiche une série de nombres aléatoires
+    for (int count{ 1 }; count &lt;= 40; ++count)
+    {
+        std::cout &lt;&lt; die6(mt) &lt;&lt; '\t'; // génère un lancer de dé ici
+
+        // Si nous avons affiché 10 nombres, on commence une nouvelle ligne
+        if (count % 10 == 0)
+            std::cout &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, nous initialisons notre Mersenne Twister avec un nombre aléatoire généré par une instance temporaire de <code>std::random_device</code>. Si vous exécutez ce programme plusieurs fois, il devrait lui aussi produire des résultats différents à chaque fois.</p>
+<p>Un problème potentiel avec <code>std::random_device</code> : rien n'impose qu'il soit non déterministe, ce qui signifie qu'il <em>pourrait</em>, sur certains systèmes, produire la même séquence à chaque exécution du programme, précisément ce que nous cherchons à éviter. Il existait un <a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85494">bogue dans MinGW</a> (corrigé dans GCC 9.2) qui produisait exactement ce comportement, rendant <code>std::random_device</code> inutilisable.</p>
+<p>Cependant, les versions récentes des compilateurs les plus populaires (GCC/MinGW, Clang, Visual Studio) proposent des implémentations correctes de <code>std::random_device</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez <code>std::random_device</code> pour initialiser vos PRNG (sauf si celui-ci n'est pas correctement implémenté pour votre compilateur ou architecture cible).</p>
+</div>
+<div class="callout info"><p class="callout-title">Q : Que signifie std::random_device{}() ?</p>
+<p><code>std::random_device{}</code> crée un objet temporaire de type <code>std::random_device</code>, initialisé par valeur. Les <code>()</code> appellent ensuite <code>operator()</code> sur cet objet temporaire, qui renvoie une valeur aléatoire (que nous utilisons pour initialiser notre Mersenne Twister).</p>
+<p>C'est l'équivalent de l'appel de la fonction suivante, qui utilise une syntaxe plus familière :</p>
+<pre><code class="language-cpp">unsigned int getRandomDeviceValue()
+{
+   std::random_device rd{}; // crée un objet std::random_device initialisé par valeur
+   return rd(); // renvoie le résultat de operator() à l'appelant
+}
+</code></pre>
+<p>Utiliser <code>std::random_device{}()</code> nous permet d'obtenir le même résultat sans créer de fonction ni de variable nommée, ce qui est beaucoup plus concis.</p>
+</div>
+<div class="callout info"><p class="callout-title">Q : Si std::random_device est déjà aléatoire, pourquoi ne pas l'utiliser directement au lieu du Mersenne Twister ?</p>
+<p>Parce que <code>std::random_device</code> dépend de l'implémentation, on ne peut pas supposer grand-chose à son sujet. Son accès peut être coûteux, ou bien il peut suspendre notre programme le temps que d'autres nombres aléatoires deviennent disponibles. Le réservoir de nombres dans lequel il puise peut aussi s'épuiser rapidement, ce qui affecterait les résultats aléatoires des autres applications demandant des nombres par la même méthode. Pour cette raison, <code>std::random_device</code> est plus utile pour initialiser d'autres PRNG que comme PRNG lui-même.</p>
+</div>
+<h2 id="ninitialisez-un-prng-quune-seule-fois">N'initialisez un PRNG qu'une seule fois</h2>
+<p>De nombreux PRNG peuvent être réinitialisés après l'initialisation initiale. Cela réinitialise essentiellement l'état du générateur, qui produit alors des résultats à partir du nouvel état de graine. La réinitialisation doit généralement être évitée, sauf si vous avez une raison précise de la faire, car elle peut rendre les résultats moins aléatoires, voire non aléatoires du tout.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>N'initialisez un générateur pseudo-aléatoire donné qu'une seule fois, et ne le réinitialisez pas.</p>
+</div>
+<p>Voici un exemple d'erreur courante chez les programmeurs débutants :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;random&gt;
+
+int getCard()
+{
+    std::mt19937 mt{ std::random_device{}() }; // ceci est créé et initialisé à chaque appel de la fonction
+    std::uniform_int_distribution card{ 1, 52 };
+    return card(mt);
+}
+
+int main()
+{
+    std::cout &lt;&lt; getCard() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans la fonction <code>getCard()</code>, le générateur de nombres aléatoires est créé et initialisé à chaque appel de la fonction. C'est au mieux inefficace, et cela risque fortement de produire de mauvais résultats aléatoires.</p>
+<h2 id="mersenne-twister-et-problèmes-de-sous-initialisation">Mersenne Twister et problèmes de sous-initialisation</h2>
+<p>L'état interne d'un Mersenne Twister nécessite 19937 bits (2493 octets), soit 624 valeurs de 32 bits ou 312 valeurs de 64 bits. Par conséquent, <code>std::mt19937</code> alloue 624 entiers, tandis que <code>std::mt19937_64</code> en alloue 312.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Les entiers alloués par <code>std::mt19937</code> sont définis comme étant de type <code>std::uint_fast32_t</code>, qui peut représenter des entiers de 32 ou 64 bits selon l'architecture. Si <code>std::uint_fast32_t</code> correspond à un entier de 64 bits, <code>std::mt19937</code> utilisera 624 entiers de 64 bits, soit deux fois la taille nécessaire.</p>
+</div>
+<p>Dans les exemples ci-dessus, où nous initialisons notre <code>std::mt19937</code> à partir de l'horloge ou de <code>std::random_device</code>, la graine est un seul entier. Cela signifie que nous initialisons en fait 624 entiers à partir d'un seul entier, ce qui constitue une sous-initialisation importante du PRNG Mersenne Twister. La bibliothèque random fait de son mieux pour remplir les 623 valeurs restantes avec des données « aléatoires »… mais elle ne peut pas faire de miracles. Un PRNG sous-initialisé peut produire des résultats insuffisants pour les applications exigeant la plus haute qualité. Par exemple, initialiser <code>std::mt19937</code> avec une valeur unique de 32 bits ne produira jamais le nombre <code>42</code> comme première sortie.</p>
+<p>Comment y remédier ? Jusqu'à C++20, il n'existe pas de solution simple, mais nous pouvons proposer quelques pistes.</p>
+<p>Commençons par <code>std::seed_seq</code> (qui signifie « séquence de graines »). Dans la leçon précédente, nous avons mentionné qu'idéalement, les données de graine devraient avoir autant de bits que l'état de notre PRNG, faute de quoi le PRNG sera sous-initialisé. Mais dans de nombreux cas (surtout lorsque l'état du PRNG est grand), nous n'avons pas autant de bits de graine aléatoire.</p>
+<p><code>std::seed_seq</code> a été conçu pour nous aider dans ce cas. On peut lui passer autant de valeurs aléatoires que l'on possède, et il génère ensuite autant de valeurs de graine supplémentaires non biaisées que nécessaire pour initialiser l'état d'un PRNG. Si l'on initialise <code>std::seed_seq</code> avec une seule valeur (par exemple issue de <code>std::random_device</code>) puis qu'on initialise un Mersenne Twister avec cet objet <code>std::seed_seq</code>, ce dernier génère 623 valeurs de graine supplémentaires. Cela n'ajoute pas d'aléa, mais offre un meilleur mélange de bits 0 et 1. Cependant, plus on fournit de données aléatoires à <code>std::seed_seq</code>, meilleur sera le résultat. L'idée la plus simple consiste donc à utiliser <code>std::random_device</code> pour fournir davantage de données à <code>std::seed_seq</code>. Si nous initialisons <code>std::seed_seq</code> avec 8 valeurs issues de <code>std::random_device</code> au lieu d'une seule, les valeurs restantes générées par <code>std::seed_seq</code> seront bien meilleures :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;random&gt;
+
+int main()
+{
+    std::random_device rd{};
+    std::seed_seq ss{ rd(), rd(), rd(), rd(), rd(), rd(), rd(), rd() }; // obtient 8 entiers aléatoires de std::random_device pour notre graine
+    std::mt19937 mt{ ss }; // initialise notre Mersenne Twister avec le std::seed_seq
+
+    // Crée un générateur de nombres aléatoires réutilisable, produisant des nombres uniformes entre 1 et 6
+    std::uniform_int_distribution die6{ 1, 6 }; // for C++14, use std::uniform_int_distribution&lt;&gt; die6{ 1, 6 };
+
+    // Affiche une série de nombres aléatoires
+    for (int count{ 1 }; count &lt;= 40; ++count)
+    {
+        std::cout &lt;&lt; die6(mt) &lt;&lt; '\t'; // génère un lancer de dé ici
+
+        // Si nous avons affiché 10 nombres, on commence une nouvelle ligne
+        if (count % 10 == 0)
+            std::cout &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>C'est assez simple, il n'y a donc guère de raison de ne pas le faire, au minimum.</p>
+<div class="callout info"><p class="callout-title">Q : Pourquoi ne pas donner 624 valeurs de std::random_device à std::seed_seq ?</p>
+<p>Vous le pouvez, mais cela risque d'être lent et d'épuiser le réservoir de nombres aléatoires utilisé par <code>std::random_device</code>.</p>
+</div>
+<p>Vous pouvez aussi utiliser d'autres entrées « aléatoires » pour <code>std::seed_seq</code>. Nous vous avons déjà montré comment obtenir une valeur depuis l'horloge, que vous pouvez donc ajouter facilement. D'autres éléments parfois utilisés incluent l'identifiant du thread courant, l'adresse de certaines fonctions, l'identifiant de l'utilisateur, l'identifiant du processus, etc. Cela dépasse le cadre de cet article, mais <a href="https://www.pcg-random.org/posts/ease-of-use-without-loss-of-power.html">cet article</a> présente le contexte et un lien vers <a href="https://gist.github.com/imneme/540829265469e673d045">randutils.hpp</a>, qui implémente cette approche.</p>
+<p>Une autre voie consiste à utiliser un PRNG différent, dont l'état est plus petit. De nombreux bons PRNG utilisent 64 ou 128 bits d'état, qui peuvent facilement être initialisés à l'aide d'un <code>std::seed_seq</code> rempli par 8 appels à <code>std::random_device</code>.</p>
+<h2 id="préchauffer-un-prng">Préchauffer un PRNG</h2>
+<p>Lorsqu'un PRNG reçoit une graine de mauvaise qualité (ou sous-initialisée), ses premiers résultats peuvent ne pas être de haute qualité. Pour cette raison, certains PRNG bénéficient d'un « préchauffage », une technique qui consiste à écarter les N premiers résultats produits par le PRNG. Cela permet de mélanger l'état interne du PRNG de sorte que les résultats suivants soient de meilleure qualité. On écarte généralement quelques centaines à quelques milliers de premiers résultats. Plus la période du PRNG est longue, plus il faut écarter de résultats initiaux.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>L'implémentation de <code>rand()</code> de Visual Studio présentait (ou présente peut-être encore ?) un bogue : le premier résultat généré n'était pas suffisamment aléatoire. Vous pourrez voir d'anciens programmes utilisant <code>rand()</code> écarter un seul résultat pour éviter ce problème.</p>
+</div>
+<p>L'initialisation par <code>seed_seq</code> utilisée par <code>std::mt19937</code> effectue un préchauffage, nous n'avons donc pas besoin de préchauffer explicitement les objets <code>std::mt19937</code>.</p>
+<h2 id="nombres-aléatoires-partagés-entre-plusieurs-fonctions-ou-fichiers-randomh">Nombres aléatoires partagés entre plusieurs fonctions ou fichiers (Random.h)</h2>
+<p>Ce contenu a été déplacé dans <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.15%20-%20Nombres%20al%C3%A9atoires%20globaux%20%28Random.h%29.html">8.15 -- Nombres aléatoires globaux (Random.h)</a>.</p>
+<h2 id="déboguer-des-programmes-utilisant-des-nombres-aléatoires">Déboguer des programmes utilisant des nombres aléatoires</h2>
+<p>Les programmes utilisant des nombres aléatoires peuvent être difficiles à déboguer, car ils peuvent se comporter différemment à chaque exécution. Dans ce cas, l'erreur peut se produire ou non. Cela peut vous faire perdre beaucoup de temps. Lors du débogage, il est utile de s'assurer que le programme s'exécute toujours de la même (mauvaise) manière. Ainsi, vous pouvez relancer le programme autant de fois que nécessaire pour isoler l'origine de l'erreur.</p>
+<p>Pour cette raison, pendant le débogage, il est judicieux d'initialiser votre PRNG avec une valeur fixe précise (par exemple <code>5</code>) qui provoque le comportement erroné. Si une graine donnée ne fait pas apparaître l'erreur, augmentez la valeur de la graine jusqu'à en trouver une qui la provoque. Cela garantit que votre programme produit les mêmes résultats à chaque exécution, ce qui facilite le débogage. Une fois l'erreur trouvée, vous pouvez revenir à votre méthode d'initialisation habituelle pour générer à nouveau des résultats aléatoires.</p>
+<h2 id="faq-sur-les-nombres-aléatoires">FAQ sur les nombres aléatoires</h2>
+<div class="callout info"><p class="callout-title">Q : Au secours ! Mon générateur de nombres aléatoires produit toujours la même séquence de nombres.</p>
+<p>Si votre générateur produit la même séquence de nombres aléatoires à chaque exécution du programme, vous ne l'avez probablement pas initialisé correctement (ou pas du tout). Assurez-vous de l'initialiser avec une valeur qui change à chaque exécution du programme.</p>
+</div>
+<div class="callout info"><p class="callout-title">Q : Au secours ! Mon générateur de nombres aléatoires ne cesse de produire le même nombre.</p>
+<p>Si votre générateur produit le même nombre à chaque demande, vous réinitialisez probablement le générateur avant de générer un nombre aléatoire, ou vous créez un nouveau générateur pour chaque nombre aléatoire.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/generating-random-numbers-using-mersenne-twister/">https://www.learncpp.com/cpp-tutorial/generating-random-numbers-using-mersenne-twister/</a></em></p>
+</main>
+</body>
+</html>

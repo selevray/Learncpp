@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10.4 — Conversions restrictives, initialisation par liste et initialiseurs constexpr</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="104-conversions-restrictives-initialisation-par-liste-et-initialiseurs-constexpr">10.4 — Conversions restrictives, initialisation par liste et initialiseurs constexpr</h1>
+<p>Dans la leçon précédente (<a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.3%20-%20Conversions%20num%C3%A9riques.html">10.3 -- Conversions numériques</a>), nous avons étudié les conversions numériques, qui recouvrent un large éventail de conversions de types entre types fondamentaux.</p>
+<h2 id="conversions-restrictives">Conversions restrictives</h2>
+<p>En C++, une <strong>conversion restrictive</strong> (narrowing conversion) est une conversion numérique potentiellement dangereuse, dans laquelle le type de destination peut ne pas être capable de représenter toutes les valeurs du type source.</p>
+<p>Les conversions suivantes sont définies comme restrictives :</p>
+<ul>
+<li>D'un type à virgule flottante vers un type entier.</li>
+<li>D'un type à virgule flottante vers un type à virgule flottante plus étroit ou de rang inférieur, sauf si la valeur convertie est constexpr et se situe dans l'intervalle du type de destination (même si le type de destination n'a pas la précision nécessaire pour stocker tous les chiffres significatifs du nombre).</li>
+<li>D'un type entier vers un type à virgule flottante, sauf si la valeur convertie est constexpr et si sa valeur peut être stockée exactement dans le type de destination.</li>
+<li>D'un type entier vers un autre type entier qui ne peut pas représenter toutes les valeurs du type d'origine, sauf si la valeur convertie est constexpr et si sa valeur peut être stockée exactement dans le type de destination. Cela couvre aussi bien les conversions vers un type entier plus étroit que les conversions de signe entre entiers (signé vers non signé, ou inversement).</li>
+</ul>
+<p>Dans la plupart des cas, les conversions restrictives implicites provoquent des avertissements du compilateur, à l'exception des conversions signé/non signé (qui peuvent ou non produire un avertissement, selon la configuration de votre compilateur).</p>
+<p>Les conversions restrictives doivent être évitées autant que possible, car elles sont potentiellement dangereuses et donc sources d'erreurs potentielles.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Comme elles peuvent être dangereuses et sont sources d'erreurs, évitez les conversions restrictives chaque fois que c'est possible.</p>
+</div>
+<h2 id="rendre-explicites-les-conversions-restrictives-intentionnelles">Rendre explicites les conversions restrictives intentionnelles</h2>
+<p>Les conversions restrictives ne sont pas toujours évitables. C'est particulièrement vrai pour les appels de fonctions, où le paramètre et l'argument peuvent avoir des types différents et nécessiter une conversion restrictive.</p>
+<p>Dans ces cas, il est judicieux de transformer une conversion restrictive implicite en conversion restrictive explicite à l'aide de <code>static_cast</code>. Cela permet de documenter le fait que la conversion restrictive est intentionnelle, et supprime les avertissements ou erreurs du compilateur qui seraient autrement produits.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">void someFcn(int i)
+{
+}
+
+int main()
+{
+    double d{ 5.0 };
+
+    someFcn(d); // mauvais : la conversion restrictive implicite générera un avertissement du compilateur
+
+    // bien : on indique explicitement au compilateur que cette conversion restrictive est intentionnelle
+    someFcn(static_cast&lt;int&gt;(d)); // aucun avertissement généré
+
+    return 0;
+}
+</code></pre>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous devez effectuer une conversion restrictive, utilisez <code>static_cast</code> pour la transformer en conversion explicite.</p>
+</div>
+<h2 id="linitialisation-par-accolades-interdit-les-conversions-restrictives">L'initialisation par accolades interdit les conversions restrictives</h2>
+<p>Les conversions restrictives sont interdites lors d'une initialisation par accolades (ce qui est l'une des principales raisons pour lesquelles cette forme d'initialisation est préférée), et toute tentative de le faire produira une erreur de compilation.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">int main()
+{
+    int i { 3.5 }; // ne compilera pas
+
+    return 0;
+}
+</code></pre>
+<p>Visual Studio produit l'erreur suivante :</p>
+<pre><code>
+error C2397: conversion from 'double' to 'int' requires a narrowing conversion
+</code></pre>
+<p>Si vous voulez réellement effectuer une conversion restrictive à l'intérieur d'une initialisation par accolades, utilisez <code>static_cast</code> pour transformer la conversion restrictive en conversion explicite :</p>
+<pre><code class="language-cpp">int main()
+{
+    double d { 3.5 };
+
+    // static_cast&lt;int&gt; convertit double en int, initialise i avec le résultat int
+    int i { static_cast&lt;int&gt;(d) };
+
+    return 0;
+}
+</code></pre>
+<h2 id="certaines-conversions-constexpr-ne-sont-pas-considérées-comme-restrictives">Certaines conversions constexpr ne sont pas considérées comme restrictives</h2>
+<p>Lorsque la valeur source d'une conversion restrictive n'est connue qu'à l'exécution, le résultat de la conversion ne peut lui aussi être déterminé qu'à l'exécution. Dans ce cas, le fait que la conversion restrictive préserve ou non la valeur ne peut pas non plus être déterminé avant l'exécution. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void print(unsigned int u) // remarque : unsigned
+{
+    std::cout &lt;&lt; u &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Entrez une valeur entière : &quot;;
+    int n{};
+    std::cin &gt;&gt; n; // saisissez 5 ou -5
+    print(n);      // la conversion en unsigned peut ou non préserver la valeur
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, le compilateur ne sait pas quelle valeur sera saisie pour <code>n</code>. Lorsque <code>print(n)</code> est appelée, la conversion de <code>int</code> en <code>unsigned int</code> est effectuée à ce moment-là, et le résultat peut préserver la valeur ou non selon la valeur saisie pour <code>n</code>. Ainsi, un compilateur dont les avertissements sur les conversions signé/non signé sont activés émettra un avertissement dans ce cas.</p>
+<p>Cependant, vous avez peut-être remarqué que la plupart des définitions de conversions restrictives comportent une clause d'exception qui commence par « sauf si la valeur convertie est constexpr et … ». Par exemple, une conversion est restrictive lorsqu'il s'agit d'« une conversion d'un type entier vers un autre type entier qui ne peut pas représenter toutes les valeurs du type d'origine, sauf si la valeur convertie est constexpr et si sa valeur peut être stockée exactement dans le type de destination ».</p>
+<p>Lorsque la valeur source d'une conversion restrictive est constexpr, la valeur précise à convertir doit être connue du compilateur. Dans ces cas, le compilateur peut effectuer lui-même la conversion, puis vérifier si la valeur a été préservée. Si elle ne l'a pas été, le compilateur peut interrompre la compilation avec une erreur. Si elle l'a été, la conversion n'est pas considérée comme restrictive (et le compilateur peut remplacer toute la conversion par le résultat converti, sachant que cela est sans danger).</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr int n1{ 5 };   // remarque : constexpr
+    unsigned int u1 { n1 };  // correct : la conversion n'est pas restrictive grâce à la clause d'exception
+
+    constexpr int n2 { -5 }; // remarque : constexpr
+    unsigned int u2 { n2 };  // erreur de compilation : conversion restrictive due à un changement de valeur
+
+    return 0;
+}
+</code></pre>
+<p>Appliquons la règle « D'un type entier vers un autre type entier qui ne peut pas représenter toutes les valeurs du type d'origine, sauf si la valeur convertie est constexpr et si sa valeur peut être stockée exactement dans le type de destination » aux deux conversions ci-dessus.</p>
+<p>Dans le cas de <code>n1</code> et <code>u1</code>, <code>n1</code> est un <code>int</code> et <code>u1</code> est un <code>unsigned int</code> : il s'agit donc d'une conversion d'un type entier vers un autre type entier qui ne peut pas représenter toutes les valeurs du type d'origine. Cependant, <code>n1</code> est constexpr et sa valeur <code>5</code> peut être représentée exactement dans le type de destination (sous la forme de la valeur non signée <code>5</code>). Cette conversion n'est donc pas considérée comme restrictive, et nous avons le droit d'initialiser <code>u1</code> par liste à l'aide de <code>n1</code>.</p>
+<p>Dans le cas de <code>n2</code> et <code>u2</code>, la situation est similaire. Bien que <code>n2</code> soit constexpr, sa valeur <code>-5</code> ne peut pas être représentée exactement dans le type de destination. La conversion est donc considérée comme restrictive, et comme nous effectuons une initialisation par liste, le compilateur produit une erreur et interrompt la compilation.</p>
+<p>Étrangement, les conversions d'un type à virgule flottante vers un type entier ne possèdent pas de clause d'exception constexpr. Elles sont donc toujours considérées comme restrictives, même lorsque la valeur à convertir est constexpr et se situe dans l'intervalle du type de destination :</p>
+<pre><code class="language-cpp">int n { 5.0 }; // erreur de compilation : conversion restrictive
+</code></pre>
+<p>Plus étrangement encore, les conversions d'un type à virgule flottante constexpr vers un type à virgule flottante plus étroit ne sont pas considérées comme restrictives, même lorsqu'il y a perte de précision !</p>
+<pre><code class="language-cpp">constexpr double d { 0.1 };
+float f { d }; // non restrictive, bien qu'une perte de précision en résulte
+</code></pre>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>La conversion d'un type à virgule flottante constexpr vers un type à virgule flottante plus étroit n'est pas considérée comme restrictive, même lorsqu'elle entraîne une perte de précision.</p>
+</div>
+<h2 id="initialisation-par-liste-avec-des-initialiseurs-constexpr">Initialisation par liste avec des initialiseurs constexpr</h2>
+<p>Ces clauses d'exception constexpr sont extrêmement utiles lors de l'initialisation par liste d'objets qui ne sont ni <code>int</code> ni <code>double</code>, car nous pouvons utiliser un littéral <code>int</code> ou <code>double</code> (ou un objet constexpr) comme valeur d'initialisation.</p>
+<p>Cela nous permet d'éviter :</p>
+<ul>
+<li>d'avoir à utiliser des suffixes littéraux dans la plupart des cas ;</li>
+<li>d'encombrer nos initialisations avec un <code>static_cast</code>.</li>
+</ul>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">int main()
+{
+    // Nous pouvons éviter les littéraux avec suffixes
+    unsigned int u { 5 }; // correct (pas besoin d'écrire `5u`)
+    float f { 1.5 };      // correct (pas besoin d'écrire `1.5f`)
+
+    // Nous pouvons éviter les static_cast
+    constexpr int n{ 5 };
+    double d { n };       // correct (pas besoin de static_cast ici)
+    short s { 5 };        // correct (il n'existe pas de suffixe pour short, pas besoin de static_cast ici)
+
+    return 0;
+}
+</code></pre>
+<p>Cela fonctionne également avec l'initialisation par copie et l'initialisation directe.</p>
+<p>Une mise en garde mérite d'être mentionnée : initialiser un type à virgule flottante plus étroit ou de rang inférieur avec une valeur constexpr est autorisé tant que la valeur se situe dans l'intervalle du type de destination, même si ce type n'a pas assez de précision pour stocker exactement la valeur !</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les types à virgule flottante sont classés dans cet ordre (du plus grand au plus petit) :</p>
+<ul>
+<li>long double</li>
+<li>double</li>
+<li>float</li>
+</ul>
+</div>
+<p>Ainsi, une écriture comme celle-ci est légale et ne produit pas d'erreur :</p>
+<pre><code class="language-cpp">int main()
+{
+    float f { 1.23456789 }; // non restrictive, bien qu'une précision soit perdue !
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, votre compilateur peut tout de même émettre un avertissement dans ce cas (GCC et Clang le font si vous utilisez l'option de compilation -Wconversion).</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/narrowing-conversions-list-initialization-and-constexpr-initializers/">https://www.learncpp.com/cpp-tutorial/narrowing-conversions-list-initialization-and-constexpr-initializers/</a></em></p>
+</main>
+</body>
+</html>

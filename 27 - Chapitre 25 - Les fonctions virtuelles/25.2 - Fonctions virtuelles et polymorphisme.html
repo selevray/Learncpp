@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25.2 — Fonctions virtuelles et polymorphisme</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="252-fonctions-virtuelles-et-polymorphisme">25.2 — Fonctions virtuelles et polymorphisme</h1>
+<p>Dans la leçon précédente sur les <a href="https://www.learncpp.com/cpp-tutorial/121-pointers-and-references-to-the-base-class-of-derived-objects/">pointeurs et références vers la classe de base d'objets dérivés</a>, nous avons examiné plusieurs exemples où l'utilisation de pointeurs ou de références vers une classe de base pouvait simplifier le code. Cependant, dans chaque cas, nous nous heurtions au même problème : le pointeur ou la référence de base ne pouvait appeler que la version de base d'une fonction, et non une version dérivée.</p>
+<p>Voici un exemple simple de ce comportement :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class Base
+{
+public:
+    std::string_view getName() const { return &quot;Base&quot;; }
+};
+
+class Derived: public Base
+{
+public:
+    std::string_view getName() const { return &quot;Derived&quot;; }
+};
+
+int main()
+{
+    Derived derived {};
+    Base&amp; rBase{ derived };
+    std::cout &lt;&lt; &quot;rBase is a &quot; &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+rBase is a Base
+</code></pre>
+<p>Comme rBase est une référence de type Base, il appelle Base::getName(), même s'il référence en réalité la partie Base d'un objet Derived.</p>
+<p>Dans cette leçon, nous allons montrer comment résoudre ce problème à l'aide des fonctions virtuelles.</p>
+<h2 id="fonctions-virtuelles">Fonctions virtuelles</h2>
+<p>Une <strong>fonction virtuelle</strong> (virtual function) est un type particulier de fonction membre qui, lorsqu'elle est appelée, se résout en la version la plus dérivée de la fonction, pour le type réel de l'objet référencé ou pointé.</p>
+<p>Une fonction dérivée est considérée comme correspondante si elle a la même signature (nom, types des paramètres et caractère const) et le même type de retour que la version de base de la fonction. De telles fonctions sont appelées <strong>redéfinitions</strong> (overrides).</p>
+<p>Pour rendre une fonction virtuelle, il suffit de placer le mot-clé <code>virtual</code> devant sa déclaration.</p>
+<p>Voici l'exemple précédent avec une fonction virtuelle :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class Base
+{
+public:
+    virtual std::string_view getName() const { return &quot;Base&quot;; } // note : ajout du mot-clé virtual
+};
+
+class Derived: public Base
+{
+public:
+    virtual std::string_view getName() const { return &quot;Derived&quot;; }
+};
+
+int main()
+{
+    Derived derived {};
+    Base&amp; rBase{ derived };
+    std::cout &lt;&lt; &quot;rBase is a &quot; &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+rBase is a Derived
+</code></pre>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Certains compilateurs modernes peuvent signaler une erreur concernant la présence de fonctions virtuelles et d'un destructeur non virtuel accessible. Si c'est le cas, ajoutez un destructeur virtuel à la classe de base. Dans le programme ci-dessus, ajoutez ceci à la définition de <code>Base</code> :</p>
+<pre><code class="language-cpp">    virtual ~Base() = default;
+</code></pre>
+<p>Nous aborderons les destructeurs virtuels dans la leçon <a href="../27%20-%20Chapitre%2025%20-%20Les%20fonctions%20virtuelles/25.4%20-%20Destructeurs%20virtuels%2C%20affectation%20virtuelle%20et%20neutralisation%20de%20la%20virtualit%C3%A9.html">25.4 -- Destructeurs virtuels, affectation virtuelle et neutralisation de la virtualisation</a>.</p>
+</div>
+<p>Comme rBase est une référence à la partie Base d'un objet Derived, lorsque <em>rBase.getName()</em> est évalué, il se résoudrait normalement en Base::getName(). Cependant, Base::getName() est virtuelle, ce qui demande au programme de rechercher s'il existe une version plus dérivée de la fonction pour un objet Derived. Dans ce cas, l'appel se résout en Derived::getName() !</p>
+<p>Examinons un exemple légèrement plus complexe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    virtual std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B: public A
+{
+public:
+    virtual std::string_view getName() const { return &quot;B&quot;; }
+};
+
+class C: public B
+{
+public:
+    virtual std::string_view getName() const { return &quot;C&quot;; }
+};
+
+class D: public C
+{
+public:
+    virtual std::string_view getName() const { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c {};
+    A&amp; rBase{ c };
+    std::cout &lt;&lt; &quot;rBase is a &quot; &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Que pensez-vous que ce programme affiche ?</p>
+<p>Analysons son fonctionnement. Tout d'abord, nous instancions un objet de classe C. rBase est une référence de type A, que nous initialisons pour qu'elle référence la partie A de l'objet C. Enfin, nous appelons rBase.getName(). rBase.getName() se résoudrait en A::getName(). Cependant, A::getName() est virtuelle, donc le compilateur appelle la version la plus dérivée correspondant entre A et C. Dans ce cas, il s'agit de C::getName(). Notez qu'il n'appellera pas D::getName(), car notre objet d'origine était un C et non un D : seules les fonctions situées entre A et C sont prises en compte.</p>
+<p>Par conséquent, notre programme affiche :</p>
+<pre><code>
+rBase is a C
+</code></pre>
+<p>Notez que la résolution des fonctions virtuelles ne fonctionne que lorsqu'une fonction membre virtuelle est appelée à travers un pointeur ou une référence vers un objet de type classe. Cela fonctionne parce que le compilateur peut distinguer le type du pointeur ou de la référence du type de l'objet pointé ou référencé, comme dans l'exemple ci-dessus.</p>
+<p>Appeler directement une fonction membre virtuelle sur un objet (et non à travers un pointeur ou une référence) invoquera toujours la fonction membre appartenant au type de cet objet. Par exemple :</p>
+<pre><code class="language-cpp">C c{};
+std::cout &lt;&lt; c.getName(); // appelle toujours C::getName
+
+A a { c }; // copie la partie A de c dans a (à ne pas faire)
+std::cout &lt;&lt; a.getName(); // appelle toujours A::getName
+</code></pre>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La résolution des fonctions virtuelles ne fonctionne que lorsqu'une fonction membre est appelée à travers un pointeur ou une référence vers un objet de type classe.</p>
+</div>
+<h2 id="polymorphisme">Polymorphisme</h2>
+<p>En programmation, le <strong>polymorphisme</strong> (polymorphism) désigne la capacité d'une entité à prendre plusieurs formes (le terme « polymorphisme » signifie littéralement « plusieurs formes »). Par exemple, considérons les deux déclarations de fonctions suivantes :</p>
+<pre><code class="language-cpp">int add(int, int);
+double add(double, double);
+</code></pre>
+<p>L'identifiant <code>add</code> possède deux formes : <code>add(int, int)</code> et <code>add(double, double)</code>.</p>
+<p>Le <strong>polymorphisme à la compilation</strong> (compile-time polymorphism) désigne les formes de polymorphisme résolues par le compilateur. Elles incluent la résolution de surcharge des fonctions, ainsi que la résolution des modèles (templates).</p>
+<p>Le <strong>polymorphisme à l'exécution</strong> (runtime polymorphism) désigne les formes de polymorphisme résolues à l'exécution. Il inclut la résolution des fonctions virtuelles.</p>
+<h2 id="un-exemple-plus-complexe">Un exemple plus complexe</h2>
+<p>Reprenons l'exemple de la classe Animal que nous avons utilisé dans la leçon précédente. Voici la classe d'origine, accompagnée d'un code de test :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Animal
+{
+protected:
+    std::string m_name {};
+
+    // Nous rendons ce constructeur protégé car
+    // nous ne voulons pas que l'on crée directement des objets Animal,
+    // mais nous voulons tout de même que les classes dérivées puissent l'utiliser.
+    Animal(std::string_view name)
+        : m_name{ name }
+    {
+    }
+
+public:
+    const std::string&amp; getName() const { return m_name; }
+    std::string_view speak() const { return &quot;???&quot;; }
+};
+
+class Cat: public Animal
+{
+public:
+    Cat(std::string_view name)
+        : Animal{ name }
+    {
+    }
+
+    std::string_view speak() const { return &quot;Meow&quot;; }
+};
+
+class Dog: public Animal
+{
+public:
+    Dog(std::string_view name)
+        : Animal{ name }
+    {
+    }
+
+    std::string_view speak() const { return &quot;Woof&quot;; }
+};
+
+void report(const Animal&amp; animal)
+{
+    std::cout &lt;&lt; animal.getName() &lt;&lt; &quot; says &quot; &lt;&lt; animal.speak() &lt;&lt; '\n';
+}
+
+int main()
+{
+    Cat cat{ &quot;Fred&quot; };
+    Dog dog{ &quot;Garbo&quot; };
+
+    report(cat);
+    report(dog);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Fred says ???
+Garbo says ???
+</code></pre>
+<p>Voici la classe équivalente dans laquelle la fonction speak() est devenue virtuelle :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Animal
+{
+protected:
+    std::string m_name {};
+
+    // Nous rendons ce constructeur protégé car
+    // nous ne voulons pas que l'on crée directement des objets Animal,
+    // mais nous voulons tout de même que les classes dérivées puissent l'utiliser.
+    Animal(std::string_view name)
+        : m_name{ name }
+    {
+    }
+
+public:
+    const std::string&amp; getName() const { return m_name; }
+    virtual std::string_view speak() const { return &quot;???&quot;; }
+};
+
+class Cat: public Animal
+{
+public:
+    Cat(std::string_view name)
+        : Animal{ name }
+    {
+    }
+
+    virtual std::string_view speak() const { return &quot;Meow&quot;; }
+};
+
+class Dog: public Animal
+{
+public:
+    Dog(std::string_view name)
+        : Animal{ name }
+    {
+    }
+
+    virtual std::string_view speak() const { return &quot;Woof&quot;; }
+};
+
+void report(const Animal&amp; animal)
+{
+    std::cout &lt;&lt; animal.getName() &lt;&lt; &quot; says &quot; &lt;&lt; animal.speak() &lt;&lt; '\n';
+}
+
+int main()
+{
+    Cat cat{ &quot;Fred&quot; };
+    Dog dog{ &quot;Garbo&quot; };
+
+    report(cat);
+    report(dog);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+Fred says Meow
+Garbo says Woof
+</code></pre>
+<p>Ça fonctionne !</p>
+<p>Lorsque animal.speak() est évaluée, le programme constate que Animal::speak() est une fonction virtuelle. Dans le cas où animal référence la partie Animal d'un objet Cat, le programme examine toutes les classes situées entre Animal et Cat pour voir s'il peut trouver une fonction plus dérivée. Ici, il trouve Cat::speak(). Dans le cas où animal référence la partie Animal d'un objet Dog, le programme résout l'appel en Dog::speak().</p>
+<p>Notez que nous n'avons pas rendu Animal::getName() virtuelle. En effet, getName() n'est redéfinie dans aucune des classes dérivées : il n'y a donc pas lieu de le faire.</p>
+<p>De même, l'exemple suivant utilisant un tableau fonctionne désormais comme prévu :</p>
+<pre><code class="language-cpp">Cat fred{ &quot;Fred&quot; };
+Cat misty{ &quot;Misty&quot; };
+Cat zeke{ &quot;Zeke&quot; };
+
+Dog garbo{ &quot;Garbo&quot; };
+Dog pooky{ &quot;Pooky&quot; };
+Dog truffle{ &quot;Truffle&quot; };
+
+// Crée un tableau de pointeurs vers des animaux, et initialise ces pointeurs avec nos objets Cat et Dog
+Animal* animals[]{ &amp;fred, &amp;garbo, &amp;misty, &amp;pooky, &amp;truffle, &amp;zeke };
+
+for (const auto* animal : animals)
+    std::cout &lt;&lt; animal-&gt;getName() &lt;&lt; &quot; says &quot; &lt;&lt; animal-&gt;speak() &lt;&lt; '\n';
+</code></pre>
+<p>Ce qui produit le résultat :</p>
+<pre><code>
+Fred says Meow
+Garbo says Woof
+Misty says Meow
+Pooky says Woof
+Truffle says Woof
+Zeke says Meow
+</code></pre>
+<p>Bien que ces deux exemples n'utilisent que Cat et Dog, toute autre classe que nous dériverons de Animal fonctionnerait également avec notre fonction report() et notre tableau d'animaux, sans modification supplémentaire ! C'est sans doute le plus grand avantage des fonctions virtuelles : la possibilité de structurer votre code de manière à ce que les nouvelles classes dérivées fonctionnent automatiquement avec l'ancien code, sans modification !</p>
+<p>Une mise en garde : la signature de la fonction de la classe dérivée doit <em>exactement</em> correspondre à celle de la fonction virtuelle de la classe de base pour être utilisée. Si la fonction dérivée a des types de paramètres différents, le programme se compilera probablement sans problème, mais la fonction virtuelle ne se résoudra pas comme prévu. Dans la prochaine leçon, nous verrons comment s'en prémunir.</p>
+<p>Notez que si une fonction est marquée comme virtuelle, toutes les redéfinitions correspondantes dans les classes dérivées sont également considérées implicitement comme virtuelles, même si elles ne sont pas explicitement marquées comme telles.</p>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Si une fonction est virtuelle, toutes les redéfinitions correspondantes dans les classes dérivées sont implicitement virtuelles.</p>
+</div>
+<p>Ce n'est pas vrai dans l'autre sens : une redéfinition virtuelle dans une classe dérivée ne rend pas implicitement virtuelle la fonction de la classe de base.</p>
+<h2 id="types-de-retour-des-fonctions-virtuelles">Types de retour des fonctions virtuelles</h2>
+<p>Dans les circonstances normales, le type de retour d'une fonction virtuelle et celui de sa redéfinition doivent correspondre. Considérez l'exemple suivant :</p>
+<pre><code class="language-cpp">class Base
+{
+public:
+    virtual int getValue() const { return 5; }
+};
+
+class Derived: public Base
+{
+public:
+    virtual double getValue() const { return 6.78; }
+};
+</code></pre>
+<p>Dans ce cas, Derived::getValue() n'est pas considérée comme une redéfinition correspondante de Base::getValue() et la compilation échouera.</p>
+<h2 id="ne-pas-appeler-de-fonctions-virtuelles-depuis-les-constructeurs-ou-les-destructeurs">Ne pas appeler de fonctions virtuelles depuis les constructeurs ou les destructeurs</h2>
+<p>Voici un autre piège qui attend souvent les programmeurs débutants. Vous ne devez pas appeler de fonctions virtuelles depuis les constructeurs ou les destructeurs. Pourquoi ?</p>
+<p>Rappelez-vous que lorsqu'un objet de classe dérivée est créé, la partie Base est construite en premier. Si vous appeliez une fonction virtuelle depuis le constructeur de Base, alors que la partie Derived de la classe n'a pas encore été créée, il serait impossible d'appeler la version Derived de la fonction, car il n'existe pas encore d'objet Derived sur lequel elle pourrait travailler. En C++, c'est la version de Base qui sera appelée.</p>
+<p>Un problème similaire existe pour les destructeurs. Si vous appelez une fonction virtuelle dans le destructeur de la classe de base, elle se résoudra toujours en la version de la classe de base, puisque la partie Derived de la classe aura déjà été détruite.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>N'appelez jamais de fonctions virtuelles depuis les constructeurs ou les destructeurs.</p>
+</div>
+<h2 id="linconvénient-des-fonctions-virtuelles">L'inconvénient des fonctions virtuelles</h2>
+<p>Puisque la plupart du temps vous voudrez que vos fonctions soient virtuelles, pourquoi ne pas rendre toutes les fonctions virtuelles ? La réponse est que cela est inefficace : la résolution d'un appel de fonction virtuelle prend plus de temps que celle d'un appel de fonction ordinaire.</p>
+<p>De plus, pour que les fonctions virtuelles fonctionnent, le compilateur doit allouer un pointeur supplémentaire pour chaque objet d'une classe possédant des fonctions virtuelles. Cela ajoute une surcharge importante aux objets qui, sans cela, seraient de petite taille. Nous reviendrons sur ce point dans les prochaines leçons de ce chapitre.</p>
+<h2 id="quiz">Quiz</h2>
+<ol>
+<li>Qu'affichent les programmes suivants ? Cet exercice doit être réalisé par simple lecture du code, sans compiler les exemples avec votre compilateur.</li>
+</ol>
+<p>1a)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    virtual std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B: public A
+{
+public:
+    virtual std::string_view getName() const { return &quot;B&quot;; }
+};
+
+class C: public B
+{
+public:
+// Note : aucune fonction getName() ici
+};
+
+class D: public C
+{
+public:
+    virtual std::string_view getName() const { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c {};
+    A&amp; rBase{ c };
+    std::cout &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>B. rBase est une référence de type A pointant vers un objet C. Normalement, rBase.getName() appellerait A::getName(), mais A::getName() est virtuelle, donc il appelle plutôt la fonction correspondante la plus dérivée entre A et C. Il s'agit de B::getName(), qui affiche B.</p>
+</details>
+<p>1b)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    virtual std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B: public A
+{
+public:
+    virtual std::string_view getName() const { return &quot;B&quot;; }
+};
+
+class C: public B
+{
+public:
+    virtual std::string_view getName() const { return &quot;C&quot;; }
+};
+
+class D: public C
+{
+public:
+    virtual std::string_view getName() const { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c;
+    B&amp; rBase{ c }; // note : cette fois rBase est un B
+    std::cout &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>C. C'est assez direct, car C::getName() est l'appel correspondant le plus dérivé entre les classes B et C.</p>
+</details>
+<p>1c)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    // note : pas de mot-clé virtual
+    std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B: public A
+{
+public:
+    virtual std::string_view getName() const { return &quot;B&quot;; }
+};
+
+class C: public B
+{
+public:
+    virtual std::string_view getName() const { return &quot;C&quot;; }
+};
+
+class D: public C
+{
+public:
+    virtual std::string_view getName() const { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c {};
+    A&amp; rBase{ c };
+    std::cout &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>A. Comme A n'est pas virtuelle, lors de l'appel de rBase.getName(), c'est A::getName() qui est appelée.</p>
+</details>
+<p>1d)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    virtual std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B: public A
+{
+public:
+    // note : pas de mot-clé virtual dans B, C et D
+    std::string_view getName() const { return &quot;B&quot;; }
+};
+
+class C: public B
+{
+public:
+    std::string_view getName() const { return &quot;C&quot;; }
+};
+
+class D: public C
+{
+public:
+    std::string_view getName() const { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c {};
+    B&amp; rBase{ c }; // note : cette fois rBase est un B
+    std::cout &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>C. Bien que B et C ne soient pas marquées comme fonctions virtuelles, A::getName() est virtuelle et B::getName() ainsi que C::getName() en sont des redéfinitions. Par conséquent, B::getName() et C::getName() sont considérées implicitement virtuelles, et l'appel rBase.getName() se résout donc en C::getName(), et non en B::getName().</p>
+</details>
+<p>1e)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    virtual std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B: public A
+{
+public:
+    // Note : les fonctions de B, C et D ne sont pas const.
+    virtual std::string_view getName() { return &quot;B&quot;; }
+};
+
+class C: public B
+{
+public:
+    virtual std::string_view getName() { return &quot;C&quot;; }
+};
+
+class D: public C
+{
+public:
+    virtual std::string_view getName() { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c {};
+    A&amp; rBase{ c };
+    std::cout &lt;&lt; rBase.getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>A. Celui-ci est un peu plus délicat. rBase est une référence de type A vers un objet C, donc rBase.getName() appellerait normalement A::getName(). Mais A::getName() est virtuelle, elle appelle donc la version la plus dérivée de la fonction entre A et C. Et il s'agit de A::getName(). Comme B::getName() et C::getName() ne sont pas const, elles ne sont pas considérées comme des redéfinitions ! Par conséquent, ce programme affiche A.</p>
+</details>
+<p>1f)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+class A
+{
+public:
+    A() { std::cout &lt;&lt; getName(); } // note : ajout du constructeur (getName() est maintenant appelée depuis ici)
+
+    virtual std::string_view getName() const { return &quot;A&quot;; }
+};
+
+class B : public A
+{
+public:
+    virtual std::string_view getName() const { return &quot;B&quot;; }
+};
+
+class C : public B
+{
+public:
+    virtual std::string_view getName() const { return &quot;C&quot;; }
+};
+
+class D : public C
+{
+public:
+    virtual std::string_view getName() const { return &quot;D&quot;; }
+};
+
+int main()
+{
+    C c {};
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>A. Un autre exercice délicat. Lorsque nous créons un objet C, la partie A est construite en premier. Lors de l'appel du constructeur de A, celui-ci appelle la fonction virtuelle getName(). Comme les parties B et C de la classe ne sont pas encore initialisées, l'appel se résout en A::getName().</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/virtual-functions/">https://www.learncpp.com/cpp-tutorial/virtual-functions/</a></em></p>
+</main>
+</body>
+</html>

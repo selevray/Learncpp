@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27.3 — Exceptions, fonctions et déroulement de la pile (stack unwinding)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="273-exceptions-fonctions-et-déroulement-de-la-pile-stack-unwinding">27.3 — Exceptions, fonctions et déroulement de la pile (stack unwinding)</h1>
+<p>Dans la leçon précédente, <a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.2%20-%20Gestion%20de%20base%20des%20exceptions.html">27.2 -- Gestion de base des exceptions</a>, nous avons expliqué comment throw, try et catch fonctionnent ensemble pour permettre la gestion des exceptions. Dans cette leçon, nous allons voir comment la gestion des exceptions interagit avec les fonctions.</p>
+<p><strong>Lancer des exceptions depuis une fonction appelée</strong></p>
+<p>Dans la leçon précédente, nous avons indiqué : « un bloc try détecte toutes les exceptions lancées par les instructions situées à l'intérieur de ce bloc try ». Dans les exemples correspondants, nos instructions throw étaient placées dans un bloc try et capturées par un bloc catch associé, le tout dans la même fonction. Devoir à la fois lancer et capturer une exception au sein d'une même fonction n'a qu'une utilité limitée.</p>
+<p>Ce qui est plus intéressant, c'est ce qui se passe si une instruction à l'intérieur d'un bloc try est un appel de fonction, et que la fonction appelée lance une exception. Le bloc try détectera-t-il une exception lancée par une fonction appelée depuis ce bloc try ?</p>
+<p>La réponse, heureusement, est oui !</p>
+<p>L'une des propriétés les plus utiles de la gestion des exceptions est que les instructions throw n'ont PAS besoin d'être placées directement à l'intérieur d'un bloc try. Les exceptions peuvent être lancées depuis n'importe quel endroit d'une fonction, et être capturées par le bloc try de l'appelant (ou de l'appelant de l'appelant, etc.). Lorsqu'une exception est capturée de cette manière, l'exécution saute du point où l'exception est lancée vers le bloc catch qui la traite.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les blocs try capturent les exceptions non seulement des instructions situées à l'intérieur du bloc try, mais aussi des fonctions appelées à l'intérieur de ce bloc try.</p>
+</div>
+<p>Cela nous permet d'utiliser la gestion des exceptions de manière beaucoup plus modulaire. Nous allons le démontrer en réécrivant le programme de racine carrée de la leçon précédente afin d'utiliser une fonction modulaire.</p>
+<pre><code class="language-cpp">#include &lt;cmath&gt; // pour la fonction sqrt()
+#include &lt;iostream&gt;
+
+// Une fonction racine carrée modulaire
+double mySqrt(double x)
+{
+    // Si l'utilisateur a saisi un nombre négatif, c'est une condition d'erreur
+    if (x &lt; 0.0)
+        throw &quot;Can not take sqrt of negative number&quot;; // lance une exception de type const char*
+
+    return std::sqrt(x);
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    double x {};
+    std::cin &gt;&gt; x;
+
+    try // Recherche les exceptions survenant dans le bloc try et les envoie au(x) bloc(s) catch associé(s)
+    {
+        double d = mySqrt(x);
+        std::cout &lt;&lt; &quot;The sqrt of &quot; &lt;&lt; x &lt;&lt; &quot; is &quot; &lt;&lt; d &lt;&lt; '\n';
+    }
+    catch (const char* exception) // capture les exceptions de type const char*
+    {
+        std::cerr &lt;&lt; &quot;Error: &quot; &lt;&lt; exception &lt;&lt; std::endl;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce programme, nous avons pris le code qui vérifie l'exception et calcule la racine carrée, et nous l'avons placé dans une fonction modulaire appelée mySqrt(). Nous avons ensuite appelé cette fonction mySqrt() depuis un bloc try. Vérifions qu'elle fonctionne toujours comme prévu :</p>
+<pre><code>
+Enter a number: -4
+Error: Can not take sqrt of negative number
+</code></pre>
+<p>C'est bien le cas ! Lorsque l'exception est lancée dans mySqrt(), il n'existe aucun gestionnaire dans mySqrt() pour la traiter. Cependant, l'appel à mySqrt() (dans main()) se trouve dans un bloc try doté d'un gestionnaire d'exception correspondant. L'exécution saute donc de l'instruction throw dans mySqrt() jusqu'au début du bloc catch dans main(), puis reprend.</p>
+<p>La partie la plus intéressante de ce programme est que la fonction mySqrt() peut lancer une exception sans la traiter elle-même ! Cela signifie en substance que mySqrt() est prête à dire « Hé, il y a un problème ! », mais ne veut pas le résoudre elle-même. Elle délègue, en somme, la responsabilité du traitement de l'exception à son appelant (un peu comme l'utilisation d'un code de retour transmet à l'appelant la responsabilité de traiter une erreur).</p>
+<p>À ce stade, certains d'entre vous se demandent probablement pourquoi il est judicieux de renvoyer les erreurs à l'appelant. Pourquoi ne pas simplement faire en sorte que mySqrt() gère sa propre erreur ? Le problème est que différentes applications peuvent vouloir traiter les erreurs de différentes façons. Une application console peut vouloir afficher un message texte. Une application fenêtrée peut vouloir afficher une boîte de dialogue d'erreur. Dans une application, il peut s'agir d'une erreur fatale, et dans une autre non. En faisant remonter l'erreur hors de la fonction, chaque application peut traiter une erreur venant de mySqrt() de la manière la plus adaptée à son contexte ! Au final, cela maintient mySqrt() aussi modulaire que possible, et la gestion des erreurs peut être placée dans les parties moins modulaires du code.</p>
+<p><strong>Gestion des exceptions et déroulement de la pile (stack unwinding)</strong></p>
+<p>Dans cette section, nous allons examiner comment la gestion des exceptions fonctionne réellement lorsque plusieurs fonctions sont impliquées.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Avant de continuer, consultez la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.2%20-%20La%20pile%20%28stack%29%20et%20le%20tas%20%28heap%29.html">20.2 -- La pile et le tas</a> si vous avez besoin de revoir les piles d'appels (call stacks) et le déroulement de la pile.</p>
+</div>
+<p>Lorsqu'une exception est lancée, le programme regarde d'abord si l'exception peut être traitée immédiatement à l'intérieur de la fonction courante (c'est-à-dire si l'exception a été lancée dans un bloc try situé dans la fonction courante, et qu'un bloc catch correspondant lui est associé). Si la fonction courante peut traiter l'exception, elle le fait.</p>
+<p>Sinon, le programme vérifie ensuite si l'appelant de la fonction (la fonction immédiatement au-dessus dans la pile d'appels) peut traiter l'exception. Pour que l'appelant puisse la traiter, l'appel à la fonction courante doit se trouver dans un bloc try, et un bloc catch correspondant doit lui être associé. Si aucune correspondance n'est trouvée, on vérifie l'appelant de l'appelant (deux fonctions plus haut dans la pile d'appels). De la même façon, pour que l'appelant de l'appelant traite l'exception, l'appel à l'appelant doit se trouver dans un bloc try, et un bloc catch correspondant doit lui être associé.</p>
+<p>Le processus consistant à vérifier chaque fonction de la pile d'appels se poursuit jusqu'à ce qu'un gestionnaire soit trouvé, ou jusqu'à ce que toutes les fonctions de la pile d'appels aient été vérifiées sans qu'aucun gestionnaire ne soit trouvé.</p>
+<p>Si un gestionnaire d'exception correspondant est trouvé, l'exécution saute du point où l'exception est lancée jusqu'au début du bloc catch correspondant. Cela nécessite de dérouler la pile (retirer la fonction courante de la pile d'appels) autant de fois que nécessaire pour que la fonction qui traite l'exception devienne la fonction au sommet de la pile d'appels.</p>
+<p>Si aucun gestionnaire d'exception correspondant n'est trouvé, la pile peut ou non être déroulée. Nous reviendrons sur ce cas dans la prochaine leçon (<a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.4%20-%20Exceptions%20non%20g%C3%A9r%C3%A9es%20et%20gestionnaires%20attrape-tout.html">27.4 -- Exceptions non capturées et gestionnaires universels</a>).</p>
+<p>Lorsque la fonction courante est retirée de la pile d'appels, toutes ses variables locales sont détruites comme d'habitude, mais aucune valeur n'est renvoyée.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Le déroulement de la pile détruit les variables locales des fonctions dont la pile est déroulée (ce qui est une bonne chose, car cela garantit l'exécution de leurs destructeurs).</p>
+</div>
+<p><strong>Un autre exemple de déroulement de la pile</strong></p>
+<p>Pour illustrer ce qui précède, examinons un exemple plus complexe, utilisant une pile plus grande. Bien que ce programme soit long, il est assez simple : main() appelle A(), A() appelle B(), B() appelle C(), C() appelle D(), et D() lance une exception.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void D() // appelée par C()
+{
+    std::cout &lt;&lt; &quot;Start D\n&quot;;
+    std::cout &lt;&lt; &quot;D throwing int exception\n&quot;;
+
+    throw - 1;
+
+    std::cout &lt;&lt; &quot;End D\n&quot;; // ignorée
+}
+
+void C() // appelée par B()
+{
+    std::cout &lt;&lt; &quot;Start C\n&quot;;
+    D();
+    std::cout &lt;&lt; &quot;End C\n&quot;;
+}
+
+void B() // appelée par A()
+{
+    std::cout &lt;&lt; &quot;Start B\n&quot;;
+
+    try
+    {
+        C();
+    }
+    catch (double) // non capturée : le type de l'exception ne correspond pas
+    {
+        std::cerr &lt;&lt; &quot;B caught double exception\n&quot;;
+    }
+
+    try
+    {
+    }
+    catch (int) // non capturée : l'exception n'a pas été lancée dans le bloc try
+    {
+        std::cerr &lt;&lt; &quot;B caught int exception\n&quot;;
+    }
+
+    std::cout &lt;&lt; &quot;End B\n&quot;;
+}
+
+void A() // appelée par main()
+{
+    std::cout &lt;&lt; &quot;Start A\n&quot;;
+
+    try
+    {
+        B();
+    }
+    catch (int) // exception capturée ici et traitée
+    {
+        std::cerr &lt;&lt; &quot;A caught int exception\n&quot;;
+    }
+    catch (double) // non appelée car l'exception a été traitée par le bloc catch précédent
+    {
+        std::cerr &lt;&lt; &quot;A caught double exception\n&quot;;
+    }
+
+    // l'exécution reprend ici une fois l'exception traitée
+    std::cout &lt;&lt; &quot;End A\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Start main\n&quot;;
+
+    try
+    {
+        A();
+    }
+    catch (int) // non appelée car l'exception a été traitée par A
+    {
+        std::cerr &lt;&lt; &quot;main caught int exception\n&quot;;
+    }
+    std::cout &lt;&lt; &quot;End main\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Examinez ce programme en détail, et essayez de déterminer ce qui sera affiché et ce qui ne le sera pas lors de son exécution. La réponse suit :</p>
+<pre><code>
+Start main
+Start A
+Start B
+Start C
+Start D
+D throwing int exception
+A caught int exception
+End A
+End main
+</code></pre>
+<p>Examinons ce qui se passe dans ce cas. L'affichage de toutes les instructions « Start » est simple et ne nécessite pas d'explication supplémentaire. La fonction D() affiche « D throwing int exception », puis lance une exception de type int. C'est là que les choses deviennent intéressantes.</p>
+<p>Comme D() ne traite pas l'exception elle-même, ses appelants (les fonctions situées plus haut dans la pile d'appels) sont vérifiés pour voir si l'un d'eux peut la traiter. La fonction C() ne traite aucune exception, donc aucune correspondance n'est trouvée à cet endroit.</p>
+<p>La fonction B() possède deux blocs try distincts. Le bloc try contenant l'appel à C() dispose d'un gestionnaire pour les exceptions de type double, qui ne correspond pas à notre exception de type int (et les exceptions n'effectuent pas de conversion de type), donc aucune correspondance n'est trouvée. Le bloc try vide dispose bien d'un gestionnaire d'exception de type int, mais ce bloc catch n'est pas considéré comme correspondant, car l'appel à C() ne se trouve pas dans le bloc try associé.</p>
+<p>A() possède également un bloc try, et l'appel à B() s'y trouve, donc le programme vérifie s'il existe un gestionnaire catch pour les exceptions de type int. Il en existe un ! En conséquence, A() traite l'exception et affiche « A caught int exception ».</p>
+<p>L'exception ayant maintenant été traitée, le contrôle se poursuit normalement après les blocs catch de A(). A() affiche donc « End A », puis se termine normalement.</p>
+<p>Le contrôle revient à main(). Bien que main() possède un gestionnaire d'exception de type int, notre exception a déjà été traitée par A(), donc le bloc catch de main() n'est pas exécuté. main() affiche simplement « End main » puis se termine normalement.</p>
+<p>Ce programme illustre plusieurs principes intéressants :</p>
+<p>Premièrement, la fonction appelante immédiate d'une fonction qui lance une exception n'est pas obligée de traiter cette exception si elle ne le souhaite pas. Dans ce cas, C() n'a pas traité l'exception lancée par D(). Elle a délégué cette responsabilité à l'un de ses appelants situés plus haut dans la pile.</p>
+<p>Deuxièmement, si un bloc try ne possède pas de gestionnaire catch pour le type d'exception lancée, le déroulement de la pile se produit exactement comme s'il n'y avait pas du tout de bloc try. Dans ce cas, B() n'a pas non plus traité l'exception, car elle ne disposait pas du bon type de bloc catch.</p>
+<p>Troisièmement, si une fonction possède un bloc catch correspondant mais que l'appel à la fonction courante ne s'est pas produit dans le bloc try associé, ce bloc catch n'est pas utilisé. Nous avons également vu ce cas avec B().</p>
+<p>Enfin, une fois qu'un bloc catch correspondant est exécuté, le flux de contrôle se poursuit normalement, à partir de la première instruction suivant le dernier bloc catch. C'est ce que montre A() : elle traite l'erreur, poursuit avec « End A », puis retourne à son appelant. Lorsque le programme revient à main(), l'exception a déjà été lancée et traitée : main() ne sait même pas qu'il y a eu une exception !</p>
+<p>Comme vous pouvez le voir, le déroulement de la pile nous offre un comportement très utile : si une fonction ne souhaite pas traiter une exception, elle n'y est pas obligée. L'exception remontera dans la pile jusqu'à trouver quelqu'un qui la traitera ! Cela nous permet de décider à quel endroit de la pile d'appels il est le plus approprié de traiter les erreurs qui peuvent survenir.</p>
+<p>Dans la prochaine leçon, nous verrons ce qui se passe lorsqu'une exception n'est pas capturée, ainsi qu'une méthode pour éviter que cela ne se produise.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/exceptions-functions-and-stack-unwinding/">https://www.learncpp.com/cpp-tutorial/exceptions-functions-and-stack-unwinding/</a></em></p>
+</main>
+</body>
+</html>

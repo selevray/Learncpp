@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.7 — Fonctions membres renvoyant des références vers des membres de données</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="147-fonctions-membres-renvoyant-des-références-vers-des-membres-de-données">14.7 — Fonctions membres renvoyant des références vers des membres de données</h1>
+<p>Dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.12%20-%20Retour%20par%20r%C3%A9f%C3%A9rence%20et%20retour%20par%20adresse.html">12.12 -- Return by reference and return by address</a>, nous avons abordé le renvoi par référence. En particulier, nous avons noté : « L'objet renvoyé par référence doit exister après que la fonction a retourné sa valeur ». Cela signifie que nous ne devons pas renvoyer par référence des variables locales, car la référence resterait pendante (dangling) après la destruction de la variable locale. En revanche, il est généralement acceptable de renvoyer par référence soit des paramètres de fonction passés par référence, soit des variables à durée de stockage statique (variables locales statiques ou variables globales), car elles ne sont généralement pas détruites à la fin de la fonction.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">// Prend deux objets std::string et renvoie celui qui vient en premier par ordre alphabétique
+const std::string&amp; firstAlphabetical(const std::string&amp; a, const std::string&amp; b)
+{
+    return (a &lt; b) ? a : b; // On peut utiliser operator&lt; sur std::string pour déterminer lequel vient en premier
+}
+
+int main()
+{
+    std::string hello { &quot;Hello&quot; };
+    std::string world { &quot;World&quot; };
+
+    std::cout &lt;&lt; firstAlphabetical(hello, world); // soit hello, soit world, est renvoyé par référence
+
+    return 0;
+}
+</code></pre>
+<p>Les fonctions membres peuvent elles aussi renvoyer par référence, et elles suivent les mêmes règles que les fonctions non membres pour savoir quand il est sûr de renvoyer par référence. Cependant, les fonctions membres ont un cas supplémentaire que nous devons examiner : les fonctions membres qui renvoient par référence des membres de données.</p>
+<p>Cela se rencontre le plus souvent avec les fonctions d'accès en lecture (getters), nous illustrerons donc ce sujet à l'aide de ces fonctions. Notez toutefois que ce sujet s'applique à toute fonction membre renvoyant une référence vers un membre de données.</p>
+<h2 id="renvoyer-des-membres-de-données-par-valeur-peut-être-coûteux">Renvoyer des membres de données par valeur peut être coûteux</h2>
+<p>Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+class Employee
+{
+    std::string m_name{};
+
+public:
+    void setName(std::string_view name) { m_name = name; }
+    std::string getName() const { return m_name; } //  le getter renvoie par valeur
+};
+
+int main()
+{
+    Employee joe{};
+    joe.setName(&quot;Joe&quot;);
+    std::cout &lt;&lt; joe.getName();
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, la fonction d'accès <code>getName()</code> renvoie <code>std::string m_name</code> par valeur.</p>
+<p>Bien que ce soit la solution la plus sûre, cela signifie qu'une copie coûteuse de <code>m_name</code> est effectuée à chaque appel de <code>getName()</code>. Comme les fonctions d'accès sont appelées très souvent, ce n'est généralement pas le meilleur choix.</p>
+<h2 id="renvoyer-des-membres-de-données-par-référence-lvalue">Renvoyer des membres de données par référence lvalue</h2>
+<p>Les fonctions membres peuvent également renvoyer des membres de données par référence lvalue (const ou non).</p>
+<p>Les membres de données ont la même durée de vie que l'objet qui les contient. Comme les fonctions membres sont toujours appelées sur un objet, et que cet objet doit exister dans la portée de l'appelant, il est généralement sûr pour une fonction membre de renvoyer un membre de données par référence lvalue (const ou non), puisque le membre renvoyé par référence existera toujours dans la portée de l'appelant lorsque la fonction retourne.</p>
+<p>Mettons à jour l'exemple ci-dessus pour que <code>getName()</code> renvoie <code>m_name</code> par référence lvalue const :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+class Employee
+{
+    std::string m_name{};
+
+public:
+    void setName(std::string_view name) { m_name = name; }
+    const std::string&amp; getName() const { return m_name; } //  le getter renvoie par référence const
+};
+
+int main()
+{
+    Employee joe{}; // joe existe jusqu'à la fin de la fonction
+    joe.setName(&quot;Joe&quot;);
+
+    std::cout &lt;&lt; joe.getName(); // renvoie joe.m_name par référence
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, lorsque <code>joe.getName()</code> est invoquée, <code>joe.m_name</code> est renvoyé par référence à l'appelant, ce qui évite de faire une copie. L'appelant utilise ensuite cette référence pour afficher <code>joe.m_name</code> sur la console.</p>
+<p>Comme <code>joe</code> existe dans la portée de l'appelant jusqu'à la fin de la fonction <code>main()</code>, la référence vers <code>joe.m_name</code> reste valide pendant toute cette durée.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Il est acceptable de renvoyer une référence lvalue (const ou non) vers un membre de données. L'objet implicite (qui contient le membre de données) existe toujours dans la portée de l'appelant après le retour de la fonction, donc les références renvoyées restent valides.</p>
+</div>
+<h2 id="le-type-de-retour-dune-fonction-membre-renvoyant-une-référence-vers-un-membre-de-données-doit-correspondre-au-type-de-ce-membre">Le type de retour d'une fonction membre renvoyant une référence vers un membre de données doit correspondre au type de ce membre</h2>
+<p>En général, le type de retour d'une fonction membre renvoyant par référence doit correspondre au type du membre de données renvoyé. Dans l'exemple ci-dessus, <code>m_name</code> est de type <code>std::string</code>, donc <code>getName()</code> renvoie <code>const std::string&amp;</code>.</p>
+<p>Renvoyer un <code>std::string_view</code> obligerait à créer et renvoyer un <code>std::string_view</code> temporaire à chaque appel de la fonction. C'est inutilement inefficace. Si l'appelant souhaite un <code>std::string_view</code>, il peut effectuer la conversion lui-même.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Une fonction membre renvoyant une référence doit renvoyer une référence du même type que le membre de données renvoyé, afin d'éviter des conversions inutiles.</p>
+</div>
+<p>Pour les getters, utiliser <code>auto</code> pour laisser le compilateur déduire le type de retour à partir du membre renvoyé est un moyen utile de garantir qu'aucune conversion n'a lieu :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+class Employee
+{
+    std::string m_name{};
+
+public:
+    void setName(std::string_view name) { m_name = name; }
+    const auto&amp; getName() const { return m_name; } // utilise `auto` pour déduire le type de retour à partir de m_name
+};
+
+int main()
+{
+    Employee joe{}; // joe existe jusqu'à la fin de la fonction
+    joe.setName(&quot;Joe&quot;);
+
+    std::cout &lt;&lt; joe.getName(); // renvoie joe.m_name par référence
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons les types de retour <code>auto</code> dans la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.9%20-%20D%C3%A9duction%20de%20type%20pour%20les%20fonctions.html">10.9 -- Type deduction for functions</a>.</p>
+</div>
+<p>Cependant, utiliser un type de retour <code>auto</code> masque le type de retour du getter du point de vue de la documentation. Par exemple :</p>
+<pre><code class="language-cpp">    const auto&amp; getName() const { return m_name; } // utilise `auto` pour déduire le type de retour à partir de m_name
+</code></pre>
+<p>On ne sait pas vraiment quel type de chaîne cette fonction renvoie (cela pourrait être un <code>std::string</code>, un <code>std::string_view</code>, une chaîne de style C, ou autre chose encore !).</p>
+<p>Pour cette raison, nous privilégierons généralement les types de retour explicites.</p>
+<h2 id="objets-implicites-rvalue-et-renvoi-par-référence">Objets implicites rvalue et renvoi par référence</h2>
+<p>Il existe un cas auquel il faut être un peu attentif. Dans l'exemple ci-dessus, <code>joe</code> est un objet lvalue qui existe jusqu'à la fin de la fonction. Par conséquent, la référence renvoyée par <code>joe.getName()</code> reste également valide jusqu'à la fin de la fonction.</p>
+<p>Mais que se passe-t-il si l'objet implicite est une rvalue (comme la valeur de retour d'une fonction qui renvoie par valeur) ? Les objets rvalue sont détruits à la fin de l'expression complète dans laquelle ils sont créés. Lorsqu'un objet rvalue est détruit, toute référence vers un de ses membres est invalidée et devient pendante, et son utilisation produit un comportement indéfini.</p>
+<p>Une référence vers un membre d'un objet rvalue ne peut donc être utilisée en toute sécurité que dans l'expression complète où cet objet rvalue est créé.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Nous avons expliqué ce qu'est une expression complète dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.10%20-%20Introduction%20aux%20expressions.html">1.10 -- Introduction to expressions</a>.</p>
+</div>
+<div class="callout warning"><p class="callout-title">Avertissement</p>
+<p>Un objet rvalue est détruit à la fin de l'expression complète dans laquelle il est créé. Toute référence vers ses membres est alors pendante.</p>
+<p>Une référence vers un membre d'un objet rvalue ne peut être utilisée en toute sécurité que dans l'expression complète où cet objet rvalue est créé.</p>
+</div>
+<p>Examinons quelques cas liés à cela :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+    std::string m_name{};
+
+public:
+    void setName(std::string_view name) { m_name = name; }
+    const std::string&amp; getName() const { return m_name; } //  le getter renvoie par référence const
+};
+
+// createEmployee() renvoie un Employee par valeur (ce qui signifie que la valeur retournée est une rvalue)
+Employee createEmployee(std::string_view name)
+{
+    Employee e;
+    e.setName(name);
+    return e;
+}
+
+int main()
+{
+    // Cas 1 : correct : utilisation immédiate de la référence vers le membre de l'objet rvalue dans la même expression
+    std::cout &lt;&lt; createEmployee(&quot;Frank&quot;).getName();
+
+    // Cas 2 : incorrect : conservation de la référence vers le membre d'un objet rvalue pour une utilisation ultérieure
+    const std::string&amp; ref { createEmployee(&quot;Garbo&quot;).getName() }; // la référence devient pendante lorsque la valeur retournée par createEmployee() est détruite
+    std::cout &lt;&lt; ref; // comportement indéfini
+
+    // Cas 3 : correct : copie de la valeur référencée dans une variable locale pour une utilisation ultérieure
+    std::string val { createEmployee(&quot;Hans&quot;).getName() }; // fait une copie du membre référencé
+    std::cout &lt;&lt; val; // correct : val est indépendant du membre référencé
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque <code>createEmployee()</code> est appelée, elle renvoie un objet <code>Employee</code> par valeur. Cet objet <code>Employee</code> renvoyé est une rvalue qui existe jusqu'à la fin de l'expression complète contenant l'appel à <code>createEmployee()</code>. Lorsque cet objet rvalue est détruit, toute référence vers ses membres devient pendante.</p>
+<p>Dans le cas 1, nous appelons <code>createEmployee("Frank")</code>, qui renvoie un objet <code>Employee</code> rvalue. Nous appelons ensuite <code>getName()</code> sur cet objet rvalue, ce qui renvoie une référence vers <code>m_name</code>. Cette référence est alors utilisée immédiatement pour afficher le nom sur la console. À ce stade, l'expression complète contenant l'appel à <code>createEmployee("Frank")</code> se termine, et l'objet rvalue ainsi que ses membres sont détruits. Comme ni l'objet rvalue ni ses membres ne sont utilisés au-delà de ce point, ce cas est correct.</p>
+<p>Dans le cas 2, nous rencontrons des problèmes. D'abord, <code>createEmployee("Garbo")</code> renvoie un objet rvalue. Nous appelons ensuite <code>getName()</code> pour obtenir une référence vers le membre <code>m_name</code> de cet objet rvalue. Ce membre <code>m_name</code> sert alors à initialiser <code>ref</code>. À ce stade, l'expression complète contenant l'appel à <code>createEmployee("Garbo")</code> se termine, et l'objet rvalue ainsi que ses membres sont détruits. Cela rend <code>ref</code> pendante. Ainsi, lorsque nous utilisons <code>ref</code> dans l'instruction suivante, nous accédons à une référence pendante, et il en résulte un comportement indéfini.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>L'évaluation d'une expression complète se termine <em>après</em> toute utilisation de cette expression comme initialiseur. Cela permet d'initialiser un objet avec une rvalue du même type (puisque la rvalue n'est pas détruite avant la fin de l'initialisation).</p>
+</div>
+<p>Mais que faire si nous voulons conserver une valeur issue d'une fonction qui renvoie un membre par référence, pour une utilisation ultérieure ? Plutôt que d'utiliser la référence renvoyée pour initialiser une variable locale de type référence, nous pouvons utiliser cette référence pour initialiser une variable locale qui n'est pas une référence.</p>
+<p>Dans le cas 3, nous utilisons la référence renvoyée pour initialiser la variable locale non référence <code>val</code>. Cela entraîne la copie du membre référencé dans <code>val</code>. Après l'initialisation, <code>val</code> existe indépendamment de la référence. Ainsi, lorsque l'objet rvalue est ensuite détruit, <code>val</code> n'en est pas affecté. <code>val</code> peut donc être affiché dans les instructions suivantes sans problème.</p>
+<h2 id="utiliser-en-toute-sécurité-des-fonctions-membres-qui-renvoient-par-référence">Utiliser en toute sécurité des fonctions membres qui renvoient par référence</h2>
+<p>Malgré le danger potentiel lié aux objets implicites rvalue, il est d'usage que les getters renvoient par référence const les types coûteux à copier, plutôt que par valeur.</p>
+<p>Partant de là, voyons comment utiliser en toute sécurité les valeurs de retour de ces fonctions. Les trois cas de l'exemple ci-dessus illustrent les trois points essentiels :</p>
+<ul>
+<li>Préférez utiliser immédiatement la valeur de retour d'une fonction membre qui renvoie par référence (illustré par le cas 1). Comme cela fonctionne aussi bien avec des objets lvalue que rvalue, si vous le faites systématiquement, vous éviterez les problèmes.</li>
+<li>Ne « conservez » pas une référence renvoyée pour une utilisation ultérieure (illustré par le cas 2), sauf si vous êtes certain que l'objet implicite est une lvalue. Si vous le faites avec un objet implicite rvalue, un comportement indéfini résultera de l'utilisation de la référence devenue pendante.</li>
+<li>Si vous devez vraiment conserver une référence renvoyée pour une utilisation ultérieure, et que vous n'êtes pas certain que l'objet implicite soit une lvalue, utilisez la référence renvoyée comme initialiseur d'une variable locale qui n'est pas une référence. Cela copiera le membre référencé dans la variable locale (illustré par le cas 3).</li>
+</ul>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Préférez utiliser immédiatement la valeur de retour d'une fonction membre qui renvoie par référence, afin d'éviter les problèmes de références pendantes lorsque l'objet implicite est une rvalue.</p>
+</div>
+<h2 id="ne-renvoyez-pas-de-références-non-const-vers-des-membres-de-données-privés">Ne renvoyez pas de références non const vers des membres de données privés</h2>
+<p>Comme une référence se comporte exactement comme l'objet référencé, une fonction membre qui renvoie une référence non const donne un accès direct à ce membre (même s'il est privé).</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Foo
+{
+private:
+    int m_value{ 4 }; // membre privé
+
+public:
+    int&amp; value() { return m_value; } // renvoie une référence non const (à éviter)
+};
+
+int main()
+{
+    Foo f{};                // f.m_value est initialisé à la valeur par défaut 4
+    f.value() = 5;          // L'équivalent de m_value = 5
+    std::cout &lt;&lt; f.value(); // affiche 5
+
+    return 0;
+}
+</code></pre>
+<p>Comme <code>value()</code> renvoie une référence non const vers <code>m_value</code>, l'appelant peut utiliser cette référence pour accéder directement à <code>m_value</code> (et modifier sa valeur).</p>
+<p>Cela permet à l'appelant de contourner le système de contrôle d'accès.</p>
+<h2 id="les-fonctions-membres-const-ne-peuvent-pas-renvoyer-de-références-non-const-vers-des-membres-de-données">Les fonctions membres const ne peuvent pas renvoyer de références non const vers des membres de données</h2>
+<p>Une fonction membre const n'est pas autorisée à renvoyer une référence non const vers des membres. C'est logique : une fonction membre const n'a pas le droit de modifier l'état de l'objet, ni d'appeler des fonctions qui le modifieraient. Elle ne doit rien faire qui puisse conduire à la modification de l'objet.</p>
+<p>Si une fonction membre const était autorisée à renvoyer une référence non const vers un membre, elle donnerait à l'appelant un moyen de modifier directement ce membre. Cela violerait l'intention même d'une fonction membre const.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/member-functions-returning-references-to-data-members/">https://www.learncpp.com/cpp-tutorial/member-functions-returning-references-to-data-members/</a></em></p>
+</main>
+</body>
+</html>

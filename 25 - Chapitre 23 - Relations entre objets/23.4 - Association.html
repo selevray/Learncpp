@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>23.4 — Association</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="234-association">23.4 — Association</h1>
+<p>Dans les deux leçons précédentes, nous avons étudié deux types de composition d'objets : la composition et l'agrégation. La composition d'objets sert à modéliser des relations où un objet complexe est construit à partir d'un ou de plusieurs objets plus simples (ses parties).</p>
+<p>Dans cette leçon, nous allons examiner une relation plus faible entre deux objets par ailleurs indépendants, appelée association. Contrairement aux relations de composition d'objets, une association n'implique aucune relation tout/partie.</p>
+<h2 id="association">Association</h2>
+<p>Pour qu'une relation soit qualifiée d'<strong>association</strong>, un objet et un autre objet doivent satisfaire les conditions suivantes :</p>
+<ul>
+<li>L'objet associé (membre) est par ailleurs indépendant de l'objet (classe)</li>
+<li>L'objet associé (membre) peut appartenir à plus d'un objet (classe) à la fois</li>
+<li>L'existence de l'objet associé (membre) n'est <em>pas</em> gérée par l'objet (classe)</li>
+<li>L'objet associé (membre) peut connaître ou non l'existence de l'objet (classe)</li>
+</ul>
+<p>Contrairement à la composition ou à l'agrégation, où la partie fait partie intégrante de l'objet englobant, dans une association l'objet associé est indépendant de l'objet. Comme dans une agrégation, l'objet associé peut appartenir simultanément à plusieurs objets et n'est pas géré par ceux-ci. Cependant, contrairement à l'agrégation, où la relation est toujours unidirectionnelle, dans une association la relation peut être unidirectionnelle ou bidirectionnelle (lorsque les deux objets se connaissent mutuellement).</p>
+<p>La relation entre médecins et patients est un excellent exemple d'association. Le médecin entretient clairement une relation avec ses patients, mais conceptuellement il ne s'agit pas d'une relation tout/partie (composition d'objets). Un médecin peut recevoir de nombreux patients dans la journée, et un patient peut consulter plusieurs médecins (peut-être souhaite-t-il un second avis, ou consulte-t-il différents types de spécialistes). La durée de vie de chacun des deux objets n'est liée à celle de l'autre en aucune façon.</p>
+<p>On peut dire que l'association modélise une relation « utilise-un » (uses-a). Le médecin « utilise » le patient (pour gagner sa vie). Le patient utilise le médecin (pour les besoins de santé qui sont les siens).</p>
+<h2 id="implémentation-des-associations">Implémentation des associations</h2>
+<p>Les associations étant un type de relation très général, elles peuvent être implémentées de nombreuses façons différentes. Cependant, le plus souvent, les associations sont implémentées à l'aide de pointeurs, l'objet pointant alors vers l'objet associé.</p>
+<p>Dans cet exemple, nous allons implémenter une relation bidirectionnelle Médecin/Patient, car il est logique que les médecins connaissent leurs patients, et réciproquement.</p>
+<pre><code class="language-cpp">#include &lt;functional&gt; // reference_wrapper
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+// Comme Doctor et Patient ont une dépendance circulaire, nous allons déclarer Patient à l'avance
+class Patient;
+
+class Doctor
+{
+private:
+    std::string m_name{};
+    std::vector&lt;std::reference_wrapper&lt;const Patient&gt;&gt; m_patient{};
+
+public:
+    Doctor(std::string_view name) :
+        m_name{ name }
+    {
+    }
+
+    void addPatient(Patient&amp; patient);
+
+    // Nous implémenterons cette fonction après Patient, car nous avons besoin que Patient soit défini à ce moment-là
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Doctor&amp; doctor);
+
+    const std::string&amp; getName() const { return m_name; }
+};
+
+class Patient
+{
+private:
+    std::string m_name{};
+    std::vector&lt;std::reference_wrapper&lt;const Doctor&gt;&gt; m_doctor{}; // pour pouvoir l'utiliser ici
+
+    // Nous rendons addDoctor privée, car nous ne voulons pas qu'elle soit utilisée publiquement.
+    // On doit utiliser Doctor::addPatient() à la place, qui est exposée publiquement
+    void addDoctor(const Doctor&amp; doctor)
+    {
+        m_doctor.push_back(doctor);
+    }
+
+public:
+    Patient(std::string_view name)
+        : m_name{ name }
+    {
+    }
+
+    // Nous implémenterons cette fonction ci-dessous, en parallèle de operator&lt;&lt;(std::ostream&amp;, const Doctor&amp;)
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Patient&amp; patient);
+
+    const std::string&amp; getName() const { return m_name; }
+
+    // Nous déclarons Doctor::addPatient() comme amie afin qu'elle puisse accéder à la fonction privée Patient::addDoctor()
+    friend void Doctor::addPatient(Patient&amp; patient);
+};
+
+void Doctor::addPatient(Patient&amp; patient)
+{
+    // Notre médecin ajoute ce patient
+    m_patient.push_back(patient);
+
+    // et le patient ajoute également ce médecin
+    patient.addDoctor(*this);
+}
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Doctor&amp; doctor)
+{
+    if (doctor.m_patient.empty())
+    {
+        out &lt;&lt; doctor.m_name &lt;&lt; &quot; has no patients right now&quot;;
+        return out;
+    }
+
+    out &lt;&lt; doctor.m_name &lt;&lt; &quot; is seeing patients: &quot;;
+    for (const auto&amp; patient : doctor.m_patient)
+        out &lt;&lt; patient.get().getName() &lt;&lt; ' ';
+
+    return out;
+}
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Patient&amp; patient)
+{
+    if (patient.m_doctor.empty())
+    {
+        out &lt;&lt; patient.getName() &lt;&lt; &quot; has no doctors right now&quot;;
+        return out;
+    }
+
+    out &lt;&lt; patient.m_name &lt;&lt; &quot; is seeing doctors: &quot;;
+    for (const auto&amp; doctor : patient.m_doctor)
+        out &lt;&lt; doctor.get().getName() &lt;&lt; ' ';
+
+    return out;
+}
+
+int main()
+{
+    // Créer un Patient en dehors de la portée du Doctor
+    Patient dave{ &quot;Dave&quot; };
+    Patient frank{ &quot;Frank&quot; };
+    Patient betsy{ &quot;Betsy&quot; };
+
+    Doctor james{ &quot;James&quot; };
+    Doctor scott{ &quot;Scott&quot; };
+
+    james.addPatient(dave);
+
+    scott.addPatient(dave);
+    scott.addPatient(betsy);
+
+    std::cout &lt;&lt; james &lt;&lt; '\n';
+    std::cout &lt;&lt; scott &lt;&lt; '\n';
+    std::cout &lt;&lt; dave &lt;&lt; '\n';
+    std::cout &lt;&lt; frank &lt;&lt; '\n';
+    std::cout &lt;&lt; betsy &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+James is seeing patients: Dave
+Scott is seeing patients: Dave Betsy
+Dave is seeing doctors: James Scott
+Frank has no doctors right now
+Betsy is seeing doctors: Scott
+</code></pre>
+<p>En règle générale, évitez les associations bidirectionnelles lorsqu'une association unidirectionnelle suffit, car elles ajoutent de la complexité et sont souvent plus difficiles à écrire sans commettre d'erreurs.</p>
+<h2 id="association-réflexive">Association réflexive</h2>
+<p>Il arrive que des objets entretiennent une relation avec d'autres objets du même type. On parle alors d'<strong>association réflexive</strong>. Un bon exemple d'association réflexive est la relation entre un cours universitaire et ses prérequis (qui sont eux-mêmes des cours universitaires).</p>
+<p>Considérons le cas simplifié où un Course ne peut avoir qu'un seul prérequis. Nous pouvons écrire quelque chose comme ceci :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Course
+{
+private:
+    std::string m_name{};
+    const Course* m_prerequisite{};
+
+public:
+    Course(std::string_view name, const Course* prerequisite = nullptr):
+        m_name{ name }, m_prerequisite{ prerequisite }
+    {
+    }
+
+};
+</code></pre>
+<p>Cela peut conduire à une chaîne d'associations (un cours a un prérequis, qui a lui-même un prérequis, et ainsi de suite…).</p>
+<h2 id="les-associations-peuvent-être-indirectes">Les associations peuvent être indirectes</h2>
+<p>Dans tous les cas précédents, nous avons utilisé des pointeurs ou des références pour relier directement les objets entre eux. Cependant, dans une association, cela n'est pas strictement nécessaire. Toute donnée permettant de relier deux objets convient. Dans l'exemple suivant, nous montrons comment une classe Driver peut avoir une association unidirectionnelle avec une Car sans inclure de membre pointeur ou référence vers une Car :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Car
+{
+private:
+    std::string m_name{};
+    int m_id{};
+
+public:
+    Car(std::string_view name, int id)
+        : m_name{ name }, m_id{ id }
+    {
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+    int getId() const { return m_id; }
+};
+
+// Notre CarLot est essentiellement un simple tableau statique de Car et une fonction de recherche permettant de les récupérer.
+// Comme il est statique, nous n'avons pas besoin d'allouer un objet de type CarLot pour l'utiliser
+namespace CarLot
+{
+    Car carLot[4] { { &quot;Prius&quot;, 4 }, { &quot;Corolla&quot;, 17 }, { &quot;Accord&quot;, 84 }, { &quot;Matrix&quot;, 62 } };
+
+    Car* getCar(int id)
+    {
+        for (auto&amp; car : carLot)
+        {
+            if (car.getId() == id)
+            {
+                return &amp;car;
+            }
+        }
+
+        return nullptr;
+    }
+};
+
+class Driver
+{
+private:
+    std::string m_name{};
+    int m_carId{}; // nous sommes associés à la Car par son ID plutôt que par un pointeur
+
+public:
+    Driver(std::string_view name, int carId)
+        : m_name{ name }, m_carId{ carId }
+    {
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+    int getCarId() const { return m_carId; }
+};
+
+int main()
+{
+    Driver d{ &quot;Franz&quot;, 17 }; // Franz conduit la voiture d'ID 17
+
+    Car* car{ CarLot::getCar(d.getCarId()) }; // Récupérer cette voiture auprès du parc automobile
+
+    if (car)
+        std::cout &lt;&lt; d.getName() &lt;&lt; &quot; is driving a &quot; &lt;&lt; car-&gt;getName() &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; d.getName() &lt;&lt; &quot; couldn't find his car\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous disposons d'un CarLot qui contient nos voitures. Le Driver, qui a besoin d'une voiture, ne possède pas de pointeur vers sa Car : il possède en revanche l'ID de la voiture, que nous pouvons utiliser pour récupérer la Car depuis le CarLot lorsque nous en avons besoin.</p>
+<p>Dans cet exemple particulier, procéder ainsi est un peu absurde, puisque récupérer la Car depuis le CarLot nécessite une recherche peu efficace (un pointeur reliant directement les deux objets serait bien plus rapide). Cependant, référencer des éléments par un identifiant unique plutôt que par un pointeur présente des avantages. Par exemple, vous pouvez référencer des objets qui ne sont pas actuellement en mémoire (ils se trouvent peut-être dans un fichier ou dans une base de données, et peuvent être chargés à la demande). De plus, un pointeur occupe 4 ou 8 octets : si la place est précieuse et que le nombre d'objets distincts est relativement faible, les référencer par un entier de 8 ou 16 bits peut économiser beaucoup de mémoire.</p>
+<h2 id="résumé-composition-agrégation-et-association">Résumé : composition, agrégation et association</h2>
+<p>Voici un tableau récapitulatif qui vous aidera à retenir la différence entre composition, agrégation et association :</p>
+<table>
+<thead>
+<tr>
+<th>Propriété</th>
+<th>Composition</th>
+<th>Agrégation</th>
+<th>Association</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Type de relation</td>
+<td>Tout/partie</td>
+<td>Tout/partie</td>
+<td>Indépendants par ailleurs</td>
+</tr>
+<tr>
+<td>Les membres peuvent appartenir à plusieurs classes</td>
+<td>Non</td>
+<td>Oui</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td>Existence des membres gérée par la classe</td>
+<td>Oui</td>
+<td>Non</td>
+<td>Non</td>
+</tr>
+<tr>
+<td>Directionnalité</td>
+<td>Unidirectionnelle</td>
+<td>Unidirectionnelle</td>
+<td>Unidirectionnelle ou bidirectionnelle</td>
+</tr>
+<tr>
+<td>Verbe de la relation</td>
+<td>Fait partie de</td>
+<td>A-un</td>
+<td>Utilise-un</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/association/">https://www.learncpp.com/cpp-tutorial/association/</a></em></p>
+</main>
+</body>
+</html>

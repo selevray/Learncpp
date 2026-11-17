@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.15 — Initialisation de classe et élision de copie</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1415-initialisation-de-classe-et-élision-de-copie">14.15 — Initialisation de classe et élision de copie</h1>
+<p>Dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.4%20-%20Affectation%20et%20initialisation%20de%20variables.html">1.4 -- Affectation et initialisation des variables</a>, nous avons présenté 6 types d'initialisation de base pour les objets de types fondamentaux :</p>
+<pre><code class="language-cpp">int a;         // no initializer (default initialization)
+int b = 5;     // initializer after equals sign (copy initialization)
+int c( 6 );    // initializer in parentheses (direct initialization)
+
+// List initialization methods (C++11)
+int d { 7 };   // initializer in braces (direct list initialization)
+int e = { 8 }; // initializer in braces after equals sign (copy list initialization)
+int f {};      // initializer is empty braces (value initialization)
+</code></pre>
+<p>Tous ces types d'initialisation sont valides pour les objets de type classe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Foo
+{
+public:
+
+    // Default constructor
+    Foo()
+    {
+        std::cout &lt;&lt; &quot;Foo()\n&quot;;
+    }
+
+    // Normal constructor
+    Foo(int x)
+    {
+        std::cout &lt;&lt; &quot;Foo(int) &quot; &lt;&lt; x &lt;&lt; '\n';
+    }
+
+    // Copy constructor
+    Foo(const Foo&amp;)
+    {
+        std::cout &lt;&lt; &quot;Foo(const Foo&amp;)\n&quot;;
+    }
+};
+
+int main()
+{
+    // Calls Foo() default constructor
+    Foo f1;           // default initialization
+    Foo f2{};         // value initialization (preferred)
+
+    // Calls foo(int) normal constructor
+    Foo f3 = 3;       // copy initialization (non-explicit constructors only)
+    Foo f4(4);        // direct initialization
+    Foo f5{ 5 };      // direct list initialization (preferred)
+    Foo f6 = { 6 };   // copy list initialization (non-explicit constructors only)
+
+    // Calls foo(const Foo&amp;) copy constructor
+    Foo f7 = f3;      // copy initialization
+    Foo f8(f3);       // direct initialization
+    Foo f9{ f3 };     // direct list initialization (preferred)
+    Foo f10 = { f3 }; // copy list initialization
+
+    return 0;
+}
+</code></pre>
+<p>En C++ moderne, l'initialisation par copie, l'initialisation directe et l'initialisation par liste font essentiellement la même chose : elles initialisent un objet.</p>
+<p>Pour tous les types d'initialisation :</p>
+<ul>
+<li>Lors de l'initialisation d'un type classe, l'ensemble des constructeurs de cette classe est examiné, et la résolution de surcharge sert à déterminer le constructeur qui correspond le mieux. Cela peut impliquer une conversion implicite des arguments.</li>
+<li>Lors de l'initialisation d'un type non classe, les règles de conversion implicite servent à déterminer si une conversion implicite existe.</li>
+</ul>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Il y a trois différences principales entre les formes d'initialisation :</p>
+<ul>
+<li>L'initialisation par liste interdit les conversions avec rétrécissement (narrowing).</li>
+<li>L'initialisation par copie ne considère que les constructeurs et fonctions de conversion non <code>explicit</code>. Nous y reviendrons dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.16%20-%20Constructeurs%20de%20conversion%20et%20le%20mot-cl%C3%A9%20explicit.html">14.16 -- Constructeurs de conversion et mot-clé explicit</a>.</li>
+<li>L'initialisation par liste donne la priorité aux constructeurs de liste correspondants par rapport aux autres constructeurs correspondants. Nous y reviendrons dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.2%20-%20Introduction%20%C3%A0%20%60std--vector%60%20et%20aux%20constructeurs%20de%20liste.html">16.2 -- Introduction à std::vector et aux constructeurs de liste</a>.</li>
+</ul>
+</div>
+<p>Notez aussi que, dans certaines circonstances, certaines formes d'initialisation sont interdites (par exemple, dans la liste d'initialisation des membres d'un constructeur, on ne peut utiliser que les formes directes d'initialisation, pas l'initialisation par copie).</p>
+<h2 id="copies-inutiles">Copies inutiles</h2>
+<p>Considérons ce programme simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Something
+{
+    int m_x{};
+
+public:
+    Something(int x)
+        : m_x{ x }
+    {
+        std::cout &lt;&lt; &quot;Normal constructor\n&quot;;
+    }
+
+    Something(const Something&amp; s)
+        : m_x { s.m_x }
+    {
+        std::cout &lt;&lt; &quot;Copy constructor\n&quot;;
+    }
+
+    void print() const { std::cout &lt;&lt; &quot;Something(&quot; &lt;&lt; m_x &lt;&lt; &quot;)\n&quot;; }
+};
+
+int main()
+{
+    Something s { Something { 5 } }; // focus on this line
+    s.print();
+
+    return 0;
+}
+</code></pre>
+<p>Lors de l'initialisation de la variable <code>s</code> ci-dessus, nous construisons d'abord un <code>Something</code> temporaire, initialisé avec la valeur <code>5</code> (ce qui utilise le constructeur <code>Something(int)</code>). Ce temporaire sert ensuite à initialiser <code>s</code>. Comme le temporaire et <code>s</code> ont le même type (ce sont deux objets <code>Something</code>), le constructeur de copie <code>Something(const Something&amp;)</code> serait normalement appelé ici pour copier les valeurs du temporaire dans <code>s</code>. Au final, <code>s</code> est initialisé avec la valeur <code>5</code>.</p>
+<p>Sans aucune optimisation, le programme ci-dessus afficherait :</p>
+<pre><code>
+Normal constructor
+Copy constructor
+Something(5)
+</code></pre>
+<p>Cependant, ce programme est inutilement inefficace, puisqu'il a fallu effectuer deux appels de constructeur : un à <code>Something(int)</code> et un à <code>Something(const Something&amp;)</code>. Notez que le résultat final est le même que si nous avions écrit ceci :</p>
+<pre><code class="language-cpp">Something s { 5 }; // only invokes Something(int), no copy constructor
+</code></pre>
+<p>Cette version produit le même résultat, mais elle est plus efficace, car elle n'appelle que <code>Something(int)</code> (aucun constructeur de copie n'est nécessaire).</p>
+<h2 id="élision-de-copie">Élision de copie</h2>
+<p>Puisque le compilateur est libre de réécrire les instructions pour les optimiser, on peut se demander s'il peut supprimer la copie inutile et traiter <code>Something s { Something{5} };</code> comme si nous avions écrit <code>Something s { 5 }</code> dès le départ.</p>
+<p>La réponse est oui, et ce procédé s'appelle l'<em>élision de copie</em> (copy elision). <strong>L'élision de copie</strong> est une technique d'optimisation du compilateur qui lui permet de supprimer des copies d'objets inutiles. Autrement dit, dans les cas où le compilateur appellerait normalement un constructeur de copie, il est libre de réécrire le code pour éviter complètement cet appel. Lorsque le compilateur supprime par optimisation un appel au constructeur de copie, on dit que le constructeur a été <strong>élidé</strong>.</p>
+<p>Contrairement aux autres types d'optimisation, l'élision de copie est exemptée de la règle « as-if ». C'est-à-dire que l'élision de copie peut supprimer le constructeur de copie même s'il a des effets de bord (comme afficher du texte dans la console) ! C'est pourquoi les constructeurs de copie ne devraient pas avoir d'effets de bord autres que la copie : si le compilateur élide l'appel au constructeur de copie, les effets de bord ne seront pas exécutés, et le comportement observable du programme changera !</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous avons abordé la règle as-if dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.4%20-%20La%20r%C3%A8gle%20du%20as-if%20et%20l%27optimisation%20%C3%A0%20la%20compilation.html">5.4 -- La règle as-if et l'optimisation à la compilation</a>.</p>
+</div>
+<p>Nous pouvons le constater dans l'exemple ci-dessus. Si vous exécutez le programme avec un compilateur C++17, il produira le résultat suivant :</p>
+<pre><code>
+Normal constructor
+Something(5)
+</code></pre>
+<p>Le compilateur a élidé le constructeur de copie pour éviter une copie inutile, et par conséquent l'instruction qui affiche « Copy constructor » ne s'exécute pas ! Le comportement observable de notre programme a changé à cause de l'élision de copie !</p>
+<h2 id="élision-de-copie-dans-le-passage-par-valeur-et-le-retour-par-valeur">Élision de copie dans le passage par valeur et le retour par valeur</h2>
+<p>Le constructeur de copie est normalement appelé lorsqu'un argument du même type que le paramètre est passé par valeur, ou lorsqu'un retour par valeur est utilisé. Toutefois, dans certains cas, ces copies peuvent être élidées. Le programme suivant illustre certains de ces cas :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Something
+{
+public:
+    Something() = default;
+    Something(const Something&amp;)
+    {
+        std::cout &lt;&lt; &quot;Copy constructor called\n&quot;;
+    }
+};
+
+Something rvo()
+{
+    return Something{}; // calls Something() and copy constructor
+}
+
+Something nrvo()
+{
+    Something s{}; // calls Something()
+    return s;      // calls copy constructor
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Initializing s1\n&quot;;
+    Something s1 { rvo() }; // calls copy constructor
+
+    std::cout &lt;&lt; &quot;Initializing s2\n&quot;;
+    Something s2 { nrvo() }; // calls copy constructor
+
+        return 0;
+}
+</code></pre>
+<p>En C++14 ou antérieur, avec l'élision de copie désactivée, le programme ci-dessus appellerait le constructeur de copie 4 fois :</p>
+<ul>
+<li>Une fois quand <code>rvo</code> retourne <code>Something</code> à <code>main</code>.</li>
+<li>Une fois quand la valeur de retour de <code>rvo()</code> sert à initialiser <code>s1</code>.</li>
+<li>Une fois quand <code>nrvo</code> retourne <code>s</code> à <code>main</code>.</li>
+<li>Une fois quand la valeur de retour de <code>nrvo()</code> sert à initialiser <code>s2</code>.</li>
+</ul>
+<p>Cependant, grâce à l'élision de copie, il est probable que votre compilateur élide la plupart, voire la totalité, de ces appels au constructeur de copie. Visual Studio 2022 en élide 3 (il n'élide pas le cas où <code>nrvo()</code> retourne par valeur), et GCC les élide tous les 4.</p>
+<p>Il n'est pas important de mémoriser quand le compilateur effectue ou non l'élision de copie. Sachez simplement que c'est une optimisation que votre compilateur réalisera s'il le peut. Si vous vous attendez à voir votre constructeur de copie appelé et que ce n'est pas le cas, l'élision de copie en est probablement la raison.</p>
+<h2 id="élision-de-copie-obligatoire-en-c17-c17">Élision de copie obligatoire en C++17 <em>(C++17)</em></h2>
+<p>Avant C++17, l'élision de copie était strictement une optimisation facultative que les compilateurs pouvaient appliquer. En C++17, l'élision de copie est devenue obligatoire dans certains cas. Dans ces cas, l'élision de copie est effectuée automatiquement (même si vous demandez à votre compilateur de ne pas la réaliser).</p>
+<p>En exécutant le même exemple que ci-dessus en C++17 ou plus récent, les appels au constructeur de copie qui auraient lieu lorsque <code>rvo()</code> retourne et lorsque <code>s1</code> est initialisé avec cette valeur doivent obligatoirement être élidés. L'initialisation de <code>s2</code> avec <code>nrvo()</code> n'est pas un cas d'élision obligatoire ; les 2 appels au constructeur de copie qui y ont lieu peuvent donc être élidés ou non selon votre compilateur et vos paramètres d'optimisation.</p>
+<p>Dans les cas d'élision facultative, un constructeur de copie accessible doit être disponible (par exemple, non supprimé), même si l'appel effectif au constructeur de copie est élidé.</p>
+<p>Dans les cas d'élision obligatoire, il n'est pas nécessaire qu'un constructeur de copie accessible soit disponible (autrement dit, l'élision obligatoire peut avoir lieu même si le constructeur de copie est supprimé).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Dans les cas où l'élision de copie facultative n'est pas effectuée, la sémantique de déplacement peut tout de même permettre de déplacer un objet au lieu de le copier. Nous présentons la sémantique de déplacement dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.5%20-%20Renvoyer%20un%20std--vector%2C%20et%20introduction%20%C3%A0%20la%20s%C3%A9mantique%20de%20d%C3%A9placement.html">16.5 -- Retourner un std::vector et introduction à la sémantique de déplacement</a>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/class-initialization-and-copy-elision/">https://www.learncpp.com/cpp-tutorial/class-initialization-and-copy-elision/</a></em></p>
+</main>
+</body>
+</html>

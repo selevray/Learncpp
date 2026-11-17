@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9.3 — Erreurs sémantiques courantes en C++</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="93-erreurs-sémantiques-courantes-en-c">9.3 — Erreurs sémantiques courantes en C++</h1>
+<p>Dans la leçon <a href="../03%20-%20Chapitre%203%20-%20D%C3%A9boguer%20des%20programmes%20C%2B%2B/3.1%20-%20Erreurs%20de%20syntaxe%20et%20erreurs%20s%C3%A9mantiques.html">3.1 -- Erreurs de syntaxe et erreurs sémantiques</a>, nous avons vu les <code>erreurs de syntaxe (syntax errors)</code>, qui surviennent lorsque vous écrivez du code qui n'est pas valide selon la grammaire du langage C++. Le compilateur vous signale ces erreurs, elles sont donc faciles à repérer et généralement simples à corriger.</p>
+<p>Nous avons aussi vu les <code>erreurs sémantiques (semantic errors)</code>, qui surviennent lorsque votre code ne fait pas ce que vous aviez prévu. Le compilateur ne détecte généralement pas ces erreurs (même si, dans certains cas, les compilateurs les plus perfectionnés peuvent émettre un avertissement).</p>
+<p>Les erreurs sémantiques peuvent produire la plupart des symptômes d'un <code>comportement indéfini (undefined behavior)</code>: le programme produit des résultats erronés, adopte un comportement erratique, corrompt des données, ou plante. Elles peuvent aussi n'avoir aucun effet visible.</p>
+<p>Lorsque vous écrivez des programmes, il est presque inévitable de commettre des erreurs sémantiques. Vous en remarquerez probablement certaines simplement en utilisant le programme : par exemple, si vous écrivez un jeu de labyrinthe et que votre personnage peut traverser les murs. Tester votre programme (<a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.1%20-%20Introduction%20aux%20tests%20de%20votre%20code.html">9.1 -- Introduction aux tests de votre code</a>) peut également aider à révéler ces erreurs.</p>
+<p>Il existe toutefois un autre moyen de les éviter : connaître les types d'erreurs sémantiques les plus fréquents, afin de consacrer un peu plus de temps à vérifier que tout est correct dans ces cas-là.</p>
+<p>Dans cette leçon, nous passerons en revue les types d'erreurs sémantiques les plus courants en C++ (la plupart concernent d'une manière ou d'une autre le contrôle de flux).</p>
+<h2 id="erreurs-de-logique-conditionnelle">Erreurs de logique conditionnelle</h2>
+<p>L'un des types d'erreurs sémantiques les plus courants est l'erreur de logique conditionnelle. Une <strong>erreur de logique conditionnelle</strong> survient lorsque le programmeur code de manière incorrecte la logique d'une instruction conditionnelle ou la condition d'une boucle. Voici un exemple simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    if (x &gt;= 5) // oups, nous avons utilisé operator&gt;= au lieu de operator&gt;
+        std::cout &lt;&lt; x &lt;&lt; &quot; is greater than 5\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Voici une exécution du programme qui met en évidence l'erreur de logique conditionnelle :</p>
+<pre><code>
+Enter an integer: 5
+5 is greater than 5
+</code></pre>
+<p>Lorsque l'utilisateur saisit <code>5</code>, l'expression conditionnelle <code>x &gt;= 5</code> est évaluée à <code>true</code>, donc l'instruction associée est exécutée.</p>
+<p>Voici un autre exemple, avec une boucle for :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+
+    // oups, nous avons utilisé operator&gt; au lieu de operator&lt;
+    for (int count{ 1 }; count &gt; x; ++count)
+    {
+        std::cout &lt;&lt; count &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme est censé afficher tous les nombres compris entre 1 et le nombre saisi par l'utilisateur. Mais voici ce qu'il fait réellement :</p>
+<pre><code>
+Enter an integer: 5
+</code></pre>
+<p>Il n'affiche rien. Cela se produit parce qu'à l'entrée de la boucle for, <code>count &gt; x</code> vaut <code>false</code>, donc la boucle ne s'exécute jamais.</p>
+<h2 id="boucles-infinies">Boucles infinies</h2>
+<p>Dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.8%20-%20Introduction%20aux%20boucles%20et%20aux%20instructions%20while.html">8.8 -- Introduction aux boucles et aux instructions while</a>, nous avons étudié les boucles infinies et présenté cet exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int count{ 1 };
+    while (count &lt;= 10) // cette condition ne sera jamais fausse
+    {
+        std::cout &lt;&lt; count &lt;&lt; ' '; // donc cette ligne sera exécutée indéfiniment
+    }
+
+    std::cout &lt;&lt; '\n'; // cette ligne ne sera jamais exécutée
+
+    return 0; // cette ligne ne sera jamais exécutée
+}
+</code></pre>
+<p>Dans ce cas, nous avons oublié d'incrémenter <code>count</code>. La condition de la boucle ne deviendra donc jamais fausse, et la boucle continuera d'afficher :</p>
+<pre><code>
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+</code></pre>
+<p>… jusqu'à ce que l'utilisateur arrête le programme.</p>
+<p>Voici un autre exemple que les enseignants adorent proposer en question d'examen. Qu'est-ce qui ne va pas dans le code suivant ?</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    for (unsigned int count{ 5 }; count &gt;= 0; --count)
+    {
+        if (count == 0)
+            std::cout &lt;&lt; &quot;blastoff! &quot;;
+        else
+          std::cout &lt;&lt; count &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme est censé afficher <code>5 4 3 2 1 blastoff!</code>, ce qu'il fait, mais il ne s'arrête pas là. En réalité, il affiche :</p>
+<pre><code>
+5 4 3 2 1 blastoff! 4294967295 4294967294 4294967293 4294967292 4294967291
+</code></pre>
+<p>puis continue de décrémenter <code>count</code> indéfiniment. Le programme ne se termine jamais, car <code>count &gt;= 0</code> ne peut jamais valoir <code>false</code> lorsque <code>count</code> est un entier non signé.</p>
+<h2 id="erreurs-de-décalage-dune-unité-off-by-one">Erreurs de décalage d'une unité (off-by-one)</h2>
+<p>Une erreur de <strong>décalage d'une unité (off-by-one)</strong> survient lorsqu'une boucle s'exécute une fois de trop ou une fois de moins. Voici un exemple que nous avons vu dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.10%20-%20Instructions%20for%20%28for%20statements%29.html">8.10 -- Les instructions for</a> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    for (int count{ 1 }; count &lt; 5; ++count)
+    {
+        std::cout &lt;&lt; count &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Le programmeur voulait que ce code affiche <code>1 2 3 4 5</code>. Cependant, le mauvais opérateur relationnel a été utilisé (<code>&lt;</code> au lieu de <code>&lt;=</code>), donc la boucle s'exécute une fois de moins que prévu et affiche <code>1 2 3 4</code>.</p>
+<h2 id="priorité-des-opérateurs-incorrecte">Priorité des opérateurs incorrecte</h2>
+<p>Dans la leçon <a href="../06%20-%20Chapitre%206%20-%20Les%20op%C3%A9rateurs/6.8%20-%20Op%C3%A9rateurs%20logiques.html">6.8 -- Opérateurs logiques</a>, le programme suivant commet une erreur de priorité des opérateurs :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x{ 5 };
+    int y{ 7 };
+
+    if (!x &gt; y) // oups : problème de priorité des opérateurs
+        std::cout &lt;&lt; x &lt;&lt; &quot; is not greater than &quot; &lt;&lt; y &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; x &lt;&lt; &quot; is greater than &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Comme le <code>NON logique (logical NOT)</code> a une priorité supérieure à <code>operator&gt;</code>, la condition est évaluée comme si elle était écrite <code>(!x) &gt; y</code>, ce qui n'est pas ce que le programmeur voulait.</p>
+<p>Par conséquent, ce programme affiche :</p>
+<pre><code>
+5 is greater than 7
+</code></pre>
+<p>Cela peut aussi arriver lorsque l'on mélange le OU logique et le ET logique dans une même expression (le ET logique est prioritaire sur le OU logique). Utilisez des parenthèses explicites pour éviter ce genre d'erreurs.</p>
+<h2 id="problèmes-de-précision-avec-les-types-à-virgule-flottante">Problèmes de précision avec les types à virgule flottante</h2>
+<p>La variable à virgule flottante suivante n'a pas une précision suffisante pour stocker le nombre entier :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    float f{ 0.123456789f };
+    std::cout &lt;&lt; f &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>En raison de ce manque de précision, le nombre est légèrement arrondi :</p>
+<pre><code>
+0.123457
+</code></pre>
+<p>Dans la leçon <a href="../06%20-%20Chapitre%206%20-%20Les%20op%C3%A9rateurs/6.7%20-%20Op%C3%A9rateurs%20relationnels%20et%20comparaison%20de%20nombres%20%C3%A0%20virgule%20flottante.html">6.7 -- Opérateurs relationnels et comparaisons de nombres à virgule flottante</a>, nous avons expliqué que l'utilisation de <code>operator==</code> et <code>operator!=</code> peut poser problème avec les nombres à virgule flottante, à cause de petites erreurs d'arrondi (et nous avons vu comment y remédier). Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    double d{ 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 + 0.1 }; // devrait donner 1.0
+
+    if (d == 1.0)
+        std::cout &lt;&lt; &quot;equal\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;not equal\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+not equal
+</code></pre>
+<p>Plus vous effectuez de calculs avec un nombre à virgule flottante, plus les petites erreurs d'arrondi s'accumulent.</p>
+<h2 id="division-entière">Division entière</h2>
+<p>Dans l'exemple suivant, nous voulons effectuer une division à virgule flottante, mais comme les deux opérandes sont des entiers, c'est une division entière qui est effectuée :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x{ 5 };
+    int y{ 3 };
+
+    std::cout &lt;&lt; x &lt;&lt; &quot; divided by &quot; &lt;&lt; y &lt;&lt; &quot; is: &quot; &lt;&lt; x / y &lt;&lt; '\n'; // division entière
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+5 divided by 3 is: 1
+</code></pre>
+<p>Dans la leçon <a href="../06%20-%20Chapitre%206%20-%20Les%20op%C3%A9rateurs/6.2%20-%20Op%C3%A9rateurs%20arithm%C3%A9tiques.html">6.2 -- Opérateurs arithmétiques</a>, nous avons montré que l'on peut utiliser static_cast pour convertir l'un des opérandes entiers en valeur à virgule flottante afin d'effectuer une division à virgule flottante.</p>
+<h2 id="instructions-nulles-accidentelles">Instructions nulles accidentelles</h2>
+<p>Dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.3%20-%20Probl%C3%A8mes%20courants%20avec%20les%20instructions%20if.html">8.3 -- Problèmes courants avec les instructions if</a>, nous avons étudié les <code>instructions nulles (null statements)</code>, c'est-à-dire des instructions qui ne font rien.</p>
+<p>Dans le programme ci-dessous, nous ne voulons faire exploser le monde que si l'utilisateur en donne la permission :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void blowUpWorld()
+{
+    std::cout &lt;&lt; &quot;Kaboom!\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Should we blow up the world again? (y/n): &quot;;
+    char c{};
+    std::cin &gt;&gt; c;
+
+    if (c == 'y');     // instruction nulle accidentelle ici
+        blowUpWorld(); // donc cet appel sera toujours exécuté, car il ne fait pas partie de l'instruction if
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, à cause d'une <code>instruction nulle</code> accidentelle, l'appel de fonction <code>blowUpWorld()</code> est toujours exécuté, et le monde explose dans tous les cas :</p>
+<pre><code>
+Should we blow up the world again? (y/n): n
+Kaboom!
+</code></pre>
+<h2 id="ne-pas-utiliser-dinstruction-composée-lorsquelle-est-requise">Ne pas utiliser d'instruction composée lorsqu'elle est requise</h2>
+<p>Une autre variante du programme précédent, qui fait toujours exploser le monde :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void blowUpWorld()
+{
+    std::cout &lt;&lt; &quot;Kaboom!\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Should we blow up the world again? (y/n): &quot;;
+    char c{};
+    std::cin &gt;&gt; c;
+
+    if (c == 'y')
+        std::cout &lt;&lt; &quot;Okay, here we go...\n&quot;;
+        blowUpWorld(); // Sera toujours exécuté. Devrait être à l'intérieur d'une instruction composée.
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Should we blow up the world again? (y/n): n
+Kaboom!
+</code></pre>
+<p>Un <code>else orphelin (dangling else)</code> (présenté dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.3%20-%20Probl%C3%A8mes%20courants%20avec%20les%20instructions%20if.html">8.3 -- Problèmes courants avec les instructions if</a>) relève également de cette catégorie.</p>
+<h2 id="utiliser-une-affectation-au-lieu-dune-égalité-dans-une-condition">Utiliser une affectation au lieu d'une égalité dans une condition</h2>
+<p>Comme l'opérateur d'affectation (<code>=</code>) et l'opérateur d'égalité (<code>==</code>) se ressemblent, il arrive que l'on veuille utiliser l'égalité mais que l'on utilise accidentellement l'affectation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void blowUpWorld()
+{
+    std::cout &lt;&lt; &quot;Kaboom!\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Should we blow up the world again? (y/n): &quot;;
+    char c{};
+    std::cin &gt;&gt; c;
+
+    if (c = 'y') // utilise l'opérateur d'affectation au lieu de l'opérateur d'égalité
+        blowUpWorld();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Should we blow up the world again? (y/n): n
+Kaboom!
+</code></pre>
+<p>L'opérateur d'affectation renvoie son opérande de gauche. <code>c = 'y'</code> est d'abord exécuté : il affecte <code>'y'</code> à <code>c</code> et renvoie <code>c</code>. Ensuite, <code>if (c)</code> est évalué. Comme <code>c</code> est maintenant non nul, il est implicitement converti en valeur <code>bool</code> <code>true</code>, et l'instruction associée au if est exécutée.</p>
+<p>Comme une affectation à l'intérieur d'une condition n'est presque jamais voulue, les compilateurs modernes émettent souvent un avertissement dans ce cas. Cependant, si vous n'avez pas l'habitude de corriger tous vos avertissements, ceux-ci peuvent facilement passer inaperçus.</p>
+<h2 id="oublier-lopérateur-dappel-de-fonction-lors-de-lappel-dune-fonction">Oublier l'opérateur d'appel de fonction lors de l'appel d'une fonction</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getValue()
+{
+    return 5;
+}
+
+int main()
+{
+    std::cout &lt;&lt; getValue &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Bien que vous puissiez vous attendre à ce que ce programme affiche <code>5</code>, il affichera très probablement <code>1</code> (sur certains compilateurs, il affichera une adresse mémoire en hexadécimal).</p>
+<p>Au lieu d'utiliser <code>getValue()</code> (ce qui appellerait la fonction et produirait une valeur de retour <code>int</code>), nous avons utilisé <code>getValue</code> sans l'opérateur d'appel de fonction. Dans de nombreux cas, cela produit une valeur qui est convertie en valeur <code>bool</code> <code>true</code>.</p>
+<p>Dans notre exemple ci-dessus, c'est cette valeur <code>bool</code> <code>true</code> qui est affichée, ce qui donne <code>1</code>.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Utiliser le nom d'une fonction sans l'appeler produit généralement un pointeur de fonction contenant l'adresse de cette fonction. Un tel pointeur de fonction se convertit implicitement en valeur <code>bool</code>. Et comme ce pointeur ne devrait jamais avoir l'adresse <code>0</code>, cette valeur <code>bool</code> sera toujours <code>true</code>.</p>
+<p>Nous étudierons les pointeurs de fonction dans la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.1%20-%20Pointeurs%20vers%20fonctions.html">20.1 -- Pointeurs de fonction</a>.</p>
+</div>
+<h2 id="et-ensuite">Et ensuite ?</h2>
+<p>Ce qui précède constitue un bon échantillon des types d'erreurs sémantiques les plus courants chez les programmeurs C++ débutants, mais il en existe bien d'autres. Si vous connaissez d'autres pièges fréquents, n'hésitez pas à les signaler dans les commentaires.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/common-semantic-errors-in-c/">https://www.learncpp.com/cpp-tutorial/common-semantic-errors-in-c/</a></em></p>
+</main>
+</body>
+</html>

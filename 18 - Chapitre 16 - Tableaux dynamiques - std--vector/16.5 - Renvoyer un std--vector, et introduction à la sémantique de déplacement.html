@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.5 — Renvoyer un std::vector, et introduction à la sémantique de déplacement</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="165-renvoyer-un-stdvector-et-introduction-à-la-sémantique-de-déplacement">16.5 — Renvoyer un std::vector, et introduction à la sémantique de déplacement</h1>
+<p>Lorsque nous devons passer un <code>std::vector</code> à une fonction, nous le passons par référence (constante) afin de ne pas effectuer une copie coûteuse des données du tableau.</p>
+<p>Vous serez donc probablement surpris d'apprendre qu'il est acceptable de renvoyer un <code>std::vector</code> par valeur.</p>
+<p>Quoi ? Mais comment est-ce possible ?</p>
+<h2 id="la-sémantique-de-copie">La sémantique de copie</h2>
+<p>Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector arr1 { 1, 2, 3, 4, 5 }; // copie { 1, 2, 3, 4, 5 } dans arr1
+    std::vector arr2 { arr1 };          // copie arr1 dans arr2
+
+    arr1[0] = 6; // On peut continuer à utiliser arr1
+    arr2[0] = 7; // et on peut continuer à utiliser arr2
+
+    std::cout &lt;&lt; arr1[0] &lt;&lt; arr2[0] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque <code>arr2</code> est initialisé avec <code>arr1</code>, le constructeur de copie de <code>std::vector</code> est appelé, qui copie <code>arr1</code> dans <code>arr2</code>.</p>
+<p>Effectuer une copie est la seule chose raisonnable à faire dans ce cas, car nous avons besoin que <code>arr1</code> et <code>arr2</code> existent chacun de manière indépendante. Cet exemple effectue donc deux copies, une pour chaque initialisation.</p>
+<p>Le terme <strong>sémantique de copie</strong> (copy semantics) désigne l'ensemble des règles qui déterminent comment les copies des objets sont réalisées. Lorsqu'on dit qu'un type supporte la sémantique de copie, cela signifie que les objets de ce type sont copiables, car les règles permettant de réaliser ces copies ont été définies. Lorsqu'on dit que la sémantique de copie est invoquée, cela signifie que nous avons fait quelque chose qui va créer une copie d'un objet.</p>
+<p>Pour les types classes, la sémantique de copie est généralement implémentée via le constructeur de copie (et l'opérateur d'affectation par copie), qui définit comment les objets de ce type sont copiés. En général, cela se traduit par la copie de chaque membre de donnée de la classe. Dans l'exemple précédent, l'instruction <code>std::vector arr2 { arr1 };</code> invoque la sémantique de copie, ce qui entraîne un appel au constructeur de copie de <code>std::vector</code>, qui copie chaque membre de donnée de <code>arr1</code> dans <code>arr2</code>. Le résultat final est que <code>arr1</code> est équivalent à <code>arr2</code> (tout en restant indépendant).</p>
+<h2 id="lorsque-la-sémantique-de-copie-nest-pas-optimale">Lorsque la sémantique de copie n'est pas optimale</h2>
+<p>Considérez maintenant cet exemple connexe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+std::vector&lt;int&gt; generate() // renvoi par valeur
+{
+    // Nous utilisons volontairement un objet nommé ici afin que l'élision de copie obligatoire ne s'applique pas
+    std::vector arr1 { 1, 2, 3, 4, 5 }; // copie { 1, 2, 3, 4, 5 } dans arr1
+    return arr1;
+}
+
+int main()
+{
+    std::vector arr2 { generate() }; // la valeur de retour de generate() est détruite à la fin de l'expression
+
+    // Il n'existe aucun moyen d'utiliser la valeur de retour de generate() ici
+    arr2[0] = 7; // nous n'avons accès qu'à arr2
+
+    std::cout &lt;&lt; arr2[0] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cette fois, lorsque <code>arr2</code> est initialisé, il l'est à partir d'un objet temporaire renvoyé par la fonction <code>generate()</code>. Contrairement au cas précédent, où l'initialiseur était une lvalue pouvant être utilisée dans les instructions suivantes, ici l'objet temporaire est une rvalue qui sera détruite à la fin de l'expression d'initialisation. L'objet temporaire ne peut pas être utilisé au-delà de ce point. Comme le temporaire (et ses données) sera détruit à la fin de l'expression, nous avons besoin d'un moyen d'extraire les données du temporaire pour les placer dans <code>arr2</code>.</p>
+<p>La solution habituelle consiste à faire la même chose que dans l'exemple précédent : utiliser la sémantique de copie et effectuer une copie potentiellement coûteuse. Ainsi, <code>arr2</code> reçoit sa propre copie des données, utilisable même après la destruction du temporaire (et de ses données).</p>
+<p>Cependant, ce qui distingue ce cas du précédent, c'est que le temporaire va de toute façon être détruit. Une fois l'initialisation terminée, le temporaire n'a plus besoin de ses données (c'est d'ailleurs pour cela que nous pouvons les détruire). Il n'est pas nécessaire que deux jeux de données coexistent simultanément. Dans de tels cas, effectuer une copie potentiellement coûteuse puis détruire les données d'origine est sous-optimal.</p>
+<h2 id="introduction-à-la-sémantique-de-déplacement">Introduction à la sémantique de déplacement</h2>
+<p>Et si, au lieu de copier les données du temporaire, <code>arr2</code> pouvait « voler » ces données ? <code>arr2</code> deviendrait alors le nouveau propriétaire des données, et aucune copie ne serait nécessaire. Lorsque la propriété de données est transférée d'un objet à un autre, on dit que ces données ont été <strong>déplacées</strong> (moved). Le coût d'un tel déplacement est généralement négligeable (habituellement seulement deux ou trois affectations de pointeurs, ce qui est bien plus rapide que la copie d'un tableau de données !).</p>
+<p>Avantage supplémentaire : lorsque le temporaire est ensuite détruit à la fin de l'expression, il n'a plus aucune donnée à détruire, donc nous n'avons pas non plus à payer ce coût.</p>
+<p>C'est l'essence de la <strong>sémantique de déplacement</strong> (move semantics), qui désigne les règles déterminant comment les données d'un objet sont déplacées vers un autre objet. Lorsque la sémantique de déplacement est invoquée, tout membre de donnée pouvant être déplacé l'est, et tout membre de donnée ne pouvant pas être déplacé est copié. La possibilité de déplacer les données au lieu de les copier peut rendre la sémantique de déplacement plus efficace que la sémantique de copie, en particulier lorsque nous pouvons remplacer une copie coûteuse par un déplacement peu coûteux.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La sémantique de déplacement est une optimisation qui nous permet, dans certaines circonstances, de transférer à faible coût la propriété de certains membres de données d'un objet à un autre objet (plutôt que d'effectuer une copie plus coûteuse).</p>
+<p>Les membres de données qui ne peuvent pas être déplacés sont copiés à la place.</p>
+</div>
+<h2 id="comment-la-sémantique-de-déplacement-est-invoquée">Comment la sémantique de déplacement est invoquée</h2>
+<p>Normalement, lorsqu'un objet est initialisé avec (ou affecté à) un objet du même type, la sémantique de copie est utilisée (en supposant que la copie n'est pas élidée).</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous avons abordé l'élision de copie dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.15%20-%20Initialisation%20de%20classe%20et%20%C3%A9lision%20de%20copie.html">14.15 -- Initialisation de classes et élision de copie</a>.</p>
+</div>
+<p>Cependant, lorsque toutes les conditions suivantes sont réunies, la sémantique de déplacement est invoquée à la place :</p>
+<ul>
+<li>Le type de l'objet supporte la sémantique de déplacement.</li>
+<li>L'objet est initialisé avec (ou affecté à) un objet temporaire (rvalue) du même type.</li>
+<li>Le déplacement n'est pas élidé.</li>
+</ul>
+<p>Voici la mauvaise nouvelle : peu de types supportent la sémantique de déplacement. Cependant, <code>std::vector</code> et <code>std::string</code> la supportent tous les deux !</p>
+<p>Nous étudierons en détail le fonctionnement de la sémantique de déplacement dans le <a href="https://www.learncpp.com#Chapter22">chapitre 22</a>. Pour l'instant, il suffit de savoir ce qu'est la sémantique de déplacement et quels types sont capables de déplacement.</p>
+<h2 id="nous-pouvons-renvoyer-par-valeur-des-types-capables-de-déplacement-comme-stdvector">Nous pouvons renvoyer par valeur des types capables de déplacement comme <code>std::vector</code></h2>
+<p>Comme le renvoi par valeur produit une rvalue, si le type renvoyé supporte la sémantique de déplacement, la valeur renvoyée peut être déplacée au lieu d'être copiée dans l'objet de destination. Cela rend le renvoi par valeur extrêmement peu coûteux pour ces types !</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Nous pouvons renvoyer par valeur des types capables de déplacement (comme <code>std::vector</code> et <code>std::string</code>). Ces types déplaceront leurs valeurs à faible coût au lieu d'effectuer une copie coûteuse.</p>
+<p>De tels types doivent tout de même être passés par référence constante.</p>
+</div>
+<h2 id="attendez-attendez-attendez-les-types-coûteux-à-copier-ne-devraient-pas-être-passés-par-valeur-mais-sils-sont-capables-de-déplacement-ils-peuvent-être-renvoyés-par-valeur">Attendez, attendez, attendez. Les types coûteux à copier ne devraient pas être passés par valeur, mais s'ils sont capables de déplacement, ils peuvent être renvoyés par valeur ?</h2>
+<p>Exact.</p>
+<p>La discussion qui suit est facultative, mais elle peut vous aider à comprendre pourquoi il en est ainsi.</p>
+<p>L'une des opérations les plus courantes en C++ consiste à passer une valeur à une fonction et à récupérer une valeur différente en retour. Lorsque les valeurs passées sont de types classes, ce processus comporte 4 étapes :</p>
+<ol>
+<li>Construire la valeur à passer.</li>
+<li>Passer effectivement la valeur à la fonction.</li>
+<li>Construire la valeur à renvoyer.</li>
+<li>Renvoyer effectivement la valeur à l'appelant.</li>
+</ol>
+<p>Voici un exemple de ce processus utilisant <code>std::vector</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+std::vector&lt;int&gt; doSomething(std::vector&lt;int&gt; v2)
+{
+    std::vector v3 { v2[0] + v2[0] }; // 3 -- construire la valeur à renvoyer à l'appelant
+    return v3; // 4 -- renvoyer effectivement la valeur
+}
+
+int main()
+{
+    std::vector v1 { 5 }; // 1 -- construire la valeur à passer à la fonction
+    std::cout &lt;&lt; doSomething(v1)[0] &lt;&lt; '\n'; // 2 -- passer effectivement la valeur
+
+    std::cout &lt;&lt; v1[0] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Supposons d'abord que <code>std::vector</code> ne soit pas capable de déplacement. Dans ce cas, le programme ci-dessus effectue 4 copies :</p>
+<ol>
+<li>La construction de la valeur à passer copie la liste d'initialisation dans <code>v1</code>.</li>
+<li>Le passage effectif de la valeur à la fonction copie l'argument <code>v1</code> dans le paramètre <code>v2</code>.</li>
+<li>La construction de la valeur à renvoyer copie l'initialiseur dans <code>v3</code>.</li>
+<li>Le renvoi effectif de la valeur à l'appelant copie <code>v3</code> vers l'appelant.</li>
+</ol>
+<p>Voyons maintenant comment optimiser ce qui précède. Nous disposons de nombreux outils : passage par référence ou par adresse, élision, sémantique de déplacement et paramètres de sortie.</p>
+<p>Nous ne pouvons pas du tout optimiser les copies 1 et 3. Nous avons besoin d'un <code>std::vector</code> à passer à la fonction, et d'un <code>std::vector</code> à renvoyer : ces objets doivent être construits. <code>std::vector</code> est propriétaire de ses données, il effectue donc nécessairement une copie de son initialiseur.</p>
+<p>Ce que nous pouvons modifier, ce sont les copies 2 et 4.</p>
+<p>La copie 2 est faite parce que nous passons par valeur de l'appelant vers la fonction appelée. Quelles autres options avons-nous ?</p>
+<ul>
+<li>Pouvons-nous passer par référence ou par adresse ? Oui. On est assuré que l'argument existera pendant toute la durée de l'appel de fonction : l'appelant n'a pas à craindre que l'objet passé ne sorte de portée de manière inattendue.</li>
+<li>Cette copie peut-elle être élidée ? Non. L'élision ne fonctionne que lorsqu'on effectue une copie ou un déplacement redondant. Il n'y a ici aucune copie ou déplacement redondant.</li>
+<li>Pouvons-nous utiliser un paramètre de sortie ici ? Non. Nous passons une valeur à la fonction, nous ne récupérons pas de valeur en retour.</li>
+<li>Pouvons-nous utiliser la sémantique de déplacement ici ? Non. L'argument est une lvalue. Si nous déplacions les données de <code>v1</code> vers <code>v2</code>, <code>v1</code> deviendrait un vecteur vide, et l'affichage ultérieur de <code>v1[0]</code> conduirait à un comportement indéfini.</li>
+</ul>
+<p>Le passage par référence constante est clairement notre meilleure option ici, car il évite la copie, évite les problèmes de pointeurs nuls et fonctionne avec les arguments lvalue comme rvalue.</p>
+<p>La copie 4 est faite parce que nous passons par valeur de la fonction appelée vers l'appelant. Quelles autres options avons-nous ici ?</p>
+<ul>
+<li>Pouvons-nous renvoyer par référence ou par adresse ? Non. L'objet que nous renvoyons est créé comme variable locale dans la fonction et sera détruit à la sortie de celle-ci. Renvoyer une référence ou un pointeur conduirait l'appelant à recevoir un pointeur ou une référence pendante.</li>
+<li>Cette copie peut-elle être élidée ? Oui, peut-être. Si le compilateur est performant, il comprendra que nous construisons un objet dans la portée de la fonction appelée et que nous le renvoyons. En réécrivant le code (selon la règle as-if) de sorte que <code>v3</code> soit construit dans la portée de l'appelant, nous pouvons éviter la copie qui serait autrement faite au renvoi. Cependant, cela dépend du fait que le compilateur le comprenne, ce n'est donc pas garanti.</li>
+<li>Pouvons-nous utiliser un paramètre de sortie ici ? Oui. Au lieu de construire <code>v3</code> comme variable locale, nous pouvons construire un objet <code>std::vector</code> vide dans la portée de l'appelant, et le passer à la fonction par référence non constante. La fonction peut alors remplir ce paramètre avec des données. Lorsque la fonction se termine, cet objet existe toujours. Cela évite la copie, mais présente des inconvénients et contraintes importants : une syntaxe d'appel peu élégante, un fonctionnement impossible avec les objets qui ne supportent pas l'affectation, et la difficulté d'écrire de telles fonctions capables de fonctionner à la fois avec des arguments lvalue et rvalue.</li>
+<li>Pouvons-nous utiliser la sémantique de déplacement ici ? Oui. <code>v3</code> va être détruit à la sortie de la fonction, donc au lieu de copier <code>v3</code> vers l'appelant, nous pouvons utiliser la sémantique de déplacement pour transférer ses données à l'appelant, évitant ainsi la copie.</li>
+</ul>
+<p>L'élision est la meilleure option ici, mais sa réalisation échappe à notre contrôle. La deuxième meilleure option pour les types capables de déplacement est la sémantique de déplacement, utilisable lorsque le compilateur n'élide pas la copie. Et pour les types capables de déplacement, la sémantique de déplacement est invoquée automatiquement lors d'un renvoi par valeur.</p>
+<p>En résumé, pour les types capables de déplacement, nous privilégions le passage par référence constante et le renvoi par valeur.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/returning-stdvector-and-an-introduction-to-move-semantics/">https://www.learncpp.com/cpp-tutorial/returning-stdvector-and-an-introduction-to-move-semantics/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27.4 — Exceptions non gérées et gestionnaires attrape-tout</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="274-exceptions-non-gérées-et-gestionnaires-attrape-tout">27.4 — Exceptions non gérées et gestionnaires attrape-tout</h1>
+<p>À ce stade, vous devriez avoir une idée raisonnable du fonctionnement des exceptions. Dans cette leçon, nous verrons quelques cas particuliers intéressants.</p>
+<h2 id="exceptions-non-gérées">Exceptions non gérées</h2>
+<p>Lorsqu'une fonction lève une exception qu'elle ne gère pas elle-même, elle suppose qu'une fonction située plus bas dans la pile d'appels la gérera. Dans l'exemple suivant, mySqrt() suppose que quelqu'un traitera l'exception qu'elle lève. Mais que se passe-t-il si personne ne le fait ?</p>
+<p>Voici à nouveau notre programme de calcul de racine carrée, sans le bloc try dans main() :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;cmath&gt; // pour la fonction sqrt()
+
+// Une fonction de calcul de racine carrée modulaire
+double mySqrt(double x)
+{
+    // Si l'utilisateur a saisi un nombre négatif, il s'agit d'une condition d'erreur
+    if (x &lt; 0.0)
+        throw &quot;Can not take sqrt of negative number&quot;; // lève une exception de type const char*
+
+    return std::sqrt(x);
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    double x;
+    std::cin &gt;&gt; x;
+
+    // Regardez, pas de gestionnaire d'exception !
+    std::cout &lt;&lt; &quot;The sqrt of &quot; &lt;&lt; x &lt;&lt; &quot; is &quot; &lt;&lt; mySqrt(x) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Supposons maintenant que l'utilisateur saisisse -4 : mySqrt(-4) lève alors une exception. La fonction mySqrt() ne la gère pas, le programme cherche donc si une fonction située plus bas dans la pile d'appels la gérera. main() n'a pas non plus de gestionnaire pour cette exception, aucun gestionnaire ne peut donc être trouvé.</p>
+<p>Lorsqu'aucun gestionnaire d'exception ne peut être trouvé pour une fonction, std::terminate() est appelée et l'application se termine. Dans ce cas, la pile d'appels peut ou non être déroulée ! Si la pile n'est pas déroulée, les variables locales ne sont pas détruites, et le nettoyage normalement effectué lors de leur destruction n'a pas lieu !</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>La pile d'appels peut ou non être déroulée si une exception n'est pas gérée.</p>
+<p>Si la pile n'est pas déroulée, les variables locales ne sont pas détruites, ce qui peut poser problème si ces variables ont des destructeurs non triviaux.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Bien qu'il puisse sembler étrange de ne pas dérouler la pile dans ce cas, il existe une bonne raison de ne pas le faire. Une exception non gérée est en général quelque chose qu'on veut éviter à tout prix. Si la pile était déroulée, toutes les informations de débogage sur l'état de la pile ayant conduit au lancement de l'exception non gérée seraient perdues ! En ne déroulant pas la pile, nous conservons ces informations, ce qui facilite la compréhension de la manière dont l'exception non gérée a été levée, et sa correction.</p>
+</div>
+<p>Lorsqu'une exception n'est pas gérée, le système d'exploitation vous signale généralement qu'une erreur d'exception non gérée s'est produite. La manière dont il le fait dépend du système d'exploitation : il peut afficher un message d'erreur, ouvrir une boîte de dialogue, ou simplement planter. Certains systèmes sont moins élégants que d'autres. En général, c'est une situation qu'il faut absolument éviter !</p>
+<h2 id="gestionnaires-attrape-tout">Gestionnaires attrape-tout</h2>
+<p>Nous nous retrouvons maintenant face à un dilemme :</p>
+<ul>
+<li>Les fonctions peuvent potentiellement lever des exceptions de n'importe quel type (y compris des types définis par le programme), ce qui signifie qu'il existe un nombre infini de types d'exceptions possibles à attraper.</li>
+<li>Si une exception n'est pas attrapée, votre programme se termine immédiatement (et la pile peut ne pas être déroulée, si bien que votre programme ne nettoie peut-être même pas correctement ce qu'il a fait).</li>
+<li>Ajouter un gestionnaire explicite pour chaque type possible est fastidieux, en particulier pour ceux qui ne devraient être atteints que dans des cas exceptionnels !</li>
+</ul>
+<p>Heureusement, C++ nous fournit aussi un mécanisme pour attraper tous les types d'exceptions. Il s'agit du <strong>gestionnaire attrape-tout</strong> (catch-all handler). Un gestionnaire attrape-tout fonctionne comme un bloc catch ordinaire, sauf qu'au lieu d'utiliser un type précis, il utilise l'opérateur d'ellipse (…) comme type à attraper. C'est pourquoi le gestionnaire attrape-tout est parfois aussi appelé « gestionnaire à ellipse ».</p>
+<p>Si vous vous rappelez la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.5%20-%20Les%20points%20de%20suspension%20%28ellipsis%29%20et%20pourquoi%20les%20%C3%A9viter.html">20.5 -- Ellipsis (and why to avoid them)</a>, les ellipses servaient auparavant à passer à une fonction des arguments de n'importe quel type. Dans ce contexte, elles représentent des exceptions de n'importe quel type de données. Voici un exemple simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    try
+    {
+        throw 5; // lève une exception de type int
+    }
+    catch (double x)
+    {
+        std::cout &lt;&lt; &quot;We caught an exception of type double: &quot; &lt;&lt; x &lt;&lt; '\n';
+    }
+    catch (...) // gestionnaire attrape-tout
+    {
+        std::cout &lt;&lt; &quot;We caught an exception of an undetermined type\n&quot;;
+    }
+}
+</code></pre>
+<p>Comme il n'existe pas de gestionnaire spécifique pour le type int, c'est le gestionnaire attrape-tout qui intercepte cette exception. Cet exemple produit le résultat suivant :</p>
+<pre><code>
+We caught an exception of an undetermined type
+</code></pre>
+<p>Le gestionnaire attrape-tout doit être placé en dernier dans la chaîne de blocs catch. Cela garantit que les exceptions peuvent être interceptées par les gestionnaires spécifiques à certains types de données, si ces gestionnaires existent.</p>
+<p>Souvent, le bloc du gestionnaire attrape-tout est laissé vide :</p>
+<pre><code class="language-cpp">catch(...) {} // ignore toute exception imprévue
+</code></pre>
+<p>Cela intercepte toute exception imprévue, garantit que le déroulement de la pile a lieu jusqu'à ce point et empêche le programme de se terminer, mais ne effectue aucun traitement d'erreur particulier.</p>
+<h2 id="utiliser-le-gestionnaire-attrape-tout-pour-englober-main">Utiliser le gestionnaire attrape-tout pour englober main()</h2>
+<p>Une utilisation possible du gestionnaire attrape-tout consiste à englober le contenu de main() :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct GameSession
+{
+    // Données de la session de jeu ici
+};
+
+void runGame(GameSession&amp;)
+{
+    throw 1;
+}
+
+void saveGame(GameSession&amp;)
+{
+    // Sauvegarde la partie de l'utilisateur ici
+}
+
+int main()
+{
+    GameSession session{};
+
+    try
+    {
+        runGame(session);
+    }
+    catch(...)
+    {
+        std::cerr &lt;&lt; &quot;Abnormal termination\n&quot;;
+    }
+
+    saveGame(session); // sauvegarde la partie de l'utilisateur (même si le gestionnaire attrape-tout a été atteint)
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce cas, si runGame() ou l'une des fonctions qu'elle appelle lève une exception non gérée, celle-ci sera interceptée par ce gestionnaire attrape-tout. La pile sera déroulée de manière ordonnée (ce qui garantit la destruction des variables locales). Cela empêche aussi le programme de se terminer immédiatement, ce qui nous laisse la possibilité d'afficher un message d'erreur de notre choix et de sauvegarder l'état de l'utilisateur avant de quitter.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Si votre programme utilise des exceptions, envisagez d'utiliser un gestionnaire attrape-tout dans main, afin de garantir un comportement ordonné en cas d'exception non gérée.</p>
+<p>Si une exception est interceptée par le gestionnaire attrape-tout, considérez que le programme se trouve désormais dans un état indéterminé, effectuez immédiatement un nettoyage, puis terminez le programme.</p>
+</div>
+<h2 id="déboguer-les-exceptions-non-gérées">Déboguer les exceptions non gérées</h2>
+<p>Les exceptions non gérées indiquent que quelque chose d'inattendu s'est produit, et nous voulons probablement comprendre pourquoi une exception non gérée a été levée en premier lieu. De nombreux débogueurs s'arrêtent (ou peuvent être configurés pour s'arrêter) sur les exceptions non gérées, ce qui nous permet d'examiner la pile au point où l'exception non gérée a été levée. Cependant, si nous disposons d'un gestionnaire attrape-tout, alors toutes les exceptions sont gérées et, comme la pile est déroulée, nous perdons des informations de diagnostic utiles.</p>
+<p>Par conséquent, dans les versions de débogage, il peut être utile de désactiver le gestionnaire attrape-tout. Nous pouvons le faire à l'aide de directives de compilation conditionnelle.</p>
+<p>Voici une façon de procéder :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct GameSession
+{
+    // Données de la session de jeu ici
+};
+
+void runGame(GameSession&amp;)
+{
+    throw 1;
+}
+
+void saveGame(GameSession&amp;)
+{
+    // Sauvegarde la partie de l'utilisateur ici
+}
+
+class DummyException // une classe factice qui ne peut pas être instanciée
+{
+    DummyException() = delete;
+};
+
+int main()
+{
+    GameSession session {};
+
+    try
+    {
+        runGame(session);
+    }
+#ifndef NDEBUG // si nous sommes en mode release
+    catch(...) // on compile le gestionnaire attrape-tout
+    {
+        std::cerr &lt;&lt; &quot;Abnormal termination\n&quot;;
+    }
+#else // en mode débogage, on compile un catch qui ne sera jamais atteint (pour des raisons syntaxiques)
+    catch(DummyException)
+    {
+    }
+#endif
+
+    saveGame(session); // sauvegarde la partie de l'utilisateur (même si le gestionnaire attrape-tout a été atteint)
+
+    return 0;
+}
+</code></pre>
+<p>Sur le plan syntaxique, un bloc try exige au moins un bloc catch associé. Ainsi, si le gestionnaire attrape-tout est exclu par compilation conditionnelle, nous devons soit exclure aussi le bloc try par compilation conditionnelle, soit inclure un autre bloc catch. Il est plus propre de choisir la seconde solution.</p>
+<p>Dans ce but, nous créons la classe <code>DummyException</code>, qui ne peut pas être instanciée car elle possède un constructeur par défaut supprimé (deleted) et aucun autre constructeur. Lorsque <code>NDEBUG</code> est défini, nous compilons un gestionnaire capable d'intercepter une exception de type <code>DummyException</code>. Comme il est impossible de créer un objet <code>DummyException</code>, ce gestionnaire ne interceptera jamais rien. Par conséquent, les exceptions qui atteignent ce point ne seront pas gérées.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/uncaught-exceptions-catch-all-handlers/">https://www.learncpp.com/cpp-tutorial/uncaught-exceptions-catch-all-handlers/</a></em></p>
+</main>
+</body>
+</html>

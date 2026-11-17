@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.2 — Énumérations non délimitées</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="132-énumérations-non-délimitées">13.2 — Énumérations non délimitées</h1>
+<p>C++ contient de nombreux types de données fondamentaux et composés utiles (que nous avons présentés dans les leçons <a href="../04%20-%20Chapitre%204%20-%20Les%20types%20de%20donn%C3%A9es%20fondamentaux/4.1%20-%20Types%20de%20donn%C3%A9es%20fondamentaux.html">4.1 -- Introduction aux types de données fondamentaux</a> et <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.1%20-%20Introduction%20aux%20types%20compos%C3%A9s.html">12.1 -- Introduction aux types de données composés</a>). Mais ces types ne suffisent pas toujours pour ce que nous voulons faire.</p>
+<p>Par exemple, supposons que vous écriviez un programme qui doit savoir si une pomme est rouge, jaune ou verte, ou quelle est la couleur d'une chemise (parmi une liste prédéfinie de couleurs). Si seuls les types fondamentaux étaient disponibles, comment procéderiez-vous ?</p>
+<p>Vous pourriez stocker la couleur sous forme d'une valeur entière, en utilisant une sorte de correspondance implicite (0 = rouge, 1 = vert, 2 = bleu) :</p>
+<pre><code class="language-cpp">int main()
+{
+    int appleColor{ 0 }; // ma pomme est rouge
+    int shirtColor{ 1 }; // ma chemise est verte
+
+    return 0;
+}
+</code></pre>
+<p>Mais ce n'est pas du tout intuitif, et nous avons déjà expliqué pourquoi les nombres magiques sont néfastes (<a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.2%20-%20Litt%C3%A9raux.html">5.2 -- Littéraux</a>). Nous pouvons nous débarrasser des nombres magiques en utilisant des constantes symboliques :</p>
+<pre><code class="language-cpp">constexpr int red{ 0 };
+constexpr int green{ 1 };
+constexpr int blue{ 2 };
+
+int main()
+{
+    int appleColor{ red };
+    int shirtColor{ green };
+
+    return 0;
+}
+</code></pre>
+<p>C'est un peu plus lisible, mais le programmeur doit encore deviner que <code>appleColor</code> et <code>shirtColor</code> (qui sont de type <code>int</code>) sont censés contenir l'une des valeurs définies dans l'ensemble des constantes symboliques de couleur (qui sont probablement définies ailleurs, sans doute dans un fichier séparé).</p>
+<p>Nous pouvons rendre ce programme un peu plus clair en utilisant un alias de type :</p>
+<pre><code class="language-cpp">using Color = int; // définit un alias de type nommé Color
+
+// Les valeurs de couleur suivantes doivent être utilisées pour un Color
+constexpr Color red{ 0 };
+constexpr Color green{ 1 };
+constexpr Color blue{ 2 };
+
+int main()
+{
+    Color appleColor{ red };
+    Color shirtColor{ green };
+
+    return 0;
+}
+</code></pre>
+<p>Nous nous rapprochons du but. Quelqu'un qui lit ce code doit encore comprendre que ces constantes symboliques de couleur sont destinées à être utilisées avec des variables de type <code>Color</code>, mais au moins ce type possède désormais un nom unique : quelqu'un qui cherche <code>Color</code> pourra trouver l'ensemble des constantes symboliques associées.</p>
+<p>Cependant, comme <code>Color</code> n'est qu'un alias de <code>int</code>, le problème persiste : rien n'impose un usage correct de ces constantes symboliques de couleur. On peut toujours écrire :</p>
+<pre><code class="language-cpp">Color eyeColor{ 8 }; // syntaxiquement valide, sémantiquement absurde
+</code></pre>
+<p>De plus, si nous déboguons l'une de ces variables avec notre débogueur, nous ne verrons que la valeur entière de la couleur (par exemple <code>0</code>), et non sa signification symbolique (<code>red</code>), ce qui peut rendre plus difficile la vérification de l'exactitude du programme.</p>
+<p>Heureusement, nous pouvons faire mieux.</p>
+<p>Prenons le type <code>bool</code> comme inspiration. Ce qui rend <code>bool</code> particulièrement intéressant, c'est qu'il ne possède que deux valeurs définies : <code>true</code> et <code>false</code>. Nous pouvons utiliser <code>true</code> ou <code>false</code> directement (comme littéraux), ou instancier un objet <code>bool</code> qui contiendra l'une de ces deux valeurs. De plus, le compilateur sait distinguer <code>bool</code> des autres types. Cela signifie que nous pouvons surcharger des fonctions et personnaliser leur comportement lorsqu'elles reçoivent une valeur <code>bool</code>.</p>
+<p>Si nous pouvions définir nos propres types, en définissant nous-mêmes l'ensemble des valeurs nommées associées à ce type, nous disposerions de l'outil idéal pour résoudre élégamment le problème exposé ci-dessus…</p>
+<h2 id="énumérations">Énumérations</h2>
+<p>Une <strong>énumération</strong> (aussi appelée <strong>type énuméré</strong> ou <strong>enum</strong>) est un type de données composé dont les valeurs sont restreintes à un ensemble de constantes symboliques nommées (appelées <strong>énumérateurs</strong>).</p>
+<p>C++ prend en charge deux sortes d'énumérations : les énumérations non délimitées (que nous allons voir maintenant) et les énumérations délimitées (que nous verrons plus tard dans ce chapitre).</p>
+<p>Les énumérations étant des types définis par le programme <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.1%20-%20Introduction%20aux%20types%20d%C3%A9finis%20par%20le%20programme%20%28types%20d%C3%A9finis%20par%20l%27utilisateur%29.html">13.1 -- Introduction aux types définis par le programme (types utilisateur)</a>, chaque énumération doit être entièrement définie avant d'être utilisée (une déclaration anticipée ne suffit pas).</p>
+<h2 id="énumérations-non-délimitées">Énumérations non délimitées</h2>
+<p>Les énumérations non délimitées se définissent à l'aide du mot-clé <code>enum</code>.</p>
+<p>Les types énumérés s'apprennent mieux par l'exemple. Définissons donc une énumération non délimitée capable de contenir quelques valeurs de couleur. Nous expliquerons ensuite son fonctionnement.</p>
+<pre><code class="language-cpp">// Définit une nouvelle énumération non délimitée nommée Color
+enum Color
+{
+    // Voici les énumérateurs
+    // Ces constantes symboliques définissent toutes les valeurs que ce type peut contenir
+    // Chaque énumérateur est séparé par une virgule, et non par un point-virgule
+    red,
+    green,
+    blue, // la virgule finale est facultative mais recommandée
+}; // la définition de l'énumération doit se terminer par un point-virgule
+
+int main()
+{
+    // Définit quelques variables de type énuméré Color
+    Color apple { red };   // ma pomme est rouge
+    Color shirt { green }; // ma chemise est verte
+    Color cup { blue };    // ma tasse est bleue
+
+    Color socks { white }; // erreur : white n'est pas un énumérateur de Color
+    Color hat { 2 };       // erreur : 2 n'est pas un énumérateur de Color
+
+    return 0;
+}
+</code></pre>
+<p>Nous commençons notre exemple en utilisant le mot-clé <code>enum</code> pour indiquer au compilateur que nous définissons une énumération non délimitée, que nous avons nommée <code>Color</code>.</p>
+<p>Entre une paire d'accolades, nous définissons les énumérateurs du type <code>Color</code> : <code>red</code>, <code>green</code> et <code>blue</code>. Ces énumérateurs définissent les valeurs précises auxquelles le type <code>Color</code> est restreint. Chaque énumérateur doit être séparé par une virgule (et non par un point-virgule) : une virgule finale après le dernier énumérateur est facultative, mais recommandée par souci de cohérence.</p>
+<p>Il est très courant de définir un énumérateur par ligne, mais dans les cas simples (peu d'énumérateurs et pas de commentaires nécessaires), ils peuvent tous être définis sur une seule ligne.</p>
+<p>La définition du type <code>Color</code> se termine par un point-virgule. Nous avons maintenant entièrement défini le type énuméré <code>Color</code> !</p>
+<p>Dans <code>main()</code>, nous instancions trois variables de type <code>Color</code> : <code>apple</code> est initialisée avec la couleur <code>red</code>, <code>shirt</code> avec <code>green</code>, et <code>cup</code> avec <code>blue</code>. De la mémoire est allouée pour chacun de ces objets. Notez que l'initialiseur d'un type énuméré doit être l'un des énumérateurs définis pour ce type. Les variables <code>socks</code> et <code>hat</code> provoquent des erreurs de compilation, car les initialiseurs <code>white</code> et <code>2</code> ne sont pas des énumérateurs de <code>Color</code>.</p>
+<p>Les énumérateurs sont implicitement <code>constexpr</code>.</p>
+<div class="callout quote"><p class="callout-title">Petit rappel</p>
+<p>Pour résumer la terminologie :</p>
+<ul>
+<li>Une <em>énumération</em> ou <em>type énuméré</em> est le type défini par le programme lui-même (par exemple <code>Color</code>).</li>
+<li>Un <em>énumérateur</em> est une valeur nommée précise appartenant à l'énumération (par exemple <code>red</code>).</li>
+</ul>
+</div>
+<h2 id="nommer-les-énumérations-et-leurs-énumérateurs">Nommer les énumérations et leurs énumérateurs</h2>
+<p>Par convention, les noms des types énumérés commencent par une majuscule (comme tous les types définis par le programme).</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Les énumérations n'ont pas besoin d'avoir un nom, mais les énumérations anonymes doivent être évitées en C++ moderne.</p>
+</div>
+<p>Les énumérateurs doivent aussi recevoir un nom. Malheureusement, il n'existe pas de convention de nommage commune pour les énumérateurs. Les choix courants incluent une initiale minuscule (par exemple <code>red</code>), une initiale majuscule (<code>Red</code>), tout en majuscules (<code>RED</code>), tout en majuscules avec un préfixe (<code>COLOR_RED</code>), ou un préfixe <code>k</code> suivi de mots en casse mixte (<code>kColorRed</code>).</p>
+<p>Les recommandations du C++ moderne évitent généralement les noms entièrement en majuscules, car ces noms sont habituellement réservés aux macros du préprocesseur et peuvent entrer en conflit avec elles. Nous recommandons également d'éviter les conventions commençant par une majuscule, car les noms débutant par une majuscule sont généralement réservés aux types définis par le programme.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Nommez vos types énumérés en commençant par une majuscule. Nommez vos énumérateurs en commençant par une minuscule.</p>
+</div>
+<h2 id="les-types-énumérés-sont-des-types-distincts">Les types énumérés sont des types distincts</h2>
+<p>Chaque type énuméré que vous créez est considéré comme un <strong>type distinct</strong>, ce qui signifie que le compilateur peut le distinguer des autres types (contrairement aux typedefs ou alias de types, qui ne sont pas distincts des types qu'ils désignent).</p>
+<p>Comme les types énumérés sont distincts, les énumérateurs définis dans un type énuméré ne peuvent pas être utilisés avec des objets d'un autre type énuméré :</p>
+<pre><code class="language-cpp">enum Pet
+{
+    cat,
+    dog,
+    pig,
+    whale,
+};
+
+enum Color
+{
+    black,
+    red,
+    blue,
+};
+
+int main()
+{
+    Pet myPet { black }; // erreur de compilation : black n'est pas un énumérateur de Pet
+    Color shirt { pig }; // erreur de compilation : pig n'est pas un énumérateur de Color
+
+    return 0;
+}
+</code></pre>
+<p>De toute façon, vous ne vouliez sans doute pas d'une chemise cochon.</p>
+<h2 id="utiliser-les-énumérations">Utiliser les énumérations</h2>
+<p>Les énumérateurs étant descriptifs, ils améliorent la documentation et la lisibilité du code. Les types énumérés sont particulièrement adaptés lorsque vous disposez d'un ensemble assez restreint de constantes liées entre elles, et que les objets n'ont besoin de contenir qu'une seule de ces valeurs à la fois.</p>
+<p>Parmi les énumérations courantes figurent les jours de la semaine, les points cardinaux et les couleurs d'un jeu de cartes :</p>
+<pre><code class="language-cpp">enum DaysOfWeek
+{
+    sunday,
+    monday,
+    tuesday,
+    wednesday,
+    thursday,
+    friday,
+    saturday,
+};
+
+enum CardinalDirections
+{
+    north,
+    east,
+    south,
+    west,
+};
+
+enum CardSuits
+{
+    clubs,
+    diamonds,
+    hearts,
+    spades,
+};
+</code></pre>
+<p>Il arrive qu'une fonction renvoie à l'appelant un code d'état indiquant si son exécution s'est bien déroulée ou si une erreur s'est produite. Traditionnellement, de petits entiers négatifs servaient à représenter les différents codes d'erreur possibles. Par exemple :</p>
+<pre><code class="language-cpp">int readFileContents()
+{
+    if (!openFile())
+        return -1;
+    if (!readFile())
+        return -2;
+    if (!parseFile())
+        return -3;
+
+    return 0; // succès
+}
+</code></pre>
+<p>Cependant, utiliser des nombres magiques de cette façon n'est pas très descriptif. Une meilleure méthode consiste à utiliser un type énuméré :</p>
+<pre><code class="language-cpp">enum FileReadResult
+{
+    readResultSuccess,
+    readResultErrorFileOpen,
+    readResultErrorFileRead,
+    readResultErrorFileParse,
+};
+
+FileReadResult readFileContents()
+{
+    if (!openFile())
+        return readResultErrorFileOpen;
+    if (!readFile())
+        return readResultErrorFileRead;
+    if (!parseFile())
+        return readResultErrorFileParse;
+
+    return readResultSuccess;
+}
+</code></pre>
+<p>L'appelant peut alors comparer la valeur de retour de la fonction à l'énumérateur approprié, ce qui est plus facile à comprendre que de tester une valeur entière précise.</p>
+<pre><code class="language-cpp">if (readFileContents() == readResultSuccess)
+{
+    // faire quelque chose
+}
+else
+{
+    // afficher un message d'erreur
+}
+</code></pre>
+<p>Les types énumérés sont également utiles dans les jeux vidéo, pour identifier différents types d'objets, de monstres ou de terrains. En somme, tout ce qui constitue un petit ensemble d'objets liés entre eux.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">enum ItemType
+{
+    sword,
+    torch,
+    potion,
+};
+
+int main()
+{
+    ItemType holding{ torch };
+
+    return 0;
+}
+</code></pre>
+<p>Les types énumérés peuvent aussi servir de paramètres de fonction utiles lorsque l'utilisateur doit choisir entre deux options ou plus :</p>
+<pre><code class="language-cpp">enum SortOrder
+{
+    alphabetical,
+    alphabeticalReverse,
+    numerical,
+};
+
+void sortData(SortOrder order)
+{
+    switch (order)
+    {
+        case alphabetical:
+            // trier les données par ordre alphabétique croissant
+            break;
+        case alphabeticalReverse:
+            // trier les données par ordre alphabétique décroissant
+            break;
+        case numerical:
+            // trier les données numériquement
+            break;
+    }
+}
+</code></pre>
+<p>De nombreux langages utilisent les énumérations pour définir les booléens : après tout, un booléen n'est essentiellement qu'une énumération à 2 énumérateurs, <code>false</code> et <code>true</code> ! Cependant, en C++, <code>true</code> et <code>false</code> sont définis comme des mots-clés et non comme des énumérateurs.</p>
+<p>Les énumérations étant petites et peu coûteuses à copier, il est tout à fait acceptable de les passer (et de les renvoyer) par valeur.</p>
+<p>Dans la leçon <a href="../07%20-%20Chapitre%20O%20-%20Manipulation%20de%20bits%20%28chapitre%20facultatif%29/O.1%20-%20Drapeaux%20de%20bits%20et%20manipulation%20de%20bits%20via%20std--bitset.html">O.1 -- Drapeaux de bits et manipulation de bits via std::bitset</a>, nous avons abordé les drapeaux de bits. Les énumérations peuvent aussi servir à définir un ensemble de positions de drapeaux liées entre elles, pour une utilisation avec <code>std::bitset</code> :</p>
+<pre><code class="language-cpp">#include &lt;bitset&gt;
+#include &lt;iostream&gt;
+
+namespace Flags
+{
+    enum State
+    {
+        isHungry,
+        isSad,
+        isMad,
+        isHappy,
+        isLaughing,
+        isAsleep,
+        isDead,
+        isCrying,
+    };
+}
+
+int main()
+{
+    std::bitset&lt;8&gt; me{};
+    me.set(Flags::isHappy);
+    me.set(Flags::isLaughing);
+
+    std::cout &lt;&lt; std::boolalpha; // affiche les bool sous forme true/false
+
+    // Interroge quelques états (nous utilisons la fonction any() pour voir si des bits restent à 1)
+    std::cout &lt;&lt; &quot;Je suis heureux ? &quot; &lt;&lt; me.test(Flags::isHappy) &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;Je ris ? &quot; &lt;&lt; me.test(Flags::isLaughing) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Si vous vous demandez comment un énumérateur peut être utilisé là où une valeur entière est attendue, sachez que les énumérateurs des énumérations non délimitées se convertissent implicitement en valeurs entières. Nous explorerons ce point plus en détail dans la leçon suivante (<a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.3%20-%20Conversions%20int%C3%A9grales%20des%20%C3%A9num%C3%A9rateurs%20sans%20port%C3%A9e.html">13.3 -- Conversions entières des énumérateurs non délimités</a>).</p>
+<h2 id="la-portée-des-énumérations-non-délimitées">La portée des énumérations non délimitées</h2>
+<p>Les énumérations non délimitées tirent leur nom du fait que leurs énumérateurs sont placés dans la même portée que la définition de l'énumération elle-même (contrairement à un espace de noms, qui crée une nouvelle région de portée).</p>
+<p>Par exemple, dans le programme suivant :</p>
+<pre><code class="language-cpp">enum Color // cette énumération est définie dans l'espace de noms global
+{
+    red, // donc red est placé dans l'espace de noms global
+    green,
+    blue,
+};
+
+int main()
+{
+    Color apple { red }; // ma pomme est rouge
+
+    return 0;
+}
+</code></pre>
+<p>L'énumération <code>Color</code> est définie dans la portée globale. Par conséquent, tous ses noms d'énumérateurs (<code>red</code>, <code>green</code> et <code>blue</code>) se retrouvent également dans la portée globale. Cela pollue la portée globale et augmente considérablement le risque de collisions de noms.</p>
+<p>Une conséquence est qu'un nom d'énumérateur ne peut pas être utilisé dans plusieurs énumérations au sein de la même portée :</p>
+<pre><code class="language-cpp">enum Color
+{
+    red,
+    green,
+    blue, // blue est placé dans l'espace de noms global
+};
+
+enum Feeling
+{
+    happy,
+    tired,
+    blue, // erreur : collision de noms avec le blue ci-dessus
+};
+
+int main()
+{
+    Color apple { red }; // ma pomme est rouge
+    Feeling me { happy }; // je suis heureux en ce moment (même si mon programme ne compile pas)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, les deux énumérations non délimitées (<code>Color</code> et <code>Feeling</code>) placent dans la portée globale des énumérateurs portant le même nom <code>blue</code>. Cela provoque une collision de noms et, par conséquent, une erreur de compilation.</p>
+<p>Les énumérations non délimitées fournissent également une région de portée nommée pour leurs énumérateurs (à la manière d'un espace de noms qui sert de région de portée nommée aux noms qu'il déclare). Nous pouvons donc accéder aux énumérateurs d'une énumération non délimitée de la façon suivante :</p>
+<pre><code class="language-cpp">enum Color
+{
+    red,
+    green,
+    blue, // blue est placé dans l'espace de noms global
+};
+
+int main()
+{
+    Color apple { red }; // correct, accès à l'énumérateur depuis l'espace de noms global
+    Color raspberry { Color::red }; // également correct, accès à l'énumérateur depuis la portée de Color
+
+    return 0;
+}
+</code></pre>
+<p>Le plus souvent, les énumérateurs non délimités sont utilisés sans l'opérateur de résolution de portée.</p>
+<h2 id="éviter-les-collisions-de-noms-dénumérateurs">Éviter les collisions de noms d'énumérateurs</h2>
+<p>Il existe plusieurs méthodes courantes pour éviter les collisions de noms d'énumérateurs non délimités.</p>
+<p>Une première option consiste à préfixer chaque énumérateur par le nom de l'énumération elle-même :</p>
+<pre><code class="language-cpp">enum Color
+{
+    color_red,
+    color_blue,
+    color_green,
+};
+
+enum Feeling
+{
+    feeling_happy,
+    feeling_tired,
+    feeling_blue, // plus de collision avec color_blue
+};
+
+int main()
+{
+    Color paint { color_blue };
+    Feeling me { feeling_blue };
+
+    return 0;
+}
+</code></pre>
+<p>Cette méthode pollue toujours l'espace de noms, mais réduit le risque de collision en rendant les noms plus longs et plus uniques.</p>
+<p>Une meilleure option consiste à placer le type énuméré dans une entité qui fournit une région de portée distincte, comme un espace de noms :</p>
+<pre><code class="language-cpp">namespace Color
+{
+    // Les noms Color, red, blue et green sont définis dans l'espace de noms Color
+    enum Color
+    {
+        red,
+        green,
+        blue,
+    };
+}
+
+namespace Feeling
+{
+    enum Feeling
+    {
+        happy,
+        tired,
+        blue, // Feeling::blue n'entre pas en collision avec Color::blue
+    };
+}
+
+int main()
+{
+    Color::Color paint{ Color::blue };
+    Feeling::Feeling me{ Feeling::blue };
+
+    return 0;
+}
+</code></pre>
+<p>Il faut donc désormais préfixer les noms de l'énumération et de ses énumérateurs par le nom de la région de portée.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les classes fournissent elles aussi une région de portée, et il est courant de placer les types énumérés liés à une classe dans la région de portée de cette classe. Nous en parlerons dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.3%20-%20Types%20imbriqu%C3%A9s%20%28types%20membres%29.html">15.3 -- Types imbriqués (types membres)</a>.</p>
+</div>
+<p>Une option connexe consiste à utiliser une énumération délimitée (qui définit sa propre région de portée). Nous en parlerons bientôt (<a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.6%20-%20%C3%89num%C3%A9rations%20%C3%A0%20port%C3%A9e%20%28enum%20class%29.html">13.6 -- Énumérations délimitées (enum class)</a>).</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Préférez placer vos énumérations dans une région de portée nommée (comme un espace de noms ou une classe) afin que leurs énumérateurs ne polluent pas l'espace de noms global.</p>
+</div>
+<p>Par ailleurs, si une énumération n'est utilisée que dans le corps d'une seule fonction, elle doit être définie à l'intérieur de cette fonction. Cela limite la portée de l'énumération et de ses énumérateurs à cette seule fonction. Les énumérateurs d'une telle énumération masquent alors les énumérateurs de même nom définis dans la portée globale.</p>
+<h2 id="comparer-des-valeurs-aux-énumérateurs">Comparer des valeurs aux énumérateurs</h2>
+<p>Nous pouvons utiliser les opérateurs d'égalité (<code>operator==</code> et <code>operator!=</code>) pour tester si une énumération possède la valeur d'un énumérateur donné.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+enum Color
+{
+    red,
+    green,
+    blue,
+};
+
+int main()
+{
+    Color shirt{ blue };
+
+    if (shirt == blue) // si la chemise est bleue
+        std::cout &lt;&lt; &quot;Votre chemise est bleue !&quot;;
+    else
+        std::cout &lt;&lt; &quot;Votre chemise n'est pas bleue !&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous utilisons une instruction if pour tester si <code>shirt</code> est égal à l'énumérateur <code>blue</code>. Cela nous permet de conditionner le comportement du programme selon l'énumérateur que contient l'énumération.</p>
+<p>Nous en ferons davantage usage dans la prochaine leçon.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Définissez un type énuméré non délimité nommé MonsterType permettant de choisir parmi les races de monstres suivantes : orc, goblin, troll, ogre et skeleton.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">enum MonsterType
+{
+    orc,
+    goblin,
+    troll,
+    ogre,
+    skeleton,
+};
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Placez l'énumération MonsterType dans un espace de noms. Créez ensuite une fonction main() et instanciez un troll. Le programme doit compiler.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">namespace Monster
+{
+    enum MonsterType
+    {
+        orc,
+        goblin,
+        troll,
+        ogre,
+        skeleton,
+    };
+}
+
+int main()
+{
+    // Nous utilisons [[maybe_unused]] pour éviter les avertissements concernant les variables inutilisées
+    // Vous pourriez aussi afficher le monstre à la place
+    [[maybe_unused]] Monster::MonsterType monster{ Monster::troll };
+
+    return 0;
+}
+</code></pre>
+<p>Comme <code>MonsterType</code> est une énumération non délimitée, ses énumérateurs (par exemple <code>troll</code>) sont placés dans l'espace de noms de l'énumération elle-même (ici <code>namespace Monster</code>). Nous pouvons donc accéder à <code>troll</code> sous la forme <code>Monster::troll</code>.</p>
+<p>Comme les énumérations non délimitées placent aussi leurs énumérateurs dans leur propre région de portée, <code>troll</code> peut également être désigné par <code>Monster::MonsterType::troll</code>. Cependant, cela n'apporte aucun avantage réel.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/unscoped-enumerations/">https://www.learncpp.com/cpp-tutorial/unscoped-enumerations/</a></em></p>
+</main>
+</body>
+</html>

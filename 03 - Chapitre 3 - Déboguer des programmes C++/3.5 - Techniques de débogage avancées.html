@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.5 — Techniques de débogage avancées</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="35-techniques-de-débogage-avancées">3.5 — Techniques de débogage avancées</h1>
+<p>Dans la leçon précédente (<a href="../03%20-%20Chapitre%203%20-%20D%C3%A9boguer%20des%20programmes%20C%2B%2B/3.4%20-%20Tactiques%20de%20d%C3%A9bogage%20de%20base.html">3.4 -- Techniques de débogage de base</a>), nous avons commencé à explorer la manière de déboguer manuellement les problèmes. Dans cette leçon, nous avions formulé quelques critiques à l'égard de l'utilisation d'instructions d'affichage pour le débogage :</p>
+<ol>
+<li>Les instructions de débogage encombrent votre code.</li>
+<li>Les instructions de débogage encombrent la sortie de votre programme.</li>
+<li>Les instructions de débogage nécessitent de modifier votre code pour être ajoutées comme supprimées, ce qui peut introduire de nouveaux bogues.</li>
+<li>Les instructions de débogage doivent être supprimées une fois que vous n'en avez plus besoin, ce qui les rend non réutilisables.</li>
+</ol>
+<p>Nous pouvons atténuer certains de ces problèmes. Dans cette leçon, nous allons explorer quelques techniques de base pour y parvenir.</p>
+<h2 id="rendre-votre-code-de-débogage-conditionnel">Rendre votre code de débogage conditionnel</h2>
+<p>Considérons le programme suivant, qui contient quelques instructions de débogage :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getUserInput()
+{
+std::cerr &lt;&lt; &quot;getUserInput() called\n&quot;;
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+    return x;
+}
+
+int main()
+{
+std::cerr &lt;&lt; &quot;main() called\n&quot;;
+    int x{ getUserInput() };
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque vous avez fini avec les instructions de débogage, vous devrez soit les supprimer, soit les mettre en commentaire. Ensuite, si vous voulez les réutiliser plus tard, vous devrez les rajouter ou les décommenter.</p>
+<p>Une façon de faciliter l'activation et la désactivation du débogage dans l'ensemble de votre programme consiste à rendre vos instructions de débogage conditionnelles à l'aide de directives du préprocesseur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+#define ENABLE_DEBUG // comment out to disable debugging
+
+int getUserInput()
+{
+#ifdef ENABLE_DEBUG
+std::cerr &lt;&lt; &quot;getUserInput() called\n&quot;;
+#endif
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+    return x;
+}
+
+int main()
+{
+#ifdef ENABLE_DEBUG
+std::cerr &lt;&lt; &quot;main() called\n&quot;;
+#endif
+    int x{ getUserInput() };
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Désormais, nous pouvons activer le débogage simplement en mettant en commentaire ou en décommentant <em>#define ENABLE_DEBUG</em>. Cela nous permet de réutiliser les instructions de débogage déjà ajoutées, puis de simplement les désactiver lorsque nous n'en avons plus besoin, au lieu de devoir les supprimer du code. Si ce programme comportait plusieurs fichiers, la ligne #define ENABLE_DEBUG serait placée dans un fichier d'en-tête inclus dans tous les fichiers de code, afin de pouvoir la mettre en commentaire ou la décommenter à un seul endroit et que le changement se propage à tous les fichiers.</p>
+<p>Cela règle le problème de la suppression des instructions de débogage et le risque qui y est associé, mais au prix d'un encombrement encore plus important du code. Un autre inconvénient de cette approche est que si vous faites une faute de frappe (par exemple en orthographiant mal « DEBUG ») ou si vous oubliez d'inclure l'en-tête dans un fichier de code, tout ou partie du débogage de ce fichier peut ne pas être activé. Cette méthode est donc meilleure que la version non conditionnelle, mais il reste une marge d'amélioration.</p>
+<h2 id="utiliser-un-journal-logger">Utiliser un journal (logger)</h2>
+<p>Une alternative au débogage conditionnel par le préprocesseur consiste à envoyer vos informations de débogage vers un journal. Un <strong>journal</strong> (ou <strong>log</strong>) est un enregistrement séquentiel des événements survenus, généralement horodatés. Le processus de production d'un journal s'appelle <strong>journalisation</strong> (ou <strong>logging</strong>). En général, les journaux sont écrits dans un fichier sur disque (appelé <strong>fichier journal</strong>) afin de pouvoir être consultés plus tard. La plupart des applications et des systèmes d'exploitation écrivent des fichiers journaux qui permettent de diagnostiquer les problèmes survenus.</p>
+<p>Les fichiers journaux présentent plusieurs avantages. Comme les informations écrites dans un fichier journal sont séparées de la sortie de votre programme, vous évitez l'encombrement causé par le mélange de votre sortie normale et de votre sortie de débogage. Les fichiers journaux peuvent aussi être facilement envoyés à d'autres personnes pour diagnostic : si un utilisateur de votre logiciel rencontre un problème, vous pouvez lui demander de vous envoyer le fichier journal, qui peut vous donner un indice sur l'origine du problème.</p>
+<p>C++ contient un flux de sortie nommé <code>std::clog</code>, destiné à l'écriture d'informations de journalisation. Cependant, par défaut, <code>std::clog</code> écrit sur le flux d'erreur standard (comme <code>std::cerr</code>). Bien qu'il soit possible de le rediriger vers un fichier, c'est un domaine où il est généralement préférable d'utiliser l'un des nombreux outils tiers de journalisation existants. Le choix vous appartient.</p>
+<p>À titre d'illustration, nous allons montrer à quoi ressemble une sortie vers un journal avec le journal de bord <a href="https://github.com/SergiusTheBest/plog">plog</a>. Plog est implémenté sous la forme d'un ensemble de fichiers d'en-tête, il est donc facile à inclure partout où vous en avez besoin, et il est léger et simple d'utilisation.</p>
+<pre><code class="language-cpp">#include &lt;plog/Log.h&gt; // Étape 1 : inclure les en-têtes du journal
+#include &lt;plog/Initializers/RollingFileInitializer.h&gt;
+#include &lt;iostream&gt;
+
+int getUserInput()
+{
+    PLOGD &lt;&lt; &quot;getUserInput() called&quot;; // PLOGD est défini par la bibliothèque plog
+
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+    return x;
+}
+
+int main()
+{
+    plog::init(plog::debug, &quot;Logfile.txt&quot;); // Étape 2 : initialiser le journal
+
+    PLOGD &lt;&lt; &quot;main() called&quot;; // Étape 3 : écrire dans le journal comme si vous écriviez dans la console
+
+    int x{ getUserInput() };
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Voici la sortie du journal précédent (dans le fichier <code>Logfile.txt</code>) :</p>
+<pre><code>
+2018-12-26 20:03:33.295 DEBUG [4752] [main@19] main() called
+2018-12-26 20:03:33.296 DEBUG [4752] [getUserInput@7] getUserInput() called
+</code></pre>
+<p>La manière d'inclure, d'initialiser et d'utiliser un journal varie selon le journal choisi.</p>
+<p>Notez que les directives de compilation conditionnelle ne sont pas non plus nécessaires avec cette méthode, car la plupart des journaux disposent d'un moyen de réduire ou de supprimer l'écriture dans le fichier. Le code est ainsi beaucoup plus lisible, puisque les lignes de compilation conditionnelle l'encombrent fortement. Avec plog, la journalisation peut être désactivée temporairement en modifiant l'instruction d'initialisation comme suit :</p>
+<pre><code class="language-cpp">    plog::init(plog::none , &quot;Logfile.txt&quot;); // plog::none supprime l'écriture de la plupart des messages, ce qui désactive essentiellement la journalisation
+</code></pre>
+<p>Nous n'utiliserons pas plog dans les leçons suivantes, vous n'avez donc pas besoin de l'apprendre.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Si vous voulez compiler vous-même l'exemple ci-dessus, ou utiliser plog dans vos propres projets, vous pouvez suivre ces instructions pour l'installer :</p>
+<p>Commencez par récupérer la dernière version de plog :</p>
+<ul>
+<li>Rendez-vous sur le dépôt <a href="https://github.com/SergiusTheBest/plog">plog</a>.</li>
+<li>Cliquez sur le bouton vert Code en haut à droite et choisissez « Download zip ».</li>
+</ul>
+<p>Ensuite, décompressez l'intégralité de l'archive dans un <code>emplacement</code> de votre disque dur.</p>
+<p>Enfin, pour chaque projet, définissez le répertoire <code>emplacement\plog-master\include\</code> comme <code>include directory</code> dans votre IDE. Des instructions pour Visual Studio sont disponibles ici : <a href="../31%20-%20Annexe%20A%20-%20Sujets%20divers/A.2%20-%20Utiliser%20des%20biblioth%C3%A8ques%20avec%20Visual%20Studio.html">A.2 -- Utiliser des bibliothèques avec Visual Studio</a>, et pour Code::Blocks ici : <a href="../31%20-%20Annexe%20A%20-%20Sujets%20divers/A.3%20-%20Utiliser%20des%20biblioth%C3%A8ques%20avec%20Code--Blocks.html">A.3 -- Utiliser des bibliothèques avec Code::Blocks</a>. Comme plog ne fournit pas de fichier de bibliothèque précompilé, vous pouvez ignorer les parties relatives aux fichiers de bibliothèque précompilés.</p>
+<p>Le fichier journal est généralement créé dans le même répertoire que votre exécutable.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Dans les projets plus volumineux ou sensibles aux performances, on pourra préférer des journaux plus rapides et plus riches en fonctionnalités, comme <a href="https://github.com/gabime/spdlog">spdlog</a>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/more-debugging-tactics/">https://www.learncpp.com/cpp-tutorial/more-debugging-tactics/</a></em></p>
+</main>
+</body>
+</html>

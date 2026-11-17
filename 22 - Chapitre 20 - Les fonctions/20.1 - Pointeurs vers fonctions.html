@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20.1 — Pointeurs vers fonctions</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="201-pointeurs-vers-fonctions">20.1 — Pointeurs vers fonctions</h1>
+<p>Dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.7%20-%20Introduction%20aux%20pointeurs.html">12.7 -- Introduction aux pointeurs</a>, vous avez appris qu'un pointeur est une variable qui contient l'adresse d'une autre variable. Les pointeurs vers fonctions sont similaires, sauf qu'au lieu de pointer vers des variables, ils pointent vers des fonctions !</p>
+<p>Considérons la fonction suivante :</p>
+<pre><code class="language-cpp">int foo()
+{
+    return 5;
+}
+</code></pre>
+<p>L'identifiant <code>foo()</code> est le nom de la fonction. Mais de quel type est cette fonction ? Les fonctions ont leur propre type de fonction. Dans le cas présent, il s'agit d'un type de fonction qui renvoie un entier et ne prend aucun paramètre. Tout comme les variables, les fonctions se trouvent à une adresse précise en mémoire (ce sont donc des lvalues).</p>
+<p>Lorsqu'une fonction est appelée (via <code>operator()</code>), l'exécution saute à l'adresse de la fonction appelée :</p>
+<pre><code class="language-cpp">int foo() // le code de foo commence à l'adresse mémoire 0x002717f0
+{
+    return 5;
+}
+
+int main()
+{
+    foo(); // saut à l'adresse 0x002717f0
+
+    return 0;
+}
+</code></pre>
+<p>À un moment de votre parcours de programmeur (si ce n'est pas déjà fait), vous commettrez probablement une erreur simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int foo() // le code commence à l'adresse mémoire 0x002717f0
+{
+    return 5;
+}
+
+int main()
+{
+    std::cout &lt;&lt; foo &lt;&lt; '\n'; // on voulait appeler foo(), mais on affiche foo lui-même !
+
+    return 0;
+}
+</code></pre>
+<p>Au lieu d'appeler la fonction <code>foo()</code> et d'afficher la valeur de retour, nous avons involontairement envoyé la fonction <code>foo</code> directement à <code>std::cout</code>. Que se passe-t-il dans ce cas ?</p>
+<p>Lorsqu'une fonction est désignée par son nom (sans parenthèses), C++ la convertit en pointeur vers fonction (contenant l'adresse de la fonction). Ensuite, <code>operator&lt;&lt;</code> tente d'afficher ce pointeur de fonction, ce qu'il ne sait pas faire, car <code>operator&lt;&lt;</code> ne sait pas afficher les pointeurs vers fonctions. La norme indique que, dans ce cas, <code>foo</code> doit être converti en <code>bool</code> (ce que <code>operator&lt;&lt;</code> sait afficher). Et comme le pointeur de fonction de <code>foo</code> est un pointeur non nul, il doit toujours être évalué à <code>true</code>. Ce programme affiche donc :</p>
+<pre><code>
+1
+</code></pre>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Certains compilateurs (par exemple Visual Studio) disposent d'une extension qui affiche plutôt l'adresse de la fonction :</p>
+<pre><code>
+0x002717f0
+</code></pre>
+<p>Si votre plateforme n'affiche pas l'adresse de la fonction et que vous souhaitez qu'elle le fasse, vous pouvez peut-être l'y contraindre en convertissant la fonction en pointeur <code>void*</code> et en affichant celui-ci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int foo() // le code commence à l'adresse mémoire 0x002717f0
+{
+    return 5;
+}
+
+int main()
+{
+    std::cout &lt;&lt; reinterpret_cast&lt;void*&gt;(foo) &lt;&lt; '\n'; // demande à C++ d'interpréter la fonction foo comme un pointeur void (comportement défini par l'implémentation)
+
+    return 0;
+}
+</code></pre>
+<p>Il s'agit d'un comportement défini par l'implémentation, il se peut donc qu'il ne fonctionne pas sur toutes les plateformes.</p>
+</div>
+<p>Tout comme il est possible de déclarer un pointeur non constant vers une variable ordinaire, il est également possible de déclarer un pointeur non constant vers une fonction. Dans la suite de cette leçon, nous examinerons ces pointeurs vers fonctions et leurs usages. Les pointeurs vers fonctions sont un sujet assez avancé, et la suite de cette leçon peut être sautée ou survolée sans danger par ceux qui ne cherchent que les bases du C++.</p>
+<h2 id="pointeurs-vers-fonctions">Pointeurs vers fonctions</h2>
+<p>La syntaxe permettant de créer un pointeur vers fonction non constant est l'une des plus laides que vous verrez jamais en C++ :</p>
+<pre><code class="language-cpp">// fcnPtr est un pointeur vers une fonction qui ne prend aucun argument et renvoie un entier
+int (*fcnPtr)();
+</code></pre>
+<p>Dans l'extrait ci-dessus, fcnPtr est un pointeur vers une fonction qui n'a aucun paramètre et renvoie un entier. fcnPtr peut pointer vers n'importe quelle fonction correspondant à ce type.</p>
+<p>Les parenthèses autour de *fcnPtr sont nécessaires pour des raisons de priorité des opérateurs : <code>int* fcnPtr()</code> serait interprété comme une déclaration anticipée d'une fonction nommée fcnPtr qui ne prend aucun paramètre et renvoie un pointeur vers un entier.</p>
+<p>Pour créer un pointeur de fonction constant, le mot-clé const se place après l'astérisque :</p>
+<pre><code class="language-cpp">int (*const fcnPtr)();
+</code></pre>
+<p>Si vous placez le const avant le int, cela indiquerait que la fonction pointée renvoie un <code>const int</code>.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>La syntaxe des pointeurs vers fonctions peut être difficile à comprendre. Les articles suivants présentent une méthode pour analyser ce type de déclarations :</p>
+<ul>
+<li><a href="https://c-faq.com/decl/spiral.anderson.html">https://c-faq.com/decl/spiral.anderson.html</a></li>
+<li><a href="https://web.archive.org/web/20110818081319/http://ieng9.ucsd.edu/~cs30x/rt_lt.rule.html">https://web.archive.org/web/20110818081319/http://ieng9.ucsd.edu/~cs30x/rt_lt.rule.html</a></li>
+</ul>
+</div>
+<h2 id="affecter-une-fonction-à-un-pointeur-de-fonction">Affecter une fonction à un pointeur de fonction</h2>
+<p>Les pointeurs de fonctions peuvent être initialisés avec une fonction (et les pointeurs de fonctions non constants peuvent recevoir une fonction par affectation). Comme pour les pointeurs vers des variables, nous pouvons aussi utiliser <code>&amp;foo</code> pour obtenir un pointeur vers la fonction <code>foo</code>.</p>
+<pre><code class="language-cpp">int foo()
+{
+    return 5;
+}
+
+int goo()
+{
+    return 6;
+}
+
+int main()
+{
+    int (*fcnPtr)(){ &amp;foo }; // fcnPtr pointe vers la fonction foo
+    fcnPtr = &amp;goo; // fcnPtr pointe maintenant vers la fonction goo
+
+    return 0;
+}
+</code></pre>
+<p>Une erreur courante consiste à écrire ceci :</p>
+<pre><code class="language-cpp">fcnPtr = goo();
+</code></pre>
+<p>Cela tente d'affecter à fcnPtr (qui attend une valeur de type <code>int(*)()</code>) la valeur de retour de l'appel de la fonction goo() (qui est de type <code>int</code>), ce qui n'est pas ce que nous voulons. Nous voulons que fcnPtr reçoive l'adresse de la fonction goo, et non la valeur renvoyée par goo(). Il ne faut donc pas de parenthèses.</p>
+<p>Notez que le type (paramètres et type de retour) du pointeur de fonction doit correspondre au type de la fonction. Voici quelques exemples :</p>
+<pre><code class="language-cpp">// prototypes de fonctions
+int foo();
+double goo();
+int hoo(int x);
+
+// initialisations des pointeurs de fonctions
+int (*fcnPtr1)(){ &amp;foo };    // correct
+int (*fcnPtr2)(){ &amp;goo };    // incorrect : les types de retour ne correspondent pas !
+double (*fcnPtr4)(){ &amp;goo }; // correct
+fcnPtr1 = &amp;hoo;              // incorrect : fcnPtr1 n'a aucun paramètre, mais hoo() en a un
+int (*fcnPtr3)(int){ &amp;hoo }; // correct
+</code></pre>
+<p>Contrairement aux types fondamentaux, C++ convertit <em>bien</em> implicitement une fonction en pointeur de fonction si nécessaire (vous n'avez donc pas besoin d'utiliser l'opérateur d'adresse (&amp;) pour obtenir l'adresse de la fonction). En revanche, les pointeurs de fonctions ne se convertissent pas en pointeurs <code>void*</code>, ni l'inverse (bien que certains compilateurs, comme Visual Studio, puissent l'autoriser malgré tout).</p>
+<pre><code class="language-cpp">    // prototypes de fonctions
+    int foo();
+
+    // initialisations de fonctions
+    int (*fcnPtr5)() { foo }; // correct, foo se convertit implicitement en pointeur vers foo
+    void* vPtr { foo };       // incorrect, bien que certains compilateurs puissent l'autoriser
+</code></pre>
+<p>Les pointeurs de fonctions peuvent aussi être initialisés ou recevoir la valeur <code>nullptr</code> :</p>
+<pre><code class="language-cpp">int (*fcnptr)() { nullptr }; // correct
+</code></pre>
+<h2 id="appeler-une-fonction-à-laide-dun-pointeur-de-fonction">Appeler une fonction à l'aide d'un pointeur de fonction</h2>
+<p>L'autre opération principale que l'on peut effectuer avec un pointeur de fonction consiste à l'utiliser pour appeler réellement la fonction. Il existe deux façons de procéder. La première est la déréférenciation explicite :</p>
+<pre><code class="language-cpp">int foo(int x)
+{
+    return x;
+}
+
+int main()
+{
+    int (*fcnPtr)(int){ &amp;foo }; // initialise fcnPtr avec la fonction foo
+    (*fcnPtr)(5); // appelle la fonction foo(5) via fcnPtr.
+
+    return 0;
+}
+</code></pre>
+<p>La seconde est la déréférenciation implicite :</p>
+<pre><code class="language-cpp">int foo(int x)
+{
+    return x;
+}
+
+int main()
+{
+    int (*fcnPtr)(int){ &amp;foo }; // initialise fcnPtr avec la fonction foo
+    fcnPtr(5); // appelle la fonction foo(5) via fcnPtr.
+
+    return 0;
+}
+</code></pre>
+<p>Comme vous pouvez le constater, la déréférenciation implicite ressemble exactement à un appel de fonction ordinaire, ce qui est logique, puisque les noms de fonctions ordinaires sont de toute façon des pointeurs vers fonctions ! Cependant, certains anciens compilateurs ne prennent pas en charge la déréférenciation implicite, alors que tous les compilateurs modernes devraient la supporter.</p>
+<p>Notez également que, comme les pointeurs de fonctions peuvent valoir <code>nullptr</code>, il est judicieux de vérifier avec une assertion ou un test conditionnel que votre pointeur de fonction n'est pas nul avant de l'appeler. Comme pour les pointeurs ordinaires, déréférencer un pointeur de fonction nul entraîne un comportement indéfini.</p>
+<pre><code class="language-cpp">int foo(int x)
+{
+    return x;
+}
+
+int main()
+{
+    int (*fcnPtr)(int){ &amp;foo }; // initialise fcnPtr avec la fonction foo
+    if (fcnPtr) // vérifie que fcnPtr n'est pas un pointeur nul
+        fcnPtr(5); // sinon, cela entraînerait un comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<h2 id="les-arguments-par-défaut-ne-fonctionnent-pas-pour-les-fonctions-appelées-via-un-pointeur-de-fonction-avancé">Les arguments par défaut ne fonctionnent pas pour les fonctions appelées via un pointeur de fonction <em>(avancé)</em></h2>
+<p>Lorsque le compilateur rencontre un appel normal à une fonction possédant un ou plusieurs arguments par défaut, il réécrit l'appel pour y inclure les arguments par défaut. Ce processus a lieu à la compilation, et ne peut donc s'appliquer qu'aux fonctions dont l'appel peut être résolu à la compilation.</p>
+<p>En revanche, lorsqu'une fonction est appelée via un pointeur de fonction, elle est résolue à l'exécution. Dans ce cas, l'appel n'est pas réécrit pour inclure les arguments par défaut.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Comme la résolution a lieu à l'exécution, les arguments par défaut ne sont pas pris en compte lorsqu'une fonction est appelée via un pointeur de fonction.</p>
+</div>
+<p>Cela signifie qu'un pointeur de fonction peut servir à lever une ambiguïté dans un appel de fonction qui serait sinon ambigu à cause des arguments par défaut. Dans l'exemple suivant, nous montrons deux façons de procéder :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void print(int x)
+{
+    std::cout &lt;&lt; &quot;print(int)\n&quot;;
+}
+
+void print(int x, int y = 10)
+{
+    std::cout &lt;&lt; &quot;print(int, int)\n&quot;;
+}
+
+int main()
+{
+//    print(1); // appel de fonction ambigu
+
+    // Méthode détaillée
+    using vnptr = void(*)(int); // définit un alias de type pour un pointeur vers une fonction void(int)
+    vnptr pi { print }; // initialise notre pointeur de fonction avec la fonction print
+    pi(1); // appelle la fonction print(int) via le pointeur de fonction
+
+    // Méthode concise
+    static_cast&lt;void(*)(int)&gt;(print)(1); // appelle la version void(int) de print avec l'argument 1
+
+    return 0;
+}
+</code></pre>
+<h2 id="passer-des-fonctions-en-arguments-à-dautres-fonctions">Passer des fonctions en arguments à d'autres fonctions</h2>
+<p>L'une des utilisations les plus intéressantes des pointeurs de fonctions consiste à passer une fonction en argument d'une autre fonction. Les fonctions utilisées comme arguments d'une autre fonction sont parfois appelées <strong>fonctions de rappel</strong> (callback functions).</p>
+<p>Considérons le cas où vous écrivez une fonction chargée d'effectuer une tâche (par exemple trier un tableau), mais où vous souhaitez que l'utilisateur puisse définir la manière dont une partie particulière de cette tâche sera réalisée (par exemple, si le tableau est trié par ordre croissant ou décroissant). Examinons de plus près ce problème appliqué au tri, à titre d'exemple généralisable à d'autres problèmes similaires.</p>
+<p>De nombreux algorithmes de tri par comparaison reposent sur un même principe : l'algorithme parcourt une liste de nombres, effectue des comparaisons entre des paires de nombres et réordonne les nombres en fonction des résultats de ces comparaisons. Par conséquent, en modifiant la comparaison, nous pouvons changer la manière dont l'algorithme trie, sans affecter le reste du code de tri.</p>
+<p>Voici notre routine de tri par sélection, issue d'une leçon précédente :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::swap
+
+void SelectionSort(int* array, int size)
+{
+    if (!array)
+        return;
+
+    // Parcourt chaque élément du tableau
+    for (int startIndex{ 0 }; startIndex &lt; (size - 1); ++startIndex)
+    {
+        // smallestIndex est l'indice du plus petit élément rencontré jusqu'ici.
+        int smallestIndex{ startIndex };
+
+        // Recherche le plus petit élément restant dans le tableau (à partir de startIndex+1)
+        for (int currentIndex{ startIndex + 1 }; currentIndex &lt; size; ++currentIndex)
+        {
+            // Si l'élément courant est plus petit que le plus petit trouvé précédemment
+            if (array[smallestIndex] &gt; array[currentIndex]) // COMPARAISON EFFECTUÉE ICI
+            {
+                // C'est le nouveau plus petit nombre pour cette itération
+                smallestIndex = currentIndex;
+            }
+        }
+
+        // Échange l'élément de départ avec le plus petit élément
+        std::swap(array[startIndex], array[smallestIndex]);
+    }
+}
+</code></pre>
+<p>Remplaçons cette comparaison par une fonction qui effectue la comparaison. Comme notre fonction de comparaison va comparer deux entiers et renvoyer une valeur booléenne indiquant si les éléments doivent être échangés, elle ressemblera à ceci :</p>
+<pre><code class="language-cpp">bool ascending(int x, int y)
+{
+    return x &gt; y; // échange si le premier élément est supérieur au second
+}
+</code></pre>
+<p>Et voici notre routine de tri par sélection utilisant la fonction ascending() pour effectuer la comparaison :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::swap
+
+void SelectionSort(int* array, int size)
+{
+    if (!array)
+        return;
+
+    // Parcourt chaque élément du tableau
+    for (int startIndex{ 0 }; startIndex &lt; (size - 1); ++startIndex)
+    {
+        // smallestIndex est l'indice du plus petit élément rencontré jusqu'ici.
+        int smallestIndex{ startIndex };
+
+        // Recherche le plus petit élément restant dans le tableau (à partir de startIndex+1)
+        for (int currentIndex{ startIndex + 1 }; currentIndex &lt; size; ++currentIndex)
+        {
+            // Si l'élément courant est plus petit que le plus petit trouvé précédemment
+            if (ascending(array[smallestIndex], array[currentIndex])) // COMPARAISON EFFECTUÉE ICI
+            {
+                // C'est le nouveau plus petit nombre pour cette itération
+                smallestIndex = currentIndex;
+            }
+        }
+
+        // Échange l'élément de départ avec le plus petit élément
+        std::swap(array[startIndex], array[smallestIndex]);
+    }
+}
+</code></pre>
+<p>Maintenant, pour laisser l'appelant décider de la manière dont le tri sera effectué, au lieu d'utiliser notre propre fonction de comparaison codée en dur, nous allons permettre à l'appelant de fournir sa propre fonction de tri ! Cela se fait au moyen d'un pointeur de fonction.</p>
+<p>Comme la fonction de comparaison de l'appelant va comparer deux entiers et renvoyer une valeur booléenne, un pointeur vers une telle fonction ressemblera à ceci :</p>
+<pre><code class="language-cpp">bool (*comparisonFcn)(int, int);
+</code></pre>
+<p>Nous allons donc permettre à l'appelant de passer à notre routine de tri un pointeur vers la fonction de comparaison souhaitée comme troisième paramètre, puis nous utiliserons cette fonction pour effectuer la comparaison.</p>
+<p>Voici un exemple complet de tri par sélection utilisant un paramètre pointeur de fonction pour effectuer une comparaison définie par l'utilisateur, accompagné d'un exemple d'appel :</p>
+<pre><code class="language-cpp">#include &lt;utility&gt; // pour std::swap
+#include &lt;iostream&gt;
+
+// Notez que notre comparaison définie par l'utilisateur est le troisième paramètre
+void selectionSort(int* array, int size, bool (*comparisonFcn)(int, int))
+{
+    if (!array || !comparisonFcn)
+        return;
+
+    // Parcourt chaque élément du tableau
+    for (int startIndex{ 0 }; startIndex &lt; (size - 1); ++startIndex)
+    {
+        // bestIndex est l'indice du plus petit/plus grand élément rencontré jusqu'ici.
+        int bestIndex{ startIndex };
+
+        // Recherche le plus petit/plus grand élément restant dans le tableau (à partir de startIndex+1)
+        for (int currentIndex{ startIndex + 1 }; currentIndex &lt; size; ++currentIndex)
+        {
+            // Si l'élément courant est plus petit/plus grand que le plus petit trouvé précédemment
+            if (comparisonFcn(array[bestIndex], array[currentIndex])) // COMPARAISON EFFECTUÉE ICI
+            {
+                // C'est le nouveau plus petit/plus grand nombre pour cette itération
+                bestIndex = currentIndex;
+            }
+        }
+
+        // Échange l'élément de départ avec le plus petit/plus grand élément
+        std::swap(array[startIndex], array[bestIndex]);
+    }
+}
+
+// Voici une fonction de comparaison qui trie par ordre croissant
+// (Remarque : elle est exactement identique à la fonction ascending() précédente)
+bool ascending(int x, int y)
+{
+    return x &gt; y; // échange si le premier élément est supérieur au second
+}
+
+// Voici une fonction de comparaison qui trie par ordre décroissant
+bool descending(int x, int y)
+{
+    return x &lt; y; // échange si le second élément est supérieur au premier
+}
+
+// Cette fonction affiche les valeurs du tableau
+void printArray(int* array, int size)
+{
+    if (!array)
+        return;
+
+    for (int index{ 0 }; index &lt; size; ++index)
+    {
+        std::cout &lt;&lt; array[index] &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    int array[9]{ 3, 7, 9, 5, 6, 1, 8, 2, 4 };
+
+    // Trie le tableau par ordre décroissant à l'aide de la fonction descending()
+    selectionSort(array, 9, descending);
+    printArray(array, 9);
+
+    // Trie le tableau par ordre croissant à l'aide de la fonction ascending()
+    selectionSort(array, 9, ascending);
+    printArray(array, 9);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat :</p>
+<pre><code>
+9 8 7 6 5 4 3 2 1
+1 2 3 4 5 6 7 8 9
+</code></pre>
+<p>C'est cool, non ? Nous avons donné à l'appelant le pouvoir de contrôler la manière dont notre tri par sélection accomplit sa tâche.</p>
+<p>L'appelant peut même définir ses propres fonctions de comparaison « étranges » :</p>
+<pre><code class="language-cpp">bool evensFirst(int x, int y)
+{
+    // si x est pair et y impair, x passe en premier (pas d'échange nécessaire)
+    if ((x % 2 == 0) &amp;&amp; !(y % 2 == 0))
+        return false;
+
+    // si x est impair et y pair, y passe en premier (échange nécessaire)
+    if (!(x % 2 == 0) &amp;&amp; (y % 2 == 0))
+        return true;
+
+        // sinon, trie par ordre croissant
+    return ascending(x, y);
+}
+
+int main()
+{
+    int array[9]{ 3, 7, 9, 5, 6, 1, 8, 2, 4 };
+
+    selectionSort(array, 9, evensFirst);
+    printArray(array, 9);
+
+    return 0;
+}
+</code></pre>
+<p>L'extrait ci-dessus produit le résultat suivant :</p>
+<pre><code>
+2 4 6 8 1 3 5 7 9
+</code></pre>
+<p>Comme vous pouvez le constater, utiliser un pointeur de fonction dans ce contexte offre un moyen pratique de permettre à un appelant de « brancher » sa propre fonctionnalité sur un code que vous avez déjà écrit et testé, ce qui facilite la réutilisation du code ! Auparavant, si vous vouliez trier un tableau par ordre décroissant et un autre par ordre croissant, il vous fallait plusieurs versions de la routine de tri. Désormais, une seule version peut trier de la manière souhaitée par l'appelant !</p>
+<p>Remarque : si un paramètre de fonction est de type fonction, il sera converti en pointeur vers ce type de fonction. Cela signifie que :</p>
+<pre><code class="language-cpp">void selectionSort(int* array, int size, bool (*comparisonFcn)(int, int))
+</code></pre>
+<p>peut être écrit de manière équivalente :</p>
+<pre><code class="language-cpp">void selectionSort(int* array, int size, bool comparisonFcn(int, int))
+</code></pre>
+<p>Cela ne fonctionne que pour les paramètres de fonction, et son utilité est donc quelque peu limitée. Pour un élément qui n'est pas un paramètre de fonction, la seconde forme est interprétée comme une déclaration anticipée :</p>
+<pre><code class="language-cpp">    bool (*ptr)(int, int); // définition du pointeur de fonction ptr
+    bool fcn(int, int);    // déclaration anticipée de la fonction fcn
+</code></pre>
+<h2 id="fournir-des-fonctions-par-défaut">Fournir des fonctions par défaut</h2>
+<p>Si vous allez permettre à l'appelant de passer une fonction en paramètre, il peut souvent être utile de fournir quelques fonctions standard qu'il pourra utiliser pour plus de commodité. Par exemple, dans l'exemple de tri par sélection ci-dessus, fournir les fonctions ascending() et descending() avec la fonction selectionSort() faciliterait la vie de l'appelant, qui n'aurait pas à réécrire ascending() ou descending() à chaque fois qu'il voudrait les utiliser.</p>
+<p>Vous pouvez même en définir une comme paramètre par défaut :</p>
+<pre><code class="language-cpp">// Trie par défaut par ordre croissant
+void selectionSort(int* array, int size, bool (*comparisonFcn)(int, int) = ascending);
+</code></pre>
+<p>Dans ce cas, tant que l'utilisateur appelle selectionSort normalement (et non via un pointeur de fonction), le paramètre comparisonFcn prendra par défaut la valeur ascending. Vous devrez vous assurer que la fonction <code>ascending</code> est déclarée avant ce point, sinon le compilateur signalera qu'il ne sait pas ce qu'est <code>ascending</code>.</p>
+<h2 id="rendre-les-pointeurs-de-fonctions-plus-lisibles-avec-les-alias-de-types">Rendre les pointeurs de fonctions plus lisibles avec les alias de types</h2>
+<p>Soyons honnêtes : la syntaxe des pointeurs vers fonctions est laide. Cependant, les alias de types permettent de faire ressembler les pointeurs vers fonctions à des variables ordinaires :</p>
+<pre><code class="language-cpp">using ValidateFunction = bool(*)(int, int);
+</code></pre>
+<p>Cela définit un alias de type nommé « ValidateFunction » qui désigne un pointeur vers une fonction prenant deux <code>int</code> et renvoyant un <code>bool</code>.</p>
+<p>Au lieu d'écrire :</p>
+<pre><code class="language-cpp">bool validate(int x, int y, bool (*fcnPtr)(int, int)); // laid
+</code></pre>
+<p>Vous pouvez écrire :</p>
+<pre><code class="language-cpp">bool validate(int x, int y, ValidateFunction pfcn) // propre
+</code></pre>
+<h2 id="utiliser-stdfunction">Utiliser std::function</h2>
+<p>Une autre méthode pour définir et stocker des pointeurs de fonctions consiste à utiliser <code>std::function</code>, qui fait partie de l'en-tête &lt;functional&gt; de la bibliothèque standard. Pour définir un pointeur de fonction de cette manière, déclarez un objet <code>std::function</code> ainsi :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+bool validate(int x, int y, std::function&lt;bool(int, int)&gt; fcn); // méthode std::function qui renvoie un bool et prend deux paramètres int
+</code></pre>
+<p>Comme vous pouvez le voir, le type de retour et les paramètres se placent entre chevrons, les paramètres étant eux-mêmes entre parenthèses. S'il n'y a aucun paramètre, les parenthèses peuvent rester vides.</p>
+<p>Mise à jour de notre exemple précédent avec <code>std::function</code> :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+
+int foo()
+{
+    return 5;
+}
+
+int goo()
+{
+    return 6;
+}
+
+int main()
+{
+    std::function&lt;int()&gt; fcnPtr{ &amp;foo }; // déclare un pointeur de fonction qui renvoie un int et ne prend aucun paramètre
+    fcnPtr = &amp;goo; // fcnPtr pointe maintenant vers la fonction goo
+    std::cout &lt;&lt; fcnPtr() &lt;&lt; '\n'; // appelle la fonction exactement comme d'habitude
+
+    std::function fcnPtr2{ &amp;foo }; // on peut aussi utiliser le CTAD pour déduire les arguments de modèle
+
+    return 0;
+}
+</code></pre>
+<p>Créer un alias de type pour <code>std::function</code> peut améliorer la lisibilité :</p>
+<pre><code class="language-cpp">using ValidateFunctionRaw = bool(*)(int, int); // alias de type vers un pointeur de fonction brut
+using ValidateFunction = std::function&lt;bool(int, int)&gt;; // alias de type vers std::function
+</code></pre>
+<p>Notez également que <code>std::function</code> ne permet d'appeler la fonction que par déréférenciation implicite (par exemple <code>fcnPtr()</code>), et non par déréférenciation explicite (par exemple <code>(*fcnPtr)()</code>).</p>
+<p>Lors de la définition d'un alias de type, nous devons spécifier explicitement les arguments de modèle. Nous ne pouvons pas utiliser le CTAD dans ce cas, car il n'y a aucun initialiseur à partir duquel déduire les arguments de modèle.</p>
+<h2 id="déduction-de-type-pour-les-pointeurs-de-fonctions">Déduction de type pour les pointeurs de fonctions</h2>
+<p>Tout comme le mot-clé <em>auto</em> peut déduire le type de variables ordinaires, il peut également déduire le type d'un pointeur de fonction.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int foo(int x)
+{
+    return x;
+}
+
+int main()
+{
+    auto fcnPtr{ &amp;foo };
+    std::cout &lt;&lt; fcnPtr(5) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cela fonctionne exactement comme vous pouvez le penser, et la syntaxe est très épurée. L'inconvénient est, bien sûr, que tous les détails concernant les types des paramètres et le type de retour de la fonction sont masqués. Il est donc plus facile de commettre une erreur lors de l'appel de la fonction ou dans l'utilisation de sa valeur de retour.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Les pointeurs de fonctions sont surtout utiles lorsque vous voulez stocker des fonctions dans un tableau (ou une autre structure), ou lorsque vous devez passer une fonction à une autre fonction. Comme la syntaxe native pour déclarer les pointeurs de fonctions est laide et sujette aux erreurs, nous recommandons d'utiliser <code>std::function</code>. Lorsqu'un type de pointeur de fonction n'est utilisé qu'une seule fois (par exemple dans un seul paramètre ou une seule valeur de retour), <code>std::function</code> peut être utilisé directement. Lorsqu'un type de pointeur de fonction est utilisé à plusieurs endroits, un alias de type vers <code>std::function</code> est un meilleur choix (pour éviter de vous répéter).</p>
+<h2 id="quiz">Quiz</h2>
+<ol>
+<li>Dans ce quiz, nous allons écrire une version de notre calculatrice de base en utilisant des pointeurs de fonctions.</li>
+</ol>
+<p>1a) Créez un court programme demandant à l'utilisateur deux entiers et une opération mathématique (« + », « - », « * », « / »). Assurez-vous que l'utilisateur saisit une opération valide.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getInteger()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+    return x;
+}
+
+char getOperation()
+{
+    char op{};
+
+    do
+    {
+        std::cout &lt;&lt; &quot;Enter an operation ('+', '-', '*', '/'): &quot;;
+        std::cin &gt;&gt; op;
+    }
+    while (op!='+' &amp;&amp; op!='-' &amp;&amp; op!='*' &amp;&amp; op!='/');
+
+    return op;
+}
+
+int main()
+{
+    int x{ getInteger() };
+    char op{ getOperation() };
+    int y{ getInteger() };
+
+    return 0;
+}
+</code></pre>
+</details>
+<p>1b) Écrivez les fonctions nommées add(), subtract(), multiply() et divide(). Elles doivent prendre deux paramètres entiers et renvoyer un entier.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">int add(int x, int y)
+{
+    return x + y;
+}
+
+int subtract(int x, int y)
+{
+    return x - y;
+}
+
+int multiply(int x, int y)
+{
+    return x * y;
+}
+
+int divide(int x, int y)
+{
+    return x / y;
+}
+</code></pre>
+</details>
+<p>1c) Créez un alias de type nommé ArithmeticFunction pour un pointeur vers une fonction qui prend deux paramètres entiers et renvoie un entier. Utilisez <code>std::function</code> et incluez l'en-tête approprié.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+using ArithmeticFunction = std::function&lt;int(int, int)&gt;;
+</code></pre>
+</details>
+<p>1d) Écrivez une fonction nommée getArithmeticFunction() qui prend un caractère d'opérateur et renvoie la fonction appropriée sous forme de pointeur de fonction.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">ArithmeticFunction getArithmeticFunction(char op)
+{
+    switch (op)
+    {
+    case '+': return &amp;add;
+    case '-': return &amp;subtract;
+    case '*': return &amp;multiply;
+    case '/': return &amp;divide;
+    }
+
+    return nullptr;
+}
+</code></pre>
+</details>
+<p>1e) Modifiez votre fonction main() pour appeler getArithmeticFunction(). Appelez la valeur renvoyée par cette fonction avec vos entrées, puis affichez le résultat.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x{ getInteger() };
+    char op{ getOperation() };
+    int y{ getInteger() };
+
+    ArithmeticFunction fcn{ getArithmeticFunction(op) };
+    if (fcn)
+        std::cout &lt;&lt; x &lt;&lt; ' ' &lt;&lt; op &lt;&lt; ' ' &lt;&lt; y &lt;&lt; &quot; = &quot; &lt;&lt; fcn(x, y) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<p>Voici le programme complet :</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;functional&gt;
+
+int getInteger()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int x{};
+    std::cin &gt;&gt; x;
+    return x;
+}
+
+char getOperation()
+{
+    char op{};
+
+    do
+    {
+        std::cout &lt;&lt; &quot;Enter an operation ('+', '-', '*', '/'): &quot;;
+        std::cin &gt;&gt; op;
+    }
+    while (op!='+' &amp;&amp; op!='-' &amp;&amp; op!='*' &amp;&amp; op!='/');
+
+    return op;
+}
+
+int add(int x, int y)
+{
+    return x + y;
+}
+
+int subtract(int x, int y)
+{
+    return x - y;
+}
+
+int multiply(int x, int y)
+{
+    return x * y;
+}
+
+int divide(int x, int y)
+{
+    return x / y;
+}
+
+using ArithmeticFunction = std::function&lt;int(int, int)&gt;;
+
+ArithmeticFunction getArithmeticFunction(char op)
+{
+    switch (op)
+    {
+    case '+': return &amp;add;
+    case '-': return &amp;subtract;
+    case '*': return &amp;multiply;
+    case '/': return &amp;divide;
+    }
+
+    return nullptr;
+}
+
+int main()
+{
+    int x{ getInteger() };
+    char op{ getOperation() };
+    int y{ getInteger() };
+
+    ArithmeticFunction fcn{ getArithmeticFunction(op) };
+    if (fcn)
+        std::cout &lt;&lt; x &lt;&lt; ' ' &lt;&lt; op &lt;&lt; ' ' &lt;&lt; y &lt;&lt; &quot; = &quot; &lt;&lt; fcn(x, y) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/function-pointers/">https://www.learncpp.com/cpp-tutorial/function-pointers/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.8 — Surcharge des opérateurs d&#x27;incrémentation et de décrémentation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="218-surcharge-des-opérateurs-dincrémentation-et-de-décrémentation">21.8 — Surcharge des opérateurs d'incrémentation et de décrémentation</h1>
+<p>La surcharge des opérateurs d'incrémentation (<code>++</code>) et de décrémentation (<code>--</code>) est assez directe, à une petite exception près. Il existe en fait deux versions de ces opérateurs : la forme préfixe (par exemple <code>++x; --y;</code>) et la forme postfixe (par exemple <code>x++; y--;</code>).</p>
+<p>Comme les opérateurs d'incrémentation et de décrémentation sont tous deux unaires et modifient leur opérande, ils sont idéalement surchargés comme fonctions membres. Nous commencerons par les versions préfixes, car elles sont les plus simples.</p>
+<p><strong>Surcharge de l'incrémentation et de la décrémentation préfixes</strong></p>
+<p>Les opérateurs préfixes d'incrémentation et de décrémentation se surchargent exactement comme n'importe quel opérateur unaire ordinaire. Illustrons cela par un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Digit
+{
+private:
+    int m_digit{};
+public:
+    Digit(int digit=0)
+        : m_digit{digit}
+    {
+    }
+
+    Digit&amp; operator++();
+    Digit&amp; operator--();
+
+    friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Digit&amp; d);
+};
+
+Digit&amp; Digit::operator++()
+{
+    // Si notre nombre vaut déjà 9, on revient à 0
+    if (m_digit == 9)
+        m_digit = 0;
+    // sinon on passe simplement au nombre suivant
+    else
+        ++m_digit;
+
+    return *this;
+}
+
+Digit&amp; Digit::operator--()
+{
+    // Si notre nombre vaut déjà 0, on revient à 9
+    if (m_digit == 0)
+        m_digit = 9;
+    // sinon on passe simplement au nombre précédent
+    else
+        --m_digit;
+
+    return *this;
+}
+
+std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Digit&amp; d)
+{
+    out &lt;&lt; d.m_digit;
+    return out;
+}
+
+int main()
+{
+    Digit digit { 8 };
+
+    std::cout &lt;&lt; digit;
+    std::cout &lt;&lt; ++digit;
+    std::cout &lt;&lt; ++digit;
+    std::cout &lt;&lt; --digit;
+    std::cout &lt;&lt; --digit;
+
+    return 0;
+}
+</code></pre>
+<p>La classe Digit contient un nombre compris entre 0 et 9. Nous avons surchargé l'incrémentation et la décrémentation de sorte qu'elles incrémentent ou décrémentent le chiffre, en revenant à l'autre extrémité si la valeur sort de l'intervalle.</p>
+<p>Ce programme affiche :</p>
+<pre><code>
+89098
+</code></pre>
+<p>Notez que nous renvoyons <code>*this</code>. Les opérateurs d'incrémentation et de décrémentation surchargés renvoient l'objet implicite courant, ce qui permet d'« enchaîner » plusieurs opérateurs.</p>
+<p><strong>Surcharge de l'incrémentation et de la décrémentation postfixes</strong></p>
+<p>En général, les fonctions peuvent être surchargées lorsqu'elles ont le même nom mais un nombre et/ou un type de paramètres différents. Considérons néanmoins le cas des opérateurs d'incrémentation et de décrémentation préfixes et postfixes. Ils ont tous deux le même nom (par exemple <code>operator++</code>), sont unaires et prennent un paramètre du même type. Comment peut-on alors les différencier lors de la surcharge ?</p>
+<p>La spécification du langage C++ prévoit un cas particulier qui apporte la réponse : le compilateur regarde si l'opérateur surchargé possède un paramètre de type <code>int</code>. Si c'est le cas, il s'agit d'une surcharge postfixe. Si l'opérateur surchargé n'a aucun paramètre, il s'agit d'une surcharge préfixe.</p>
+<p>Voici la classe Digit ci-dessus, avec les surcharges préfixes et postfixes :</p>
+<pre><code class="language-cpp">class Digit
+{
+private:
+    int m_digit{};
+public:
+    Digit(int digit=0)
+        : m_digit{digit}
+    {
+    }
+
+    Digit&amp; operator++(); // le préfixe n'a pas de paramètre
+    Digit&amp; operator--(); // le préfixe n'a pas de paramètre
+
+    Digit operator++(int); // le postfixe a un paramètre de type int
+    Digit operator--(int); // le postfixe a un paramètre de type int
+
+    friend std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Digit&amp; d);
+};
+
+// Pas de paramètre : il s'agit de operator++ préfixe
+Digit&amp; Digit::operator++()
+{
+    // Si notre nombre vaut déjà 9, on revient à 0
+    if (m_digit == 9)
+        m_digit = 0;
+    // sinon on passe simplement au nombre suivant
+    else
+        ++m_digit;
+
+    return *this;
+}
+
+// Pas de paramètre : il s'agit de operator-- préfixe
+Digit&amp; Digit::operator--()
+{
+    // Si notre nombre vaut déjà 0, on revient à 9
+    if (m_digit == 0)
+        m_digit = 9;
+    // sinon on passe simplement au nombre précédent
+    else
+        --m_digit;
+
+    return *this;
+}
+
+// Paramètre de type int : il s'agit de operator++ postfixe
+Digit Digit::operator++(int)
+{
+    // Créer une variable temporaire avec le chiffre courant
+    Digit temp{*this};
+
+    // Utiliser l'opérateur préfixe pour incrémenter ce chiffre
+    ++(*this); // appel de l'opérateur
+
+    // renvoyer le résultat temporaire
+    return temp; // renvoi de l'état sauvegardé
+}
+
+// Paramètre de type int : il s'agit de operator-- postfixe
+Digit Digit::operator--(int)
+{
+    // Créer une variable temporaire avec le chiffre courant
+    Digit temp{*this};
+
+    // Utiliser l'opérateur préfixe pour décrémenter ce chiffre
+    --(*this); // appel de l'opérateur
+
+    // renvoyer le résultat temporaire
+    return temp; // renvoi de l'état sauvegardé
+}
+
+std::ostream&amp; operator&lt;&lt; (std::ostream&amp; out, const Digit&amp; d)
+{
+    out &lt;&lt; d.m_digit;
+    return out;
+}
+
+int main()
+{
+    Digit digit { 5 };
+
+    std::cout &lt;&lt; digit;
+    std::cout &lt;&lt; ++digit; // appelle Digit::operator++();
+    std::cout &lt;&lt; digit++; // appelle Digit::operator++(int);
+    std::cout &lt;&lt; digit;
+    std::cout &lt;&lt; --digit; // appelle Digit::operator--();
+    std::cout &lt;&lt; digit--; // appelle Digit::operator--(int);
+    std::cout &lt;&lt; digit;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+5667665
+</code></pre>
+<p>Plusieurs points méritent attention. Premièrement, nous distinguons les opérateurs préfixes des postfixes grâce à un paramètre entier factice dans la version postfixe. Deuxièmement, comme ce paramètre factice n'est pas utilisé dans l'implémentation de la fonction, nous ne lui avons même pas donné de nom. Cela indique au compilateur de traiter cette variable comme un simple emplacement réservé, ce qui évite qu'il nous signale une variable déclarée mais jamais utilisée.</p>
+<p>Troisièmement, notez que les opérateurs préfixes et postfixes accomplissent le même travail : ils incrémentent ou décrémentent tous deux l'objet. La différence réside dans la valeur renvoyée. Les opérateurs préfixes renvoient l'objet après son incrémentation ou sa décrémentation. Leur surcharge est donc assez simple : il suffit de modifier les membres de données, puis de renvoyer <code>*this</code>.</p>
+<p>Les opérateurs postfixes, en revanche, doivent renvoyer l'état de l'objet <em>avant</em> son incrémentation ou sa décrémentation. Cela pose un petit dilemme : si nous incrémentons ou décrémentons l'objet, nous ne pouvons plus renvoyer son état antérieur. Et si nous renvoyons son état antérieur avant de l'incrémenter ou de le décrémenter, l'incrémentation ou la décrémentation ne serait jamais exécutée.</p>
+<p>La solution habituelle consiste à utiliser une variable temporaire qui conserve la valeur de l'objet avant modification. Ensuite, on peut incrémenter ou décrémenter l'objet lui-même. Enfin, la variable temporaire est renvoyée à l'appelant. De cette façon, l'appelant reçoit une copie de l'objet tel qu'il était avant modification, tandis que l'objet lui-même est bien incrémenté ou décrémenté. Notez que la valeur de retour de l'opérateur surchargé doit donc être une valeur et non une référence, car nous ne pouvons pas renvoyer une référence à une variable locale qui sera détruite à la sortie de la fonction. Notez également que les opérateurs postfixes sont en général moins efficaces que les opérateurs préfixes, à cause du surcoût lié à la création d'une variable temporaire et au renvoi par valeur plutôt que par référence.</p>
+<p>Enfin, remarquez que nous avons écrit les versions postfixes de sorte qu'elles appellent les versions préfixes pour effectuer l'essentiel du travail. Cela réduit la duplication de code et facilite la maintenance future de la classe.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-the-increment-and-decrement-operators/">https://www.learncpp.com/cpp-tutorial/overloading-the-increment-and-decrement-operators/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.5 — Introduction à la portée locale</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="25-introduction-à-la-portée-locale">2.5 — Introduction à la portée locale</h1>
+<h2 id="variables-locales">Variables locales</h2>
+<p>Les variables définies à l'intérieur du corps d'une fonction sont appelées <strong>variables locales</strong> (par opposition aux <em>variables globales</em>, que nous verrons dans un chapitre ultérieur) :</p>
+<pre><code class="language-cpp">int add(int x, int y)
+{
+    int z{ x + y }; // z est une variable locale
+
+    return z;
+}
+</code></pre>
+<p>Les paramètres de fonction sont également considérés en général comme des variables locales, et nous les inclurons dans cette catégorie :</p>
+<pre><code class="language-cpp">int add(int x, int y) // les paramètres de fonction x et y sont des variables locales
+{
+    int z{ x + y };
+
+    return z;
+}
+</code></pre>
+<p>Dans cette leçon, nous allons examiner plus en détail certaines propriétés des variables locales.</p>
+<h2 id="durée-de-vie-dune-variable-locale">Durée de vie d'une variable locale</h2>
+<p>Dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.3%20-%20Introduction%20aux%20objets%20et%20aux%20variables.html">1.3 -- Introduction aux objets et aux variables</a>, nous avons vu qu'une définition de variable telle que <code>int x;</code> entraîne l'instanciation de la variable lorsque cette instruction est exécutée. Les paramètres de fonction sont créés et initialisés lors de l'entrée dans la fonction, et les variables du corps de la fonction sont créées et initialisées au point de leur définition.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">int add(int x, int y) // x et y sont créés et initialisés ici
+{
+    int z{ x + y };   // z est créé et initialisé ici
+
+    return z;
+}
+</code></pre>
+<p>La question qui vient naturellement est : « quand une variable instanciée est-elle détruite ? » Les variables locales sont détruites dans l'ordre inverse de leur création, à la fin du bloc d'accolades dans lequel elles sont définies (ou, pour un paramètre de fonction, à la fin de la fonction).</p>
+<pre><code class="language-cpp">int add(int x, int y)
+{
+    int z{ x + y };
+
+    return z;
+} // z, y et x sont détruits ici
+</code></pre>
+<p>De même que la durée de vie d'une personne s'étend de sa naissance à sa mort, la <strong>durée de vie</strong> (lifetime) d'un objet s'étend de sa création à sa destruction. Notez que la création et la destruction des variables ont lieu pendant l'exécution du programme (on parle de <em>runtime</em>), et non à la compilation. La durée de vie est donc une propriété d'exécution.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les règles ci-dessus concernant la création, l'initialisation et la destruction sont des garanties. Autrement dit, les objets doivent être créés et initialisés au plus tard au point de leur définition, et détruits au plus tôt à la fin du bloc d'accolades dans lequel ils sont définis (ou, pour les paramètres de fonction, à la fin de la fonction).</p>
+<p>En réalité, la spécification du C++ laisse aux compilateurs une grande latitude pour déterminer le moment où les variables locales sont créées et détruites. Les objets peuvent être créés plus tôt, ou détruits plus tard, à des fins d'optimisation. Le plus souvent, les variables locales sont créées à l'entrée de la fonction et détruites, dans l'ordre inverse de leur création, à la sortie de celle-ci. Nous reviendrons sur ce point en détail dans une leçon ultérieure, lorsque nous parlerons de la pile d'appels (call stack).</p>
+</div>
+<p>Voici un programme un peu plus complexe qui illustre la durée de vie d'une variable nommée <code>x</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void doSomething()
+{
+    std::cout &lt;&lt; &quot;Hello!\n&quot;;
+}
+
+int main()
+{
+    int x{ 0 };    // la durée de vie de x commence ici
+
+    doSomething(); // x est toujours en vie pendant cet appel de fonction
+
+    return 0;
+} // la durée de vie de x se termine ici
+</code></pre>
+<p>Dans le programme ci-dessus, la durée de vie de <code>x</code> s'étend du point de sa définition jusqu'à la fin de la fonction <code>main</code>. Cela inclut le temps d'exécution de la fonction <code>doSomething</code>.</p>
+<h2 id="que-se-passe-t-il-lorsquun-objet-est-détruit">Que se passe-t-il lorsqu'un objet est détruit ?</h2>
+<p>Dans la plupart des cas, rien. L'objet détruit devient simplement invalide.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Si l'objet est d'un type classe, une fonction spéciale appelée destructeur (destructor) est invoquée avant sa destruction. Dans de nombreux cas, le destructeur ne fait rien, auquel cas aucun coût n'est engendré. Nous présentons les destructeurs dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.4%20-%20Introduction%20aux%20destructeurs.html">15.4 -- Introduction aux destructeurs</a>.</p>
+</div>
+<p>Toute utilisation d'un objet après sa destruction entraîne un comportement indéfini.</p>
+<p>À un moment donné après la destruction, la mémoire utilisée par l'objet sera <strong>désallouée</strong> (libérée pour être réutilisée).</p>
+<h2 id="portée-locale-portée-de-bloc">Portée locale (portée de bloc)</h2>
+<p>La <strong>portée</strong> (scope) d'un identifiant détermine les endroits du code source où cet identifiant est visible et utilisable. Lorsqu'un identifiant est visible et utilisable, on dit qu'il est <strong>dans la portée</strong> (in scope). Lorsqu'un identifiant n'est pas visible, on ne peut pas l'utiliser, et on dit qu'il est <strong>hors de portée</strong> (out of scope). La portée est une propriété de compilation, et tenter d'utiliser un identifiant hors de sa portée produit une erreur de compilation.</p>
+<p>L'identifiant d'une variable locale a une <strong>portée locale</strong>. Un identifiant de portée locale (techniquement appelée <strong>portée de bloc</strong>, block scope) est utilisable depuis le point de sa définition jusqu'à la fin du bloc d'accolades le plus interne contenant cet identifiant (ou, pour un paramètre de fonction, jusqu'à la fin de la fonction). Cela garantit qu'une variable locale ne peut pas être utilisée avant son point de définition (même si le compilateur choisit de la créer plus tôt) ni après sa destruction. Les variables locales définies dans une fonction ne sont pas non plus visibles dans les autres fonctions appelées.</p>
+<p>Voici un programme qui illustre la portée d'une variable nommée <code>x</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// x n'est dans la portée nulle part dans cette fonction
+void doSomething()
+{
+    std::cout &lt;&lt; &quot;Hello!\n&quot;;
+}
+
+int main()
+{
+    // x ne peut pas être utilisé ici car il n'est pas encore dans la portée
+
+    int x{ 0 }; // x entre dans la portée ici et peut maintenant être utilisé dans cette fonction
+
+    doSomething();
+
+    return 0;
+} // x sort de la portée ici et ne peut plus être utilisé
+</code></pre>
+<p>Dans le programme ci-dessus, la variable <code>x</code> entre dans la portée au point de sa définition. <code>x</code> sort de la portée à la fin du bloc d'accolades le plus interne contenant l'identifiant, c'est-à-dire l'accolade fermante de la fonction <code>main()</code>. Notez que la variable <code>x</code> n'est dans la portée nulle part à l'intérieur de la fonction <code>doSomething</code>. Le fait que la fonction <code>main</code> appelle la fonction <code>doSomething</code> n'a aucune importance dans ce contexte.</p>
+<h2 id="hors-de-portée-ou-sortir-de-la-portée">« Hors de portée » ou « sortir de la portée »</h2>
+<p>Les expressions « hors de portée » et « sortir de la portée » peuvent prêter à confusion pour les programmeurs débutants.</p>
+<p>Un identifiant est hors de portée partout où il ne peut pas être accédé dans le code. Dans l'exemple ci-dessus, l'identifiant <code>x</code> est dans la portée depuis son point de définition jusqu'à la fin de la fonction <code>main</code>. L'identifiant <code>x</code> est hors de portée en dehors de cette zone de code.</p>
+<p>L'expression « sortir de la portée » s'applique en général aux objets plutôt qu'aux identifiants. On dit qu'un objet sort de la portée à la fin de la portée (l'accolade fermante) dans laquelle il a été instancié. Dans l'exemple ci-dessus, l'objet nommé <code>x</code> sort de la portée à la fin de la fonction <code>main</code>.</p>
+<p>La durée de vie d'une variable locale prend fin au moment où elle sort de la portée ; c'est donc à ce moment qu'elle est détruite.</p>
+<p>Notez que tous les types de variables ne sont pas détruits lorsqu'ils sortent de la portée. Nous verrons des exemples de ces cas dans des leçons ultérieures.</p>
+<h2 id="un-autre-exemple">Un autre exemple</h2>
+<p>Voici un exemple un peu plus complexe. Rappelez-vous que la durée de vie est une propriété d'exécution, et que la portée est une propriété de compilation ; bien que nous parlions des deux dans le même programme, elles s'appliquent à des moments différents.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int add(int x, int y) // x et y sont créés et entrent dans la portée ici
+{
+    // x et y ne sont utilisables que dans add()
+    return x + y;
+} // y et x sortent de la portée et sont détruits ici
+
+int main()
+{
+    int a{ 5 }; // a est créé, initialisé et entre dans la portée ici
+    int b{ 6 }; // b est créé, initialisé et entre dans la portée ici
+
+    // a et b ne sont utilisables que dans main()
+
+    std::cout &lt;&lt; add(a, b) &lt;&lt; '\n'; // appelle add(5, 6), avec x=5 et y=6
+
+    return 0;
+} // b et a sortent de la portée et sont détruits ici
+</code></pre>
+<p>Les paramètres <code>x</code> et <code>y</code> sont créés lorsque la fonction <code>add</code> est appelée, ne peuvent être vus et utilisés que dans la fonction <code>add</code>, et sont détruits à la fin de <code>add</code>. Les variables <code>a</code> et <code>b</code> sont créées dans la fonction <code>main</code>, ne peuvent être vues et utilisées que dans la fonction <code>main</code>, et sont détruites à la fin de <code>main</code>.</p>
+<p>Pour mieux comprendre comment tout cela s'articule, suivons ce programme un peu plus en détail. Les événements suivants se produisent, dans cet ordre :</p>
+<ul>
+<li>L'exécution commence au début de <code>main</code>.</li>
+<li>La variable <code>a</code> de <code>main</code> est créée et reçoit la valeur <code>5</code>.</li>
+<li>La variable <code>b</code> de <code>main</code> est créée et reçoit la valeur <code>6</code>.</li>
+<li>La fonction <code>add</code> est appelée avec les valeurs d'arguments <code>5</code> et <code>6</code>.</li>
+<li>Les paramètres <code>x</code> et <code>y</code> de <code>add</code> sont créés et initialisés avec les valeurs <code>5</code> et <code>6</code> respectivement.</li>
+<li>L'expression <code>x + y</code> est évaluée et produit la valeur <code>11</code>.</li>
+<li><code>add</code> copie la valeur <code>11</code> vers l'appelant <code>main</code>.</li>
+<li>Les paramètres <code>y</code> et <code>x</code> de <code>add</code> sont détruits.</li>
+<li><code>main</code> affiche <code>11</code> dans la console.</li>
+<li><code>main</code> renvoie <code>0</code> au système d'exploitation.</li>
+<li>Les variables <code>b</code> et <code>a</code> de <code>main</code> sont détruites.</li>
+</ul>
+<p>Et voilà, c'est terminé.</p>
+<p>Notez que si la fonction <code>add</code> était appelée deux fois, ses paramètres <code>x</code> et <code>y</code> seraient créés et détruits deux fois, une fois pour chaque appel. Dans un programme comportant de nombreuses fonctions et de nombreux appels de fonctions, les variables sont créées et détruites très souvent.</p>
+<h2 id="séparation-fonctionnelle">Séparation fonctionnelle</h2>
+<p>Dans l'exemple ci-dessus, il est facile de voir que les variables <code>a</code> et <code>b</code> sont différentes des variables <code>x</code> et <code>y</code>.</p>
+<p>Considérons maintenant le programme suivant, très similaire :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int add(int x, int y) // x et y de add sont créés et entrent dans la portée ici
+{
+    // x et y de add sont visibles et utilisables uniquement dans cette fonction
+    return x + y;
+} // y et x de add sortent de la portée et sont détruits ici
+
+int main()
+{
+    int x{ 5 }; // x de main est créé, initialisé et entre dans la portée ici
+    int y{ 6 }; // y de main est créé, initialisé et entre dans la portée ici
+
+    // x et y de main ne sont utilisables que dans cette fonction
+    std::cout &lt;&lt; add(x, y) &lt;&lt; '\n'; // appelle la fonction add() avec x=5 et y=6
+
+    return 0;
+} // y et x de main sortent de la portée et sont détruits ici
+</code></pre>
+<p>Dans cet exemple, nous avons simplement changé le nom des variables <code>a</code> et <code>b</code> de la fonction <code>main</code> en <code>x</code> et <code>y</code>. Ce programme se compile et s'exécute de la même manière, bien que les fonctions <code>main</code> et <code>add</code> aient toutes deux des variables nommées <code>x</code> et <code>y</code>. Pourquoi cela fonctionne-t-il ?</p>
+<p>Tout d'abord, il faut reconnaître que, même si les fonctions <code>main</code> et <code>add</code> ont toutes deux des variables nommées <code>x</code> et <code>y</code>, ces variables sont distinctes. Les <code>x</code> et <code>y</code> de la fonction <code>main</code> n'ont rien à voir avec les <code>x</code> et <code>y</code> de la fonction <code>add</code> : ils portent simplement les mêmes noms.</p>
+<p>Ensuite, à l'intérieur de la fonction <code>main</code>, les noms <code>x</code> et <code>y</code> désignent les variables locales <code>x</code> et <code>y</code> de <code>main</code>. Ces variables ne sont visibles (et utilisables) qu'à l'intérieur de <code>main</code>. De même, à l'intérieur de la fonction <code>add</code>, les noms <code>x</code> et <code>y</code> désignent les paramètres de fonction <code>x</code> et <code>y</code>, qui ne sont visibles (et utilisables) qu'à l'intérieur de <code>add</code>.</p>
+<p>En bref, ni <code>add</code> ni <code>main</code> ne savent que l'autre fonction possède des variables portant les mêmes noms. Comme les portées ne se chevauchent pas, le compilateur sait toujours à tout moment à quels <code>x</code> et <code>y</code> on fait référence.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les noms des paramètres de fonction ou des variables déclarées dans le corps d'une fonction ne sont visibles qu'à l'intérieur de la fonction qui les déclare. Cela signifie que les variables locales d'une fonction peuvent être nommées sans tenir compte des noms des variables des autres fonctions. Cela contribue à maintenir l'indépendance des fonctions.</p>
+</div>
+<p>Nous reparlerons de la portée locale, ainsi que des autres types de portée, dans un chapitre ultérieur.</p>
+<h2 id="où-définir-les-variables-locales">Où définir les variables locales</h2>
+<p>En C++ moderne, la bonne pratique consiste à définir les variables locales du corps d'une fonction le plus près possible de leur première utilisation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int x{};       // x est défini ici
+    std::cin &gt;&gt; x; // et utilisé ici
+
+    std::cout &lt;&lt; &quot;Enter another integer: &quot;;
+    int y{};       // y est défini ici
+    std::cin &gt;&gt; y; // et utilisé ici
+
+    int sum{ x + y }; // sum peut être initialisé avec la valeur voulue
+    std::cout &lt;&lt; &quot;The sum is: &quot; &lt;&lt; sum &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, chaque variable est définie juste avant sa première utilisation. Il n'est pas nécessaire d'être trop strict à ce sujet : si vous préférez inverser les lignes 5 et 6, c'est tout à fait acceptable.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Définissez vos variables locales le plus près possible de leur première utilisation.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>En raison des limitations des compilateurs plus anciens et plus rudimentaires, le langage C exigeait autrefois que toutes les variables locales soient définies en haut de la fonction. Le programme C++ équivalent dans ce style ressemblerait à ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x{}, y{}, sum{}; // comment sont-elles utilisées ?
+
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    std::cin &gt;&gt; x;
+
+    std::cout &lt;&lt; &quot;Enter another integer: &quot;;
+    std::cin &gt;&gt; y;
+
+    sum = x + y;
+    std::cout &lt;&lt; &quot;The sum is: &quot; &lt;&lt; sum &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce style est sous-optimal pour plusieurs raisons :</p>
+<ul>
+<li>L'usage prévu de ces variables n'est pas apparent au point de leur définition. Il faut parcourir toute la fonction pour déterminer où et comment chaque variable est utilisée.</li>
+<li>La valeur d'initialisation prévue n'est peut-être pas disponible en haut de la fonction (par exemple, nous ne pouvons pas initialiser <code>sum</code> à sa valeur prévue, car nous ne connaissons pas encore les valeurs de <code>x</code> et <code>y</code>).</li>
+<li>Il peut y avoir de nombreuses lignes entre l'initialisation d'une variable et sa première utilisation. Si nous ne nous souvenons plus de la valeur d'initialisation, il faut remonter en haut de la fonction, ce qui est fastidieux.</li>
+</ul>
+<p>Cette restriction a été levée dans la norme C99.</p>
+</div>
+<h2 id="quand-utiliser-des-paramètres-de-fonction-ou-des-variables-locales">Quand utiliser des paramètres de fonction ou des variables locales</h2>
+<p>Comme les paramètres de fonction et les variables locales peuvent tous deux être utilisés dans le corps d'une fonction, les programmeurs débutants ont parfois du mal à comprendre quand utiliser l'un ou l'autre. Un paramètre de fonction doit être utilisé lorsque l'appelant va fournir la valeur d'initialisation sous forme d'argument. Dans le cas contraire, on utilise une variable locale.</p>
+<p>Utiliser un paramètre de fonction alors qu'une variable locale serait appropriée conduit à un code de ce type :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getValueFromUser(int val) // val est un paramètre de fonction
+{
+    std::cout &lt;&lt; &quot;Enter a value: &quot;;
+    std::cin &gt;&gt; val;
+    return val;
+}
+
+int main()
+{
+    int x {};
+    int num { getValueFromUser(x) }; // main doit passer x comme argument
+
+    std::cout &lt;&lt; &quot;You entered &quot; &lt;&lt; num &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>getValueFromUser()</code> a défini <code>val</code> comme paramètre de fonction. Par conséquent, <code>main()</code> doit définir <code>x</code> afin de disposer de quelque chose à passer en argument. Cependant, la valeur réelle de <code>x</code> n'est jamais utilisée, et la valeur avec laquelle <code>val</code> est initialisé n'est jamais utilisée non plus. Obliger l'appelant à définir et passer une variable qui n'est jamais utilisée ajoute une complexité inutile.</p>
+<p>La bonne façon d'écrire ce code est la suivante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getValueFromUser()
+{
+    int val {}; // val est une variable locale
+    std::cout &lt;&lt; &quot;Enter a value: &quot;;
+    std::cin &gt;&gt; val;
+    return val;
+}
+
+int main()
+{
+    int num { getValueFromUser() }; // main n'a rien besoin de passer
+
+    std::cout &lt;&lt; &quot;You entered &quot; &lt;&lt; num &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, <code>val</code> est désormais une variable locale. <code>main()</code> est plus simple, car il n'a pas besoin de définir ni de passer une variable pour appeler <code>getValueFromUser()</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Lorsqu'une variable est nécessaire à l'intérieur d'une fonction :</p>
+<ul>
+<li>Utilisez un paramètre de fonction lorsque l'appelant fournira la valeur d'initialisation de la variable sous forme d'argument.</li>
+<li>Utilisez une variable locale dans le cas contraire.</li>
+</ul>
+</div>
+<h2 id="introduction-aux-objets-temporaires">Introduction aux objets temporaires</h2>
+<p>Un <strong>objet temporaire</strong> (parfois appelé aussi <strong>objet anonyme</strong>) est un objet sans nom, utilisé pour contenir une valeur qui n'est nécessaire que pendant une courte période. Les objets temporaires sont générés par le compilateur lorsque c'est nécessaire.</p>
+<p>Il existe de nombreuses façons de créer des valeurs temporaires, mais en voici une courante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getValueFromUser()
+{
+    std::cout &lt;&lt; &quot;Enter an integer: &quot;;
+    int input{};
+    std::cin &gt;&gt; input;
+
+    return input; // renvoie la valeur de input à l'appelant
+}
+
+int main()
+{
+    std::cout &lt;&lt; getValueFromUser() &lt;&lt; '\n'; // où la valeur renvoyée est-elle stockée ?
+
+    return 0;
+}
+</code></pre>
+<p>Dans le programme ci-dessus, la fonction <code>getValueFromUser()</code> renvoie à l'appelant la valeur stockée dans la variable locale <code>input</code>. Comme <code>input</code> sera détruite à la fin de la fonction, l'appelant reçoit une copie de la valeur, afin de disposer d'une valeur utilisable même après la destruction de <code>input</code>.</p>
+<p>Mais où est stockée la valeur copiée vers l'appelant ? Nous n'avons défini aucune variable dans <code>main()</code>. La réponse est que la valeur de retour est stockée dans un objet temporaire. Cet objet temporaire est ensuite passé à <code>std::cout</code> pour être affiché.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Le retour par valeur renvoie à l'appelant un objet temporaire (contenant une copie de la valeur de retour).</p>
+</div>
+<p>Les objets temporaires n'ont pas du tout de portée (cela a du sens, puisque la portée est une propriété d'un identifiant, et que les objets temporaires n'ont pas d'identifiant).</p>
+<p>Les objets temporaires sont détruits à la fin de l'expression complète dans laquelle ils sont créés. Cela signifie que les objets temporaires sont toujours détruits avant l'exécution de l'instruction suivante.</p>
+<p>Dans notre exemple ci-dessus, l'objet temporaire créé pour contenir la valeur de retour de <code>getValueFromUser()</code> est détruit après l'exécution de <code>std::cout &lt;&lt; getValueFromUser() &lt;&lt; '\n'</code>.</p>
+<p>Lorsqu'un objet temporaire sert à initialiser une variable, l'initialisation a lieu avant la destruction du temporaire.</p>
+<p>En C++ moderne (en particulier depuis C++17), le compilateur dispose de nombreuses astuces pour éviter de générer des temporaires là où il aurait autrefois été obligé de le faire. Par exemple, lorsque nous utilisons une valeur de retour pour initialiser une variable, cela entraînerait normalement la création d'un temporaire contenant la valeur de retour, puis l'utilisation de ce temporaire pour initialiser la variable. Cependant, en C++ moderne, le compilateur évite souvent de créer le temporaire et initialise directement la variable avec la valeur de retour.</p>
+<p>De même, dans l'exemple ci-dessus, comme la valeur de retour de <code>getValueFromUser()</code> est affichée immédiatement, le compilateur peut éviter la création et la destruction du temporaire dans <code>main()</code>, et utiliser directement la valeur de retour de <code>getValueFromUser()</code> pour initialiser le paramètre de <code>operator&lt;&lt;</code>.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Qu'affiche le programme suivant ?</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void doIt(int x)
+{
+    int y{ 4 };
+    std::cout &lt;&lt; &quot;doIt: x = &quot; &lt;&lt; x &lt;&lt; &quot; y = &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    x = 3;
+    std::cout &lt;&lt; &quot;doIt: x = &quot; &lt;&lt; x &lt;&lt; &quot; y = &quot; &lt;&lt; y &lt;&lt; '\n';
+}
+
+int main()
+{
+    int x{ 1 };
+    int y{ 2 };
+
+    std::cout &lt;&lt; &quot;main: x = &quot; &lt;&lt; x &lt;&lt; &quot; y = &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    doIt(x);
+
+    std::cout &lt;&lt; &quot;main: x = &quot; &lt;&lt; x &lt;&lt; &quot; y = &quot; &lt;&lt; y &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code>
+main: x = 1 y = 2
+doIt: x = 1 y = 4
+doIt: x = 3 y = 4
+main: x = 1 y = 2
+</code></pre>
+<p>Voici ce qui se passe dans ce programme :</p>
+<ul>
+<li>l'exécution commence au début de <code>main</code></li>
+<li>la variable <code>x</code> de <code>main</code> est créée et initialisée avec la valeur <code>1</code></li>
+<li>la variable <code>y</code> de <code>main</code> est créée et initialisée avec la valeur <code>2</code></li>
+<li><code>std::cout</code> affiche <code>main: x = 1 y = 2</code></li>
+<li><code>doIt</code> est appelée avec l'argument <code>1</code></li>
+<li>le paramètre <code>x</code> de <code>doIt</code> est créé et initialisé avec la valeur <code>1</code></li>
+<li>la variable <code>y</code> de <code>doIt</code> est créée et initialisée avec la valeur <code>4</code></li>
+<li><code>doIt</code> affiche <code>doIt: x = 1 y = 4</code></li>
+<li>la variable <code>x</code> de <code>doIt</code> reçoit la nouvelle valeur <code>3</code></li>
+<li><code>std::cout</code> affiche <code>doIt: x = 3 y = 4</code></li>
+<li><code>y</code> et <code>x</code> de <code>doIt</code> sont détruits</li>
+<li><code>std::cout</code> affiche <code>main: x = 1 y = 2</code></li>
+<li><code>main</code> renvoie <code>0</code> au système d'exploitation</li>
+<li><code>y</code> et <code>x</code> de <code>main</code> sont détruits</li>
+</ul>
+<p>Notez que, même si les variables <code>x</code> et <code>y</code> de <code>doIt</code> ont reçu une valeur d'initialisation ou d'affectation différente de celles de <code>main</code>, les <code>x</code> et <code>y</code> de <code>main</code> n'ont pas été modifiés, car ce sont des variables différentes.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-local-scope/">https://www.learncpp.com/cpp-tutorial/introduction-to-local-scope/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.8 — Dégradation des tableaux de style C (array decay)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="178-dégradation-des-tableaux-de-style-c-array-decay">17.8 — Dégradation des tableaux de style C (array decay)</h1>
+<h2 id="le-défi-du-passage-de-tableaux-de-style-c">Le défi du passage de tableaux de style C</h2>
+<p>Les concepteurs du langage C avaient un problème. Considérez le programme simple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void print(int val)
+{
+    std::cout &lt;&lt; val;
+}
+
+int main()
+{
+    int x { 5 };
+    print(x);
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque <code>print(x)</code> est appelée, la valeur de l'argument <code>x</code> (<code>5</code>) est copiée dans le paramètre <code>val</code>. Dans le corps de la fonction, la valeur de <code>val</code> (<code>5</code>) est affichée sur la console. Comme <code>x</code> est peu coûteux à copier, il n'y a aucun problème ici.</p>
+<p>Considérez maintenant le programme similaire suivant, qui utilise un tableau d'entiers de style C de 1000 éléments au lieu d'un seul <code>int</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printElementZero(int arr[1000])
+{
+    std::cout &lt;&lt; arr[0]; // affiche la valeur du premier élément
+}
+
+int main()
+{
+    int x[1000] { 5 };   // définit un tableau de 1000 éléments, x[0] est initialisé à 5
+    printElementZero(x);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme se compile également et affiche la valeur attendue (<code>5</code>) sur la console.</p>
+<p>Bien que le code de cet exemple soit similaire à celui de l'exemple précédent, son fonctionnement mécanique est un peu différent de ce que vous pourriez attendre (nous expliquerons cela ci-dessous). Cela vient de la solution que les concepteurs du C ont trouvée pour résoudre deux difficultés majeures.</p>
+<p>Premièrement, copier un tableau de 1000 éléments à chaque appel de fonction est coûteux (et encore plus si les éléments sont d'un type coûteux à copier), donc nous voulons l'éviter. Mais comment ? Le C ne dispose pas de références, donc le passage par référence pour éviter de copier les arguments de fonction n'était pas une option.</p>
+<p>Deuxièmement, nous voulons pouvoir écrire une seule fonction capable d'accepter des arguments tableaux de longueurs différentes. Idéalement, notre fonction <code>printElementZero()</code> de l'exemple ci-dessus devrait pouvoir être appelée avec des tableaux de n'importe quelle longueur (puisque l'élément 0 est garanti d'exister). Nous ne voulons pas avoir à écrire une fonction différente pour chaque longueur de tableau possible. Mais comment ? Le C n'a aucune syntaxe pour spécifier des tableaux de « longueur quelconque », ne prend pas en charge les modèles (templates), et les tableaux d'une longueur ne peuvent pas être convertis en tableaux d'une autre longueur (sans doute parce que cela impliquerait une copie coûteuse).</p>
+<p>Les concepteurs du langage C ont trouvé une solution astucieuse (héritée par le C++ pour des raisons de compatibilité) qui résout ces deux problèmes :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printElementZero(int arr[1000]) // ne fait pas de copie
+{
+    std::cout &lt;&lt; arr[0]; // affiche la valeur du premier élément
+}
+
+int main()
+{
+    int x[7] { 5 };      // définit un tableau de 7 éléments
+    printElementZero(x); // fonctionne d'une manière ou d'une autre !
+
+    return 0;
+}
+</code></pre>
+<p>D'une manière ou d'une autre, l'exemple ci-dessus passe un tableau de 7 éléments à une fonction attendant un tableau de 1000 éléments, sans qu'aucune copie ne soit effectuée. Dans cette leçon, nous allons explorer comment cela fonctionne.</p>
+<p>Nous verrons aussi pourquoi la solution retenue par les concepteurs du C est dangereuse et peu adaptée à l'usage du C++ moderne.</p>
+<p>Mais d'abord, nous devons aborder deux sous-sujets.</p>
+<h2 id="conversions-de-tableau-en-pointeur-dégradation-de-tableau">Conversions de tableau en pointeur (dégradation de tableau)</h2>
+<p>Dans la plupart des cas, lorsqu'un tableau de style C est utilisé dans une expression, il est implicitement converti en un pointeur vers le type des éléments, initialisé avec l'adresse du premier élément (d'indice 0). Familièrement, on appelle cela la <strong>dégradation de tableau</strong> (array decay), ou simplement <strong>dégradation</strong> (decay).</p>
+<p>Vous pouvez le constater dans le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iomanip&gt; // pour std::boolalpha
+#include &lt;iostream&gt;
+
+int main()
+{
+    int arr[5]{ 9, 7, 5, 3, 1 }; // notre tableau contient des éléments de type int
+
+    // D'abord, prouvons que arr se dégrade en pointeur int*
+
+    auto ptr{ arr }; // l'évaluation dégrade arr, la déduction de type doit donner int*
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; (typeid(ptr) == typeid(int*)) &lt;&lt; '\n'; // affiche true si le type de ptr est int*
+
+    // Prouvons maintenant que le pointeur contient l'adresse du premier élément du tableau
+
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; (&amp;arr[0] == ptr) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+true
+true
+</code></pre>
+<p>Il n'y a rien de spécial dans le pointeur auquel un tableau se dégrade. C'est un pointeur ordinaire qui contient l'adresse du premier élément.</p>
+<p>De même, un tableau constant (par exemple <code>const int arr[5]</code>) se dégrade en pointeur vers const (<code>const int*</code>).</p>
+<div class="callout info"><p class="callout-title">Conseil</p>
+<p>En C++, il existe quelques cas courants où un tableau de style C ne se dégrade pas :</p>
+<ol>
+<li>Lorsqu'il est utilisé comme argument de <code>sizeof()</code> ou de <code>typeid()</code>.</li>
+<li>Lorsque l'on prend l'adresse du tableau avec l'opérateur <code>&amp;</code>.</li>
+<li>Lorsqu'il est passé comme membre d'un type classe.</li>
+<li>Lorsqu'il est passé par référence.</li>
+</ol>
+</div>
+<p>Comme les tableaux de style C se dégradent en pointeur dans la plupart des cas, il est courant de croire à tort que les tableaux <em>sont</em> des pointeurs. Ce n'est pas le cas. Un objet tableau est une séquence d'éléments, alors qu'un objet pointeur ne fait que contenir une adresse.</p>
+<p>Les informations de type d'un tableau et d'un tableau dégradé sont différentes. Dans l'exemple ci-dessus, le tableau <code>arr</code> a le type <code>int[5]</code>, alors que le tableau dégradé a le type <code>int*</code>. Notamment, le type tableau <code>int[5]</code> contient l'information de longueur, alors que le type pointeur <code>int*</code> issu de la dégradation ne la contient pas.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Un pointeur issu de la dégradation d'un tableau ne sait pas quelle est la longueur du tableau vers lequel il pointe. Le terme « dégradation » désigne cette perte d'information de longueur dans le type.</p>
+</div>
+<h2 id="utiliser-lindexation-dun-tableau-de-style-c-applique-en-fait-operator-au-pointeur-issu-de-la-dégradation">Utiliser l'indexation d'un tableau de style C applique en fait <code>operator[]</code> au pointeur issu de la dégradation</h2>
+<p>Comme un tableau de style C se dégrade en pointeur lorsqu'il est évalué, l'indexation d'un tableau de style C opère en réalité sur le pointeur issu de la dégradation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 9, 7, 5, 3, 1 };
+    std::cout &lt;&lt; arr[2]; // indexe le tableau dégradé pour obtenir l'élément 2, affiche 5
+
+    return 0;
+}
+</code></pre>
+<p>Nous pouvons aussi utiliser <code>operator[]</code> directement sur un pointeur. Si ce pointeur contient l'adresse du premier élément, le résultat sera identique :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 9, 7, 5, 3, 1 };
+
+    const int* ptr{ arr };  // arr se dégrade en pointeur
+    std::cout &lt;&lt; ptr[2];    // indexe ptr pour obtenir l'élément 2, affiche 5
+
+    return 0;
+}
+</code></pre>
+<p>Nous verrons dans un instant où cela est pratique, et nous étudierons plus en détail le fonctionnement de ce mécanisme (ainsi que ce qui se passe lorsque le pointeur contient autre chose que l'adresse du premier élément) dans la prochaine leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.9%20-%20Arithm%C3%A9tique%20des%20pointeurs%20et%20indexation.html">17.9 -- Arithmétique des pointeurs et indexation</a>.</p>
+<h2 id="la-dégradation-résout-notre-problème-de-passage-de-tableaux-de-style-c">La dégradation résout notre problème de passage de tableaux de style C</h2>
+<p>La dégradation de tableau résout les deux difficultés évoquées au début de la leçon.</p>
+<p>Lors du passage d'un tableau de style C en argument, le tableau se dégrade en pointeur, et c'est ce pointeur contenant l'adresse du premier élément du tableau qui est transmis à la fonction. Ainsi, bien que l'on ait l'impression de passer le tableau de style C par valeur, on le passe en réalité par adresse ! C'est ainsi que l'on évite de copier l'argument tableau.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les tableaux de style C sont passés par adresse, même lorsqu'il semble qu'ils soient passés par valeur.</p>
+</div>
+<p>Considérez maintenant deux tableaux différents, de même type d'éléments mais de longueurs différentes (par exemple <code>int[5]</code> et <code>int[7]</code>). Ce sont des types distincts, incompatibles entre eux. Pourtant, ils se dégradent tous deux en le même type de pointeur (ici <code>int*</code>). Leurs versions dégradées sont interchangeables ! Supprimer l'information de longueur du type nous permet de passer des tableaux de longueurs différentes sans incompatibilité de type.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Deux tableaux de style C de même type d'éléments mais de longueurs différentes se dégradent en le même type de pointeur.</p>
+</div>
+<p>Dans l'exemple suivant, nous illustrerons deux choses :</p>
+<ul>
+<li>Nous pouvons passer des tableaux de longueurs différentes à une seule fonction (car ils se dégradent tous deux en le même type de pointeur).</li>
+<li>Le paramètre de fonction qui reçoit le tableau peut être un pointeur (const) vers le type des éléments du tableau.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printElementZero(const int* arr) // passage par adresse constante
+{
+    std::cout &lt;&lt; arr[0];
+}
+
+int main()
+{
+    const int prime[] { 2, 3, 5, 7, 11 };
+    const int squares[] { 1, 4, 9, 25, 36, 49, 64, 81 };
+
+    printElementZero(prime);   // prime se dégrade en pointeur const int*
+    printElementZero(squares); // squares se dégrade en pointeur const int*
+
+    return 0;
+}
+</code></pre>
+<p>Cet exemple fonctionne parfaitement et affiche :</p>
+<pre><code>
+2
+1
+</code></pre>
+<p>Dans <code>main()</code>, lorsque nous appelons <code>printElementZero(prime)</code>, le tableau <code>prime</code> se dégrade d'un tableau de type <code>const int[5]</code> en un pointeur de type <code>const int*</code> contenant l'adresse du premier élément de <code>prime</code>. De même, lorsque nous appelons <code>printElementZero(squares)</code>, <code>squares</code> se dégrade d'un tableau de type <code>const int[8]</code> en un pointeur de type <code>const int*</code> contenant l'adresse du premier élément de <code>squares</code>. Ce sont ces pointeurs de type <code>const int*</code> qui sont effectivement passés à la fonction en argument.</p>
+<p>Comme nous passons des pointeurs de type <code>const int*</code>, notre fonction <code>printElementZero()</code> doit avoir un paramètre du même type de pointeur (<code>const int*</code>).</p>
+<p>Dans cette fonction, nous indexons le pointeur pour accéder à l'élément de tableau choisi.</p>
+<p>Comme un tableau de style C est passé par adresse, la fonction a un accès direct au tableau transmis (et non à une copie) et peut en modifier les éléments. Pour cette raison, il est recommandé de rendre le paramètre constant si votre fonction n'a pas l'intention de modifier les éléments du tableau.</p>
+<h2 id="syntaxe-du-paramètre-de-fonction-pour-un-tableau-de-style-c">Syntaxe du paramètre de fonction pour un tableau de style C</h2>
+<p>Un problème lié à la déclaration du paramètre de fonction sous la forme <code>int* arr</code> est qu'il n'est pas évident que <code>arr</code> doit être un pointeur vers un tableau de valeurs plutôt qu'un pointeur vers un simple entier. C'est pourquoi, lors du passage d'un tableau de style C, il est préférable d'utiliser la forme de déclaration alternative <code>int arr[]</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printElementZero(const int arr[]) // traité de la même façon que const int*
+{
+    std::cout &lt;&lt; arr[0];
+}
+
+int main()
+{
+    const int prime[] { 2, 3, 5, 7, 11 };
+    const int squares[] { 1, 4, 9, 25, 36, 49, 64, 81 };
+
+    printElementZero(prime);  // prime se dégrade en pointeur
+    printElementZero(squares); // squares se dégrade en pointeur
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme se comporte de manière identique au précédent, car le compilateur interprète le paramètre <code>const int arr[]</code> comme <code>const int*</code>. Cette écriture a toutefois l'avantage d'indiquer à l'appelant que <code>arr</code> est censé être un tableau de style C dégradé, et non un pointeur vers une valeur unique. Notez qu'aucune information de longueur n'est nécessaire entre les crochets (puisqu'elle n'est de toute façon pas utilisée). Si une longueur est fournie, elle sera ignorée.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Un paramètre de fonction attendant un tableau de style C doit utiliser la syntaxe de tableau (par exemple <code>int arr[]</code>) plutôt que la syntaxe de pointeur (par exemple <code>int *arr</code>).</p>
+</div>
+<p>L'inconvénient de cette syntaxe est qu'elle rend moins évident le fait que <code>arr</code> s'est dégradé (alors que c'est tout à fait clair avec la syntaxe de pointeur). Vous devrez donc être particulièrement vigilant à ne pas faire, avec un tableau dégradé, quoi que ce soit qui ne fonctionne pas comme prévu (nous en verrons quelques-uns dans un instant).</p>
+<h2 id="les-problèmes-de-la-dégradation-de-tableau">Les problèmes de la dégradation de tableau</h2>
+<p>Bien que la dégradation de tableau ait été une solution astucieuse pour passer à une fonction des tableaux de style C de longueurs différentes sans effectuer de copies coûteuses, la perte de l'information de longueur favorise plusieurs types d'erreurs.</p>
+<p>Premièrement, <code>sizeof()</code> ne renvoie pas la même valeur pour un tableau et pour un tableau dégradé :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printArraySize(int arr[])
+{
+    std::cout &lt;&lt; sizeof(arr) &lt;&lt; '\n'; // affiche 4 (en supposant des adresses sur 32 bits)
+}
+
+int main()
+{
+    int arr[]{ 3, 2, 1 };
+
+    std::cout &lt;&lt; sizeof(arr) &lt;&lt; '\n'; // affiche 12 (en supposant des int de 4 octets)
+
+    printArraySize(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Cela signifie que l'utilisation de <code>sizeof()</code> sur un tableau de style C est potentiellement dangereuse : vous devez vous assurer de ne l'utiliser que lorsque vous avez accès à l'objet tableau réel, et non au tableau ou au pointeur dégradé.</p>
+<p>Dans la leçon précédente (<a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.7%20-%20Introduction%20aux%20tableaux%20de%20style%20C.html">17.7 -- Introduction aux tableaux de style C</a>), nous avons mentionné que <code>sizeof(arr)/sizeof(*arr)</code> était historiquement utilisé comme astuce pour obtenir la taille d'un tableau de style C. Cette astuce est dangereuse : si <code>arr</code> s'est dégradé, <code>sizeof(arr)</code> renvoie la taille d'un pointeur et non celle du tableau, ce qui produit une longueur erronée et risque de faire dysfonctionner le programme.</p>
+<p>Heureusement, le remplaçant plus sûr introduit en C++17, <code>std::size()</code> (et <code>std::ssize()</code> en C++20), ne compile pas s'il reçoit une valeur de type pointeur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int printArrayLength(int arr[])
+{
+    std::cout &lt;&lt; std::size(arr) &lt;&lt; '\n'; // erreur de compilation : std::size() ne fonctionne pas sur un pointeur
+}
+
+int main()
+{
+    int arr[]{ 3, 2, 1 };
+
+    std::cout &lt;&lt; std::size(arr) &lt;&lt; '\n'; // affiche 3
+
+    printArrayLength(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Deuxièmement, et sans doute le point le plus important, la dégradation de tableau peut rendre le refactoring (le découpage de longues fonctions en fonctions plus courtes et plus modulaires) difficile. Du code qui fonctionne correctement avec un tableau non dégradé peut ne pas compiler (ou, pire, dysfonctionner silencieusement) lorsqu'il utilise un tableau dégradé.</p>
+<p>Troisièmement, l'absence d'information de longueur pose plusieurs problèmes de programmation. Sans cette information, il est difficile de vérifier la cohérence de la longueur du tableau. Les utilisateurs peuvent facilement passer des tableaux plus courts que prévu (voire des pointeurs vers une seule valeur), ce qui provoquera un comportement indéfini lors de l'indexation avec un indice invalide.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printElement2(int arr[])
+{
+    // Comment s'assurer que arr contient au moins trois éléments ?
+    std::cout &lt;&lt; arr[2] &lt;&lt; '\n';
+}
+
+int main()
+{
+    int a[]{ 3, 2, 1 };
+    printElement2(a);  // ok
+
+    int b[]{ 7, 6 };
+    printElement2(b);  // se compile mais produit un comportement indéfini
+
+    int c{ 9 };
+    printElement2(&amp;c); // se compile mais produit un comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>L'absence de longueur du tableau pose aussi problème lors du parcours du tableau : comment savoir quand on a atteint la fin ?</p>
+<p>Il existe des solutions à ces problèmes, mais elles ajoutent à la fois de la complexité et de la fragilité au programme.</p>
+<h2 id="contourner-les-problèmes-de-longueur-des-tableaux">Contourner les problèmes de longueur des tableaux</h2>
+<p>Historiquement, les programmeurs ont contourné l'absence d'information de longueur par l'une de deux méthodes.</p>
+<p>La première consiste à passer à la fois le tableau et sa longueur en tant qu'arguments distincts :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+
+void printElement2(const int arr[], int length)
+{
+    assert(length &gt; 2 &amp;&amp; &quot;printElement2: Array too short&quot;); // impossible d'utiliser static_assert sur length
+
+    std::cout &lt;&lt; arr[2] &lt;&lt; '\n';
+}
+
+int main()
+{
+    constexpr int a[]{ 3, 2, 1 };
+    printElement2(a, static_cast&lt;int&gt;(std::size(a)));  // ok
+
+    constexpr int b[]{ 7, 6 };
+    printElement2(b, static_cast&lt;int&gt;(std::size(b)));  // déclenchera l'assert
+
+    return 0;
+}
+</code></pre>
+<p>Cette méthode présente toutefois plusieurs inconvénients :</p>
+<ul>
+<li>L'appelant doit s'assurer que le tableau et sa longueur correspondent : si une mauvaise valeur de longueur est passée, la fonction dysfonctionnera quand même.</li>
+<li>Des problèmes de conversion de signe peuvent survenir si vous utilisez <code>std::size()</code> ou une fonction renvoyant une longueur sous la forme <code>std::size_t</code>.</li>
+<li>Les assertions d'exécution ne se déclenchent que lorsqu'elles sont atteintes à l'exécution. Si nos tests ne couvrent pas tous les appels de la fonction, il existe un risque de livrer au client un programme qui échouera sur une assertion lorsqu'il fera quelque chose que nous n'avons pas explicitement testé. En C++ moderne, nous voudrions utiliser <code>static_assert</code> pour valider à la compilation la longueur d'un tableau constexpr, mais il n'existe pas de moyen simple de le faire (puisque les paramètres de fonction ne peuvent pas être constexpr, même dans des fonctions constexpr ou consteval !).</li>
+<li>Cette méthode ne fonctionne que si nous effectuons un appel de fonction explicite. Si l'appel est implicite (par exemple lorsque nous appelons un opérateur dont le tableau est l'opérande), il n'y a aucune possibilité de passer la longueur.</li>
+</ul>
+<p>La seconde méthode consiste, lorsqu'il existe une valeur d'élément sans signification sémantique valide (par exemple une note d'examen de <code>-1</code>), à marquer la fin du tableau à l'aide d'un élément de cette valeur. La longueur du tableau peut alors être calculée en comptant les éléments situés entre le début du tableau et cet élément terminal. Le tableau peut aussi être parcouru en itérant depuis le début jusqu'à rencontrer l'élément terminal. L'avantage de cette méthode est qu'elle fonctionne même avec des appels de fonction implicites.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les chaînes de style C (qui sont des tableaux de style C) utilisent un caractère nul de fin (null-terminator) pour marquer la fin de la chaîne, afin de pouvoir les parcourir même lorsqu'elles se sont dégradées.</p>
+</div>
+<p>Mais cette méthode présente également plusieurs inconvénients :</p>
+<ul>
+<li>Si l'élément terminal n'existe pas, le parcours dépassera la fin du tableau, provoquant un comportement indéfini.</li>
+<li>Les fonctions qui parcourent le tableau doivent traiter spécialement l'élément terminal (par exemple, une fonction d'affichage de chaîne de style C doit savoir ne pas afficher le caractère terminal).</li>
+<li>Il existe un décalage entre la longueur réelle du tableau et le nombre d'éléments sémantiquement valides. Si une mauvaise longueur est utilisée, l'élément terminal sémantiquement invalide risque d'être « traité ».</li>
+<li>Cette approche ne fonctionne que s'il existe une valeur sémantiquement invalide, ce qui n'est souvent pas le cas.</li>
+</ul>
+<h2 id="les-tableaux-de-style-c-doivent-être-évités-dans-la-plupart-des-cas">Les tableaux de style C doivent être évités dans la plupart des cas</h2>
+<p>Du fait de la sémantique de passage non standard (le passage par adresse est utilisé au lieu du passage par valeur) et des risques liés à la perte d'information de longueur des tableaux dégradés, les tableaux de style C sont généralement tombés en désuétude. Nous recommandons de les éviter autant que possible.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez les tableaux de style C dès que cela est possible.</p>
+<ul>
+<li>Privilégiez <code>std::string_view</code> pour les chaînes en lecture seule (constantes symboliques de chaînes littérales et paramètres de type chaîne).</li>
+<li>Privilégiez <code>std::string</code> pour les chaînes modifiables.</li>
+<li>Privilégiez <code>std::array</code> pour les tableaux constexpr non globaux.</li>
+<li>Privilégiez <code>std::vector</code> pour les tableaux non constexpr.</li>
+</ul>
+<p>Il est acceptable d'utiliser des tableaux de style C pour des tableaux constexpr globaux. Nous en discuterons dans un instant.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>En C++, les tableaux peuvent être passés par référence, auquel cas l'argument tableau ne se dégrade pas lors du passage à la fonction (mais la référence au tableau se dégrade toujours lorsqu'elle est évaluée). Toutefois, il est facile d'oublier de l'appliquer systématiquement, et une seule référence oubliée entraînera la dégradation des arguments. De plus, les paramètres de référence à un tableau doivent avoir une longueur fixe, ce qui signifie que la fonction ne peut traiter que des tableaux d'une longueur particulière. Si nous voulons une fonction capable de traiter des tableaux de longueurs différentes, nous devons aussi recourir aux modèles de fonctions. Mais si vous faites tout cela pour « corriger » les tableaux de style C, autant utiliser directement <code>std::array</code> !</p>
+</div>
+<h2 id="alors-quand-utilise-t-on-encore-les-tableaux-de-style-c-en-c-moderne">Alors, quand utilise-t-on encore les tableaux de style C en C++ moderne ?</h2>
+<p>En C++ moderne, les tableaux de style C sont typiquement utilisés dans deux cas :</p>
+<ol>
+<li>Pour stocker des données de programme globales constexpr (ou statiques locales constexpr). Comme ces tableaux sont accessibles directement depuis n'importe où dans le programme, nous n'avons pas besoin de les passer en argument, ce qui évite les problèmes liés à la dégradation. La syntaxe de définition des tableaux de style C peut être un peu moins lourde que celle de <code>std::array</code>. Plus important encore, l'indexation de tels tableaux ne pose pas de problèmes de conversion de signe comme c'est le cas avec les classes conteneurs de la bibliothèque standard.</li>
+<li>Comme paramètres de fonctions ou de classes qui souhaitent manipuler directement des arguments de chaînes de style C non constexpr (plutôt que d'exiger une conversion en <code>std::string_view</code>). Il y a deux raisons possibles à cela : premièrement, convertir une chaîne de style C non constexpr en <code>std::string_view</code> exige de parcourir la chaîne pour déterminer sa longueur. Si la fonction se situe dans une section de code critique pour les performances et que la longueur n'est pas nécessaire (par exemple parce que la fonction va de toute façon parcourir la chaîne), éviter la conversion peut être utile. Deuxièmement, si la fonction (ou la classe) appelle d'autres fonctions qui attendent des chaînes de style C, convertir en <code>std::string_view</code> juste pour reconvertir ensuite peut être sous-optimal (sauf si vous avez d'autres raisons de vouloir un <code>std::string_view</code>).</li>
+</ol>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Qu'est-ce que la dégradation de tableau, et pourquoi pose-t-elle problème ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Lorsqu'un tableau de style C est évalué, il est, dans la plupart des contextes, implicitement converti en pointeur vers le type des éléments du tableau.</p>
+<p>Les tableaux dégradés perdent leur information de longueur, ce qui facilite l'introduction de bogues liés à la longueur dans le programme.</p>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Pourquoi les chaînes de style C (qui sont des tableaux de style C) utilisent-elles un caractère nul de fin ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Lorsqu'un tableau de style C est passé à une fonction, il se dégrade et perd son information de longueur. Si la chaîne de style C n'avait pas de caractère nul de fin, la fonction ne pourrait pas déterminer la longueur de la chaîne.</p>
+</details>
+<h4 id="question-n-3">Question n° 3</h4>
+<p>Question bonus : pourquoi les chaînes de style C utilisent-elles un caractère nul de fin, plutôt que d'exiger que la chaîne dégradée et une information de longueur explicite soient toutes deux passées à une fonction ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Il existe sans doute de nombreuses réponses à cette question, en voici quelques-unes :</p>
+<ul>
+<li>L'ergonomie serait déplorable, puisque nous aurions des paramètres supplémentaires et des nombres magiques partout (par exemple <code>printString("Hello", 5)</code>).</li>
+<li>Il serait très facile que la chaîne et la longueur fournie ne correspondent pas. La longueur de la chaîne est essentiellement un invariant de la chaîne elle-même. Compter sur l'utilisateur pour maintenir cet invariant conduira inévitablement à des erreurs (par exemple <code>printString("Hello", 6)</code>).</li>
+</ul>
+</details>
+<p>Question bonus n° 2 : même si le C++ avait voulu imposer de passer une information de longueur explicite, pourquoi cela ne fonctionnerait-il pas ?</p>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : considérez le cas où nous affichons une chaîne à l'aide de <code>std::cout</code>.</p>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<p>Passer à la fois la chaîne de style C et une information de longueur explicite n'est possible que si la fonction est appelée explicitement. Si une fonction est appelée implicitement, il n'existe aucun moyen de transmettre l'information de longueur.</p>
+<p>Considérez une instruction comme <code>std::cout &lt;&lt; cstr</code>. L'opérateur binaire <code>operator&lt;&lt;</code> ne peut prendre que deux opérandes : <code>std::cout</code> et <code>cstr</code>. Il n'y a aucun moyen de passer un argument supplémentaire représentant la longueur. L'approche du caractère nul de fin n'a pas ce problème.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/c-style-array-decay/">https://www.learncpp.com/cpp-tutorial/c-style-array-decay/</a></em></p>
+</main>
+</body>
+</html>

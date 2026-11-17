@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.9 — Introduction aux constructeurs</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="149-introduction-aux-constructeurs">14.9 — Introduction aux constructeurs</h1>
+<p>Lorsqu'un type de classe est un agrégat, nous pouvons utiliser l'initialisation d'agrégat pour initialiser directement le type de classe :</p>
+<pre><code class="language-cpp">struct Foo // Foo est un agrégat
+{
+    int x {};
+    int y {};
+};
+
+int main()
+{
+    Foo foo { 6, 7 }; // utilise l'initialisation d'agrégat
+
+    return 0;
+}
+</code></pre>
+<p>L'initialisation d'agrégat procède membre par membre (les membres sont initialisés dans l'ordre de leur définition). Ainsi, lorsque <code>foo</code> est instancié dans l'exemple ci-dessus, <code>foo.x</code> est initialisé à <code>6</code> et <code>foo.y</code> à <code>7</code>.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons la définition d'un agrégat et l'initialisation d'agrégat dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.8%20-%20Initialisation%20par%20agr%C3%A9gat%20des%20structures.html">13.8 -- Initialisation d'agrégat des structures</a>.</p>
+</div>
+<p>Cependant, dès que nous rendons privée une variable membre (pour masquer nos données), notre type de classe n'est plus un agrégat (car les agrégats ne peuvent pas avoir de membres privés). Nous ne pouvons alors plus utiliser l'initialisation d'agrégat :</p>
+<pre><code class="language-cpp">class Foo // Foo n'est pas un agrégat (il a des membres privés)
+{
+    int m_x {};
+    int m_y {};
+};
+
+int main()
+{
+    Foo foo { 6, 7 }; // erreur de compilation : l'initialisation d'agrégat n'est pas possible
+
+    return 0;
+}
+</code></pre>
+<p>Interdire l'initialisation d'agrégat des types de classe possédant des membres privés se justifie pour plusieurs raisons :</p>
+<ul>
+<li>L'initialisation d'agrégat exige de connaître l'implémentation de la classe (puisqu'il faut connaître ses membres et leur ordre de définition), ce que nous cherchons précisément à éviter en masquant nos membres de données.</li>
+<li>Si notre classe possède un invariant, nous compterions sur l'utilisateur pour initialiser la classe d'une manière qui préserve cet invariant.</li>
+</ul>
+<p>Comment alors initialiser une classe dotée de variables membres privées ? Le message d'erreur du compilateur pour l'exemple précédent donne un indice : « error: no matching constructor for initialization of 'Foo' » (erreur : aucun constructeur correspondant pour l'initialisation de « Foo »).</p>
+<p>Il nous faut un constructeur correspondant. Mais qu'est-ce donc que c'est ?</p>
+<h2 id="les-constructeurs">Les constructeurs</h2>
+<p>Un <strong>constructeur</strong> (constructor) est une fonction membre spéciale qui est automatiquement appelée après la création d'un objet d'un type de classe non agrégat.</p>
+<p>Lorsqu'un objet d'un type de classe non agrégat est défini, le compilateur cherche un constructeur accessible qui corresponde aux valeurs d'initialisation fournies par l'appelant (s'il y en a).</p>
+<ul>
+<li>Si un constructeur accessible et correspondant est trouvé, la mémoire de l'objet est allouée, puis la fonction constructeur est appelée.</li>
+<li>Si aucun constructeur accessible et correspondant ne peut être trouvé, une erreur de compilation est générée.</li>
+</ul>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Beaucoup de programmeurs débutants se demandent si les constructeurs créent ou non les objets. Ce n'est pas le cas : le compilateur prépare la mémoire de l'objet avant l'appel du constructeur. Le constructeur est ensuite appelé sur un objet non initialisé.</p>
+<p>Cependant, si aucun constructeur correspondant ne peut être trouvé pour un ensemble d'initialiseurs, le compilateur signale une erreur. Ainsi, bien que les constructeurs ne créent pas les objets, l'absence de constructeur correspondant empêche la création de l'objet.</p>
+</div>
+<p>Au-delà de la détermination de la manière dont un objet peut être créé, les constructeurs remplissent généralement deux fonctions :</p>
+<ul>
+<li>Ils initialisent en général les variables membres (via une liste d'initialisation des membres).</li>
+<li>Ils peuvent effectuer d'autres tâches de préparation (via des instructions dans le corps du constructeur). Cela peut inclure la vérification des valeurs d'initialisation, l'ouverture d'un fichier ou d'une base de données, etc.</li>
+</ul>
+<p>Une fois l'exécution du constructeur terminée, on dit que l'objet a été « construit », et il doit maintenant être dans un état cohérent et utilisable.</p>
+<p>Notez que les agrégats ne peuvent pas avoir de constructeurs : si vous ajoutez un constructeur à un agrégat, celui-ci n'est plus un agrégat.</p>
+<h2 id="nommer-les-constructeurs">Nommer les constructeurs</h2>
+<p>Contrairement aux fonctions membres ordinaires, les constructeurs obéissent à des règles précises de nommage :</p>
+<ul>
+<li>Un constructeur doit porter le même nom que la classe (avec la même casse). Pour les classes modèles, ce nom exclut les paramètres de modèle.</li>
+<li>Un constructeur n'a pas de type de retour (pas même <code>void</code>).</li>
+</ul>
+<p>Comme les constructeurs font en général partie de l'interface de votre classe, ils sont habituellement publics.</p>
+<h2 id="un-exemple-simple-de-constructeur">Un exemple simple de constructeur</h2>
+<p>Ajoutons un constructeur simple à notre exemple précédent :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Foo
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    Foo(int x, int y) // voici notre fonction constructeur qui prend deux initialiseurs
+    {
+        std::cout &lt;&lt; &quot;Foo(&quot; &lt;&lt; x &lt;&lt; &quot;, &quot; &lt;&lt; y &lt;&lt; &quot;) construit\n&quot;;
+    }
+
+    void print() const
+    {
+        std::cout &lt;&lt; &quot;Foo(&quot; &lt;&lt; m_x &lt;&lt; &quot;, &quot; &lt;&lt; m_y &lt;&lt; &quot;)\n&quot;;
+    }
+};
+
+int main()
+{
+    Foo foo{ 6, 7 }; // appelle le constructeur Foo(int, int)
+    foo.print();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme compile désormais et produit le résultat :</p>
+<pre><code>
+Foo(6, 7) construit
+Foo(0, 0)
+</code></pre>
+<p>Lorsque le compilateur rencontre la définition <code>Foo foo{ 6, 7 }</code>, il cherche un constructeur <code>Foo</code> correspondant qui accepte deux arguments de type <code>int</code>. <code>Foo(int, int)</code> correspond, donc le compilateur accepte la définition.</p>
+<p>À l'exécution, lorsque <code>foo</code> est instancié, la mémoire de <code>foo</code> est allouée, puis le constructeur <code>Foo(int, int)</code> est appelé avec le paramètre <code>x</code> initialisé à <code>6</code> et le paramètre <code>y</code> initialisé à <code>7</code>. Le corps de la fonction constructeur s'exécute alors et affiche <code>Foo(6, 7) construit</code>.</p>
+<p>Lorsque nous appelons la fonction membre <code>print()</code>, vous remarquerez que les membres <code>m_x</code> et <code>m_y</code> valent 0. Cela tient au fait que, bien que la fonction constructeur <code>Foo(int, int)</code> ait été appelée, elle n'a pas réellement initialisé les membres. Nous montrerons comment le faire dans la prochaine leçon.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous étudions les différences entre l'initialisation par copie, directe et par liste pour initialiser des objets avec un constructeur dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.15%20-%20Initialisation%20de%20classe%20et%20%C3%A9lision%20de%20copie.html">14.15 -- Initialisation de classe et élision de copie</a>.</p>
+</div>
+<h2 id="conversion-implicite-des-arguments-dun-constructeur">Conversion implicite des arguments d'un constructeur</h2>
+<p>Dans la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.1%20-%20Conversion%20de%20type%20implicite.html">10.1 -- Conversion implicite de type</a>, nous avons indiqué que le compilateur effectue si nécessaire une conversion implicite des arguments d'un appel de fonction afin de correspondre à une définition de fonction dont les paramètres sont d'un type différent :</p>
+<pre><code class="language-cpp">void foo(int, int)
+{
+}
+
+int main()
+{
+    foo('a', true); // correspond à foo(int, int)
+
+    return 0;
+}
+</code></pre>
+<p>Il en va de même pour les constructeurs : le constructeur <code>Foo(int, int)</code> correspondra à tout appel dont les arguments sont implicitement convertibles en <code>int</code> :</p>
+<pre><code class="language-cpp">class Foo
+{
+public:
+    Foo(int x, int y)
+    {
+    }
+};
+
+int main()
+{
+    Foo foo{ 'a', true }; // correspond au constructeur Foo(int, int)
+
+    return 0;
+}
+</code></pre>
+<h2 id="les-constructeurs-ne-doivent-pas-être-const">Les constructeurs ne doivent pas être const</h2>
+<p>Un constructeur doit pouvoir initialiser l'objet en cours de construction ; un constructeur ne doit donc pas être const.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Something
+{
+private:
+    int m_x{};
+
+public:
+    Something() // les constructeurs doivent être non const
+    {
+        m_x = 5; // il est permis de modifier les membres dans un constructeur non const
+    }
+
+    int getX() const { return m_x; } // const
+};
+
+int main()
+{
+    const Something s{}; // objet const, appelle implicitement le constructeur (non const)
+
+    std::cout &lt;&lt; s.getX(); // affiche 5
+
+    return 0;
+}
+</code></pre>
+<p>Normalement, une fonction membre non const ne peut pas être appelée sur un objet const. Cependant, la norme C++ précise explicitement (selon <a href="https://eel.is/c++draft/class.ctor.general#5">class.ctor.general#5</a>) que const ne s'applique pas à un objet en cours de construction, et ne prend effet qu'une fois le constructeur terminé.</p>
+<h2 id="constructeurs-et-setters">Constructeurs et setters</h2>
+<p>Les constructeurs sont conçus pour initialiser un objet entier au moment de son instanciation. Les setters sont conçus pour affecter une valeur à un seul membre d'un objet existant.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-constructors/">https://www.learncpp.com/cpp-tutorial/introduction-to-constructors/</a></em></p>
+</main>
+</body>
+</html>

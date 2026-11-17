@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.4 — Conversion d&#x27;une énumération vers et depuis une chaîne de caractères</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="134-conversion-dune-énumération-vers-et-depuis-une-chaîne-de-caractères">13.4 — Conversion d'une énumération vers et depuis une chaîne de caractères</h1>
+<p>Dans la leçon précédente (<a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.3%20-%20Conversions%20int%C3%A9grales%20des%20%C3%A9num%C3%A9rateurs%20sans%20port%C3%A9e.html">13.3 -- Conversions entières des énumérateurs non scopés</a>), nous avons présenté un exemple de ce type :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+enum Color
+{
+    black, // 0
+    red,   // 1
+    blue,  // 2
+};
+
+int main()
+{
+    Color shirt{ blue };
+
+    std::cout &lt;&lt; &quot;Your shirt is &quot; &lt;&lt; shirt &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Your shirt is 2
+</code></pre>
+<p>Comme <code>operator&lt;&lt;</code> ne sait pas afficher un <code>Color</code>, le compilateur convertit implicitement <code>Color</code> en une valeur entière et affiche celle-ci à la place.</p>
+<p>La plupart du temps, afficher une énumération sous forme de valeur entière (comme <code>2</code>) n'est pas ce que nous voulons. Nous souhaitons généralement afficher le nom de l'énumérateur représenté (par exemple <code>blue</code>). C++ ne fournit pas de moyen prêt à l'emploi pour y parvenir, nous devons donc trouver nous-mêmes une solution. Heureusement, ce n'est pas très difficile.</p>
+<h2 id="obtenir-le-nom-dun-énumérateur">Obtenir le nom d'un énumérateur</h2>
+<p>La manière habituelle d'obtenir le nom d'un énumérateur consiste à écrire une fonction qui prend un énumérateur en paramètre et renvoie son nom sous forme de chaîne. Mais cela suppose de savoir quelle chaîne renvoyer pour un énumérateur donné.</p>
+<p>Il existe deux méthodes courantes pour y parvenir.</p>
+<p>Dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.5%20-%20Bases%20de%20l%27instruction%20switch.html">8.5 -- Bases de l'instruction switch</a>, nous avons indiqué qu'une instruction switch peut opérer sur une valeur entière ou sur une valeur énumérée. Dans l'exemple suivant, nous utilisons une instruction switch pour sélectionner un énumérateur et renvoyer la chaîne littérale de couleur correspondante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+enum Color
+{
+    black,
+    red,
+    blue,
+};
+
+constexpr std::string_view getColorName(Color color)
+{
+    switch (color)
+    {
+    case black: return &quot;black&quot;;
+    case red:   return &quot;red&quot;;
+    case blue:  return &quot;blue&quot;;
+    default:    return &quot;???&quot;;
+    }
+}
+
+int main()
+{
+    constexpr Color shirt{ blue };
+
+    std::cout &lt;&lt; &quot;Your shirt is &quot; &lt;&lt; getColorName(shirt) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Your shirt is blue
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous effectuons un switch sur <code>color</code>, qui contient l'énumérateur passé en argument. À l'intérieur du switch, nous avons une étiquette de cas pour chaque énumérateur de <code>Color</code>. Chaque cas renvoie le nom de la couleur correspondante sous forme de chaîne littérale de style C. Cette chaîne est implicitement convertie en <code>std::string_view</code>, qui est renvoyée à l'appelant. Nous avons également un cas <code>default</code> qui renvoie <code>"???"</code>, au cas où l'utilisateur passerait une valeur inattendue.</p>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Comme les chaînes littérales de style C existent pendant toute la durée du programme, il est correct de renvoyer un <code>std::string_view</code> qui observe une chaîne littérale de style C. Lorsque le <code>std::string_view</code> est copié vers l'appelant, la chaîne littérale observée existe toujours.</p>
+</div>
+<p>La fonction est constexpr afin que nous puissions utiliser le nom de la couleur dans une expression constante.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Les fonctions constexpr sont présentées dans la leçon <a href="../13%20-%20Chapitre%20F%20-%20Fonctions%20constexpr/F.1%20-%20Fonctions%20constexpr.html">F.1 -- Fonctions constexpr</a>.</p>
+</div>
+<p>Bien que cela nous permette d'obtenir le nom d'un énumérateur, écrire <code>std::cout &lt;&lt; getColorName(shirt)</code> est moins agréable que <code>std::cout &lt;&lt; shirt</code> pour afficher ce nom à l'écran. Nous apprendrons à <code>std::cout</code> à afficher une énumération dans la leçon à venir <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.5%20-%20Introduction%20%C3%A0%20la%20surcharge%20des%20op%C3%A9rateurs%20d%27entr%C3%A9e%20et%20de%20sortie.html">13.5 -- Introduction à la surcharge des opérateurs d'entrée/sortie</a>.</p>
+<p>La seconde méthode pour associer les énumérateurs à des chaînes consiste à utiliser un tableau. Nous la présentons dans la leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.6%20-%20std--array%20et%20%C3%A9num%C3%A9rations.html">17.6 -- std::array et les énumérations</a>.</p>
+<h2 id="entrée-dune-énumération-non-scopée">Entrée d'une énumération non scopée</h2>
+<p>Examinons maintenant un cas d'entrée. Dans l'exemple suivant, nous définissons une énumération <code>Pet</code>. Comme <code>Pet</code> est un type défini par le programme, le langage ne sait pas comment lire un <code>Pet</code> avec <code>std::cin</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+enum Pet
+{
+    cat,   // 0
+    dog,   // 1
+    pig,   // 2
+    whale, // 3
+};
+
+int main()
+{
+    Pet pet { pig };
+    std::cin &gt;&gt; pet; // erreur de compilation : std::cin ne sait pas lire un Pet
+
+    return 0;
+}
+</code></pre>
+<p>Une manière simple de contourner ce problème consiste à lire un entier, puis à utiliser <code>static_cast</code> pour le convertir en un énumérateur du type énuméré approprié :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+enum Pet
+{
+    cat,   // 0
+    dog,   // 1
+    pig,   // 2
+    whale, // 3
+};
+
+constexpr std::string_view getPetName(Pet pet)
+{
+    switch (pet)
+    {
+    case cat:   return &quot;cat&quot;;
+    case dog:   return &quot;dog&quot;;
+    case pig:   return &quot;pig&quot;;
+    case whale: return &quot;whale&quot;;
+    default:    return &quot;???&quot;;
+    }
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a pet (0=cat, 1=dog, 2=pig, 3=whale): &quot;;
+
+    int input{};
+    std::cin &gt;&gt; input; // lecture d'un entier
+
+    if (input &lt; 0 || input &gt; 3)
+        std::cout &lt;&lt; &quot;You entered an invalid pet\n&quot;;
+    else
+    {
+        Pet pet{ static_cast&lt;Pet&gt;(input) }; // conversion de notre entier en Pet via static_cast
+        std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; getPetName(pet) &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Cette solution fonctionne, mais elle est un peu maladroite. Notez également que nous ne devons effectuer <code>static_cast&lt;Pet&gt;(input)</code> qu'après avoir vérifié que <code>input</code> se situe dans la plage des énumérateurs.</p>
+<h2 id="obtenir-une-énumération-à-partir-dune-chaîne">Obtenir une énumération à partir d'une chaîne</h2>
+<p>Plutôt que de saisir un nombre, il serait plus agréable que l'utilisateur tape une chaîne représentant un énumérateur (par exemple « pig »), et que nous puissions convertir cette chaîne en l'énumérateur <code>Pet</code> correspondant. Toutefois, cela demande de résoudre deux difficultés.</p>
+<p>Premièrement, on ne peut pas faire de switch sur une chaîne. Il faut donc utiliser autre chose pour comparer la chaîne saisie par l'utilisateur. L'approche la plus simple consiste à utiliser une série d'instructions if.</p>
+<p>Deuxièmement, quel énumérateur <code>Pet</code> renvoyer si l'utilisateur saisit une chaîne invalide ? Une option serait d'ajouter un énumérateur représentant « aucun/invalide » et de le renvoyer. Cependant, une meilleure option consiste à utiliser <code>std::optional</code>.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous présentons <code>std::optional</code> dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.15%20-%20std--optional.html">12.15 -- std::optional</a>.</p>
+</div>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;optional&gt; // pour std::optional
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+enum Pet
+{
+    cat,   // 0
+    dog,   // 1
+    pig,   // 2
+    whale, // 3
+};
+
+constexpr std::string_view getPetName(Pet pet)
+{
+    switch (pet)
+    {
+    case cat:   return &quot;cat&quot;;
+    case dog:   return &quot;dog&quot;;
+    case pig:   return &quot;pig&quot;;
+    case whale: return &quot;whale&quot;;
+    default:    return &quot;???&quot;;
+    }
+}
+
+constexpr std::optional&lt;Pet&gt; getPetFromString(std::string_view sv)
+{
+    // On ne peut faire de switch que sur une valeur entière (ou une énumération), pas sur une chaîne
+    // il faut donc utiliser des instructions if ici
+    if (sv == &quot;cat&quot;)   return cat;
+    if (sv == &quot;dog&quot;)   return dog;
+    if (sv == &quot;pig&quot;)   return pig;
+    if (sv == &quot;whale&quot;) return whale;
+
+    return {};
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter a pet: cat, dog, pig, or whale: &quot;;
+    std::string s{};
+    std::cin &gt;&gt; s;
+
+    std::optional&lt;Pet&gt; pet { getPetFromString(s) };
+
+    if (!pet)
+        std::cout &lt;&lt; &quot;You entered an invalid pet\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; getPetName(*pet) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans la solution ci-dessus, nous utilisons une série d'instructions if-else pour effectuer des comparaisons de chaînes. Si la chaîne saisie correspond à celle d'un énumérateur, nous renvoyons l'énumérateur correspondant. Si aucune chaîne ne correspond, nous renvoyons <code>{}</code>, ce qui signifie « aucune valeur ».</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Notez que la solution ci-dessus ne reconnaît que les lettres minuscules. Si vous souhaitez reconnaître quelle que soit la casse, vous pouvez utiliser la fonction suivante pour convertir la saisie de l'utilisateur en minuscules :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::transform
+#include &lt;cctype&gt;    // pour std::tolower
+#include &lt;iterator&gt;  // pour std::back_inserter
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+// Cette fonction renvoie une std::string qui est la version en minuscules du std::string_view passé en argument.
+// Seul un mappage caractère par caractère 1:1 peut être effectué par cette fonction
+std::string toASCIILowerCase(std::string_view sv)
+{
+    std::string lower{};
+    std::transform(sv.begin(), sv.end(), std::back_inserter(lower),
+        [](char c)
+        {
+            return static_cast&lt;char&gt;(std::tolower(static_cast&lt;unsigned char&gt;(c)));
+        });
+    return lower;
+}
+</code></pre>
+<p>Cette fonction parcourt chaque caractère de <code>std::string_view sv</code>, le convertit en minuscule à l'aide de <code>std::tolower()</code> (avec l'aide d'une lambda), puis ajoute ce caractère minuscule à <code>lower</code>.</p>
+<p>Nous présentons les lambdas dans la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.6%20-%20Introduction%20aux%20lambdas%20%28fonctions%20anonymes%29.html">20.6 -- Introduction aux lambdas (fonctions anonymes)</a>.</p>
+</div>
+<p>Comme pour le cas de la sortie, il serait préférable de pouvoir simplement écrire <code>std::cin &gt;&gt; pet</code>. Nous aborderons ce point dans la leçon à venir <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.5%20-%20Introduction%20%C3%A0%20la%20surcharge%20des%20op%C3%A9rateurs%20d%27entr%C3%A9e%20et%20de%20sortie.html">13.5 -- Introduction à la surcharge des opérateurs d'entrée/sortie</a>.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/converting-an-enumeration-to-and-from-a-string/">https://www.learncpp.com/cpp-tutorial/converting-an-enumeration-to-and-from-a-string/</a></em></p>
+</main>
+</body>
+</html>

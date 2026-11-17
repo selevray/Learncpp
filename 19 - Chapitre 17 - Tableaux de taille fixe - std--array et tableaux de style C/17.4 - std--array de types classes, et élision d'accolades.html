@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.4 — std::array de types classes, et élision d&#x27;accolades</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="174-stdarray-de-types-classes-et-élision-daccolades">17.4 — std::array de types classes, et élision d'accolades</h1>
+<p>Un <code>std::array</code> n'est pas limité aux éléments de types fondamentaux. En réalité, les éléments d'un <code>std::array</code> peuvent être de n'importe quel type objet, y compris des types composés. Cela signifie que vous pouvez créer un <code>std::array</code> de pointeurs, ou un <code>std::array</code> de structures (ou de classes).</p>
+<p>Cependant, l'initialisation d'un <code>std::array</code> de structures ou de classes déroute souvent les programmeurs débutants. Nous allons donc consacrer une leçon à ce sujet précis.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Nous utiliserons des structures pour illustrer nos propos dans cette leçon. Le contenu s'applique tout aussi bien aux classes.</p>
+</div>
+<h2 id="définir-et-affecter-un-stdarray-de-structures">Définir et affecter un <code>std::array</code> de structures</h2>
+<p>Commençons par une structure simple :</p>
+<pre><code class="language-cpp">struct House
+{
+    int number{};
+    int stories{};
+    int roomsPerStory{};
+};
+</code></pre>
+<p>Définir un <code>std::array</code> de <code>House</code> et affecter ses éléments fonctionne comme vous pourriez vous y attendre :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+struct House
+{
+    int number{};
+    int stories{};
+    int roomsPerStory{};
+};
+
+int main()
+{
+    std::array&lt;House, 3&gt; houses{};
+
+    houses[0] = { 13, 1, 7 };
+    houses[1] = { 14, 2, 5 };
+    houses[2] = { 15, 2, 4 };
+
+    for (const auto&amp; house : houses)
+    {
+        std::cout &lt;&lt; &quot;House number &quot; &lt;&lt; house.number
+                  &lt;&lt; &quot; has &quot; &lt;&lt; (house.stories * house.roomsPerStory)
+                  &lt;&lt; &quot; rooms.\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Le programme ci-dessus affiche ce qui suit :</p>
+<pre><code>
+House number 13 has 7 rooms.
+House number 14 has 10 rooms.
+House number 15 has 8 rooms.
+</code></pre>
+<h2 id="initialiser-un-stdarray-de-structures">Initialiser un <code>std::array</code> de structures</h2>
+<p>Initialiser un tableau de structures fonctionne également comme vous pourriez vous y attendre, à condition de préciser explicitement le type des éléments :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+struct House
+{
+    int number{};
+    int stories{};
+    int roomsPerStory{};
+};
+
+int main()
+{
+    constexpr std::array houses { // utilisation de CTAD pour déduire les arguments de modèle &lt;House, 3&gt;
+            House{ 13, 1, 7 },
+            House{ 14, 2, 5 },
+            House{ 15, 2, 4 }
+        };
+
+    for (const auto&amp; house : houses)
+    {
+        std::cout &lt;&lt; &quot;House number &quot; &lt;&lt; house.number
+            &lt;&lt; &quot; has &quot; &lt;&lt; (house.stories * house.roomsPerStory)
+            &lt;&lt; &quot; rooms.\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous utilisons CTAD pour déduire le type du <code>std::array</code> comme <code>std::array&lt;House, 3&gt;</code>. Nous fournissons ensuite 3 objets <code>House</code> comme initialisateurs, ce qui fonctionne parfaitement.</p>
+<h2 id="initialisation-sans-préciser-le-type-délément-pour-chaque-initialisateur">Initialisation sans préciser le type d'élément pour chaque initialisateur</h2>
+<p>Dans l'exemple précédent, vous remarquerez que chaque initialisateur oblige à citer le type d'élément :</p>
+<pre><code class="language-cpp">    constexpr std::array houses {
+            House{ 13, 1, 7 }, // on mentionne House ici
+            House{ 14, 2, 5 }, // et ici
+            House{ 15, 2, 4 }  // et ici
+        };
+</code></pre>
+<p>Mais nous n'avons pas eu à faire de même dans le cas de l'affectation :</p>
+<pre><code class="language-cpp">    // Le compilateur sait que chaque élément de houses est un House
+    // il convertira donc implicitement le membre droit de chaque affectation en House
+    houses[0] = { 13, 1, 7 };
+    houses[1] = { 14, 2, 5 };
+    houses[2] = { 15, 2, 4 };
+</code></pre>
+<p>On pourrait donc être tenté d'écrire quelque chose comme ceci :</p>
+<pre><code class="language-cpp">    // ne fonctionne pas
+    constexpr std::array&lt;House, 3&gt; houses { // on indique au compilateur que chaque élément est un House
+            { 13, 1, 7 }, // mais on ne le mentionne pas ici
+            { 14, 2, 5 },
+            { 15, 2, 4 }
+        };
+</code></pre>
+<p>Et, peut-être de manière surprenante, cela ne fonctionne pas. Voyons pourquoi.</p>
+<p>Un <code>std::array</code> est défini comme une structure qui contient un unique membre de tableau de style C (dont le nom est défini par l'implémentation), de la façon suivante :</p>
+<pre><code class="language-cpp">template&lt;typename T, std::size_t N&gt;
+struct array
+{
+    T implementation_defined_name[N]; // un tableau de style C de N éléments de type T
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Nous n'avons pas encore abordé les tableaux de style C, mais pour les besoins de cette leçon, il vous suffit de savoir que <code>T implementation_defined_name[N];</code> est un tableau de taille fixe de N éléments de type T (tout comme <code>std::array&lt;T, N&gt; implementation_defined_name;</code>).</p>
+<p>Nous aborderons les tableaux de style C dans la prochaine leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.7%20-%20Introduction%20aux%20tableaux%20de%20style%20C.html">17.7 -- Introduction aux tableaux de style C</a>.</p>
+</div>
+<p>Ainsi, lorsque nous essayons d'initialiser <code>houses</code> comme ci-dessus, le compilateur interprète l'initialisation de cette façon :</p>
+<pre><code class="language-cpp">// Ne fonctionne pas
+constexpr std::array&lt;House, 3&gt; houses { // initialisateur de houses
+    { 13, 1, 7 }, // initialisateur du membre tableau de style C nommé implementation_defined_name
+    { 14, 2, 5 }, // ?
+    { 15, 2, 4 }  // ?
+};
+</code></pre>
+<p>Le compilateur interprète <code>{ 13, 1, 7 }</code> comme l'initialisateur du premier membre de <code>houses</code>, qui est le tableau de style C au nom défini par l'implémentation. Cela initialise l'élément 0 de ce tableau avec <code>{ 13, 1, 7 }</code>, et les autres membres sont initialisés à zéro. Puis le compilateur constate que nous avons fourni deux valeurs d'initialisation supplémentaires (<code>{ 14, 2, 5 }</code> et <code>{ 15, 2, 4 }</code>) et produit une erreur de compilation indiquant que nous avons fourni trop de valeurs d'initialisation.</p>
+<p>La bonne façon d'initialiser ce tableau consiste à ajouter un jeu d'accolades supplémentaire, comme suit :</p>
+<pre><code class="language-cpp">// Cela fonctionne comme attendu
+constexpr std::array&lt;House, 3&gt; houses { // initialisateur de houses
+    { // accolades supplémentaires pour initialiser le membre tableau de style C nommé implementation_defined_name
+        { 13, 4, 30 }, // initialisateur de l'élément 0 du tableau
+        { 14, 3, 10 }, // initialisateur de l'élément 1 du tableau
+        { 15, 3, 40 }, // initialisateur de l'élément 2 du tableau
+     }
+};
+</code></pre>
+<p>Notez les accolades supplémentaires nécessaires (pour commencer l'initialisation du membre tableau de style C à l'intérieur de la structure <code>std::array</code>). À l'intérieur de ces accolades, nous pouvons ensuite initialiser chaque élément individuellement, chacun entre ses propres accolades.</p>
+<p>C'est pourquoi vous verrez des initialisateurs de <code>std::array</code> avec un jeu d'accolades supplémentaire lorsque le type d'élément nécessite une liste de valeurs et que nous ne précisons pas explicitement le type d'élément dans l'initialisateur.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Lorsque vous initialisez un <code>std::array</code> avec une structure, une classe ou un tableau, sans préciser le type d'élément dans chaque initialisateur, vous avez besoin d'une paire d'accolades supplémentaire pour que le compilateur interprète correctement ce qu'il doit initialiser.</p>
+<p>Ceci est une conséquence de l'initialisation agrégée, et les autres types de conteneurs de la bibliothèque standard (qui utilisent des constructeurs à liste) n'ont pas besoin de double accolade dans ces cas.</p>
+</div>
+<p>Voici un exemple complet :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+struct House
+{
+    int number{};
+    int stories{};
+    int roomsPerStory{};
+};
+
+int main()
+{
+    constexpr std::array&lt;House, 3&gt; houses {{ // notez la double accolade
+        { 13, 1, 7 },
+        { 14, 2, 5 },
+        { 15, 2, 4 }
+    }};
+
+    for (const auto&amp; house : houses)
+    {
+        std::cout &lt;&lt; &quot;House number &quot; &lt;&lt; house.number
+                  &lt;&lt; &quot; has &quot; &lt;&lt; (house.stories * house.roomsPerStory)
+                  &lt;&lt; &quot; rooms.\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<h2 id="élision-daccolades-pour-les-agrégats">Élision d'accolades pour les agrégats</h2>
+<p>Compte tenu de l'explication précédente, vous vous demandez peut-être pourquoi le cas ci-dessus nécessite une double accolade, alors que tous les autres cas vus jusqu'ici n'exigent qu'une seule accolade :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr std::array&lt;int, 5&gt; arr { 1, 2, 3, 4, 5 }; // accolade simple
+
+    for (const auto n : arr)
+        std::cout &lt;&lt; n &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Il se trouve que vous pouvez aussi fournir une double accolade pour ces tableaux :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr std::array&lt;int, 5&gt; arr {{ 1, 2, 3, 4, 5 }}; // double accolade
+
+    for (const auto n : arr)
+        std::cout &lt;&lt; n &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, les agrégats en C++ prennent en charge un concept appelé <strong>élision d'accolades</strong> (brace elision), qui définit des règles indiquant quand plusieurs accolades peuvent être omises. En général, vous pouvez omettre les accolades lorsque vous initialisez un <code>std::array</code> avec des valeurs scalaires (simples), ou lorsque vous initialisez avec des types classes ou des tableaux dont le type est explicitement nommé pour chaque élément.</p>
+<p>Il n'y a aucun inconvénient à toujours initialiser un <code>std::array</code> avec une double accolade, car cela évite de vous demander si l'élision d'accolades s'applique ou non dans un cas donné. Sinon, vous pouvez essayer une initialisation à accolade simple : le compilateur signalera généralement une erreur s'il ne parvient pas à interpréter le code. Dans ce cas, il vous suffit d'ajouter rapidement un jeu d'accolades supplémentaire.</p>
+<h2 id="un-autre-exemple">Un autre exemple</h2>
+<p>Voici un exemple supplémentaire où nous initialisons un <code>std::array</code> avec des structures <code>Student</code>.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+// Chaque étudiant possède un identifiant et un nom
+struct Student
+{
+    int id{};
+    std::string_view name{};
+};
+
+// Notre tableau de 3 étudiants (accolade simple, car nous mentionnons Student avec chaque initialisateur)
+constexpr std::array students{ Student{0, &quot;Alex&quot;}, Student{ 1, &quot;Joe&quot; }, Student{ 2, &quot;Bob&quot; } };
+
+const Student* findStudentById(int id)
+{
+    // Parcourir tous les étudiants
+    for (auto&amp; s : students)
+    {
+        // Renvoyer l'étudiant dont l'identifiant correspond
+        if (s.id == id) return &amp;s;
+    }
+
+    // Aucun identifiant correspondant n'a été trouvé
+    return nullptr;
+}
+
+int main()
+{
+    constexpr std::string_view nobody { &quot;nobody&quot; };
+
+    const Student* s1 { findStudentById(1) };
+    std::cout &lt;&lt; &quot;You found: &quot; &lt;&lt; (s1 ? s1-&gt;name : nobody) &lt;&lt; '\n';
+
+    const Student* s2 { findStudentById(3) };
+    std::cout &lt;&lt; &quot;You found: &quot; &lt;&lt; (s2 ? s2-&gt;name : nobody) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+You found: Joe
+You found: nobody
+</code></pre>
+<p>Notez que, puisque <code>std::array students</code> est <code>constexpr</code>, notre fonction <code>findStudentById()</code> doit renvoyer un pointeur constant, ce qui signifie que les pointeurs <code>Student</code> dans <code>main()</code> doivent également être constants.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Définissez une structure nommée <code>Item</code> contenant deux membres : <code>std::string_view name</code> et <code>int gold</code>. Définissez un <code>std::array</code> et initialisez-le avec 4 objets <code>Item</code>. Utilisez CTAD pour déduire le type d'élément et la taille du tableau.</p>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : vous devrez préciser explicitement le type d'élément pour chaque initialisateur.</p>
+</details>
+<p>Le programme doit afficher :</p>
+<pre><code>
+A sword costs 5 gold.
+A dagger costs 3 gold.
+A club costs 2 gold.
+A spear costs 7 gold.
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+struct Item
+{
+    std::string_view name {};
+    int gold {};
+};
+
+template &lt;std::size_t N&gt;
+void printStore(const std::array&lt;Item, N&gt;&amp; arr)
+{
+    for (const auto&amp; item: arr)
+    {
+        std::cout &lt;&lt; &quot;A &quot; &lt;&lt; item.name &lt;&lt; &quot; costs &quot; &lt;&lt; item.gold &lt;&lt; &quot; gold.\n&quot;;
+    }
+}
+
+int main()
+{
+    constexpr std::array store { // CTAD, accolades simples grâce à l'élision d'accolades
+        Item { &quot;sword&quot;,    5 },
+        Item { &quot;dagger&quot;,   3 },
+        Item { &quot;club&quot;,     2 },
+        Item { &quot;spear&quot;,    7 } };
+    printStore(store);
+
+    return 0;
+}
+</code></pre>
+<p>Comme nous précisons explicitement le type d'élément pour chaque initialisateur, nous pouvons ici utiliser CTAD et des accolades simples (grâce à l'élision d'accolades).</p>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Modifiez votre solution de la question 1 pour ne pas préciser explicitement le type d'élément pour chaque initialisateur.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+struct Item
+{
+    std::string_view name {};
+    int gold {};
+};
+
+template &lt;std::size_t N&gt;
+void printStore(const std::array&lt;Item, N&gt;&amp; arr)
+{
+    for (const auto&amp; item: arr)
+    {
+        std::cout &lt;&lt; &quot;A &quot; &lt;&lt; item.name &lt;&lt; &quot; costs &quot; &lt;&lt; item.gold &lt;&lt; &quot; gold.\n&quot;;
+    }
+}
+
+int main()
+{
+    constexpr std::array&lt;Item, 4&gt; store {{ // Pas de CTAD, il faut utiliser une double accolade
+        { &quot;sword&quot;,    5 },
+        { &quot;dagger&quot;,   3 },
+        { &quot;club&quot;,     2 },
+        { &quot;spear&quot;,    7 }
+    }};
+    printStore(store);
+
+    return 0;
+}
+</code></pre>
+<p>Comme nous ne précisons pas explicitement le type d'élément pour chaque initialisateur, nous ne pouvons utiliser ni CTAD ni l'élision d'accolades. Nous devons donc utiliser une double accolade.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdarray-of-class-types-and-brace-elision/">https://www.learncpp.com/cpp-tutorial/stdarray-of-class-types-and-brace-elision/</a></em></p>
+</main>
+</body>
+</html>

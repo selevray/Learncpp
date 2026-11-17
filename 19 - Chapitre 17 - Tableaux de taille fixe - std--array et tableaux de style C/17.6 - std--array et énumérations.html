@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.6 — std::array et énumérations</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="176-stdarray-et-énumérations">17.6 — std::array et énumérations</h1>
+<p>Dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.9%20-%20Indexation%20de%20tableaux%20et%20longueur%20%C3%A0%20l%27aide%20d%27%C3%A9num%C3%A9rateurs.html">16.9 -- Indexation des tableaux et longueur à l'aide d'énumérateurs</a>, nous avons abordé les tableaux et les énumérations.</p>
+<p>Maintenant que nous disposons de <code>constexpr std::array</code> dans notre boîte à outils, nous allons poursuivre cette discussion et présenter quelques astuces supplémentaires.</p>
+<h2 id="utiliser-static_assert-pour-garantir-le-nombre-correct-dinitialiseurs-de-tableau">Utiliser static_assert pour garantir le nombre correct d'initialiseurs de tableau</h2>
+<p>Lors de l'initialisation d'un <code>constexpr std::array</code> avec CTAD, le compilateur déduit la taille du tableau à partir du nombre d'initialiseurs. Si moins d'initialiseurs que prévu sont fournis, le tableau sera plus court que prévu, et l'indexer peut conduire à un comportement indéfini.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+enum StudentNames
+{
+    kenny, // 0
+    kyle, // 1
+    stan, // 2
+    butters, // 3
+    cartman, // 4
+    max_students // 5
+};
+
+int main()
+{
+    constexpr std::array testScores { 78, 94, 66, 77 }; // oups, seulement 4 valeurs
+
+    std::cout &lt;&lt; &quot;Cartman a obtenu une note de &quot; &lt;&lt; testScores[StudentNames::cartman] &lt;&lt; '\n'; // comportement indéfini dû à un indice invalide
+
+    return 0;
+}
+</code></pre>
+<p>Chaque fois que le nombre d'initialiseurs d'un <code>constexpr std::array</code> peut être raisonnablement vérifié, vous pouvez le faire à l'aide d'un static_assert :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+enum StudentNames
+{
+    kenny, // 0
+    kyle, // 1
+    stan, // 2
+    butters, // 3
+    cartman, // 4
+    max_students // 5
+};
+
+int main()
+{
+    constexpr std::array testScores { 78, 94, 66, 77 };
+
+    // Vérifier que le nombre de notes est identique au nombre d'élèves
+    static_assert(std::size(testScores) == max_students); // erreur de compilation : la condition de static_assert a échoué
+
+    std::cout &lt;&lt; &quot;Cartman a obtenu une note de &quot; &lt;&lt; testScores[StudentNames::cartman] &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ainsi, si vous ajoutez plus tard un nouvel énumérateur mais oubliez d'ajouter l'initialiseur correspondant à <code>testScores</code>, le programme ne compilera pas.</p>
+<p>Vous pouvez également utiliser un static_assert pour vérifier que deux <code>constexpr std::array</code> différents ont la même longueur.</p>
+<h2 id="utiliser-des-tableaux-constexpr-pour-une-meilleure-entrée-et-sortie-des-énumérations">Utiliser des tableaux constexpr pour une meilleure entrée et sortie des énumérations</h2>
+<p>Dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.5%20-%20Introduction%20%C3%A0%20la%20surcharge%20des%20op%C3%A9rateurs%20d%27entr%C3%A9e%20et%20de%20sortie.html">13.5 -- Introduction à la surcharge des opérateurs d'entrée et de sortie</a>, nous avons présenté plusieurs façons d'afficher et de saisir les noms des énumérateurs. Pour cela, nous disposions de fonctions utilitaires qui convertissaient un énumérateur en chaîne et inversement. Chacune de ces fonctions possédait son propre jeu (dupliqué) de littéraux de chaîne, et nous devions explicitement coder la logique de vérification de chacun :</p>
+<pre><code class="language-cpp">constexpr std::string_view getPetName(Pet pet)
+{
+    switch (pet)
+    {
+    case cat:   return &quot;cat&quot;;
+    case dog:   return &quot;dog&quot;;
+    case pig:   return &quot;pig&quot;;
+    case whale: return &quot;whale&quot;;
+    default:    return &quot;???&quot;;
+    }
+}
+
+constexpr std::optional&lt;Pet&gt; getPetFromString(std::string_view sv)
+{
+    if (sv == &quot;cat&quot;)   return cat;
+    if (sv == &quot;dog&quot;)   return dog;
+    if (sv == &quot;pig&quot;)   return pig;
+    if (sv == &quot;whale&quot;) return whale;
+
+    return {};
+}
+</code></pre>
+<p>Cela signifie que si nous ajoutons un nouvel énumérateur, nous devrons penser à mettre à jour ces fonctions.</p>
+<p>Améliorons un peu ces fonctions. Lorsque les valeurs de nos énumérateurs commencent à 0 et se suivent séquentiellement (ce qui est vrai pour la plupart des énumérations), nous pouvons utiliser un tableau pour contenir le nom de chaque énumérateur.</p>
+<p>Cela nous permet de faire deux choses :</p>
+<ol>
+<li>Indexer le tableau avec la valeur de l'énumérateur pour obtenir son nom.</li>
+<li>Utiliser une boucle pour parcourir tous les noms et associer un nom à l'énumérateur correspondant grâce à son indice.</li>
+</ol>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+namespace Color
+{
+    enum Type
+    {
+        black,
+        red,
+        blue,
+        max_colors
+    };
+
+    // Utiliser le suffixe sv pour que std::array déduise le type std::string_view
+    using namespace std::string_view_literals; // pour le suffixe sv
+    constexpr std::array colorName { &quot;black&quot;sv, &quot;red&quot;sv, &quot;blue&quot;sv };
+
+    // Vérifier que nous avons défini des chaînes pour toutes nos couleurs
+    static_assert(std::size(colorName) == max_colors);
+};
+
+constexpr std::string_view getColorName(Color::Type color)
+{
+    // Nous pouvons indexer le tableau avec l'énumérateur pour obtenir son nom
+    return Color::colorName[static_cast&lt;std::size_t&gt;(color)];
+}
+
+// Apprendre à operator&lt;&lt; à afficher une Color
+// std::ostream est le type de std::cout
+// Le type de retour et le type du paramètre sont des références (pour éviter des copies) !
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, Color::Type color)
+{
+    return out &lt;&lt; getColorName(color);
+}
+
+// Apprendre à operator&gt;&gt; à lire une Color par son nom
+// Nous passons color par référence non constante pour que la fonction puisse modifier sa valeur
+std::istream&amp; operator&gt;&gt; (std::istream&amp; in, Color::Type&amp; color)
+{
+    std::string input {};
+    std::getline(in &gt;&gt; std::ws, input);
+
+    // Parcourir la liste des noms pour voir si nous trouvons un nom correspondant
+    for (std::size_t index=0; index &lt; Color::colorName.size(); ++index)
+    {
+        if (input == Color::colorName[index])
+        {
+            // Si nous trouvons un nom correspondant, nous pouvons obtenir la valeur de l'énumérateur à partir de son indice
+            color = static_cast&lt;Color::Type&gt;(index);
+            return in;
+        }
+    }
+
+    // Nous n'avons trouvé aucune correspondance, donc l'entrée était invalide
+    // nous mettons donc le flux d'entrée dans l'état d'échec
+    in.setstate(std::ios_base::failbit);
+
+    // En cas d'échec d'extraction, operator&gt;&gt; initialise à zéro les types fondamentaux
+    // Décommentez la ligne suivante pour que cet opérateur fasse de même
+    // color = {};
+    return in;
+}
+
+int main()
+{
+    auto shirt{ Color::blue };
+    std::cout &lt;&lt; &quot;Votre chemise est &quot; &lt;&lt; shirt &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;Entrez une nouvelle couleur : &quot;;
+    std::cin &gt;&gt; shirt;
+    if (!std::cin)
+        std::cout &lt;&lt; &quot;Invalide\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;Votre chemise est maintenant &quot; &lt;&lt; shirt &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Votre chemise est blue
+Entrez une nouvelle couleur : red
+Votre chemise est maintenant red
+</code></pre>
+<h2 id="boucles-for-basées-sur-un-intervalle-et-énumérations">Boucles for basées sur un intervalle et énumérations</h2>
+<p>Il arrive parfois qu'il soit utile de parcourir les énumérateurs d'une énumération. Bien que cela soit possible avec une boucle for utilisant un indice entier, cela nécessite probablement beaucoup de conversions statiques de l'indice entier vers notre type d'énumération.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+namespace Color
+{
+    enum Type
+    {
+        black,
+        red,
+        blue,
+        max_colors
+    };
+
+    // Utiliser le suffixe sv pour que std::array déduise le type std::string_view
+    using namespace std::string_view_literals; // pour le suffixe sv
+    constexpr std::array colorName { &quot;black&quot;sv, &quot;red&quot;sv, &quot;blue&quot;sv };
+
+    // Vérifier que nous avons défini des chaînes pour toutes nos couleurs
+    static_assert(std::size(colorName) == max_colors);
+};
+
+constexpr std::string_view getColorName(Color::Type color)
+{
+    return Color::colorName[color];
+}
+
+// Apprendre à operator&lt;&lt; à afficher une Color
+// std::ostream est le type de std::cout
+// Le type de retour et le type du paramètre sont des références (pour éviter des copies) !
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, Color::Type color)
+{
+    return out &lt;&lt; getColorName(color);
+}
+
+int main()
+{
+    // Utiliser une boucle for pour parcourir toutes nos couleurs
+    for (int i=0; i &lt; Color::max_colors; ++i )
+        std::cout &lt;&lt; static_cast&lt;Color::Type&gt;(i) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Malheureusement, les boucles for basées sur un intervalle ne permettent pas de parcourir les énumérateurs d'une énumération :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+namespace Color
+{
+    enum Type
+    {
+        black,
+        red,
+        blue,
+        max_colors
+    };
+
+    // Utiliser le suffixe sv pour que std::array déduise le type std::string_view
+    using namespace std::string_view_literals; // pour le suffixe sv
+    constexpr std::array colorName { &quot;black&quot;sv, &quot;red&quot;sv, &quot;blue&quot;sv };
+
+    // Vérifier que nous avons défini des chaînes pour toutes nos couleurs
+    static_assert(std::size(colorName) == max_colors);
+};
+
+constexpr std::string_view getColorName(Color::Type color)
+{
+    return Color::colorName[color];
+}
+
+// Apprendre à operator&lt;&lt; à afficher une Color
+// std::ostream est le type de std::cout
+// Le type de retour et le type du paramètre sont des références (pour éviter des copies) !
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, Color::Type color)
+{
+    return out &lt;&lt; getColorName(color);
+}
+
+int main()
+{
+    for (auto c: Color::Type) // erreur de compilation : impossible de parcourir l'énumération
+        std::cout &lt;&lt; c &lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Il existe de nombreuses solutions créatives. Comme nous pouvons utiliser une boucle for basée sur un intervalle sur un tableau, l'une des solutions les plus directes consiste à créer un <code>constexpr std::array</code> contenant chacun de nos énumérateurs, puis à parcourir ce tableau. Cette méthode ne fonctionne que si les énumérateurs ont des valeurs uniques.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+namespace Color
+{
+    enum Type
+    {
+        black,     // 0
+        red,       // 1
+        blue,      // 2
+        max_colors // 3
+    };
+
+    using namespace std::string_view_literals; // pour le suffixe sv
+    constexpr std::array colorName { &quot;black&quot;sv, &quot;red&quot;sv, &quot;blue&quot;sv };
+    static_assert(std::size(colorName) == max_colors);
+
+    constexpr std::array types { black, red, blue }; // Un std::array contenant tous nos énumérateurs
+    static_assert(std::size(types) == max_colors);
+};
+
+constexpr std::string_view getColorName(Color::Type color)
+{
+    return Color::colorName[color];
+}
+
+// Apprendre à operator&lt;&lt; à afficher une Color
+// std::ostream est le type de std::cout
+// Le type de retour et le type du paramètre sont des références (pour éviter des copies) !
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, Color::Type color)
+{
+    return out &lt;&lt; getColorName(color);
+}
+
+int main()
+{
+    for (auto c: Color::types) // ok : on peut utiliser une boucle for basée sur un intervalle avec un std::array
+        std::cout &lt;&lt; c &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, comme le type des éléments de <code>Color::types</code> est <code>Color::Type</code>, la variable <code>c</code> sera déduite en tant que <code>Color::Type</code>, ce qui est exactement ce que nous voulons !</p>
+<p>Ce programme affiche :</p>
+<pre><code>
+black
+red
+blue
+</code></pre>
+<h2 id="temps-de-quiz">Temps de quiz</h2>
+<p>Définissez un espace de noms nommé <code>Animal</code>. À l'intérieur, définissez une énumération contenant les animaux suivants : chicken, dog, cat, elephant, duck et snake. Créez également une structure nommée <code>Data</code> pour stocker le nom de chaque animal, son nombre de pattes et le son qu'il émet. Créez un <code>std::array</code> de <code>Data</code> et remplissez un élément <code>Data</code> pour chaque animal.</p>
+<p>Demandez à l'utilisateur de saisir le nom d'un animal. Si le nom ne correspond à aucun de nos animaux, indiquez-le-lui. Sinon, affichez les données de cet animal. Ensuite, affichez les données de tous les autres animaux qui ne correspondent pas à sa saisie.</p>
+<p>Par exemple :</p>
+<pre><code>
+Entrez un animal : dog
+A dog has 4 legs and says woof.
+
+Here is the data for the rest of the animals:
+A chicken has 2 legs and says cluck.
+A cat has 4 legs and says meow.
+A elephant has 4 legs and says pawoo.
+A duck has 2 legs and says quack.
+A snake has 0 legs and says hissss.
+</code></pre>
+<pre><code>
+Entrez un animal : frog
+That animal couldn't be found.
+
+Here is the data for the rest of the animals:
+A chicken has 2 legs and says cluck.
+A dog has 4 legs and says woof.
+A cat has 4 legs and says meow.
+A elephant has 4 legs and says pawoo.
+A duck has 2 legs and says quack.
+A snake has 0 legs and says hissss.
+</code></pre>
+<h4 id="question-n-1">Question n° 1</h4>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+namespace Animal
+{
+    enum Type
+    {
+        chicken,
+        dog,
+        cat,
+        elephant,
+        duck,
+        snake,
+        max_animals
+    };
+
+    struct Data
+    {
+        std::string_view name{};
+        int legs{};
+        std::string_view sound{};
+    };
+
+    constexpr std::array types { chicken, dog, cat, elephant, duck, snake };
+    constexpr std::array data {
+        Data{ &quot;chicken&quot;,    2, &quot;cluck&quot; },
+        Data{ &quot;dog&quot;,        4, &quot;woof&quot; },
+        Data{ &quot;cat&quot;,        4, &quot;meow&quot; },
+        Data{ &quot;elephant&quot;,   4, &quot;pawoo&quot; },
+        Data{ &quot;duck&quot;,       2, &quot;quack&quot; },
+        Data{ &quot;snake&quot;,      0, &quot;hissss&quot; },
+    };
+
+    static_assert(std::size(types) == max_animals);
+    static_assert(std::size(data) == max_animals);
+}
+
+// Apprendre à operator&gt;&gt; à lire un Animal par son nom
+// Nous passons animal par référence non constante pour que la fonction puisse modifier sa valeur
+std::istream&amp; operator&gt;&gt; (std::istream&amp; in, Animal::Type&amp; animal)
+{
+    std::string input {};
+    std::getline(in &gt;&gt; std::ws, input);
+
+    // Voir si nous trouvons une correspondance
+    for (std::size_t index=0; index &lt; Animal::data.size(); ++index)
+    {
+        if (input == Animal::data[index].name)
+        {
+            animal = static_cast&lt;Animal::Type&gt;(index);
+            return in;
+        }
+    }
+
+    // Nous n'avons trouvé aucune correspondance, donc l'entrée était invalide
+    // nous mettons donc le flux d'entrée dans l'état d'échec
+    in.setstate(std::ios_base::failbit);
+    return in;
+}
+
+void printAnimalData(Animal::Type type)
+{
+    const Animal::Data&amp; animal { Animal::data[type] };
+    std::cout &lt;&lt; &quot;A &quot; &lt;&lt; animal.name &lt;&lt; &quot; has &quot; &lt;&lt; animal.legs &lt;&lt; &quot; legs and says &quot; &lt;&lt; animal.sound &lt;&lt; &quot;.\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Entrez un animal : &quot;;
+    Animal::Type type{};
+    std::cin &gt;&gt; type;
+
+    // Si la saisie de l'utilisateur ne correspond pas
+    if (!std::cin)
+    {
+        std::cin.clear();
+        std::cout &lt;&lt; &quot;That animal couldn't be found.\n&quot;;
+        type = Animal::max_animals; // valeur invalide pour qu'aucune correspondance n'ait lieu ci-dessous
+    }
+    else
+        printAnimalData(type);
+
+
+    std::cout &lt;&lt; &quot;\nHere is the data for the rest of the animals:\n&quot;;
+    for (auto a : Animal::types)
+    {
+        if (a != type)
+            printAnimalData(a);
+    }
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdarray-and-enumerations/">https://www.learncpp.com/cpp-tutorial/stdarray-and-enumerations/</a></em></p>
+</main>
+</body>
+</html>

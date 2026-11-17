@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.3 — std::vector et le problème de la longueur non signée et des indices</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="163-stdvector-et-le-problème-de-la-longueur-non-signée-et-des-indices">16.3 — std::vector et le problème de la longueur non signée et des indices</h1>
+<p>Dans la leçon précédente <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.2%20-%20Introduction%20%C3%A0%20%60std--vector%60%20et%20aux%20constructeurs%20de%20liste.html">16.2 -- Introduction à std::vector et aux constructeurs à liste</a>, nous avons présenté <code>operator[]</code>, qui permet d'indexer un tableau pour accéder à un élément.</p>
+<p>Dans cette leçon, nous verrons d'autres façons d'accéder aux éléments d'un tableau, ainsi que plusieurs manières d'obtenir la longueur d'une classe conteneur (le nombre d'éléments qu'elle contient à un instant donné).</p>
+<p>Mais avant cela, nous devons évoquer une erreur majeure commise par les concepteurs du C++, et son impact sur toutes les classes conteneurs de la bibliothèque standard.</p>
+<h2 id="le-problème-du-signe-de-la-longueur-des-conteneurs">Le problème du signe de la longueur des conteneurs</h2>
+<p>Commençons par une affirmation : le type de données utilisé pour indexer un tableau doit correspondre au type de données utilisé pour stocker sa longueur. Ainsi, tous les éléments du plus grand tableau possible peuvent être indexés, et pas davantage.</p>
+<p>Comme Bjarne Stroustrup le <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1428r0.pdf">rappelle</a>, lors de la conception des classes conteneurs de la bibliothèque standard (vers 1997), les concepteurs ont dû choisir entre une longueur (et des indices de tableau) signés ou non signés. Ils ont choisi non signés.</p>
+<p>Les raisons invoquées étaient les suivantes : les indices des tableaux de la bibliothèque standard ne peuvent pas être négatifs ; un type non signé permet des tableaux plus longs grâce au bit supplémentaire (un point important à l'époque des systèmes 16 bits) ; et la vérification de la validité d'un indice ne nécessite qu'une seule condition au lieu de deux (puisqu'il n'y a pas besoin de vérifier que l'indice est supérieur ou égal à 0).</p>
+<p>Avec le recul, ce choix est généralement considéré comme une erreur. On sait aujourd'hui que l'utilisation de valeurs non signées pour garantir la non-négativité ne fonctionne pas, à cause des règles de conversion implicite (un entier signé négatif se convertit implicitement en un grand entier non signé, ce qui produit un résultat aberrant). Le bit supplémentaire n'est en général pas nécessaire sur les systèmes 32 ou 64 bits (vous ne créerez probablement pas de tableaux de plus de 2 milliards d'éléments). Et l'opérateur <code>operator[]</code>, couramment utilisé, n'effectue de toute façon aucune vérification de bornes.</p>
+<p>Dans la leçon <a href="../04%20-%20Chapitre%204%20-%20Les%20types%20de%20donn%C3%A9es%20fondamentaux/4.5%20-%20Les%20entiers%20non%20sign%C3%A9s%20et%20pourquoi%20les%20%C3%A9viter.html">4.5 -- Les entiers non signés, et pourquoi il faut les éviter</a>, nous avons expliqué pourquoi nous préférons utiliser des valeurs signées pour représenter des quantités. Nous avons également souligné que mélanger des valeurs signées et non signées conduit à des comportements inattendus. Le fait que les classes conteneurs de la bibliothèque standard utilisent des valeurs non signées pour la longueur (et les indices) pose donc problème, car il devient impossible d'éviter les valeurs non signées lorsqu'on utilise ces types.</p>
+<p>Pour l'instant, nous sommes contraints de vivre avec ce choix et la complexité inutile qu'il entraîne.</p>
+<h2 id="rappel-les-conversions-de-signe-sont-des-conversions-restrictives-sauf-si-elles-portent-sur-une-constexpr">Rappel : les conversions de signe sont des conversions restrictives, sauf si elles portent sur une constexpr</h2>
+<p>Avant d'aller plus loin, rappelons brièvement certains points de la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.4%20-%20Conversions%20restrictives%2C%20initialisation%20par%20liste%20et%20initialiseurs%20constexpr.html">10.4 -- Conversions restrictives, initialisation par liste et initialisateurs constexpr</a> concernant les conversions de signe (conversions entières d'un type signé vers un type non signé, ou inversement), car nous les rencontrerons beaucoup dans ce chapitre.</p>
+<p>Les conversions de signe sont considérées comme des conversions restrictives, car un type signé ou non signé ne peut pas représenter toutes les valeurs de l'intervalle du type opposé. Lorsqu'une telle conversion est effectuée à l'exécution, le compilateur émet une erreur dans les contextes où les conversions restrictives sont interdites (comme l'initialisation par liste), et peut ou non émettre un avertissement dans les autres contextes où cette conversion a lieu.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void foo(unsigned int)
+{
+}
+
+int main()
+{
+    int s { 5 };
+
+    [[maybe_unused]] unsigned int u { s }; // erreur de compilation : l'initialisation par liste interdit la conversion restrictive
+    foo(s);                                // avertissement possible : l'initialisation par copie autorise la conversion restrictive
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, l'initialisation de la variable <code>u</code> produit une erreur de compilation, car les conversions restrictives sont interdites lors d'une initialisation par liste. L'appel à <code>foo()</code> effectue une initialisation par copie, qui autorise les conversions restrictives, et peut produire ou non un avertissement selon le degré de sévérité du compilateur concernant les avertissements de conversion de signe. Par exemple, GCC et Clang produiront tous deux un avertissement dans ce cas si l'option de compilation <code>-Wsign-conversion</code> est utilisée.</p>
+<p>En revanche, si la valeur à convertir est une constexpr et peut être convertie en une valeur équivalente dans le type opposé, la conversion de signe n'est <em>pas</em> considérée comme restrictive. En effet, le compilateur peut garantir que la conversion est sûre, ou interrompre la compilation.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void foo(unsigned int)
+{
+}
+
+int main()
+{
+    constexpr int s { 5 };                 // désormais constexpr
+    [[maybe_unused]] unsigned int u { s }; // ok : s est constexpr et peut être convertie en toute sécurité, ce n'est pas une conversion restrictive
+    foo(s);                                // ok : s est constexpr et peut être convertie en toute sécurité, ce n'est pas une conversion restrictive
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce cas, comme <code>s</code> est constexpr et que la valeur à convertir (<code>5</code>) peut être représentée par une valeur non signée, la conversion n'est pas considérée comme restrictive et peut être effectuée implicitement sans problème.</p>
+<p>Cette conversion constexpr non restrictive (de <code>constexpr int</code> vers <code>constexpr std::size_t</code>) sera très souvent utilisée.</p>
+<h2 id="la-longueur-et-les-indices-de-stdvector-sont-de-type-size_type">La longueur et les indices de <code>std::vector</code> sont de type <code>size_type</code></h2>
+<p>Dans la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.7%20-%20Alias%20de%20types%20et%20typedef.html">10.7 -- Typedefs et alias de types</a>, nous avons indiqué que les typedefs et les alias de types servent souvent à donner un nom à un type qui peut varier (par exemple parce qu'il dépend de l'implémentation). Par exemple, <code>std::size_t</code> est un typedef désignant un grand type entier non signé, généralement <code>unsigned long</code> ou <code>unsigned long long</code>.</p>
+<p>Chacune des classes conteneurs de la bibliothèque standard définit un typedef membre imbriqué nommé <code>size_type</code> (parfois noté <code>T::size_type</code>), qui est un alias du type utilisé pour la longueur (et pour les indices, si le conteneur les supporte).</p>
+<p>Vous rencontrerez généralement <code>size_type</code> dans la documentation et dans les messages d'avertissement ou d'erreur du compilateur. Par exemple, cette <a href="https://en.cppreference.com/w/cpp/container/vector/size">documentation de la fonction membre <code>size()</code></a> de <code>std::vector</code> indique que <code>size()</code> renvoie une valeur de type <code>size_type</code>.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons les typedefs imbriqués dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.3%20-%20Types%20imbriqu%C3%A9s%20%28types%20membres%29.html">15.3 -- Types imbriqués (types membres)</a>.</p>
+</div>
+<p><code>size_type</code> est presque toujours un alias de <code>std::size_t</code>, mais il peut être modifié (dans de rares cas) pour utiliser un autre type.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p><code>size_type</code> est un typedef imbriqué défini dans les classes conteneurs de la bibliothèque standard, utilisé comme type pour la longueur (et les indices, si le conteneur les supporte).</p>
+<p><code>size_type</code> vaut par défaut <code>std::size_t</code>, et comme cette valeur est très rarement modifiée, on peut raisonnablement considérer que <code>size_type</code> est un alias de <code>std::size_t</code>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Tous les conteneurs de la bibliothèque standard, à l'exception de <code>std::array</code>, utilisent <a href="https://en.cppreference.com/w/cpp/memory/allocator"><code>std::allocator</code></a> pour allouer leur mémoire. Pour ces conteneurs, <code>T::size_type</code> est dérivé du <code>size_type</code> de l'allocateur utilisé. Comme <code>std::allocator</code> peut allouer jusqu'à <code>std::size_t</code> octets de mémoire, <code>std::allocator&lt;T&gt;::size_type</code> est défini comme <code>std::size_t</code>. Par conséquent, <code>T::size_type</code> vaut par défaut <code>std::size_t</code>.</p>
+<p>Ce n'est que lorsqu'un allocateur personnalisé dont le <code>T::size_type</code> est défini autrement que par <code>std::size_t</code> est utilisé que le <code>T::size_type</code> d'un conteneur sera différent de <code>std::size_t</code>. Ce cas est rare et relève de choix propres à chaque application. On peut donc généralement supposer que <code>T::size_type</code> vaut <code>std::size_t</code>, sauf si votre application utilise un tel allocateur personnalisé (et vous le saurez si c'est le cas).</p>
+</div>
+<p>Lorsqu'on accède au membre <code>size_type</code> d'une classe conteneur, on doit le qualifier par le nom complet, avec les paramètres de modèle, de la classe conteneur. Par exemple, <code>std::vector&lt;int&gt;::size_type</code>.</p>
+<h2 id="obtenir-la-longueur-dun-stdvector-avec-la-fonction-membre-size-ou-stdsize">Obtenir la longueur d'un <code>std::vector</code> avec la fonction membre <code>size()</code> ou <code>std::size()</code></h2>
+<p>On peut demander la longueur d'un objet conteneur avec la fonction membre <code>size()</code>, qui renvoie la longueur sous forme de <code>size_type</code> non signé :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime { 2, 3, 5, 7, 11 };
+    std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; prime.size() &lt;&lt; '\n'; // renvoie la longueur sous le type `size_type` (alias de `std::size_t`)
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+length: 5
+</code></pre>
+<p>Contrairement à <code>std::string</code> et <code>std::string_view</code>, qui possèdent à la fois une fonction membre <code>length()</code> et une fonction membre <code>size()</code> (qui font la même chose), <code>std::vector</code> (et la plupart des autres types conteneurs du C++) ne possède que <code>size()</code>. Vous comprenez maintenant pourquoi la longueur d'un conteneur est parfois appelée, de façon ambiguë, sa taille (size).</p>
+<p>En C++17, on peut aussi utiliser la fonction non membre <code>std::size()</code> (qui, pour les classes conteneurs, appelle simplement la fonction membre <code>size()</code>).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime { 2, 3, 5, 7, 11 };
+    std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; std::size(prime); // C++17, renvoie la longueur sous le type `size_type` (alias de `std::size_t`)
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Comme <code>std::size()</code> peut aussi s'appliquer aux tableaux de style C non dégénérés, cette méthode est parfois préférée à la fonction membre <code>size()</code> (en particulier lorsqu'on écrit des modèles de fonctions acceptant en argument soit une classe conteneur, soit un tableau de style C non dégénéré).</p>
+<p>Nous aborderons la dégénérescence des tableaux de style C dans la leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.8%20-%20D%C3%A9gradation%20des%20tableaux%20de%20style%20C%20%28array%20decay%29.html">17.8 -- Dégénérescence des tableaux de style C</a>.</p>
+</div>
+<p>Si l'on souhaite utiliser l'une des méthodes précédentes pour stocker la longueur dans une variable de type signé, cela produira probablement un avertissement ou une erreur de conversion signé/non signé. La solution la plus simple consiste à effectuer un <code>static_cast</code> du résultat vers le type souhaité :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime { 2, 3, 5, 7, 11 };
+    int length { static_cast&lt;int&gt;(prime.size()) }; // static_cast de la valeur de retour vers int
+    std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; length ;
+
+    return 0;
+}
+</code></pre>
+<h2 id="obtenir-la-longueur-dun-stdvector-avec-stdssize-c20">Obtenir la longueur d'un <code>std::vector</code> avec <code>std::ssize()</code> <em>(C++20)</em></h2>
+<p>Le C++20 introduit la fonction non membre <code>std::ssize()</code>, qui renvoie la longueur sous la forme d'un grand type entier <em>signé</em> (généralement <code>std::ptrdiff_t</code>, qui est le type utilisé habituellement comme équivalent signé de <code>std::size_t</code>) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+    std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; std::ssize(prime); // C++20, renvoie la longueur sous la forme d'un grand type entier signé
+
+    return 0;
+}
+</code></pre>
+<p>C'est la seule des trois fonctions qui renvoie la longueur sous un type signé.</p>
+<p>Si vous voulez utiliser cette méthode pour stocker la longueur dans une variable de type signé, vous avez plusieurs options.</p>
+<p>Tout d'abord, comme le type <code>int</code> peut être plus petit que le type signé renvoyé par <code>std::ssize()</code>, si vous affectez la longueur à une variable <code>int</code>, vous devriez effectuer un <code>static_cast</code> du résultat vers <code>int</code> pour rendre la conversion explicite (sinon vous risquez un avertissement ou une erreur de conversion restrictive) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+    int length { static_cast&lt;int&gt;(std::ssize(prime)) }; // static_cast de la valeur de retour vers int
+    std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; length;
+
+    return 0;
+}
+</code></pre>
+<p>Vous pouvez également utiliser <code>auto</code> pour laisser le compilateur déduire le type signé correct à utiliser pour la variable :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+    auto length { std::ssize(prime) }; // utilise auto pour déduire le type signé renvoyé par std::ssize()
+    std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; length;
+
+    return 0;
+}
+</code></pre>
+<h2 id="accéder-aux-éléments-dun-tableau-avec-operator-ne-vérifie-pas-les-bornes">Accéder aux éléments d'un tableau avec <code>operator[]</code> ne vérifie pas les bornes</h2>
+<p>Dans la leçon précédente, nous avons présenté l'opérateur d'indexation (<code>operator[]</code>) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+
+    std::cout &lt;&lt; prime[3];  // affiche la valeur de l'élément d'indice 3 (7)
+    std::cout &lt;&lt; prime[9]; // indice invalide (comportement indéfini)
+
+    return 0;
+}
+</code></pre>
+<p><code>operator[]</code> n'effectue pas de vérification de bornes. L'indice passé à <code>operator[]</code> peut être non constant. Nous reviendrons sur ce point dans une section ultérieure.</p>
+<h2 id="accéder-aux-éléments-dun-tableau-avec-la-fonction-membre-at-effectue-une-vérification-de-bornes-à-lexécution">Accéder aux éléments d'un tableau avec la fonction membre <code>at()</code> effectue une vérification de bornes à l'exécution</h2>
+<p>Les classes conteneurs de tableaux proposent une autre méthode d'accès. La fonction membre <code>at()</code> permet d'accéder à un tableau avec une vérification de bornes à l'exécution :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+
+    std::cout &lt;&lt; prime.at(3); // affiche la valeur de l'élément d'indice 3
+    std::cout &lt;&lt; prime.at(9); // indice invalide (lève une exception)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, l'appel <code>prime.at(3)</code> vérifie que l'indice 3 est valide ; comme c'est le cas, il renvoie une référence à l'élément 3 du tableau, que nous pouvons afficher. En revanche, l'appel <code>prime.at(9)</code> échoue à l'exécution, car 9 n'est pas un indice valide pour ce tableau. Au lieu de renvoyer une référence, la fonction <code>at()</code> génère une erreur qui termine le programme.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Lorsque la fonction membre <code>at()</code> rencontre un indice hors bornes, elle lève en réalité une exception de type <code>std::out_of_range</code>. Si l'exception n'est pas gérée, le programme est terminé. Nous abordons les exceptions et leur gestion dans le <a href="https://www.learncpp.com#Chapter27">chapitre 27</a>.</p>
+</div>
+<p>Comme pour <code>operator[]</code>, l'indice passé à <code>at()</code> peut être non constant.</p>
+<p>Parce qu'elle effectue une vérification de bornes à chaque appel, <code>at()</code> est plus lente (mais plus sûre) que <code>operator[]</code>. Bien qu'elle soit moins sûre, <code>operator[]</code> est généralement préférée à <code>at()</code>, principalement parce qu'il vaut mieux vérifier les bornes avant d'indexer, afin de ne pas tenter d'utiliser un indice invalide en premier lieu.</p>
+<h2 id="indexer-un-stdvector-avec-une-int-signée-constexpr">Indexer un <code>std::vector</code> avec une int signée constexpr</h2>
+<p>Lorsqu'on indexe un <code>std::vector</code> avec un int signé constexpr, on peut laisser le compilateur convertir implicitement cette valeur en <code>std::size_t</code>, sans qu'il s'agisse d'une conversion restrictive :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+
+    std::cout &lt;&lt; prime[3] &lt;&lt; '\n';     // ok : 3 converti de int vers std::size_t, ce n'est pas une conversion restrictive
+
+    constexpr int index { 3 };         // constexpr
+    std::cout &lt;&lt; prime[index] &lt;&lt; '\n'; // ok : index constexpr converti implicitement en std::size_t, ce n'est pas une conversion restrictive
+
+    return 0;
+}
+</code></pre>
+<h2 id="indexer-un-stdvector-avec-une-valeur-non-constexpr">Indexer un <code>std::vector</code> avec une valeur non constexpr</h2>
+<p>Les indices utilisés pour indexer un tableau peuvent être non constants :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+
+    std::size_t index { 3 };           // non constexpr
+    std::cout &lt;&lt; prime[index] &lt;&lt; '\n'; // operator[] attend un indice de type std::size_t, aucune conversion n'est nécessaire
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, conformément à nos bonnes pratiques (<a href="../04%20-%20Chapitre%204%20-%20Les%20types%20de%20donn%C3%A9es%20fondamentaux/4.5%20-%20Les%20entiers%20non%20sign%C3%A9s%20et%20pourquoi%20les%20%C3%A9viter.html">4.5 -- Les entiers non signés, et pourquoi il faut les éviter</a>), nous voulons en général éviter d'utiliser des types non signés pour représenter des quantités.</p>
+<p>Lorsque notre indice est une valeur signée non constexpr, nous rencontrons des problèmes :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+
+    int index { 3 };                   // non constexpr
+    std::cout &lt;&lt; prime[index] &lt;&lt; '\n'; // avertissement possible : index converti implicitement en std::size_t, conversion restrictive
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, <code>index</code> est un int signé non constexpr. L'indice de <code>operator[]</code>, défini dans <code>std::vector</code>, est de type <code>size_type</code> (alias de <code>std::size_t</code>). Par conséquent, lorsque nous appelons <code>prime[index]</code>, notre int signé doit être converti en <code>std::size_t</code>.</p>
+<p>Une telle conversion ne devrait pas être dangereuse (car l'indice d'un <code>std::vector</code> doit être positif ou nul, et une valeur signée positive ou nulle se convertit sans risque en valeur non signée). Mais lorsqu'elle est effectuée à l'exécution, elle est considérée comme une conversion restrictive, et votre compilateur devrait émettre un avertissement signalant cette conversion comme dangereuse (s'il ne le fait pas, vous devriez envisager de modifier vos paramètres d'avertissement pour qu'il le fasse).</p>
+<p>Comme l'indexation de tableaux est très courante, et que chaque conversion de ce type génère un avertissement, cela peut facilement encombrer le journal de compilation d'avertissements inutiles. Ou, si vous avez activé l'option « traiter les avertissements comme des erreurs », cela interrompra votre compilation.</p>
+<p>Il existe de nombreuses façons d'éviter ce problème (par exemple, faire un <code>static_cast</code> de votre <code>int</code> vers <code>std::size_t</code> à chaque indexation de tableau), mais toutes finissent par encombrer ou compliquer votre code d'une manière ou d'une autre. La solution la plus simple dans ce cas consiste à utiliser une variable de type <code>std::size_t</code> comme indice, et à ne pas utiliser cette variable pour autre chose que l'indexation. Vous éviterez ainsi d'emblée toute conversion non constexpr.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Une autre bonne alternative consiste à indexer non pas le <code>std::vector</code> lui-même, mais le résultat de la fonction membre <code>data()</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector prime{ 2, 3, 5, 7, 11 };
+
+    int index { 3 };                          // valeur signée non constexpr
+    std::cout &lt;&lt; prime.data()[index] &lt;&lt; '\n'; // ok : aucun avertissement de conversion de signe
+
+    return 0;
+}
+</code></pre>
+<p>En interne, <code>std::vector</code> stocke ses éléments dans un tableau de style C. La fonction membre <code>data()</code> renvoie un pointeur vers ce tableau sous-jacent, que nous pouvons ensuite indexer. Comme les tableaux de style C acceptent l'indexation avec des types signés comme non signés, nous ne rencontrons aucun problème de conversion de signe. Nous étudierons plus en détail les tableaux de style C dans les leçons <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.7%20-%20Introduction%20aux%20tableaux%20de%20style%20C.html">17.7 -- Introduction aux tableaux de style C</a> et <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.8%20-%20D%C3%A9gradation%20des%20tableaux%20de%20style%20C%20%28array%20decay%29.html">17.8 -- Dégénérescence des tableaux de style C</a>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Nous étudierons d'autres options pour résoudre ces difficultés d'indexation dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.7%20-%20Tableaux%2C%20boucles%20et%20solutions%20du%20d%C3%A9fi%20sur%20le%20signe.html">16.7 -- Solutions aux problèmes de tableaux, boucles et signes</a>.</p>
+</div>
+<h2 id="un-moment-de-quiz">Un moment de quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Initialisez un <code>std::vector</code> avec les valeurs suivantes : 'h', 'e', 'l', 'l', 'o'. Affichez ensuite la longueur du tableau (utilisez <code>std::size()</code>). Enfin, affichez la valeur de l'élément d'indice 1 à l'aide de l'opérateur d'indexation, puis à l'aide de la fonction membre <code>at()</code>.</p>
+<p>Le programme doit afficher :</p>
+<pre><code>
+The array has 5 elements.
+ee
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector arr { 'h', 'e', 'l', 'l', 'o' };
+    std::cout &lt;&lt; &quot;The array has &quot; &lt;&lt; std::size(arr) &lt;&lt; &quot; elements.\n&quot;;
+    std::cout &lt;&lt; arr[1] &lt;&lt; arr.at(1) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>a) Qu'est-ce que <code>size_type</code> et à quoi sert-il ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>size_type</code> est un typedef imbriqué qui est un alias du type utilisé pour stocker la longueur (et les indices, si le conteneur les supporte) d'un conteneur de la bibliothèque standard.</p>
+</details>
+<p>b) Par défaut, à quel type <code>size_type</code> est-il égal ? Est-il signé ou non signé ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>std::size_t</code>, qui est un type non signé.</p>
+</details>
+<p>c) Quelles fonctions permettant d'obtenir la longueur d'un conteneur renvoient un <code>size_type</code> ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>La fonction membre <code>size()</code> et <code>std::size</code> renvoient toutes deux un <code>size_type</code>.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdvector-and-the-unsigned-length-and-subscript-problem/">https://www.learncpp.com/cpp-tutorial/stdvector-and-the-unsigned-length-and-subscript-problem/</a></em></p>
+</main>
+</body>
+</html>

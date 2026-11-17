@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.5 — Masquage de variables (name hiding)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="75-masquage-de-variables-name-hiding">7.5 — Masquage de variables (name hiding)</h1>
+<p>Chaque bloc définit sa propre région de portée. Que se passe-t-il alors lorsqu'une variable située dans un bloc imbriqué porte le même nom qu'une variable d'un bloc englobant ? Dans ce cas, la variable imbriquée « masque » la variable externe dans les zones où les deux sont visibles. C'est ce qu'on appelle le <strong>masquage de nom (name hiding)</strong> ou <strong>shadowing</strong>.</p>
+<h2 id="masquage-de-variables-locales">Masquage de variables locales</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{ // bloc externe
+    int apples { 5 }; // voici les pommes du bloc externe
+
+    { // bloc imbriqué
+        // apples désigne ici les pommes du bloc externe
+        std::cout &lt;&lt; apples &lt;&lt; '\n'; // affiche la valeur des pommes du bloc externe
+
+        int apples{ 0 }; // définit apples dans la portée du bloc imbriqué
+
+        // apples désigne maintenant les pommes du bloc imbriqué
+        // les pommes du bloc externe sont temporairement masquées
+
+        apples = 10; // affecte la valeur 10 aux pommes du bloc imbriqué, et non à celles du bloc externe
+
+        std::cout &lt;&lt; apples &lt;&lt; '\n'; // affiche la valeur des pommes du bloc imbriqué
+    } // les pommes du bloc imbriqué sont détruites
+
+
+    std::cout &lt;&lt; apples &lt;&lt; '\n'; // affiche la valeur des pommes du bloc externe
+
+    return 0;
+} // les pommes du bloc externe sont détruites
+</code></pre>
+<p>Si vous exécutez ce programme, il affiche :</p>
+<pre><code>
+5
+10
+5
+</code></pre>
+<p>Dans le programme ci-dessus, nous déclarons d'abord une variable nommée <code>apples</code> dans le bloc externe. Cette variable est visible dans le bloc interne, ce que l'on constate en affichant sa valeur (<code>5</code>). Ensuite, nous déclarons une autre variable (également nommée <code>apples</code>) dans le bloc imbriqué. À partir de ce point et jusqu'à la fin du bloc, le nom <code>apples</code> désigne les pommes du bloc imbriqué, et non celles du bloc externe.</p>
+<p>Ainsi, lorsque nous affectons la valeur <code>10</code> à <code>apples</code>, nous l'affectons à la variable du bloc imbriqué. Après avoir affiché cette valeur (<code>10</code>), le bloc imbriqué se termine et sa variable <code>apples</code> est détruite. L'existence et la valeur de la variable <code>apples</code> du bloc externe ne sont pas affectées, comme le prouve l'affichage de sa valeur (<code>5</code>).</p>
+<p>Notez que si la variable <code>apples</code> du bloc imbriqué n'avait pas été définie, le nom <code>apples</code> dans ce bloc désignerait toujours la variable du bloc externe, et l'affectation de la valeur <code>10</code> aurait donc porté sur celle-ci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{ // bloc externe
+    int apples{5}; // voici les pommes du bloc externe
+
+    { // bloc imbriqué
+        // apples désigne ici les pommes du bloc externe
+        std::cout &lt;&lt; apples &lt;&lt; '\n'; // affiche la valeur des pommes du bloc externe
+
+        // aucune variable apples n'est définie dans le bloc imbriqué dans cet exemple
+
+        apples = 10; // cela s'applique aux pommes du bloc externe
+
+        std::cout &lt;&lt; apples &lt;&lt; '\n'; // affiche la valeur des pommes du bloc externe
+    } // les pommes du bloc externe conservent leur valeur après la sortie du bloc imbriqué
+
+    std::cout &lt;&lt; apples &lt;&lt; '\n'; // affiche la valeur des pommes du bloc externe
+
+    return 0;
+} // les pommes du bloc externe sont détruites
+</code></pre>
+<p>Le programme ci-dessus affiche :</p>
+<pre><code>
+5
+10
+10
+</code></pre>
+<p>Lorsque l'on se trouve dans le bloc imbriqué, il n'existe aucun moyen d'accéder directement à la variable masquée du bloc externe.</p>
+<h2 id="masquage-de-variables-globales">Masquage de variables globales</h2>
+<p>De la même manière que les variables d'un bloc imbriqué peuvent masquer celles d'un bloc externe, une variable locale portant le même nom qu'une variable globale masquera cette dernière partout où la variable locale est visible :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+int value { 5 }; // variable globale
+
+void foo()
+{
+    std::cout &lt;&lt; &quot;valeur de la variable globale : &quot; &lt;&lt; value &lt;&lt; '\n'; // value n'est pas masquée ici, donc cela désigne la valeur globale
+}
+
+int main()
+{
+    int value { 7 }; // masque la variable globale value (partout où la variable locale value est visible)
+
+    ++value; // incrémente la valeur locale, et non la valeur globale
+
+    std::cout &lt;&lt; &quot;valeur de la variable locale : &quot; &lt;&lt; value &lt;&lt; '\n';
+
+    foo();
+
+    return 0;
+} // la valeur locale est détruite
+</code></pre>
+<p>Ce code affiche :</p>
+<pre><code>
+valeur de la variable locale : 8
+valeur de la variable globale : 5
+</code></pre>
+<p>Toutefois, comme les variables globales font partie de l'espace de noms global, nous pouvons utiliser l'opérateur de résolution de portée (::) sans préfixe pour indiquer au compilateur que nous voulons désigner la variable globale plutôt que la variable locale.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+int value { 5 }; // variable globale
+
+int main()
+{
+    int value { 7 }; // masque la variable globale value
+    ++value; // incrémente la valeur locale, et non la valeur globale
+
+    --(::value); // décrémente la valeur globale, et non la valeur locale (parenthèses ajoutées pour la lisibilité)
+
+    std::cout &lt;&lt; &quot;valeur de la variable locale : &quot; &lt;&lt; value &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;valeur de la variable globale : &quot; &lt;&lt; ::value &lt;&lt; '\n';
+
+    return 0;
+} // la valeur locale est détruite
+</code></pre>
+<p>Ce code affiche :</p>
+<pre><code>
+valeur de la variable locale : 8
+valeur de la variable globale : 4
+</code></pre>
+<h2 id="éviter-le-masquage-de-variables">Éviter le masquage de variables</h2>
+<p>Le masquage de variables locales doit généralement être évité, car il peut entraîner des erreurs involontaires où la mauvaise variable est utilisée ou modifiée. Certains compilateurs émettent un avertissement lorsqu'une variable est masquée.</p>
+<p>Pour la même raison que celle qui nous conduit à éviter de masquer des variables locales, nous recommandons également d'éviter de masquer des variables globales. Cela est très facile à éviter si tous vos noms globaux utilisent le préfixe « g_ ».</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez le masquage de variables.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de gcc</p>
+<p>GCC et Clang prennent en charge l'option <code>-Wshadow</code>, qui génère des avertissements lorsqu'une variable est masquée. Il existe plusieurs sous-variantes de cette option (<code>-Wshadow=global</code>, <code>-Wshadow=local</code> et <code>-Wshadow=compatible-local</code>). Consultez la <a href="https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html">documentation de GCC</a> pour une explication des différences.</p>
+<p>Visual Studio active ces avertissements par défaut.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/variable-shadowing-name-hiding/">https://www.learncpp.com/cpp-tutorial/variable-shadowing-name-hiding/</a></em></p>
+</main>
+</body>
+</html>

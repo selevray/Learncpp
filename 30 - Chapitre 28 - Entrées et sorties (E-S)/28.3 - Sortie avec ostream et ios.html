@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28.3 — Sortie avec ostream et ios</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="283-sortie-avec-ostream-et-ios">28.3 — Sortie avec ostream et ios</h1>
+<p>Dans cette section, nous allons examiner différents aspects de la classe de sortie d'iostream (ostream).</p>
+<p><strong>L'opérateur d'insertion</strong></p>
+<p>L'opérateur d'insertion (&lt;&lt;) sert à placer des informations dans un flux de sortie. C++ fournit des opérations d'insertion prédéfinies pour tous les types de données intégrés, et vous avez déjà vu comment <a href="https://www.learncpp.com/cpp-tutorial/93-overloading-the-io-operators/">surcharger l'opérateur d'insertion</a> pour vos propres classes.</p>
+<p>Dans la leçon sur les <a href="https://www.learncpp.com/cpp-tutorial/131-input-and-output-io-streams/">flux</a>, vous avez vu que istream et ostream dérivent tous deux d'une classe appelée ios. L'un des rôles de ios (et de ios_base) est de contrôler les options de formatage de la sortie.</p>
+<p><strong>Formatage</strong></p>
+<p>Il existe deux façons de modifier les options de formatage : les indicateurs (flags) et les manipulateurs. Vous pouvez considérer les <strong>indicateurs</strong> comme des variables booléennes que l'on peut activer et désactiver. Les <strong>manipulateurs</strong> sont des objets placés dans un flux qui modifient la manière dont les données sont saisies et affichées.</p>
+<p>Pour activer un indicateur, utilisez la fonction <strong>setf()</strong> avec l'indicateur approprié en paramètre. Par exemple, par défaut, C++ n'affiche pas le signe + devant les nombres positifs. Toutefois, en utilisant l'indicateur std::ios::showpos, nous pouvons modifier ce comportement :</p>
+<pre><code class="language-cpp">std::cout.setf(std::ios::showpos); // active l'indicateur std::ios::showpos
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+</code></pre>
+<p>Cela produit le résultat suivant :</p>
+<pre><code>
++27
+</code></pre>
+<p>Il est possible d'activer plusieurs indicateurs ios en même temps à l'aide de l'opérateur OU bit à bit (|) :</p>
+<pre><code class="language-cpp">std::cout.setf(std::ios::showpos | std::ios::uppercase); // active les indicateurs std::ios::showpos et std::ios::uppercase
+std::cout &lt;&lt; 1234567.89f &lt;&lt; '\n';
+</code></pre>
+<p>Cela affiche :</p>
+<pre><code>
++1.23457E+06
+</code></pre>
+<p>Pour désactiver un indicateur, utilisez la fonction <strong>unsetf()</strong> :</p>
+<pre><code class="language-cpp">std::cout.setf(std::ios::showpos); // active l'indicateur std::ios::showpos
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+std::cout.unsetf(std::ios::showpos); // désactive l'indicateur std::ios::showpos
+std::cout &lt;&lt; 28 &lt;&lt; '\n';
+</code></pre>
+<p>Cela produit le résultat suivant :</p>
+<pre><code>
++27
+28
+</code></pre>
+<p>Il reste une subtilité à mentionner concernant setf(). De nombreux indicateurs appartiennent à des groupes, appelés groupes de formatage. Un <strong>groupe de formatage</strong> est un ensemble d'indicateurs qui proposent des options de formatage similaires (parfois mutuellement exclusives). Par exemple, un groupe nommé « basefield » contient les indicateurs « oct », « dec » et « hex », qui contrôlent la base des valeurs entières. Par défaut, l'indicateur « dec » est activé. Par conséquent, si nous écrivons :</p>
+<pre><code class="language-cpp">std::cout.setf(std::ios::hex); // tente d'activer l'affichage hexadécimal
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+</code></pre>
+<p>Nous obtenons le résultat suivant :</p>
+<pre><code>
+27
+</code></pre>
+<p>Cela n'a pas fonctionné ! La raison est que setf() ne fait qu'activer des indicateurs : il n'est pas assez intelligent pour désactiver les indicateurs mutuellement exclusifs. Par conséquent, lorsque nous avons activé std::hex, std::ios::dec était toujours actif, et std::ios::dec semble prévaloir. Il existe deux façons de contourner ce problème.</p>
+<p>La première consiste à désactiver std::ios::dec pour que seul std::hex soit actif :</p>
+<pre><code class="language-cpp">std::cout.unsetf(std::ios::dec); // désactive l'affichage décimal
+std::cout.setf(std::ios::hex); // active l'affichage hexadécimal
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+</code></pre>
+<p>Nous obtenons maintenant le résultat attendu :</p>
+<pre><code>
+1b
+</code></pre>
+<p>La seconde façon consiste à utiliser une autre forme de setf() qui prend deux paramètres : le premier est l'indicateur à activer, et le second est le groupe de formatage auquel il appartient. Avec cette forme de setf(), tous les indicateurs du groupe sont désactivés, et seul l'indicateur passé en paramètre est activé. Par exemple :</p>
+<pre><code class="language-cpp">// Active std::ios::hex comme seul indicateur de std::ios::basefield
+std::cout.setf(std::ios::hex, std::ios::basefield);
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+</code></pre>
+<p>Cela produit également le résultat attendu :</p>
+<pre><code>
+1b
+</code></pre>
+<p>Utiliser setf() et unsetf() reste peu pratique ; C++ propose donc une seconde façon de modifier les options de formatage : les manipulateurs. L'avantage des manipulateurs est qu'ils savent activer et désactiver les indicateurs appropriés. Voici un exemple d'utilisation de quelques manipulateurs pour changer la base :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; std::hex &lt;&lt; 27 &lt;&lt; '\n'; // affiche 27 en hexadécimal
+std::cout &lt;&lt; 28 &lt;&lt; '\n'; // on est toujours en hexadécimal
+std::cout &lt;&lt; std::dec &lt;&lt; 29 &lt;&lt; '\n'; // retour au décimal
+</code></pre>
+<p>Ce programme produit la sortie suivante :</p>
+<pre><code>
+1b
+1c
+29
+</code></pre>
+<p>En général, utiliser des manipulateurs est beaucoup plus simple que d'activer et désactiver des indicateurs. De nombreuses options sont disponibles à la fois par indicateurs et par manipulateurs (comme le changement de base) ; cependant, d'autres options ne sont disponibles que par l'un ou l'autre moyen, il est donc important de savoir utiliser les deux.</p>
+<p><strong>Formateurs utiles</strong></p>
+<p>Voici une liste de quelques-uns des indicateurs, manipulateurs et fonctions membres les plus utiles. Les indicateurs se trouvent dans la classe std::ios, les manipulateurs dans l'espace de noms std, et les fonctions membres dans la classe std::ostream.</p>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>std::ios::boolalpha</td>
+<td>Si activé, les booléens s'affichent « true » ou « false ». Sinon, ils s'affichent 0 ou 1</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Manipulateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::boolalpha</td>
+<td>Les booléens s'affichent « true » ou « false »</td>
+</tr>
+<tr>
+<td>std::noboolalpha</td>
+<td>Les booléens s'affichent 0 ou 1 (par défaut)</td>
+</tr>
+</tbody>
+</table>
+<p>Exemple :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; true &lt;&lt; ' ' &lt;&lt; false &lt;&lt; '\n';
+
+std::cout.setf(std::ios::boolalpha);
+std::cout &lt;&lt; true &lt;&lt; ' ' &lt;&lt; false &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::noboolalpha &lt;&lt; true &lt;&lt; ' ' &lt;&lt; false &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::boolalpha &lt;&lt; true &lt;&lt; ' ' &lt;&lt; false &lt;&lt; '\n';
+</code></pre>
+<p>Résultat :</p>
+<pre><code>
+1 0
+true false
+1 0
+true false
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>std::ios::showpos</td>
+<td>Si activé, préfixe les nombres positifs par un +</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Manipulateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::showpos</td>
+<td>Préfixe les nombres positifs par un +</td>
+</tr>
+<tr>
+<td>std::noshowpos</td>
+<td>Ne préfixe pas les nombres positifs par un +</td>
+</tr>
+</tbody>
+</table>
+<p>Exemple :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; 5 &lt;&lt; '\n';
+
+std::cout.setf(std::ios::showpos);
+std::cout &lt;&lt; 5 &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::noshowpos &lt;&lt; 5 &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::showpos &lt;&lt; 5 &lt;&lt; '\n';
+</code></pre>
+<p>Résultat :</p>
+<pre><code>
+5
++5
+5
++5
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>std::ios::uppercase</td>
+<td>Si activé, utilise des lettres majuscules</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Manipulateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::uppercase</td>
+<td>Utilise des lettres majuscules</td>
+</tr>
+<tr>
+<td>std::nouppercase</td>
+<td>Utilise des lettres minuscules</td>
+</tr>
+</tbody>
+</table>
+<p>Exemple :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; 12345678.9 &lt;&lt; '\n';
+
+std::cout.setf(std::ios::uppercase);
+std::cout &lt;&lt; 12345678.9 &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::nouppercase &lt;&lt; 12345678.9 &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::uppercase &lt;&lt; 12345678.9 &lt;&lt; '\n';
+</code></pre>
+<p>Résultat :</p>
+<pre><code>
+1.23457e+007
+1.23457E+007
+1.23457e+007
+1.23457E+007
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::ios::basefield</td>
+<td>std::ios::dec</td>
+<td>Affiche les valeurs en décimal (par défaut)</td>
+</tr>
+<tr>
+<td>std::ios::basefield</td>
+<td>std::ios::hex</td>
+<td>Affiche les valeurs en hexadécimal</td>
+</tr>
+<tr>
+<td>std::ios::basefield</td>
+<td>std::ios::oct</td>
+<td>Affiche les valeurs en octal</td>
+</tr>
+<tr>
+<td>std::ios::basefield</td>
+<td>(aucun)</td>
+<td>Affiche les valeurs selon les caractères initiaux de la valeur</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Manipulateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::dec</td>
+<td>Affiche les valeurs en décimal</td>
+</tr>
+<tr>
+<td>std::hex</td>
+<td>Affiche les valeurs en hexadécimal</td>
+</tr>
+<tr>
+<td>std::oct</td>
+<td>Affiche les valeurs en octal</td>
+</tr>
+</tbody>
+</table>
+<p>Exemple :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; 27 &lt;&lt; '\n';
+
+std::cout.setf(std::ios::dec, std::ios::basefield);
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+
+std::cout.setf(std::ios::oct, std::ios::basefield);
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+
+std::cout.setf(std::ios::hex, std::ios::basefield);
+std::cout &lt;&lt; 27 &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::dec &lt;&lt; 27 &lt;&lt; '\n';
+std::cout &lt;&lt; std::oct &lt;&lt; 27 &lt;&lt; '\n';
+std::cout &lt;&lt; std::hex &lt;&lt; 27 &lt;&lt; '\n';
+</code></pre>
+<p>Résultat :</p>
+<pre><code>
+27
+27
+33
+1b
+27
+33
+1b
+</code></pre>
+<p>À ce stade, vous devriez voir le lien entre le formatage par indicateurs et le formatage par manipulateurs. Dans les exemples suivants, nous utiliserons les manipulateurs, sauf lorsqu'ils ne sont pas disponibles.</p>
+<p><strong>Précision, notation et point décimal</strong></p>
+<p>À l'aide de manipulateurs (ou d'indicateurs), il est possible de modifier la précision et le format d'affichage des nombres à virgule flottante. Plusieurs options de formatage se combinent de manière assez complexe, nous allons donc les examiner de plus près.</p>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::ios::floatfield</td>
+<td>std::ios::fixed</td>
+<td>Utilise la notation décimale pour les nombres à virgule flottante</td>
+</tr>
+<tr>
+<td>std::ios::floatfield</td>
+<td>std::ios::scientific</td>
+<td>Utilise la notation scientifique pour les nombres à virgule flottante</td>
+</tr>
+<tr>
+<td>std::ios::floatfield</td>
+<td>(aucun)</td>
+<td>Utilise fixed pour les nombres avec peu de chiffres, scientific sinon</td>
+</tr>
+<tr>
+<td>std::ios::floatfield</td>
+<td>std::ios::showpoint</td>
+<td>Affiche toujours un point décimal et des zéros finaux pour les valeurs à virgule flottante</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Manipulateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::fixed</td>
+<td>Utilise la notation décimale pour les valeurs</td>
+</tr>
+<tr>
+<td>std::scientific</td>
+<td>Utilise la notation scientifique pour les valeurs</td>
+</tr>
+<tr>
+<td>std::showpoint</td>
+<td>Affiche un point décimal et des zéros finaux pour les valeurs à virgule flottante</td>
+</tr>
+<tr>
+<td>std::noshowpoint</td>
+<td>N'affiche pas de point décimal ni de zéros finaux pour les valeurs à virgule flottante</td>
+</tr>
+<tr>
+<td>std::setprecision(int)</td>
+<td>Définit la précision des nombres à virgule flottante (défini dans l'en-tête iomanip)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Fonction membre</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::ios_base::precision()</td>
+<td>Renvoie la précision courante des nombres à virgule flottante</td>
+</tr>
+<tr>
+<td>std::ios_base::precision(int)</td>
+<td>Définit la précision des nombres à virgule flottante et renvoie l'ancienne précision</td>
+</tr>
+</tbody>
+</table>
+<p>Si la notation fixed ou scientific est utilisée, la précision détermine le nombre de décimales affichées dans la partie fractionnaire. Notez que si la précision est inférieure au nombre de chiffres significatifs, le nombre sera arrondi.</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; std::fixed &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(3) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(4) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(5) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(6) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(7) &lt;&lt; 123.456 &lt;&lt; '\n';
+
+std::cout &lt;&lt; std::scientific &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(3) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(4) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(5) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(6) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(7) &lt;&lt; 123.456 &lt;&lt; '\n';
+</code></pre>
+<p>Produit le résultat suivant :</p>
+<pre><code>
+123.456
+123.4560
+123.45600
+123.456000
+123.4560000
+
+1.235e+002
+1.2346e+002
+1.23456e+002
+1.234560e+002
+1.2345600e+002
+</code></pre>
+<p>Si ni fixed ni scientific ne sont utilisés, la précision détermine le nombre de chiffres significatifs à afficher. Là encore, si la précision est inférieure au nombre de chiffres significatifs, le nombre sera arrondi.</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; std::setprecision(3) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(4) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(5) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(6) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(7) &lt;&lt; 123.456 &lt;&lt; '\n';
+</code></pre>
+<p>Produit le résultat suivant :</p>
+<pre><code>
+123
+123.5
+123.46
+123.456
+123.456
+</code></pre>
+<p>En utilisant le manipulateur ou l'indicateur showpoint, vous pouvez faire en sorte que le flux écrive un point décimal et des zéros finaux.</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; std::showpoint &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(3) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(4) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(5) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(6) &lt;&lt; 123.456 &lt;&lt; '\n';
+std::cout &lt;&lt; std::setprecision(7) &lt;&lt; 123.456 &lt;&lt; '\n';
+</code></pre>
+<p>Produit le résultat suivant :</p>
+<pre><code>
+123.
+123.5
+123.46
+123.456
+123.4560
+</code></pre>
+<p>Voici un tableau récapitulatif avec quelques exemples supplémentaires :</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Précision</th>
+<th>12345.0</th>
+<th>0.12345</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normal</td>
+<td>3</td>
+<td>1.23e+004</td>
+<td>0.123</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1.235e+004</td>
+<td>0.1235</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>12345</td>
+<td>0.12345</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>12345</td>
+<td>0.12345</td>
+<td></td>
+</tr>
+<tr>
+<td>Showpoint</td>
+<td>3</td>
+<td>1.23e+004</td>
+<td>0.123</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1.235e+004</td>
+<td>0.1235</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>12345.</td>
+<td>0.12345</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>12345.0</td>
+<td>0.123450</td>
+<td></td>
+</tr>
+<tr>
+<td>Fixed</td>
+<td>3</td>
+<td>12345.000</td>
+<td>0.123</td>
+</tr>
+<tr>
+<td>4</td>
+<td>12345.0000</td>
+<td>0.1235</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>12345.00000</td>
+<td>0.12345</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>12345.000000</td>
+<td>0.123450</td>
+<td></td>
+</tr>
+<tr>
+<td>Scientific</td>
+<td>3</td>
+<td>1.235e+004</td>
+<td>1.235e-001</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1.2345e+004</td>
+<td>1.2345e-001</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>1.23450e+004</td>
+<td>1.23450e-001</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>1.234500e+004</td>
+<td>1.234500e-001</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Largeur, caractères de remplissage et justification</strong></p>
+<p>En général, lorsque vous affichez des nombres, ceux-ci sont imprimés sans tenir compte de l'espace qui les entoure. Il est cependant possible de justifier à gauche ou à droite l'affichage des nombres. Pour cela, nous devons d'abord définir une largeur de champ, qui correspond au nombre de caractères de sortie occupés par une valeur. Si le nombre affiché est plus court que la largeur de champ, il sera justifié à gauche ou à droite (selon le choix). Si le nombre est plus long que la largeur de champ, il ne sera pas tronqué : il débordera du champ.</p>
+<table>
+<thead>
+<tr>
+<th>Groupe</th>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::ios::adjustfield</td>
+<td>std::ios::internal</td>
+<td>Justifie à gauche le signe du nombre, et à droite la valeur</td>
+</tr>
+<tr>
+<td>std::ios::adjustfield</td>
+<td>std::ios::left</td>
+<td>Justifie à gauche le signe et la valeur</td>
+</tr>
+<tr>
+<td>std::ios::adjustfield</td>
+<td>std::ios::right</td>
+<td>Justifie à droite le signe et la valeur (par défaut)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Manipulateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::internal</td>
+<td>Justifie à gauche le signe du nombre, et à droite la valeur</td>
+</tr>
+<tr>
+<td>std::left</td>
+<td>Justifie à gauche le signe et la valeur</td>
+</tr>
+<tr>
+<td>std::right</td>
+<td>Justifie à droite le signe et la valeur</td>
+</tr>
+<tr>
+<td>std::setfill(char)</td>
+<td>Définit le paramètre comme caractère de remplissage (défini dans l'en-tête iomanip)</td>
+</tr>
+<tr>
+<td>std::setw(int)</td>
+<td>Définit la largeur de champ pour la saisie et la sortie avec le paramètre (défini dans l'en-tête iomanip)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Fonction membre</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::basic_ostream::fill()</td>
+<td>Renvoie le caractère de remplissage courant</td>
+</tr>
+<tr>
+<td>std::basic_ostream::fill(char)</td>
+<td>Définit le caractère de remplissage et renvoie l'ancien caractère de remplissage</td>
+</tr>
+<tr>
+<td>std::ios_base::width()</td>
+<td>Renvoie la largeur de champ courante</td>
+</tr>
+<tr>
+<td>std::ios_base::width(int)</td>
+<td>Définit la largeur de champ courante et renvoie l'ancienne largeur de champ</td>
+</tr>
+</tbody>
+</table>
+<p>Pour utiliser l'un de ces formateurs, nous devons d'abord définir une largeur de champ. Cela peut se faire avec la fonction membre width(int) ou avec le manipulateur setw(). Notez que la justification à droite est le comportement par défaut.</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; -12345 &lt;&lt; '\n'; // affiche la valeur par défaut sans largeur de champ
+std::cout &lt;&lt; std::setw(10) &lt;&lt; -12345 &lt;&lt; '\n'; // affiche avec la valeur par défaut et une largeur de champ
+std::cout &lt;&lt; std::setw(10) &lt;&lt; std::left &lt;&lt; -12345 &lt;&lt; '\n'; // affiche justifié à gauche
+std::cout &lt;&lt; std::setw(10) &lt;&lt; std::right &lt;&lt; -12345 &lt;&lt; '\n'; // affiche justifié à droite
+std::cout &lt;&lt; std::setw(10) &lt;&lt; std::internal &lt;&lt; -12345 &lt;&lt; '\n'; // affiche avec justification interne
+</code></pre>
+<p>Cela produit le résultat suivant :</p>
+<pre><code>
+-12345
+    -12345
+-12345
+    -12345
+-    12345
+</code></pre>
+<p>Il faut noter que setw() et width() n'affectent que l'instruction de sortie suivante. Ils ne sont pas persistants, contrairement à certains autres indicateurs et manipulateurs.</p>
+<p>Définissons maintenant un caractère de remplissage et refaisons le même exemple :</p>
+<pre><code class="language-cpp">std::cout.fill('*');
+std::cout &lt;&lt; -12345 &lt;&lt; '\n'; // affiche la valeur par défaut sans largeur de champ
+std::cout &lt;&lt; std::setw(10) &lt;&lt; -12345 &lt;&lt; '\n'; // affiche avec la valeur par défaut et une largeur de champ
+std::cout &lt;&lt; std::setw(10) &lt;&lt; std::left &lt;&lt; -12345 &lt;&lt; '\n'; // affiche justifié à gauche
+std::cout &lt;&lt; std::setw(10) &lt;&lt; std::right &lt;&lt; -12345 &lt;&lt; '\n'; // affiche justifié à droite
+std::cout &lt;&lt; std::setw(10) &lt;&lt; std::internal &lt;&lt; -12345 &lt;&lt; '\n'; // affiche avec justification interne
+</code></pre>
+<p>Cela produit le résultat suivant :</p>
+<pre><code>
+-12345
+****-12345
+-12345****
+****-12345
+-****12345
+</code></pre>
+<p>Notez que tous les espaces vides du champ ont été remplis par le caractère de remplissage.</p>
+<p>La classe ostream et la bibliothèque iostream contiennent d'autres fonctions de sortie, indicateurs et manipulateurs qui peuvent être utiles selon vos besoins. Comme pour la classe istream, ces sujets relèvent davantage d'un tutoriel ou d'un ouvrage consacré à la bibliothèque standard.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/output-with-ostream-and-ios/">https://www.learncpp.com/cpp-tutorial/output-with-ostream-and-ios/</a></em></p>
+</main>
+</body>
+</html>

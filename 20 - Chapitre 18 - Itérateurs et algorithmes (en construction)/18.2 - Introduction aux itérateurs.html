@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>18.2 — Introduction aux itérateurs</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="182-introduction-aux-itérateurs">18.2 — Introduction aux itérateurs</h1>
+<p>Parcourir un tableau (ou une autre structure) de données est une opération très courante en programmation. Jusqu'ici, nous avons vu plusieurs façons de le faire : avec des boucles et un indice (boucles <code>for</code> et <code>while</code>), avec des pointeurs et l'arithmétique des pointeurs, et avec les boucles <code>for</code> basées sur un intervalle (range-based for-loops) :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    // En C++17, le type de la variable arr est déduit comme std::array&lt;int, 7&gt;
+    // Si vous obtenez une erreur de compilation avec cet exemple, voir l'avertissement ci-dessous
+    std::array arr{ 0, 1, 2, 3, 4, 5, 6 };
+    std::size_t length{ std::size(arr) };
+
+    // boucle while avec indice explicite
+    std::size_t index{ 0 };
+    while (index &lt; length)
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+        ++index;
+    }
+    std::cout &lt;&lt; '\n';
+
+    // boucle for avec indice explicite
+    for (index = 0; index &lt; length; ++index)
+    {
+        std::cout &lt;&lt; arr[index] &lt;&lt; ' ';
+    }
+    std::cout &lt;&lt; '\n';
+
+    // boucle for avec pointeur (Remarque : ptr ne peut pas être const, car nous l'incrémentons)
+    for (auto ptr{ &amp;arr[0] }; ptr != (&amp;arr[0] + length); ++ptr)
+    {
+        std::cout &lt;&lt; *ptr &lt;&lt; ' ';
+    }
+    std::cout &lt;&lt; '\n';
+
+    // boucle for basée sur un intervalle
+    for (int i : arr)
+    {
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    }
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Les exemples de cette leçon utilisent une fonctionnalité de C++17 appelée <code>class template argument deduction</code>, qui permet de déduire les arguments de modèle d'une variable à partir de son initialiseur. Dans l'exemple ci-dessus, lorsque le compilateur rencontre <code>std::array arr{ 0, 1, 2, 3, 4, 5, 6 };</code>, il déduit que nous voulons <code>std::array&lt;int, 7&gt; arr { 0, 1, 2, 3, 4, 5, 6 };</code>.</p>
+<p>Si votre compilateur n'est pas configuré pour C++17, vous obtiendrez une erreur du type « missing template arguments before 'arr' ». Dans ce cas, le plus simple est d'activer C++17, comme expliqué dans la leçon <a href="../00%20-%20Chapitre%200%20-%20Introduction%20-%20Premiers%20pas/0.12%20-%20Configurer%20votre%20compilateur%20-%20choisir%20une%20norme%20du%20langage.html">0.12 -- Configurer votre compilateur : choisir une norme du langage</a>. Si ce n'est pas possible, vous pouvez remplacer les lignes utilisant la déduction d'arguments de modèle par des lignes avec des arguments explicites (par exemple, remplacer <code>std::array arr{ 0, 1, 2, 3, 4, 5, 6 };</code> par <code>std::array&lt;int, 7&gt; arr { 0, 1, 2, 3, 4, 5, 6 };</code>).</p>
+</div>
+<p>Parcourir un tableau à l'aide d'indices demande plus de frappe que nécessaire si l'on n'utilise l'indice que pour accéder aux éléments. Cette méthode ne fonctionne en outre que si le conteneur (par exemple le tableau) permet un accès direct aux éléments, ce que font les tableaux, mais pas certains autres conteneurs, comme les listes.</p>
+<p>Parcourir avec des pointeurs et l'arithmétique des pointeurs est verbeux, et peut dérouter les lecteurs qui ne connaissent pas les règles de l'arithmétique des pointeurs. Cette arithmétique ne fonctionne par ailleurs que si les éléments sont consécutifs en mémoire, ce qui est vrai pour les tableaux, mais pas pour d'autres conteneurs, comme les listes, les arbres et les dictionnaires (maps).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les pointeurs (sans arithmétique des pointeurs) peuvent aussi servir à parcourir certaines structures non séquentielles. Dans une liste chaînée, chaque élément est relié à l'élément précédent par un pointeur. On peut parcourir la liste en suivant la chaîne de pointeurs.</p>
+</div>
+<p>Les boucles <code>for</code> basées sur un intervalle sont plus intéressantes, car le mécanisme de parcours du conteneur est masqué, et pourtant elles fonctionnent avec toutes sortes de structures (tableaux, listes, arbres, dictionnaires, etc.). Comment cela fonctionne-t-il ? Elles utilisent des itérateurs.</p>
+<h2 id="les-itérateurs">Les itérateurs</h2>
+<p>Un <strong>itérateur</strong> (iterator) est un objet conçu pour parcourir un conteneur (par exemple les valeurs d'un tableau, ou les caractères d'une chaîne), en donnant accès à chaque élément au passage.</p>
+<p>Un conteneur peut fournir différents types d'itérateurs. Par exemple, un conteneur tableau peut offrir un itérateur avant (forward iterator) qui parcourt le tableau dans l'ordre, et un itérateur inverse (reverse iterator) qui le parcourt dans l'ordre inverse.</p>
+<p>Une fois le type d'itérateur approprié créé, le programmeur peut utiliser l'interface de l'itérateur pour parcourir et accéder aux éléments, sans se soucier du type de parcours effectué ni de la façon dont les données sont stockées dans le conteneur. Et comme les itérateurs C++ utilisent généralement la même interface pour le parcours (<code>operator++</code> pour passer à l'élément suivant) et pour l'accès (<code>operator*</code> pour accéder à l'élément courant), nous pouvons parcourir une grande variété de conteneurs de manière uniforme.</p>
+<h2 id="les-pointeurs-comme-itérateurs">Les pointeurs comme itérateurs</h2>
+<p>L'itérateur le plus simple est le pointeur, qui (grâce à l'arithmétique des pointeurs) fonctionne pour des données stockées séquentiellement en mémoire. Reprenons un parcours simple de tableau avec un pointeur et l'arithmétique des pointeurs :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::array arr{ 0, 1, 2, 3, 4, 5, 6 };
+
+    auto begin{ &amp;arr[0] };
+    // notez que ceci pointe un emplacement après le dernier élément
+    auto end{ begin + std::size(arr) };
+
+    // boucle for avec pointeur
+    for (auto ptr{ begin }; ptr != end; ++ptr) // ++ pour passer à l'élément suivant
+    {
+        std::cout &lt;&lt; *ptr &lt;&lt; ' '; // Déréférencement pour obtenir la valeur de l'élément courant
+    }
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sortie :</p>
+<pre><code>
+0 1 2 3 4 5 6
+</code></pre>
+<p>Dans le code ci-dessus, nous avons défini deux variables : <code>begin</code> (qui pointe sur le début du conteneur) et <code>end</code> (qui marque la fin). Pour les tableaux, le marqueur de fin est généralement l'emplacement mémoire où se trouverait le dernier élément si le conteneur en contenait un de plus.</p>
+<p>Le pointeur parcourt alors l'intervalle entre <code>begin</code> et <code>end</code>, et l'élément courant est accessible en déréférençant le pointeur.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Vous pourriez être tenté de calculer le marqueur de fin avec l'opérateur d'adresse et la syntaxe de tableau, ainsi :</p>
+<pre><code class="language-cpp">int* end{ &amp;arr[std::size(arr)] };
+</code></pre>
+<p>Mais cela provoque un comportement indéfini, car <code>arr[std::size(arr)]</code> déréférence implicitement un élément situé après la fin du tableau.</p>
+<p>Utilisez plutôt :</p>
+<pre><code class="language-cpp">int* end{ arr.data() + std::size(arr) }; // data() renvoie un pointeur vers le premier élément
+</code></pre>
+</div>
+<h2 id="les-itérateurs-de-la-bibliothèque-standard">Les itérateurs de la bibliothèque standard</h2>
+<p>Le parcours étant une opération si courante, tous les conteneurs de la bibliothèque standard offrent un support direct de l'itération. Plutôt que de calculer nous-mêmes les points de début et de fin, nous pouvons demander au conteneur ces points via les fonctions membres <code>begin()</code> et <code>end()</code> :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::array array{ 1, 2, 3 };
+
+    // Demander à notre tableau les points de début et de fin (via les fonctions membres begin et end).
+    auto begin{ array.begin() };
+    auto end{ array.end() };
+
+    for (auto p{ begin }; p != end; ++p) // ++ pour passer à l'élément suivant.
+    {
+        std::cout &lt;&lt; *p &lt;&lt; ' '; // Déréférencement pour obtenir la valeur de l'élément courant.
+    }
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+1 2 3
+</code></pre>
+<p>L'en-tête <code>iterator</code> contient aussi deux fonctions génériques (<code>std::begin</code> et <code>std::end</code>) que l'on peut utiliser.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p><code>std::begin</code> et <code>std::end</code> pour les tableaux de style C sont définies dans l'en-tête &lt;iterator&gt;.</p>
+<p><code>std::begin</code> et <code>std::end</code> pour les conteneurs qui prennent en charge les itérateurs sont définies dans les fichiers d'en-tête de ces conteneurs (par exemple &lt;array&gt;, &lt;vector&gt;).</p>
+</div>
+<pre><code class="language-cpp">#include &lt;array&gt;    // inclut &lt;iterator&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::array array{ 1, 2, 3 };
+
+    // Utiliser std::begin et std::end pour obtenir les points de début et de fin.
+    auto begin{ std::begin(array) };
+    auto end{ std::end(array) };
+
+    for (auto p{ begin }; p != end; ++p) // ++ pour passer à l'élément suivant
+    {
+        std::cout &lt;&lt; *p &lt;&lt; ' '; // Déréférencement pour obtenir la valeur de l'élément courant
+    }
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche également :</p>
+<pre><code>
+1 2 3
+</code></pre>
+<p>Ne vous souciez pas pour l'instant des types des itérateurs : nous reverrons les itérateurs dans un chapitre ultérieur. L'essentiel est que l'itérateur prend en charge les détails du parcours du conteneur. Il nous suffit de quatre éléments : le point de début, le point de fin, <code>operator++</code> pour faire avancer l'itérateur vers l'élément suivant (ou la fin), et <code>operator*</code> pour obtenir la valeur de l'élément courant.</p>
+<h2 id="operator-ou-operator-pour-les-itérateurs"><code>operator&lt;</code> ou <code>operator!=</code> pour les itérateurs</h2>
+<p>Dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.10%20-%20Instructions%20for%20%28for%20statements%29.html">8.10 -- Les boucles for</a>, nous avons indiqué que <code>operator&lt;</code> était préférable à <code>operator!=</code> pour les comparaisons numériques dans la condition de boucle :</p>
+<pre><code class="language-cpp">    for (index = 0; index &lt; length; ++index)
+</code></pre>
+<p>Avec les itérateurs, il est d'usage d'utiliser <code>operator!=</code> pour tester si l'itérateur a atteint l'élément de fin :</p>
+<pre><code class="language-cpp">    for (auto p{ begin }; p != end; ++p)
+</code></pre>
+<p>En effet, certains types d'itérateurs ne sont pas comparables par relation d'ordre. <code>operator!=</code> fonctionne avec tous les types d'itérateurs.</p>
+<h2 id="retour-aux-boucles-for-basées-sur-un-intervalle">Retour aux boucles for basées sur un intervalle</h2>
+<p>Tous les types qui possèdent les fonctions membres <code>begin()</code> et <code>end()</code>, ou qui peuvent être utilisés avec <code>std::begin()</code> et <code>std::end()</code>, sont utilisables dans une boucle <code>for</code> basée sur un intervalle.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::array array{ 1, 2, 3 };
+
+    // Ceci fait exactement la même chose que la boucle utilisée précédemment.
+    for (int i : array)
+    {
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    }
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>En coulisse, la boucle basée sur un intervalle appelle <code>begin()</code> et <code>end()</code> du type à parcourir. <code>std::array</code> possède les fonctions membres <code>begin</code> et <code>end</code>, on peut donc l'utiliser dans une boucle basée sur un intervalle. Les tableaux fixes de style C peuvent être utilisés avec les fonctions <code>std::begin</code> et <code>std::end</code>, on peut donc aussi les parcourir avec une telle boucle. En revanche, les tableaux dynamiques de style C (ou les tableaux de style C ayant perdu leur type, par décroissance en pointeur) ne fonctionnent pas, car il n'existe pas de fonction <code>std::end</code> pour eux (le type ne contient pas la longueur du tableau).</p>
+<p>Vous apprendrez plus tard à ajouter ces fonctions à vos propres types, afin qu'ils puissent aussi être utilisés avec les boucles basées sur un intervalle.</p>
+<p>Les boucles basées sur un intervalle ne sont pas la seule chose à utiliser les itérateurs. Ils sont aussi employés par <code>std::sort</code> et d'autres algorithmes. Maintenant que vous savez ce qu'ils sont, vous les remarquerez souvent dans la bibliothèque standard.</p>
+<h2 id="invalidation-des-itérateurs-itérateurs-pendants">Invalidation des itérateurs (itérateurs pendants)</h2>
+<p>Comme les pointeurs et les références, les itérateurs peuvent devenir « pendants » si les éléments parcourus changent d'adresse ou sont détruits. On dit alors que l'itérateur a été <strong>invalidé</strong>. Accéder à un itérateur invalidé provoque un comportement indéfini.</p>
+<p>Certaines opérations qui modifient un conteneur (comme l'ajout d'un élément dans un <code>std::vector</code>) peuvent avoir pour effet de déplacer les éléments du conteneur à d'autres adresses. Dans ce cas, les itérateurs existants vers ces éléments sont invalidés. Une bonne documentation de référence C++ indique quelles opérations peuvent ou vont invalider les itérateurs. Par exemple, consultez la <a href="https://en.cppreference.com/w/cpp/container/vector#Iterator_invalidation">section « Iterator invalidation » de <code>std::vector</code> sur cppreference</a>.</p>
+<p>Comme les boucles basées sur un intervalle utilisent des itérateurs en coulisse, nous devons veiller à ne rien faire qui invalide les itérateurs du conteneur que nous parcourons :</p>
+<pre><code class="language-cpp">#include &lt;vector&gt;
+
+int main()
+{
+    std::vector v { 0, 1, 2, 3 };
+
+    for (auto num : v) // parcourt implicitement v
+    {
+        if (num % 2 == 0)
+            v.push_back(num + 1); // ceci invalide les itérateurs de v : comportement indéfini
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Voici un autre exemple d'invalidation d'itérateur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector v{ 1, 2, 3, 4, 5, 6, 7 };
+
+    auto it{ v.begin() };
+
+    ++it; // passe au deuxième élément
+    std::cout &lt;&lt; *it &lt;&lt; '\n'; // ok : affiche 2
+
+    v.erase(it); // supprime l'élément actuellement parcouru
+
+    // erase() invalide les itérateurs vers l'élément supprimé (et les suivants)
+    // donc l'itérateur « it » est maintenant invalidé
+
+    ++it; // comportement indéfini
+    std::cout &lt;&lt; *it &lt;&lt; '\n'; // comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>Un itérateur invalidé peut être revalidé en lui affectant un itérateur valide (par exemple <code>begin()</code>, <code>end()</code>, ou la valeur de retour d'une autre fonction renvoyant un itérateur).</p>
+<p>La fonction <code>erase()</code> renvoie un itérateur vers l'élément qui suit l'élément supprimé (ou <code>end()</code> si le dernier élément a été supprimé). Nous pouvons donc corriger le code ci-dessus ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector v{ 1, 2, 3, 4, 5, 6, 7 };
+
+    auto it{ v.begin() };
+
+    ++it; // passe au deuxième élément
+    std::cout &lt;&lt; *it &lt;&lt; '\n';
+
+    it = v.erase(it); // supprime l'élément actuellement parcouru, et place `it` sur l'élément suivant
+
+    std::cout &lt;&lt; *it &lt;&lt; '\n'; // maintenant correct, affiche 3
+
+    return 0;
+}
+</code></pre>
+<p>(Remerciements à nascardriver pour ses contributions importantes à cette leçon.)</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-iterators/">https://www.learncpp.com/cpp-tutorial/introduction-to-iterators/</a></em></p>
+</main>
+</body>
+</html>

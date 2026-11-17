@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.4 — La règle du as-if et l&#x27;optimisation à la compilation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="54-la-règle-du-as-if-et-loptimisation-à-la-compilation">5.4 — La règle du as-if et l'optimisation à la compilation</h1>
+<h2 id="introduction-à-loptimisation">Introduction à l'optimisation</h2>
+<p>En programmation, l'<strong>optimisation</strong> consiste à modifier un logiciel pour qu'il fonctionne plus efficacement (par exemple pour s'exécuter plus vite ou consommer moins de ressources). L'optimisation peut avoir un impact considérable sur les performances globales d'une application.</p>
+<p>Certains types d'optimisation sont généralement réalisés à la main. Un programme appelé <strong>profileur (profiler)</strong> permet de voir combien de temps prend l'exécution de chaque partie d'un programme, et quelles parties nuisent le plus aux performances globales. Le programmeur peut alors chercher des moyens de résoudre ces problèmes de performance. Comme l'optimisation manuelle est lente, les programmeurs se concentrent en général sur des améliorations de haut niveau ayant un fort impact (comme le choix d'algorithmes plus performants, l'optimisation du stockage et de l'accès aux données, la réduction de l'utilisation des ressources, la parallélisation des tâches, etc.).</p>
+<p>D'autres formes d'optimisation peuvent être réalisées automatiquement. Un programme qui optimise un autre programme est appelé <strong>optimiseur (optimizer)</strong>. Les optimiseurs travaillent généralement à bas niveau, en cherchant à améliorer des instructions ou des expressions en les réécrivant, en les réordonnant ou en les supprimant. Par exemple, lorsque vous écrivez <code>i = i * 2;</code>, l'optimiseur peut la réécrire en <code>i *= 2;</code>, <code>i += i;</code> ou <code>i &lt;&lt;= 1;</code>. Pour des valeurs entières, toutes ces formes produisent le même résultat, mais l'une d'elles peut être plus rapide que les autres sur une architecture donnée. Un programmeur ne saurait probablement pas quel est le choix le plus performant (et la réponse peut varier selon l'architecture), alors qu'un optimiseur pour un système donné le saurait. Chaque optimisation de bas niveau ne procure peut-être qu'un petit gain de performance, mais leur effet cumulé peut aboutir à une amélioration significative.</p>
+<p>Les compilateurs C++ modernes sont des compilateurs optimisants, c'est-à-dire qu'ils sont capables d'optimiser automatiquement vos programmes au cours du processus de compilation. Comme le préprocesseur, ces optimisations ne modifient pas vos fichiers source : elles sont appliquées de manière transparente pendant la compilation.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Les compilateurs optimisants permettent aux programmeurs de se concentrer sur l'écriture d'un code lisible et facile à maintenir, sans sacrifier les performances.</p>
+</div>
+<p>Comme l'optimisation implique certains compromis (nous en parlerons en fin de leçon), les compilateurs proposent généralement plusieurs niveaux d'optimisation, qui déterminent s'ils optimisent, à quel degré de agressivité, et quel type d'optimisation ils privilégient (par exemple la vitesse ou la taille).</p>
+<p>La plupart des compilateurs n'optimisent pas par défaut. Si vous utilisez un compilateur en ligne de commande, vous devrez donc activer l'optimisation vous-même. Si vous utilisez un IDE, celui-ci configurera probablement automatiquement les builds de version (release) avec optimisation activée, et les builds de débogage (debug) sans optimisation.</p>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de gcc et Clang</p>
+<p>Consultez <a href="../00%20-%20Chapitre%200%20-%20Introduction%20-%20Premiers%20pas/0.9%20-%20Configuration%20de%20votre%20compilateur%20-%20configurations%20de%20compilation.html">0.9 -- Configurer votre compilateur : configurations de build</a> pour savoir comment activer l'optimisation.</p>
+</div>
+<h2 id="la-règle-du-as-if">La règle du as-if</h2>
+<p>En C++, les compilateurs disposent d'une grande latitude pour optimiser les programmes. La <strong>règle du as-if (as-if rule)</strong> indique que le compilateur peut modifier un programme comme il l'entend afin de produire un code plus optimisé, tant que ces modifications n'affectent pas le « comportement observable » du programme.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>La règle du as-if connaît une exception notable : les appels inutiles au constructeur de copie (ou de déplacement) peuvent être supprimés (omis), même si ces constructeurs ont un comportement observable. Nous traitons ce sujet dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.15%20-%20Initialisation%20de%20classe%20et%20%C3%A9lision%20de%20copie.html">14.15 -- Initialisation de classe et élision de copie</a>.</p>
+</div>
+<p>Les compilateurs modernes emploient diverses techniques pour optimiser efficacement un programme. Les techniques applicables dépendent du programme ainsi que de la qualité du compilateur et de l'optimiseur.</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p><a href="https://en.wikipedia.org/wiki/Optimizing_compiler#Specific_techniques">Wikipédia</a> propose une liste des techniques spécifiques utilisées par les compilateurs.</p>
+</div>
+<h2 id="une-opportunité-doptimisation">Une opportunité d'optimisation</h2>
+<p>Considérons le programme court suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 3 + 4 };
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>La sortie est directe :</p>
+<pre><code>
+7
+</code></pre>
+<p>Pourtant, une possibilité d'optimisation intéressante se cache derrière.</p>
+<p>Si ce programme était compilé exactement tel qu'il est écrit (sans optimisation), le compilateur générerait un exécutable qui calcule le résultat de <code>3 + 4</code> à l'exécution (lorsque le programme tourne). Si le programme était exécuté un million de fois, <code>3 + 4</code> serait évalué un million de fois, et la valeur <code>7</code> produite un million de fois.</p>
+<p>Comme le résultat de <code>3 + 4</code> ne change jamais (il vaut toujours <code>7</code>), recalculer ce résultat à chaque exécution du programme est un gaspillage.</p>
+<h2 id="évaluation-à-la-compilation">Évaluation à la compilation</h2>
+<p>Les compilateurs C++ modernes sont capables d'évaluer entièrement ou partiellement certaines expressions à la compilation (plutôt qu'à l'exécution). Lorsque le compilateur évalue entièrement ou partiellement une expression à la compilation, on parle d'<strong>évaluation à la compilation (compile-time evaluation)</strong>.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>L'évaluation à la compilation permet au compilateur de réaliser à la compilation un travail qui serait autrement effectué à l'exécution. Comme ces expressions n'ont plus besoin d'être évaluées à l'exécution, les exécutables obtenus sont plus rapides et plus petits (au prix d'une compilation légèrement plus lente).</p>
+</div>
+<p>À titre illustratif, nous allons voir dans cette leçon quelques techniques d'optimisation simples qui exploitent l'évaluation à la compilation. Nous poursuivrons ensuite la discussion sur l'évaluation à la compilation dans les leçons suivantes.</p>
+<h2 id="pliage-de-constantes">Pliage de constantes</h2>
+<p>L'une des premières formes d'évaluation à la compilation s'appelle « pliage de constantes » (constant folding). Le <strong>pliage de constantes (constant folding)</strong> est une technique d'optimisation dans laquelle le compilateur remplace les expressions dont les opérandes sont des littéraux par le résultat de l'expression. Grâce au pliage de constantes, le compilateur reconnaît que l'expression <code>3 + 4</code> n'a que des opérandes constants, puis la remplace par le résultat <code>7</code>.</p>
+<p>Le résultat serait équivalent au programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 7 };
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit la même sortie (<code>7</code>) que la version précédente, mais l'exécutable obtenu n'a plus besoin de consommer des cycles de processeur pour calculer <code>3 + 4</code> à l'exécution !</p>
+<p>Le pliage de constantes peut aussi s'appliquer à des sous-expressions, même lorsque l'expression complète doit être exécutée à l'exécution.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; 3 + 4 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>3 + 4</code> est une sous-expression de l'expression complète <code>std::cout &lt;&lt; 3 + 4 &lt;&lt; '\n';</code>. Le compilateur peut optimiser cela en <code>std::cout &lt;&lt; 7 &lt;&lt; '\n';</code>.</p>
+<h2 id="propagation-de-constantes">Propagation de constantes</h2>
+<p>Le programme suivant contient une autre opportunité d'optimisation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 7 };
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lors de l'initialisation de <code>x</code>, la valeur <code>7</code> est stockée dans la mémoire allouée pour <code>x</code>. Puis, à la ligne suivante, le programme retourne en mémoire pour lire à nouveau la valeur <code>7</code> afin de l'afficher. Cela nécessite deux opérations d'accès mémoire (une pour écrire la valeur, une pour la lire).</p>
+<p>La <strong>propagation de constantes (constant propagation)</strong> est une technique d'optimisation dans laquelle le compilateur remplace les variables dont il sait qu'elles ont une valeur constante par cette valeur. Grâce à la propagation de constantes, le compilateur comprend que <code>x</code> a toujours la valeur constante <code>7</code>, et remplace toute utilisation de la variable <code>x</code> par la valeur <code>7</code>.</p>
+<p>Le résultat serait équivalent au programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 7 };
+    std::cout &lt;&lt; 7 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Le programme n'a ainsi plus besoin d'aller en mémoire pour lire la valeur de <code>x</code>.</p>
+<p>La propagation de constantes peut produire un résultat qui pourra ensuite être optimisé par pliage de constantes :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 7 };
+    int y { 3 };
+    std::cout &lt;&lt; x + y &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, la propagation de constantes transforme <code>x + y</code> en <code>7 + 3</code>, qui peut ensuite être plié en la valeur <code>10</code>.</p>
+<h2 id="élimination-du-code-mort">Élimination du code mort</h2>
+<p>L'<strong>élimination du code mort (dead code elimination)</strong> est une technique d'optimisation dans laquelle le compilateur supprime du code qui peut être exécuté mais qui n'a aucun effet sur le comportement du programme.</p>
+<p>Revenons à un exemple précédent :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 7 };
+    std::cout &lt;&lt; 7 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce programme, la variable <code>x</code> est définie et initialisée, mais elle n'est jamais utilisée, elle n'a donc aucun effet sur le comportement du programme. L'élimination du code mort supprimerait la définition de <code>x</code>.</p>
+<p>Le résultat serait équivalent au programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; 7 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Lorsqu'une variable est retirée du programme parce qu'elle n'est plus nécessaire, on dit que la variable a été <strong>optimisée (optimized out)</strong> ou <strong>éliminée (optimized away)</strong>.</p>
+<p>Par rapport à la version originale, cette version optimisée ne nécessite plus le calcul à l'exécution de l'expression <code>3 + 4</code>, ni deux opérations d'accès mémoire (une pour initialiser la variable <code>x</code> et une pour lire sa valeur). Le programme est donc à la fois plus petit et plus rapide.</p>
+<h2 id="les-variables-const-sont-plus-faciles-à-optimiser">Les variables const sont plus faciles à optimiser</h2>
+<p>Dans certains cas, il existe des moyens simples d'aider le compilateur à mieux optimiser.</p>
+<p>La propagation de constantes peut être difficile pour le compilateur. Dans la section sur la propagation de constantes, nous avons donné cet exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 7 };
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Comme <code>x</code> est définie comme une variable non-const, pour appliquer cette optimisation, le compilateur doit comprendre que la valeur de <code>x</code> ne change pas réellement (alors qu'elle pourrait changer). Sa capacité à le faire dépend de la complexité du programme et de la sophistication des routines d'optimisation du compilateur.</p>
+<p>Nous pouvons aider le compilateur à mieux optimiser en utilisant des variables constantes chaque fois que c'est possible. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int x { 7 }; // x est maintenant const
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Comme <code>x</code> est maintenant const, le compilateur a la garantie que <code>x</code> ne peut pas être modifiée après son initialisation. Il est ainsi plus probable que le compilateur applique la propagation de constantes, puis élimine entièrement la variable.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>L'utilisation de variables const peut aider le compilateur à mieux optimiser.</p>
+</div>
+<h2 id="loptimisation-peut-rendre-les-programmes-plus-difficiles-à-déboguer">L'optimisation peut rendre les programmes plus difficiles à déboguer</h2>
+<p>Si l'optimisation rend nos programmes plus rapides, pourquoi n'est-elle pas activée par défaut ?</p>
+<p>Lorsque le compilateur optimise un programme, il peut réordonner, modifier, remplacer ou supprimer entièrement des variables, des expressions, des instructions et des appels de fonctions. De tels changements peuvent rendre le débogage difficile.</p>
+<p>À l'exécution, il peut être difficile de déboguer un code compilé qui ne correspond plus très bien au code source d'origine. Par exemple, si vous tentez de surveiller une variable qui a été éliminée par l'optimisation, le débogueur ne pourra pas la localiser. Si vous tentez d'entrer dans une fonction qui a été supprimée par l'optimisation, le débogueur la survolera simplement. Ainsi, si vous déboguez votre code et que le débogueur se comporte de façon étrange, c'est la cause la plus probable.</p>
+<p>À la compilation, nous disposons de peu de visibilité et d'outils pour comprendre ce que fait réellement le compilateur. Si une variable ou une expression est remplacée par une valeur, et que cette valeur est fausse, comment déboguer le problème ? C'est un défi toujours d'actualité.</p>
+<p>Pour limiter ce genre de problèmes, les builds de débogage laissent généralement les optimisations désactivées, afin que le code compilé corresponde plus fidèlement au code source.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Le débogage à la compilation est un domaine peu développé. À partir de C++23, plusieurs propositions sont à l'étude pour les futures normes du langage (comme <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2758r1.html">celle-ci</a>) qui, si elles sont approuvées, ajouteront des capacités utiles dans ce domaine.</p>
+</div>
+<h2 id="terminologie-constantes-à-la-compilation-et-constantes-à-lexécution">Terminologie : constantes à la compilation et constantes à l'exécution</h2>
+<p>Les constantes en C++ sont parfois réparties en deux catégories informelles.</p>
+<p>Une <strong>constante de compilation (compile-time constant)</strong> est une constante dont la valeur est connue à la compilation. Par exemple :</p>
+<ul>
+<li>Les littéraux.</li>
+<li>Les objets constants dont les initialisateurs sont des constantes de compilation.</li>
+</ul>
+<p>Une <strong>constante d'exécution (runtime constant)</strong> est une constante dont la valeur est déterminée dans un contexte d'exécution. Par exemple :</p>
+<ul>
+<li>Les paramètres de fonction constants.</li>
+<li>Les objets constants dont les initialisateurs sont des non-constantes ou des constantes d'exécution.</li>
+</ul>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int five()
+{
+    return 5;
+}
+
+int pass(const int x) // x est une constante d'exécution
+{
+    return x;
+}
+
+int main()
+{
+    // Les éléments suivants sont des non-constantes :
+    [[maybe_unused]] int a { 5 };
+
+    // Les éléments suivants sont des constantes de compilation :
+    [[maybe_unused]] const int b { 5 };
+    [[maybe_unused]] const double c { 1.2 };
+    [[maybe_unused]] const int d { b };       // b est une constante de compilation
+
+    // Les éléments suivants sont des constantes d'exécution :
+    [[maybe_unused]] const int e { a };       // a n'est pas const
+    [[maybe_unused]] const int f { e };       // e est une constante d'exécution
+    [[maybe_unused]] const int g { five() };  // la valeur de retour n'est connue qu'à l'exécution
+    [[maybe_unused]] const int h { pass(5) }; // la valeur de retour n'est connue qu'à l'exécution
+
+    return 0;
+}
+</code></pre>
+<p>Bien que vous rencontriez ces termes dans la nature, en C++ ces définitions ne sont pas très utiles :</p>
+<ul>
+<li>Certaines constantes d'exécution (et même certaines non-constantes) peuvent être évaluées à la compilation à des fins d'optimisation (en vertu de la règle du as-if).</li>
+<li>Certaines constantes de compilation (par exemple <code>const double d { 1.2 };</code>) ne peuvent pas être utilisées dans les fonctionnalités de compilation définies par la norme du langage. Nous en reparlerons dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.5%20-%20Expressions%20constantes.html">5.5 -- Expressions constantes</a>.</li>
+</ul>
+<p>Pour cette raison, nous vous recommandons d'éviter ces termes. Nous verrons la terminologie à utiliser à la place dans la prochaine leçon.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Nous sommes en train de retirer progressivement ces termes de nos futurs articles.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/the-as-if-rule-and-compile-time-optimization/">https://www.learncpp.com/cpp-tutorial/the-as-if-rule-and-compile-time-optimization/</a></em></p>
+</main>
+</body>
+</html>

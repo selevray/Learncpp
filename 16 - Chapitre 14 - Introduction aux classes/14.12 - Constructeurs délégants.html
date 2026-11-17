@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.12 — Constructeurs délégants</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1412-constructeurs-délégants">14.12 — Constructeurs délégants</h1>
+<p>Chaque fois que c'est possible, nous voulons réduire le code redondant (en suivant le principe DRY : Don't Repeat Yourself, « ne vous répétez pas »).</p>
+<p>Considérons les fonctions suivantes :</p>
+<pre><code class="language-cpp">void A()
+{
+    // instructions qui accomplissent la tâche A
+}
+
+void B()
+{
+    // instructions qui accomplissent la tâche A
+    // instructions qui accomplissent la tâche B
+}
+</code></pre>
+<p>Les deux fonctions contiennent un ensemble d'instructions qui font exactement la même chose (la tâche A). Dans ce cas, nous pouvons refactoriser ainsi :</p>
+<pre><code class="language-cpp">void A()
+{
+    // instructions qui accomplissent la tâche A
+}
+
+void B()
+{
+    A();
+    // instructions qui accomplissent la tâche B
+}
+</code></pre>
+<p>De cette manière, nous avons supprimé le code redondant présent dans les fonctions <code>A()</code> et <code>B()</code>. Cela rend notre code plus facile à maintenir, car les modifications ne doivent être faites qu'à un seul endroit.</p>
+<p>Lorsqu'une classe contient plusieurs constructeurs, il est très courant que le code de chacun d'eux soit similaire, voire identique, avec beaucoup de répétitions. Nous aimerions de la même façon supprimer la redondance entre constructeurs, lorsque c'est possible.</p>
+<p>Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name { &quot;???&quot; };
+    int m_id { 0 };
+    bool m_isManager { false };
+
+public:
+    Employee(std::string_view name, int id) // Un employé doit avoir un nom et un id
+        : m_name{ name }, m_id { id }
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+
+    Employee(std::string_view name, int id, bool isManager) // Il peut éventuellement être manager
+        : m_name{ name }, m_id{ id }, m_isManager { isManager }
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+};
+
+int main()
+{
+    Employee e1{ &quot;James&quot;, 7 };
+    Employee e2{ &quot;Dave&quot;, 42, true };
+}
+</code></pre>
+<p>Le corps de chaque constructeur contient exactement la même instruction d'affichage.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Il n'est généralement pas une bonne idée qu'un constructeur affiche quelque chose (sauf à des fins de débogage), car cela signifie que vous ne pouvez pas créer un objet avec ce constructeur dans les cas où vous ne souhaitez rien afficher. Nous le faisons dans cet exemple pour illustrer ce qui se passe.</p>
+</div>
+<p>Les constructeurs sont autorisés à appeler d'autres fonctions, y compris d'autres fonctions membres de la classe. Nous pourrions donc refactoriser ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name { &quot;???&quot; };
+    int m_id{ 0 };
+    bool m_isManager { false };
+
+    void printCreated() const // notre nouvelle fonction d'aide
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+
+public:
+    Employee(std::string_view name, int id)
+        : m_name{ name }, m_id { id }
+    {
+        printCreated(); // nous l'appelons ici
+    }
+
+    Employee(std::string_view name, int id, bool isManager)
+        : m_name{ name }, m_id{ id }, m_isManager { isManager }
+    {
+        printCreated(); // et ici
+    }
+};
+
+int main()
+{
+    Employee e1{ &quot;James&quot;, 7 };
+    Employee e2{ &quot;Dave&quot;, 42, true };
+}
+</code></pre>
+<p>Bien que ce soit mieux que la version précédente (l'instruction redondante a été remplacée par un appel de fonction redondant), cela nécessite l'introduction d'une nouvelle fonction. De plus, nos deux constructeurs initialisent tous deux <code>m_name</code> et <code>m_id</code>. Idéalement, nous voudrions supprimer aussi cette redondance.</p>
+<p>Peut-on faire mieux ? Oui. Mais c'est ici que de nombreux programmeurs débutants rencontrent des difficultés.</p>
+<h2 id="appeler-un-constructeur-dans-le-corps-dune-fonction-crée-un-objet-temporaire">Appeler un constructeur dans le corps d'une fonction crée un objet temporaire</h2>
+<p>De la même façon que la fonction <code>B()</code> appelait la fonction <code>A()</code> dans l'exemple précédent, la solution évidente semble être d'appeler le constructeur <code>Employee(std::string_view, int)</code> depuis le corps de <code>Employee(std::string_view, int, bool)</code>, afin d'initialiser <code>m_name</code>, <code>m_id</code> et d'afficher le message. Voici ce que cela donne :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name { &quot;???&quot; };
+    int m_id { 0 };
+    bool m_isManager { false };
+
+public:
+    Employee(std::string_view name, int id)
+        : m_name{ name }, m_id { id } // ce constructeur initialise name et id
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;; // notre instruction d'affichage est de retour ici
+    }
+
+    Employee(std::string_view name, int id, bool isManager)
+        : m_isManager { isManager } // ce constructeur initialise m_isManager
+    {
+        // Appeler Employee(std::string_view, int) pour initialiser m_name et m_id
+        Employee(name, id); // cela ne fonctionne pas comme prévu !
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+};
+
+int main()
+{
+    Employee e2{ &quot;Dave&quot;, 42, true };
+    std::cout &lt;&lt; &quot;e2 has name: &quot; &lt;&lt; e2.getName() &lt;&lt; &quot;\n&quot;; // affiche e2.m_name
+}
+</code></pre>
+<p>Mais cela ne fonctionne pas correctement : le programme affiche ceci :</p>
+<pre><code class="language-cpp">Employee Dave created
+e2 has name: ???
+</code></pre>
+<p>Bien que <code>Employee Dave created</code> ait été affiché, une fois la construction de <code>e2</code> terminée, <code>e2.m_name</code> semble toujours avoir sa valeur initiale <code>"???"</code>. Comment est-ce possible ?</p>
+<p>Nous pensions que <code>Employee(name, id)</code> allait appeler le constructeur pour poursuivre l'initialisation de l'objet implicite courant (<code>e2</code>). Mais l'initialisation d'un objet de classe est terminée une fois que la liste d'initialisation des membres a fini de s'exécuter. Au moment où le corps du constructeur commence à s'exécuter, il est trop tard pour effectuer une initialisation supplémentaire.</p>
+<p>Lorsqu'il est appelé depuis le corps d'une fonction, ce qui ressemble à un appel de constructeur crée généralement un objet temporaire en l'initialisant directement (dans un autre cas, vous obtiendrez une erreur de compilation). Dans notre exemple ci-dessus, <code>Employee(name, id);</code> crée un objet Employee temporaire (sans nom). C'est cet objet temporaire dont <code>m_name</code> est défini à <code>Dave</code>, et c'est lui qui affiche <code>Employee Dave created</code>. Ensuite, le temporaire est détruit. <code>e2</code> ne voit jamais ses <code>m_name</code> ou <code>m_id</code> modifiés : ils gardent leurs valeurs par défaut.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Les constructeurs ne doivent pas être appelés directement depuis le corps d'une autre fonction. Cela entraînera soit une erreur de compilation, soit l'initialisation directe d'un objet temporaire.<br />
+Si vous souhaitez réellement un objet temporaire, privilégiez l'initialisation par liste (qui indique clairement que vous voulez créer un objet).</p>
+</div>
+<p>Donc, si nous ne pouvons pas appeler un constructeur depuis le corps d'un autre constructeur, comment résoudre ce problème ?</p>
+<h2 id="constructeurs-délégants">Constructeurs délégants</h2>
+<p>Les constructeurs peuvent déléguer (transférer la responsabilité de) l'initialisation à un autre constructeur du même type de classe. Ce procédé est parfois appelé <strong>chaînage de constructeurs</strong> (constructor chaining), et de tels constructeurs sont appelés <strong>constructeurs délégants</strong> (delegating constructors).</p>
+<p>Pour qu'un constructeur délègue l'initialisation à un autre constructeur, il suffit d'appeler ce constructeur dans la liste d'initialisation des membres :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name { &quot;???&quot; };
+    int m_id { 0 };
+
+public:
+    Employee(std::string_view name)
+        : Employee{ name, 0 } // délègue l'initialisation au constructeur Employee(std::string_view, int)
+    {
+    }
+
+    Employee(std::string_view name, int id)
+        : m_name{ name }, m_id { id } // initialise réellement les membres
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+
+};
+
+int main()
+{
+    Employee e1{ &quot;James&quot; };
+    Employee e2{ &quot;Dave&quot;, 42 };
+}
+</code></pre>
+<p>Lorsque <code>e1 { "James" }</code> est initialisé, le constructeur correspondant <code>Employee(std::string_view)</code> est appelé avec le paramètre <code>name</code> valant <code>"James"</code>. La liste d'initialisation des membres de ce constructeur délègue l'initialisation à un autre constructeur, donc <code>Employee(std::string_view, int)</code> est alors appelé. La valeur de <code>name</code> (<code>"James"</code>) est passée comme premier argument, et le littéral <code>0</code> comme second argument. La liste d'initialisation des membres du constructeur délégué initialise ensuite les membres. Le corps du constructeur délégué s'exécute alors. Ensuite, le contrôle revient au constructeur initial, dont le corps (vide) s'exécute. Enfin, le contrôle revient à l'appelant.</p>
+<p>L'inconvénient de cette méthode est qu'elle nécessite parfois de dupliquer des valeurs d'initialisation. Dans la délégation au constructeur <code>Employee(std::string_view, int)</code>, nous avons besoin d'une valeur d'initialisation pour le paramètre <code>int</code>. Nous avons dû coder en dur le littéral <code>0</code>, car il n'existe pas de moyen de référencer l'initialisation par défaut du membre.</p>
+<p>Quelques remarques supplémentaires sur les constructeurs délégants. Premièrement, un constructeur qui délègue à un autre constructeur n'a pas le droit d'initialiser lui-même des membres. Vos constructeurs peuvent donc soit déléguer, soit initialiser, mais pas les deux.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Notez que nous avons fait déléguer <code>Employee(std::string_view)</code> (le constructeur avec le moins de paramètres) à <code>Employee(std::string_view name, int id)</code> (le constructeur avec plus de paramètres). Il est courant que le constructeur ayant moins de paramètres délègue au constructeur ayant plus de paramètres.</p>
+<p>Si nous avions choisi plutôt de faire déléguer <code>Employee(std::string_view name, int id)</code> à <code>Employee(std::string_view)</code>, nous n'aurions pas pu initialiser <code>m_id</code> avec <code>id</code>, car un constructeur ne peut que déléguer ou initialiser, pas les deux.</p>
+</div>
+<p>Deuxièmement, il est possible qu'un constructeur délègue à un autre constructeur, lequel délègue à son tour au premier. Cela forme une boucle infinie, et provoquera l'épuisement de la pile et le plantage de votre programme. Vous pouvez éviter cela en vous assurant que tous vos constructeurs aboutissent à un constructeur non délégant.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous disposez de plusieurs constructeurs, vérifiez si vous pouvez utiliser des constructeurs délégants pour réduire le code dupliqué.</p>
+</div>
+<h2 id="réduire-le-nombre-de-constructeurs-grâce-aux-arguments-par-défaut">Réduire le nombre de constructeurs grâce aux arguments par défaut</h2>
+<p>Les valeurs par défaut peuvent aussi parfois servir à réduire plusieurs constructeurs en un nombre plus restreint. Par exemple, en donnant une valeur par défaut à notre paramètre <code>id</code>, nous pouvons créer un unique constructeur <code>Employee</code> qui exige un argument de nom, mais accepte optionnellement un argument d'identifiant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name{};
+    int m_id{ 0 }; // initialisation par défaut du membre
+
+public:
+
+    Employee(std::string_view name, int id = 0) // argument par défaut pour id
+        : m_name{ name }, m_id{ id }
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+};
+
+int main()
+{
+    Employee e1{ &quot;James&quot; };
+    Employee e2{ &quot;Dave&quot;, 42 };
+}
+</code></pre>
+<p>Comme les valeurs par défaut doivent être attachées aux paramètres les plus à droite lors d'un appel de fonction, une bonne pratique lors de la définition d'une classe consiste à définir d'abord les membres pour lesquels l'utilisateur <em>doit</em> fournir une valeur d'initialisation (et à en faire les paramètres les plus à gauche du constructeur). Les membres pour lesquels l'utilisateur peut fournir une valeur facultativement (parce que les valeurs par défaut sont acceptables) doivent être définis ensuite (et devenir les paramètres les plus à droite du constructeur).</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Les membres pour lesquels l'utilisateur doit fournir des valeurs d'initialisation doivent être définis en premier (et être les paramètres les plus à gauche du constructeur). Les membres pour lesquels l'utilisateur peut fournir facultativement des valeurs d'initialisation (parce que les valeurs par défaut sont acceptables) doivent être définis ensuite (et être les paramètres les plus à droite du constructeur).</p>
+</div>
+<p>Notez que cette méthode nécessite également de dupliquer la valeur d'initialisation par défaut de <code>m_id</code> (« 0 ») : une fois comme initialisation par défaut du membre, et une fois comme argument par défaut.</p>
+<h2 id="un-dilemme-constructeurs-redondants-contre-valeurs-par-défaut-redondantes">Un dilemme : constructeurs redondants contre valeurs par défaut redondantes</h2>
+<p>Dans les exemples précédents, nous avons utilisé des constructeurs délégants, puis des arguments par défaut, pour réduire la redondance entre constructeurs. Mais ces deux méthodes nous ont obligés à dupliquer les valeurs d'initialisation de nos membres à plusieurs endroits. Malheureusement, il n'existe actuellement aucun moyen d'indiquer qu'un constructeur délégant ou un argument par défaut doit utiliser la valeur d'initialisation par défaut du membre.</p>
+<p>Les avis divergent sur la question de savoir s'il vaut mieux avoir moins de constructeurs (avec duplication des valeurs d'initialisation) ou plus de constructeurs (sans duplication). Notre avis est qu'il est généralement plus simple d'avoir moins de constructeurs, même si cela entraîne une duplication des valeurs d'initialisation.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Lorsqu'une valeur d'initialisation est utilisée à plusieurs endroits (par exemple comme initialisation par défaut d'un membre et comme argument par défaut d'un paramètre de constructeur), nous pouvons définir une constante nommée et l'utiliser partout où la valeur d'initialisation est nécessaire. Cela permet de définir la valeur d'initialisation à un seul endroit.</p>
+<p>Bien que vous puissiez utiliser une variable globale <code>constexpr</code> pour cela, une meilleure option consiste à utiliser un membre <code>static constexpr</code> à l'intérieur de la classe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    static constexpr int default_id { 0 }; // définit une constante nommée avec la valeur d'initialisation souhaitée
+
+    std::string m_name {};
+    int m_id { default_id }; // on peut l'utiliser ici
+
+public:
+
+    Employee(std::string_view name, int id = default_id) // et on peut l'utiliser ici
+        : m_name { name }, m_id { id }
+    {
+        std::cout &lt;&lt; &quot;Employee &quot; &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+};
+
+int main()
+{
+    Employee e1 { &quot;James&quot; };
+    Employee e2 { &quot;Dave&quot;, 42 };
+}
+</code></pre>
+<p>L'utilisation du mot-clé <code>static</code> dans ce contexte nous permet d'avoir un unique membre <code>default_id</code> partagé par tous les objets <code>Employee</code>. Sans <code>static</code>, chaque objet <code>Employee</code> aurait son propre membre <code>default_id</code> indépendant (ce qui fonctionnerait, mais gaspillerait de la mémoire).</p>
+<p>L'inconvénient de cette approche est que chaque constante nommée supplémentaire ajoute un nom de plus à comprendre, ce qui rend votre classe un peu plus encombrée et complexe. Le fait que cela en vaille la peine dépend du nombre de ces constantes nécessaires et du nombre d'endroits où les valeurs d'initialisation sont requises.</p>
+<p>Nous abordons les membres de données statiques dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.6%20-%20Variables%20membres%20statiques.html">15.6 -- Variables membres statiques</a>.</p>
+</div>
+<h2 id="temps-du-quiz">Temps du quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Écrivez une classe nommée Ball. Ball doit posséder deux variables membres privées : l'une pour stocker une couleur (valeur par défaut : <code>black</code>), et l'autre pour stocker un rayon (valeur par défaut : <code>10.0</code>). Ajoutez 4 constructeurs, chacun traitant un des cas ci-dessous :</p>
+<pre><code class="language-cpp">int main()
+{
+    Ball def{};
+    Ball blue{ &quot;blue&quot; };
+    Ball twenty{ 20.0 };
+    Ball blueTwenty{ &quot;blue&quot;, 20.0 };
+
+    return 0;
+}
+</code></pre>
+<p>Le programme doit produire le résultat suivant :</p>
+<pre><code>
+Ball(black, 10)
+Ball(blue, 10)
+Ball(black, 20)
+Ball(blue, 20)
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Ball
+{
+private:
+    std::string m_color{ &quot;black&quot; };
+    double m_radius{ 10.0 };
+
+public:
+    // Constructeur par défaut (la couleur et le rayon utilisent leur valeur par défaut)
+    Ball()
+    {
+            print();
+    }
+
+    // Constructeur avec seulement le paramètre rayon (la couleur utilise sa valeur par défaut)
+    Ball(double radius)
+        : m_radius{ radius }
+    {
+            print();
+    }
+
+    // Constructeur avec seulement le paramètre couleur (le rayon utilise sa valeur par défaut)
+    Ball(std::string_view color)
+        : m_color{ color }
+    {
+            print();
+    }
+
+    // Constructeur avec les paramètres couleur et rayon
+    Ball(std::string_view color, double radius)
+        : m_color{ color }
+        , m_radius{ radius }
+    {
+            print();
+    }
+
+    void print() const
+    {
+        std::cout &lt;&lt; &quot;Ball(&quot; &lt;&lt; m_color &lt;&lt; &quot;, &quot; &lt;&lt; m_radius &lt;&lt; &quot;)\n&quot;;
+    }
+};
+
+int main()
+{
+    Ball def{};
+    Ball blue{ &quot;blue&quot; };
+    Ball twenty{ 20.0 };
+    Ball blueTwenty{ &quot;blue&quot;, 20.0 };
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Réduisez le nombre de constructeurs du programme ci-dessus en utilisant des arguments par défaut et des constructeurs délégants.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Ball
+{
+private:
+    std::string m_color{ &quot;black&quot; };
+    double m_radius{ 10.0 };
+
+public:
+    // Gère Ball(radius)
+    Ball(double radius)
+        : Ball{ &quot;black&quot;, radius } // délègue à l'autre constructeur
+    {
+        // Pas besoin d'appeler print() ici, car il sera appelé par
+        // le constructeur auquel on délègue
+    }
+
+    // Gère Ball(color, radius), Ball(color) et Ball()
+    Ball(std::string_view color=&quot;black&quot;, double radius=10.0)
+        : m_color{ color }
+        , m_radius{ radius }
+    {
+        print();
+    }
+
+    void print() const
+    {
+        std::cout &lt;&lt; &quot;Ball(&quot; &lt;&lt; m_color &lt;&lt; &quot;, &quot; &lt;&lt; m_radius &lt;&lt; &quot;)\n&quot;;
+    }
+};
+
+int main()
+{
+    Ball def{};
+    Ball blue{ &quot;blue&quot; };
+    Ball twenty{ 20.0 };
+    Ball blueTwenty{ &quot;blue&quot;, 20.0 };
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/delegating-constructors/">https://www.learncpp.com/cpp-tutorial/delegating-constructors/</a></em></p>
+</main>
+</body>
+</html>

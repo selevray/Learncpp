@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.11 — Divers sur les structs</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1311-divers-sur-les-structs">13.11 — Divers sur les structs</h1>
+<h2 id="structs-dont-les-membres-sont-des-types-définis-par-le-programme">Structs dont les membres sont des types définis par le programme</h2>
+<p>En C++, les structs (et les classes) peuvent avoir pour membres d'autres types définis par le programme. Il existe deux façons de procéder.</p>
+<p>Premièrement, nous pouvons définir un type défini par le programme (dans la portée globale), puis l'utiliser comme membre d'un autre type défini par le programme :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Employee
+{
+    int id {};
+    int age {};
+    double wage {};
+};
+
+struct Company
+{
+    int numberOfEmployees {};
+    Employee CEO {}; // Employee is a struct within the Company struct
+};
+
+int main()
+{
+    Company myCompany{ 7, { 1, 32, 55000.0 } }; // Nested initialization list to initialize Employee
+    std::cout &lt;&lt; myCompany.CEO.wage &lt;&lt; '\n'; // print the CEO's wage
+
+    return 0;
+}
+</code></pre>
+<p>Dans le cas ci-dessus, nous avons défini une struct <code>Employee</code>, puis l'avons utilisée comme membre de la struct <code>Company</code>. Lorsque nous initialisons <code>Company</code>, nous pouvons aussi initialiser <code>Employee</code> à l'aide d'une liste d'initialisation imbriquée. Et si nous voulons connaître le salaire du PDG, il suffit d'utiliser deux fois l'opérateur de sélection de membre : <code>myCompany.CEO.wage;</code></p>
+<p>Deuxièmement, des types peuvent aussi être imbriqués à l'intérieur d'autres types. Ainsi, si un Employee n'existe qu'en tant que partie d'une Company, le type Employee peut être imbriqué dans la struct Company :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Company
+{
+    struct Employee // accessed via Company::Employee
+    {
+        int id{};
+        int age{};
+        double wage{};
+    };
+
+    int numberOfEmployees{};
+    Employee CEO{}; // Employee is a struct within the Company struct
+};
+
+int main()
+{
+    Company myCompany{ 7, { 1, 32, 55000.0 } }; // Nested initialization list to initialize Employee
+    std::cout &lt;&lt; myCompany.CEO.wage &lt;&lt; '\n'; // print the CEO's wage
+
+    return 0;
+}
+</code></pre>
+<p>Cette approche est plus souvent utilisée avec les classes, nous en reparlerons donc dans une future leçon (<a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.3%20-%20Types%20imbriqu%C3%A9s%20%28types%20membres%29.html">15.3 -- Types imbriqués (types membres)</a>).</p>
+<h2 id="les-structs-qui-sont-propriétaires-doivent-avoir-des-membres-de-données-propriétaires">Les structs qui sont propriétaires doivent avoir des membres de données propriétaires</h2>
+<p>Dans la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.9%20-%20std--string_view%20%28partie%202%29.html">5.9 -- std::string_view (partie 2)</a>, nous avons présenté les deux notions complémentaires de propriétaire et de observateur. Les propriétaires gèrent leurs propres données et contrôlent le moment de leur destruction. Les observateurs regardent les données de quelqu'un d'autre, et ne contrôlent ni le moment de leur modification ni celui de leur destruction.</p>
+<p>Dans la plupart des cas, nous voulons que nos structs (et classes) soient propriétaires des données qu'elles contiennent. Cela apporte plusieurs avantages :</p>
+<ul>
+<li>Les membres de données resteront valides aussi longtemps que la struct (ou la classe) existera.</li>
+<li>La valeur de ces membres de données ne changera pas de façon inattendue.</li>
+</ul>
+<p>Le moyen le plus simple de faire d'une struct (ou d'une classe) un propriétaire consiste à donner à chaque membre de données un type qui est un propriétaire (c'est-à-dire ni un observateur, ni un pointeur, ni une référence). Si une struct ou une classe a uniquement des membres de données qui sont des propriétaires, alors la struct ou la classe elle-même est automatiquement un propriétaire.</p>
+<p>Si une struct (ou une classe) possède un membre de données qui est un observateur, il est possible que l'objet observé par ce membre soit détruit avant le membre de données qui l'observe. Si cela se produit, la struct se retrouve avec un membre pendouillant (dangling), et y accéder conduit à un comportement indéfini.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Dans la plupart des cas, nous voulons que nos structs (et classes) soient propriétaires. Le moyen le plus simple d'y parvenir est de s'assurer que chaque membre de données a un type propriétaire (c'est-à-dire ni un observateur, ni un pointeur, ni une référence).</p>
+</div>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Pratiquez des structs sûres. Ne laissez pas vos membres pendouiller.</p>
+</div>
+<p>C'est pourquoi les membres de données de type chaîne sont presque toujours de type <code>std::string</code> (qui est un propriétaire), et non de type <code>std::string_view</code> (qui est un observateur). L'exemple suivant illustre un cas où cela a de l'importance :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+struct Owner
+{
+    std::string name{}; // std::string is an owner
+};
+
+struct Viewer
+{
+    std::string_view name {}; // std::string_view is a viewer
+};
+
+// getName() returns the user-entered string as a temporary std::string
+// This temporary std::string will be destroyed at the end of the full expression
+// containing the function call.
+std::string getName()
+{
+    std::cout &lt;&lt; &quot;Enter a name: &quot;;
+    std::string name{};
+    std::cin &gt;&gt; name;
+    return name;
+}
+
+int main()
+{
+    Owner o { getName() };  // The return value of getName() is destroyed just after initialization
+    std::cout &lt;&lt; &quot;The owners name is &quot; &lt;&lt; o.name &lt;&lt; '\n';  // ok
+
+    Viewer v { getName() }; // The return value of getName() is destroyed just after initialization
+    std::cout &lt;&lt; &quot;The viewers name is &quot; &lt;&lt; v.name &lt;&lt; '\n'; // undefined behavior
+
+    return 0;
+}
+</code></pre>
+<p>La fonction <code>getName()</code> renvoie le nom saisi par l'utilisateur sous la forme d'un <code>std::string</code> temporaire. Cette valeur de retour temporaire est détruite à la fin de l'expression complète dans laquelle la fonction est appelée.</p>
+<p>Dans le cas de <code>o</code>, ce <code>std::string</code> temporaire sert à initialiser <code>o.name</code>. Comme <code>o.name</code> est un <code>std::string</code>, <code>o.name</code> effectue une copie du <code>std::string</code> temporaire. Le <code>std::string</code> temporaire disparaît ensuite, mais <code>o.name</code> n'est pas affecté puisqu'il s'agit d'une copie. Lorsque nous affichons <code>o.name</code> dans l'instruction suivante, cela fonctionne comme attendu.</p>
+<p>Dans le cas de <code>v</code>, ce <code>std::string</code> temporaire sert à initialiser <code>v.name</code>. Comme <code>v.name</code> est un <code>std::string_view</code>, <code>v.name</code> n'est qu'une vue sur le <code>std::string</code> temporaire, et non une copie. Le <code>std::string</code> temporaire disparaît ensuite, laissant <code>v.name</code> pendouiller. Lorsque nous affichons <code>v.name</code> dans l'instruction suivante, nous obtenons un comportement indéfini.</p>
+<h2 id="taille-des-structs-et-alignement-des-structures-de-données">Taille des structs et alignement des structures de données</h2>
+<p>En général, la taille d'une struct est la somme des tailles de tous ses membres, mais pas toujours !</p>
+<p>Considérons le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Foo
+{
+    short a {};
+    int b {};
+    double c {};
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;The size of short is &quot; &lt;&lt; sizeof(short) &lt;&lt; &quot; bytes\n&quot;;
+    std::cout &lt;&lt; &quot;The size of int is &quot; &lt;&lt; sizeof(int) &lt;&lt; &quot; bytes\n&quot;;
+    std::cout &lt;&lt; &quot;The size of double is &quot; &lt;&lt; sizeof(double) &lt;&lt; &quot; bytes\n&quot;;
+
+    std::cout &lt;&lt; &quot;The size of Foo is &quot; &lt;&lt; sizeof(Foo) &lt;&lt; &quot; bytes\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code class="language-cpp">The size of short is 2 bytes
+The size of int is 4 bytes
+The size of double is 8 bytes
+The size of Foo is 16 bytes
+</code></pre>
+<p>Remarquez que la somme des tailles de <code>short</code>, <code>int</code> et <code>double</code> vaut 14 octets, mais que la taille de <code>Foo</code> vaut 16 octets !</p>
+<p>En fait, nous pouvons seulement dire que la taille d'une struct sera <em>au moins</em> égale à la somme des tailles de toutes les variables qu'elle contient. Mais elle peut être plus grande ! Pour des raisons de performance, le compilateur ajoute parfois des espaces vides dans les structures (on parle de <strong>bourrage</strong>, ou padding).</p>
+<p>Dans la struct <code>Foo</code> ci-dessus, le compilateur ajoute invisiblement 2 octets de bourrage après le membre <code>a</code>, ce qui porte la taille de la structure à 16 octets au lieu de 14.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les raisons pour lesquelles les compilateurs peuvent ajouter du bourrage dépassent le cadre de ce tutoriel, mais les lecteurs qui souhaitent en savoir plus peuvent consulter la page sur l'<a href="http://en.wikipedia.org/wiki/Data_structure_alignment">alignement des structures de données</a> sur Wikipédia. Cette lecture est facultative et n'est pas nécessaire pour comprendre les structures ou le C++ !</p>
+</div>
+<p>Cela peut avoir un impact assez important sur la taille de la struct, comme le montre le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Foo1
+{
+    short a{}; // will have 2 bytes of padding after a
+    int b{};
+    short c{}; // will have 2 bytes of padding after c
+};
+
+struct Foo2
+{
+    int b{};
+    short a{};
+    short c{};
+};
+
+int main()
+{
+    std::cout &lt;&lt; sizeof(Foo1) &lt;&lt; '\n'; // prints 12
+    std::cout &lt;&lt; sizeof(Foo2) &lt;&lt; '\n'; // prints 8
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+12
+8
+</code></pre>
+<p>Remarquez que <code>Foo1</code> et <code>Foo2</code> ont exactement les mêmes membres, seul l'ordre de déclaration diffère. Pourtant, <code>Foo1</code> est 50 % plus grande à cause du bourrage supplémentaire.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Vous pouvez réduire le bourrage en déclarant vos membres par ordre de taille décroissante.</p>
+<p>Le compilateur C++ n'a pas le droit de réordonner les membres : cela doit être fait manuellement.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/struct-miscellany/">https://www.learncpp.com/cpp-tutorial/struct-miscellany/</a></em></p>
+</main>
+</body>
+</html>

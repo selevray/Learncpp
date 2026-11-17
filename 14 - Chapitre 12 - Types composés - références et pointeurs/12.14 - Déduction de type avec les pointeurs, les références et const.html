@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12.14 — Déduction de type avec les pointeurs, les références et const</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1214-déduction-de-type-avec-les-pointeurs-les-références-et-const">12.14 — Déduction de type avec les pointeurs, les références et const</h1>
+<p>Dans la leçon <a href="../11%20-%20Chapitre%2010%20-%20Conversions%20de%20type%2C%20alias%20de%20type%20et%20d%C3%A9duction%20de%20type/10.8%20-%20D%C3%A9duction%20de%20type%20pour%20les%20objets%20avec%20le%20mot-cl%C3%A9%20auto.html">10.8 -- Déduction de type pour les objets avec le mot-clé auto</a>, nous avons vu comment le mot-clé <code>auto</code> permet au compilateur de déduire le type d'une variable à partir de son initialisation :</p>
+<pre><code class="language-cpp">int main()
+{
+    int a { 5 };
+    auto b { a }; // b est déduit comme int
+
+    return 0;
+}
+</code></pre>
+<p>Nous avons aussi indiqué que, par défaut, la déduction de type supprime le <code>const</code> des types :</p>
+<pre><code class="language-cpp">int main()
+{
+    const double a { 7.8 }; // a a le type const double
+    auto b { a };           // b a le type double (const supprimé)
+
+    constexpr double c { 7.8 }; // c a le type const double (constexpr applique implicitement const)
+    auto d { c };               // d a le type double (const supprimé)
+
+    return 0;
+}
+</code></pre>
+<p>On peut réappliquer <code>const</code> (ou <code>constexpr</code>) en ajoutant ce qualificateur à la définition du type déduit :</p>
+<pre><code class="language-cpp">int main()
+{
+    double a { 7.8 };    // a a le type double
+    const auto b { a };  // b a le type const double (const appliqué)
+
+    constexpr double c { 7.8 }; // c a le type const double (constexpr applique implicitement const)
+    const auto d { c };         // d est const double (const supprimé, const réappliqué)
+    constexpr auto e { c };     // e est constexpr double (const supprimé, constexpr réappliqué)
+
+    return 0;
+}
+</code></pre>
+<h2 id="la-déduction-de-type-supprime-les-références">La déduction de type supprime les références</h2>
+<p>En plus de supprimer <code>const</code>, la déduction de type supprime aussi les références :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+std::string&amp; getRef(); // une fonction qui renvoie une référence
+
+int main()
+{
+    auto ref { getRef() }; // type déduit std::string (et non std::string&amp;)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, la variable <code>ref</code> utilise la déduction de type. Bien que la fonction <code>getRef()</code> renvoie un <code>std::string&amp;</code>, le qualificateur de référence est supprimé : le type de <code>ref</code> est donc déduit comme <code>std::string</code>.</p>
+<p>Comme pour <code>const</code> supprimé, si vous voulez que le type déduit soit une référence, vous pouvez réappliquer la référence au moment de la définition :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+std::string&amp; getRef(); // une fonction qui renvoie une référence
+
+int main()
+{
+    auto ref1 { getRef() };  // std::string (référence supprimée)
+    auto&amp; ref2 { getRef() }; // std::string&amp; (référence supprimée, puis réappliquée)
+
+    return 0;
+}
+</code></pre>
+<h2 id="const-de-haut-niveau-et-const-de-bas-niveau">const de haut niveau et const de bas niveau</h2>
+<p>Un <strong>const de haut niveau</strong> (top-level const) est un qualificateur <code>const</code> qui s'applique à l'objet lui-même. Par exemple :</p>
+<pre><code class="language-cpp">const int x;    // ce const s'applique à x, il est donc de haut niveau
+int* const ptr; // ce const s'applique à ptr, il est donc de haut niveau
+// les références n'ont pas de syntaxe pour un const de haut niveau, car elles sont implicitement const de haut niveau
+</code></pre>
+<p>À l'inverse, un <strong>const de bas niveau</strong> (low-level const) est un qualificateur <code>const</code> qui s'applique à l'objet référencé ou pointé :</p>
+<pre><code class="language-cpp">const int&amp; ref; // ce const s'applique à l'objet référencé, il est donc de bas niveau
+const int* ptr; // ce const s'applique à l'objet pointé, il est donc de bas niveau
+</code></pre>
+<p>Une référence à une valeur const est toujours un const de bas niveau. Un pointeur peut avoir un const de haut niveau, un const de bas niveau, ou les deux :</p>
+<pre><code class="language-cpp">const int* const ptr; // le const de gauche est de bas niveau, celui de droite est de haut niveau
+</code></pre>
+<p>Lorsque nous disons que la déduction de type supprime les qualificateurs <code>const</code>, cela ne concerne que les <code>const</code> de haut niveau. Les <code>const</code> de bas niveau ne sont pas supprimés. Nous verrons des exemples dans un instant.</p>
+<h2 id="déduction-de-type-et-références-const">Déduction de type et références const</h2>
+<p>Si l'initialisation est une référence à const, la référence est d'abord supprimée (puis réappliquée si nécessaire), et ensuite tout <code>const</code> de haut niveau est supprimé du résultat.</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+const std::string&amp; getConstRef(); // une fonction qui renvoie une référence à const
+
+int main()
+{
+    auto ref1{ getConstRef() }; // std::string (référence supprimée, puis const de haut niveau supprimé du résultat)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, comme <code>getConstRef()</code> renvoie un <code>const std::string&amp;</code>, la référence est d'abord supprimée, ce qui nous laisse un <code>const std::string</code>. Ce <code>const</code> est maintenant de haut niveau, il est donc aussi supprimé, et le type déduit est <code>std::string</code>.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Supprimer une référence peut transformer un const de bas niveau en const de haut niveau : <code>const std::string&amp;</code> est un const de bas niveau, mais supprimer la référence donne <code>const std::string</code>, qui est un const de haut niveau.</p>
+</div>
+<p>On peut réappliquer une référence et/ou const :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+const std::string&amp; getConstRef(); // une fonction qui renvoie une référence const
+
+int main()
+{
+    auto ref1{ getConstRef() };        // std::string (référence et const de haut niveau supprimés)
+    const auto ref2{ getConstRef() };  // const std::string (référence supprimée, const supprimé, const réappliqué)
+
+    auto&amp; ref3{ getConstRef() };       // const std::string&amp; (référence supprimée puis réappliquée, const de bas niveau non supprimé)
+    const auto&amp; ref4{ getConstRef() }; // const std::string&amp; (référence supprimée puis réappliquée, const de bas niveau non supprimé)
+
+    return 0;
+}
+</code></pre>
+<p>Nous avons déjà traité le cas de <code>ref1</code> dans l'exemple précédent. Pour <code>ref2</code>, le cas est similaire à celui de <code>ref1</code>, sauf que nous réappliquons le qualificateur <code>const</code>, donc le type déduit est <code>const std::string</code>.</p>
+<p>Le cas de <code>ref3</code> est plus intéressant. Normalement la référence serait supprimée d'abord, mais comme nous l'avons réappliquée, elle n'est pas supprimée. Le type reste donc <code>const std::string&amp;</code>. Et comme ce const est un const de bas niveau, il n'est pas supprimé. Le type déduit est donc <code>const std::string&amp;</code>.</p>
+<p>Le cas de <code>ref4</code> fonctionne comme <code>ref3</code>, à la différence près que nous réappliquons aussi le qualificateur <code>const</code>. Comme le type est déjà déduit comme une référence à const, réappliquer <code>const</code> ici est redondant. Cela dit, l'utiliser rend explicite le fait que le résultat sera const (alors que, dans le cas de <code>ref3</code>, la constance du résultat est implicite et peu évidente).</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous voulez une référence const, réappliquez le qualificateur <code>const</code> même lorsqu'il n'est pas strictement nécessaire : cela rend votre intention claire et aide à éviter les erreurs.</p>
+</div>
+<h2 id="et-les-références-constexpr">Et les références constexpr ?</h2>
+<p><code>constexpr</code> ne fait pas partie du type d'une expression : il n'est donc pas déduit par <code>auto</code>.</p>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Lorsqu'on définit une référence const (par exemple <code>const int&amp;</code>), le const s'applique à l'objet référencé, et non à la référence elle-même.</p>
+<p>Lorsqu'on définit une référence constexpr vers une variable const (par exemple <code>constexpr const int&amp;</code>), il faut appliquer à la fois <code>constexpr</code> (qui s'applique à la référence) et <code>const</code> (qui s'applique au type référencé).</p>
+<p>Ce point est traité dans la leçon <a href="../14%20-%20Chapitre%2012%20-%20Types%20compos%C3%A9s%20-%20r%C3%A9f%C3%A9rences%20et%20pointeurs/12.4%20-%20R%C3%A9f%C3%A9rences%20lvalue%20vers%20const.html">12.4 -- Références lvalue vers const</a>.</p>
+</div>
+<pre><code class="language-cpp">#include &lt;string_view&gt;
+#include &lt;iostream&gt;
+
+constexpr std::string_view hello { &quot;Hello&quot; };   // implicitement const
+
+constexpr const std::string_view&amp; getConstRef() // la fonction est constexpr, elle renvoie un const std::string_view&amp;
+{
+    return hello;
+}
+
+int main()
+{
+    auto ref1{ getConstRef() };                  // std::string_view (référence et const de haut niveau supprimés)
+    constexpr auto ref2{ getConstRef() };        // constexpr const std::string_view (référence et const de haut niveau supprimés, constexpr appliqué, const implicite)
+
+    auto&amp; ref3{ getConstRef() };                 // const std::string_view&amp; (référence réappliquée, const de bas niveau non supprimé)
+    constexpr const auto&amp; ref4{ getConstRef() }; // constexpr const std::string_view&amp; (référence réappliquée, const de bas niveau non supprimé, constexpr appliqué)
+
+    return 0;
+}
+</code></pre>
+<h2 id="déduction-de-type-et-pointeurs">Déduction de type et pointeurs</h2>
+<p>Contrairement aux références, la déduction de type ne supprime pas les pointeurs :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+std::string* getPtr(); // une fonction qui renvoie un pointeur
+
+int main()
+{
+    auto ptr1{ getPtr() }; // std::string*
+
+    return 0;
+}
+</code></pre>
+<p>On peut aussi utiliser un astérisque avec la déduction de type pour pointeur (<code>auto*</code>) afin de bien montrer que le type déduit est un pointeur :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+std::string* getPtr(); // une fonction qui renvoie un pointeur
+
+int main()
+{
+    auto ptr1{ getPtr() };  // std::string*
+    auto* ptr2{ getPtr() }; // std::string*
+
+    return 0;
+}
+</code></pre>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Si les références sont supprimées lors de la déduction de type alors que les pointeurs ne le sont pas, c'est parce que références et pointeurs n'ont pas la même sémantique.</p>
+<p>Lorsque nous évaluons une référence, nous évaluons en réalité l'objet référencé. Il est donc logique, lors de la déduction de type, de déduire le type de la chose référencée, et non celui de la référence elle-même. De plus, comme on déduit un type non référence, il est très facile d'en faire une référence avec <code>auto&amp;</code>. Si la déduction de type déduisait plutôt une référence, la syntaxe pour retirer la référence lorsqu'on n'en veut pas serait beaucoup plus compliquée.</p>
+<p>En revanche, un pointeur contient l'adresse d'un objet. Lorsque nous évaluons un pointeur, nous évaluons le pointeur lui-même, et non l'objet pointé (si nous voulons cet objet, nous pouvons déréférencer le pointeur). Il est donc logique de déduire le type du pointeur, et non celui de la chose pointée.</p>
+</div>
+<h2 id="la-différence-entre-auto-et-auto-facultatif">La différence entre auto et auto* <em>(facultatif)</em></h2>
+<p>Lorsqu'on utilise <code>auto</code> avec une initialisation de type pointeur, le type déduit pour <code>auto</code> inclut le pointeur. Ainsi, pour <code>ptr1</code> ci-dessus, le type substitué à <code>auto</code> est <code>std::string*</code>.</p>
+<p>Lorsqu'on utilise <code>auto*</code> avec une initialisation de type pointeur, le type déduit pour <code>auto</code> n'inclut <em>pas</em> le pointeur : celui-ci est réappliqué après la déduction. Ainsi, pour <code>ptr2</code> ci-dessus, le type substitué à <code>auto</code> est <code>std::string</code>, puis le pointeur est réappliqué.</p>
+<p>Dans la plupart des cas, l'effet pratique est le même (<code>ptr1</code> et <code>ptr2</code> se déduisent tous deux en <code>std::string*</code> dans l'exemple ci-dessus).</p>
+<p>Cependant, <code>auto</code> et <code>auto*</code> présentent en pratique quelques différences. D'abord, <code>auto*</code> doit correspondre à une initialisation de type pointeur, sinon une erreur de compilation se produit :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+std::string* getPtr(); // une fonction qui renvoie un pointeur
+
+int main()
+{
+    auto ptr3{ *getPtr() };      // std::string (car nous avons déréférencé getPtr())
+    auto* ptr4{ *getPtr() };     // ne compile pas (l'initialisation n'est pas un pointeur)
+
+    return 0;
+}
+</code></pre>
+<p>Cela a du sens : dans le cas de <code>ptr4</code>, <code>auto</code> se déduit en <code>std::string</code>, puis le pointeur est réappliqué. Ainsi <code>ptr4</code> a le type <code>std::string*</code>, et on ne peut pas initialiser un <code>std::string*</code> avec une expression qui n'est pas un pointeur.</p>
+<p>Ensuite, <code>auto</code> et <code>auto*</code> se comportent différemment lorsqu'on introduit <code>const</code>. Nous verrons cela ci-dessous.</p>
+<h2 id="déduction-de-type-et-pointeurs-const-facultatif">Déduction de type et pointeurs const <em>(facultatif)</em></h2>
+<p>Comme les pointeurs ne sont pas supprimés, nous n'avons pas à nous en soucier. Mais avec les pointeurs, il faut considérer à la fois le pointeur const et le pointeur vers const, ainsi que la différence entre <code>auto</code> et <code>auto*</code>. Comme pour les références, seul le const de haut niveau est supprimé lors de la déduction de type pour pointeur.</p>
+<p>Commençons par un cas simple :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+std::string* getPtr(); // une fonction qui renvoie un pointeur
+
+int main()
+{
+    const auto ptr1{ getPtr() };  // std::string* const
+    auto const ptr2 { getPtr() }; // std::string* const
+
+    const auto* ptr3{ getPtr() }; // const std::string*
+    auto* const ptr4{ getPtr() }; // std::string* const
+
+    return 0;
+}
+</code></pre>
+<p>Lorsqu'on utilise <code>auto const</code> ou <code>const auto</code>, on dit « fais du pointeur déduit un pointeur const ». Pour <code>ptr1</code> et <code>ptr2</code>, le type déduit est donc <code>std::string*</code>, puis const est appliqué, ce qui donne le type final <code>std::string* const</code>. C'est comparable à <code>const int</code> et <code>int const</code>, qui signifient la même chose.</p>
+<p>En revanche, avec <code>auto*</code>, la position du qualificateur <code>const</code> compte. Un <code>const</code> à gauche signifie « fais du pointeur déduit un pointeur vers const », tandis qu'un <code>const</code> à droite signifie « fais du type de pointeur déduit un pointeur const ». Ainsi <code>ptr3</code> est un pointeur vers const, et <code>ptr4</code> est un pointeur const.</p>
+<p>Examinons maintenant un exemple où l'initialisation est un pointeur const vers const.</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+
+int main()
+{
+    std::string s{};
+    const std::string* const ptr { &amp;s };
+
+    auto ptr1{ ptr };  // const std::string*
+    auto* ptr2{ ptr }; // const std::string*
+
+    auto const ptr3{ ptr };  // const std::string* const
+    const auto ptr4{ ptr };  // const std::string* const
+
+    auto* const ptr5{ ptr }; // const std::string* const
+    const auto* ptr6{ ptr }; // const std::string*
+
+    const auto const ptr7{ ptr };  // erreur : le qualificateur const ne peut pas être appliqué deux fois
+    const auto* const ptr8{ ptr }; // const std::string* const
+
+    return 0;
+}
+</code></pre>
+<p>Les cas <code>ptr1</code> et <code>ptr2</code> sont directs. Le const de haut niveau (celui du pointeur lui-même) est supprimé. Le const de bas niveau sur l'objet pointé n'est pas supprimé. Dans les deux cas, le type final est donc <code>const std::string*</code>.</p>
+<p>Les cas <code>ptr3</code> et <code>ptr4</code> sont également directs. Le const de haut niveau est supprimé, mais nous le réappliquons. Le const de bas niveau sur l'objet pointé n'est pas supprimé. Dans les deux cas, le type final est donc <code>const std::string* const</code>.</p>
+<p>Les cas <code>ptr5</code> et <code>ptr6</code> sont analogues à ceux de l'exemple précédent. Dans les deux cas, le const de haut niveau est supprimé. Pour <code>ptr5</code>, <code>auto* const</code> réapplique le const de haut niveau, donc le type final est <code>const std::string* const</code>. Pour <code>ptr6</code>, <code>const auto*</code> applique const au type pointé (qui était déjà const), donc le type final est <code>const std::string*</code>.</p>
+<p>Dans le cas de <code>ptr7</code>, nous appliquons deux fois le qualificateur const, ce qui est interdit et provoque une erreur de compilation.</p>
+<p>Enfin, dans le cas de <code>ptr8</code>, nous appliquons const des deux côtés du pointeur (ce qui est permis, car <code>auto*</code> doit être un type pointeur) ; le type résultant est donc <code>const std::string* const</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous voulez un pointeur const, un pointeur vers const, ou un pointeur const vers const, réappliquez le ou les qualificateurs <code>const</code> même lorsqu'ils ne sont pas strictement nécessaires : cela rend votre intention claire et aide à éviter les erreurs.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Pensez à utiliser <code>auto*</code> lorsque vous déduisez un type pointeur. Cela rend plus clair le fait qu'on déduit un type pointeur, fait appel au compilateur pour s'assurer que nous ne déduisons pas un type qui n'est pas un pointeur, et vous donne plus de contrôle sur const.</p>
+</div>
+<h2 id="résumé">Résumé</h2>
+<p>Désolé d'apprendre que vous avez mal à la tête. Récapitulons rapidement les points les plus importants.</p>
+<p>const de haut niveau et const de bas niveau :</p>
+<ul>
+<li>Un const de haut niveau s'applique à l'objet lui-même (par exemple <code>const int x</code> ou <code>int* const ptr</code>).</li>
+<li>Un const de bas niveau s'applique à l'objet accédé par une référence ou un pointeur (par exemple <code>const int&amp; ref</code>, <code>const int* ptr</code>).</li>
+</ul>
+<p>Ce que déduit la déduction de type :</p>
+<ul>
+<li>La déduction de type supprime d'abord les références (sauf si le type déduit est défini comme une référence). Pour une référence const, supprimer la référence transforme le const (de bas niveau) en const de haut niveau.</li>
+<li>La déduction de type supprime ensuite tout const de haut niveau (sauf si le type déduit est défini comme <code>const</code> ou <code>constexpr</code>).</li>
+<li><code>constexpr</code> ne fait pas partie du système de types : il n'est jamais déduit. Il doit toujours être appliqué explicitement au type déduit.</li>
+<li>La déduction de type ne supprime pas les pointeurs.</li>
+<li>Définissez toujours explicitement le type déduit comme référence, <code>const</code> ou <code>constexpr</code> (selon le cas), même lorsque ces qualificateurs seraient redondants car déduits. Cela aide à prévenir les erreurs et rend votre intention claire.</li>
+</ul>
+<p>Déduction de type et pointeurs :</p>
+<ul>
+<li>Avec <code>auto</code>, le type déduit est un pointeur uniquement si l'initialisation est un pointeur. Avec <code>auto*</code>, le type déduit est toujours un pointeur, même si l'initialisation n'en est pas un.</li>
+<li><code>auto const</code> et <code>const auto</code> rendent tous deux le pointeur déduit const. Il n'existe pas de moyen d'exprimer explicitement un const de bas niveau (pointeur vers const) avec <code>auto</code>.</li>
+<li><code>auto* const</code> rend aussi le pointeur déduit const. <code>const auto*</code> en fait un pointeur vers const. Si ces règles sont difficiles à retenir : <code>int* const</code> est un pointeur const (vers int), donc <code>auto* const</code> doit être un pointeur const ; <code>const int*</code> est un pointeur vers const (int), donc <code>const auto*</code> doit être un pointeur vers const.</li>
+<li>Pensez à utiliser <code>auto*</code> plutôt que <code>auto</code> lorsque vous déduisez un type pointeur : il permet de réappliquer explicitement le const de haut niveau comme le const de bas niveau, et provoque une erreur si le type déduit n'est pas un pointeur.</li>
+</ul>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/type-deduction-with-pointers-references-and-const/">https://www.learncpp.com/cpp-tutorial/type-deduction-with-pointers-references-and-const/</a></em></p>
+</main>
+</body>
+</html>

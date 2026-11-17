@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16.4 — Passer un std::vector en paramètre</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="164-passer-un-stdvector-en-paramètre">16.4 — Passer un std::vector en paramètre</h1>
+<p>Un objet de type <code>std::vector</code> peut être passé à une fonction comme n'importe quel autre objet. Cela signifie que si nous passons un <code>std::vector</code> par valeur, une copie coûteuse est effectuée. Nous passons donc généralement les <code>std::vector</code> par référence (constante) afin d'éviter ces copies.</p>
+<p>Avec un <code>std::vector</code>, le type des éléments fait partie des informations de type de l'objet. Par conséquent, lorsque nous utilisons un <code>std::vector</code> comme paramètre de fonction, nous devons préciser explicitement le type des éléments :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void passByRef(const std::vector&lt;int&gt;&amp; arr) // nous devons préciser explicitement &lt;int&gt; ici
+{
+    std::cout &lt;&lt; arr[0] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector primes{ 2, 3, 5, 7, 11 };
+    passByRef(primes);
+
+    return 0;
+}
+</code></pre>
+<h2 id="passer-des-stdvector-dont-les-éléments-sont-de-types-différents">Passer des <code>std::vector</code> dont les éléments sont de types différents</h2>
+<p>Comme notre fonction <code>passByRef()</code> attend un <code>std::vector&lt;int&gt;</code>, nous ne pouvons pas lui passer des vecteurs dont les éléments sont d'un autre type :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void passByRef(const std::vector&lt;int&gt;&amp; arr)
+{
+    std::cout &lt;&lt; arr[0] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector primes{ 2, 3, 5, 7, 11 };
+    passByRef(primes);  // ok : il s'agit d'un std::vector&lt;int&gt;
+
+    std::vector dbl{ 1.1, 2.2, 3.3 };
+    passByRef(dbl); // erreur de compilation : std::vector&lt;double&gt; n'est pas convertible en std::vector&lt;int&gt;
+
+    return 0;
+}
+</code></pre>
+<p>En C++17 ou plus récent, on pourrait essayer d'utiliser la déduction d'arguments de modèle de classe (CTAD) pour résoudre ce problème :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void passByRef(const std::vector&amp; arr) // erreur de compilation : le CTAD ne peut pas être utilisé pour déduire les paramètres de fonction
+{
+    std::cout &lt;&lt; arr[0] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector primes{ 2, 3, 5, 7, 11 }; // ok : utilisation du CTAD pour déduire std::vector&lt;int&gt;
+    passByRef(primes);
+
+    return 0;
+}
+</code></pre>
+<p>Bien que le CTAD permette de déduire le type des éléments d'un vecteur à partir de ses initialiseurs lors de sa définition, le CTAD ne fonctionne pas (pour l'instant) avec les paramètres de fonction.</p>
+<p>Nous avons déjà rencontré ce type de problème, où des fonctions surchargées ne diffèrent que par le type de leurs paramètres. C'est une excellente occasion d'utiliser les modèles de fonctions ! Nous pouvons créer un modèle de fonction paramétrant le type des éléments, puis le C++ utilisera ce modèle pour instancier des fonctions avec des types concrets.</p>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous traitons des modèles de fonctions dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.6%20-%20Templates%20de%20fonctions.html">11.6 -- Modèles de fonctions</a>.</p>
+</div>
+<p>Nous pouvons créer un modèle de fonction utilisant la même déclaration de paramètre de modèle :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void passByRef(const std::vector&lt;T&gt;&amp; arr)
+{
+    std::cout &lt;&lt; arr[0] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector primes{ 2, 3, 5, 7, 11 };
+    passByRef(primes); // ok : le compilateur va instancier passByRef(const std::vector&lt;int&gt;&amp;)
+
+    std::vector dbl{ 1.1, 2.2, 3.3 };
+    passByRef(dbl);    // ok : le compilateur va instancier passByRef(const std::vector&lt;double&gt;&amp;)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous avons créé un unique modèle de fonction nommé <code>passByRef()</code> qui possède un paramètre de type <code>const std::vector&lt;T&gt;&amp;</code>. <code>T</code> est défini dans la déclaration de paramètre de modèle de la ligne précédente : <code>template &lt;typename T</code>. <code>T</code> est un paramètre de modèle de type standard qui permet à l'appelant de préciser le type des éléments.</p>
+<p>Ainsi, lorsque nous appelons <code>passByRef(primes)</code> depuis <code>main()</code> (où <code>primes</code> est défini comme un <code>std::vector&lt;int&gt;</code>), le compilateur instancie et appelle <code>void passByRef(const std::vector&lt;int&gt;&amp; arr)</code>.</p>
+<p>Lorsque nous appelons <code>passByRef(dbl)</code> depuis <code>main()</code> (où <code>dbl</code> est défini comme un <code>std::vector&lt;double&gt;</code>), le compilateur instancie et appelle <code>void passByRef(const std::vector&lt;double&gt;&amp; arr)</code>.</p>
+<p>Nous avons donc créé un unique modèle de fonction capable d'instancier des fonctions traitant des arguments <code>std::vector</code> de n'importe quel type d'éléments et de n'importe quelle longueur !</p>
+<h2 id="passer-un-stdvector-à-laide-dun-modèle-générique-ou-dun-modèle-de-fonction-abrégé">Passer un <code>std::vector</code> à l'aide d'un modèle générique ou d'un modèle de fonction abrégé</h2>
+<p>Nous pouvons également créer un modèle de fonction qui accepte n'importe quel type d'objet :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void passByRef(const T&amp; arr) // acceptera tout objet disposant d'un operator[] surchargé
+{
+    std::cout &lt;&lt; arr[0] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector primes{ 2, 3, 5, 7, 11 };
+    passByRef(primes); // ok : le compilateur va instancier passByRef(const std::vector&lt;int&gt;&amp;)
+
+    std::vector dbl{ 1.1, 2.2, 3.3 };
+    passByRef(dbl);    // ok : le compilateur va instancier passByRef(const std::vector&lt;double&gt;&amp;)
+
+    return 0;
+}
+</code></pre>
+<p>En C++20, nous pouvons utiliser un modèle de fonction abrégé (via un paramètre <code>auto</code>) pour faire la même chose :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void passByRef(const auto&amp; arr) // modèle de fonction abrégé
+{
+    std::cout &lt;&lt; arr[0] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector primes{ 2, 3, 5, 7, 11 };
+    passByRef(primes); // ok : le compilateur va instancier passByRef(const std::vector&lt;int&gt;&amp;)
+
+    std::vector dbl{ 1.1, 2.2, 3.3 };
+    passByRef(dbl);    // ok : le compilateur va instancier passByRef(const std::vector&lt;double&gt;&amp;)
+
+    return 0;
+}
+</code></pre>
+<p>Ces deux versions acceptent un argument de <em>n'importe quel</em> type qui compile. Cela peut être souhaitable lorsque nous écrivons des fonctions que nous pourrions vouloir utiliser sur autre chose qu'un <code>std::vector</code>. Par exemple, les fonctions ci-dessus fonctionneront également avec un <code>std::array</code>, un <code>std::string</code>, ou tout autre type auquel nous n'aurions peut-être même pas pensé.</p>
+<p>L'inconvénient potentiel de cette méthode est qu'elle peut entraîner des bogues si la fonction reçoit un objet d'un type qui compile mais qui n'a pas de sens sémantiquement.</p>
+<h2 id="vérifier-la-longueur-dun-tableau-avec-une-assertion">Vérifier la longueur d'un tableau avec une assertion</h2>
+<p>Considérons le modèle de fonction suivant, proche de celui présenté ci-dessus :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printElement3(const std::vector&lt;T&gt;&amp; arr)
+{
+    std::cout &lt;&lt; arr[3] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector arr{ 9, 7, 5, 3, 1 };
+    printElement3(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Bien que <code>printElement3(arr)</code> fonctionne correctement dans ce cas, ce programme recèle un bogue potentiel qui attend un programmeur peu attentif. Le voyez-vous ?</p>
+<p>Le programme ci-dessus affiche la valeur de l'élément du tableau d'indice 3. Cela ne pose pas de problème tant que le tableau possède un élément valide d'indice 3. Cependant, le compilateur acceptera sans broncher des tableaux pour lesquels l'indice 3 est hors limites. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+template &lt;typename T&gt;
+void printElement3(const std::vector&lt;T&gt;&amp; arr)
+{
+    std::cout &lt;&lt; arr[3] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector arr{ 9, 7 }; // un tableau de 2 éléments (indices valides 0 et 1)
+    printElement3(arr);
+
+    return 0;
+}
+</code></pre>
+<p>Ce code entraîne un comportement indéfini.</p>
+<p>Une solution consiste à vérifier <code>arr.size()</code> à l'aide d'une assertion, ce qui détectera ces erreurs lors d'une exécution en configuration de débogage. Comme <code>std::vector::size()</code> n'est pas une fonction constexpr, nous ne pouvons faire qu'une assertion à l'exécution ici.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Une meilleure solution consiste à éviter <code>std::vector</code> dans les cas où vous devez vérifier la longueur d'un tableau par une assertion. Utiliser un type qui prend en charge les tableaux constexpr (par exemple <code>std::array</code>) est probablement un meilleur choix, car vous pouvez utiliser <code>static_assert</code> sur la longueur d'un tableau constexpr. Nous aborderons ce point dans une prochaine leçon : <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.3%20-%20Passer%20et%20retourner%20des%20std--array.html">17.3 -- Passer et renvoyer un std::array</a>.</p>
+</div>
+<p>La meilleure solution consiste à éviter, dès le départ, d'écrire des fonctions qui reposent sur le fait que l'utilisateur passe un vecteur d'une longueur minimale.</p>
+<h2 id="temps-du-quiz">Temps du quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Écrivez une fonction qui prend deux paramètres : un <code>std::vector</code> et un indice. Si l'indice est hors limites, affichez une erreur. Si l'indice est valide, affichez la valeur de l'élément.</p>
+<p>Le programme d'exemple suivant doit compiler :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+// Écrivez votre fonction printElement ici
+
+int main()
+{
+    std::vector v1 { 0, 1, 2, 3, 4 };
+    printElement(v1, 2);
+    printElement(v1, 5);
+
+    std::vector v2 { 1.1, 2.2, 3.3 };
+    printElement(v2, 0);
+    printElement(v2, -1);
+
+    return 0;
+}
+</code></pre>
+<p>et produire le résultat suivant :</p>
+<pre><code>
+The element has value 2
+Invalid index
+The element has value 1.1
+Invalid index
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+// index doit être un int et non un std::size_t, sinon nous ne pourrions pas détecter un indice négatif passé par l'utilisateur
+template &lt;typename T&gt;
+void printElement(const std::vector&lt;T&gt;&amp; arr, int index)
+{
+    if (index &lt; 0 || index &gt;= static_cast&lt;int&gt;(arr.size())) // En C++20, on pourrait utiliser std::ssize(arr) pour éviter le cast
+        std::cout &lt;&lt; &quot;Invalid index\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;The element has value &quot; &lt;&lt; arr[static_cast&lt;std::size_t&gt;(index)] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector v1 { 0, 1, 2, 3, 4 };
+    printElement(v1, 2);
+    printElement(v1, 5);
+
+    std::vector v2 { 1.1, 2.2, 3.3 };
+    printElement(v2, 0);
+    printElement(v2, -1);
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/passing-stdvector/">https://www.learncpp.com/cpp-tutorial/passing-stdvector/</a></em></p>
+</main>
+</body>
+</html>

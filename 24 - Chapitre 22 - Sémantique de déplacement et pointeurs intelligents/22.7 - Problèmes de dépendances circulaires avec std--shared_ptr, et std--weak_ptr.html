@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22.7 — Problèmes de dépendances circulaires avec std::shared_ptr, et std::weak_ptr</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="227-problèmes-de-dépendances-circulaires-avec-stdshared_ptr-et-stdweak_ptr">22.7 — Problèmes de dépendances circulaires avec std::shared_ptr, et std::weak_ptr</h1>
+<p>Dans la leçon précédente, nous avons vu comment std::shared_ptr permet à plusieurs pointeurs intelligents de copropriétaire la même ressource. Cependant, dans certains cas, cela peut poser problème. Considérons l'exemple suivant, où les pointeurs partagés de deux objets distincts pointent chacun vers l'autre objet :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt; // for std::shared_ptr
+#include &lt;string&gt;
+
+class Person
+{
+    std::string m_name;
+    std::shared_ptr&lt;Person&gt; m_partner; // initialement créé vide
+
+public:
+
+    Person(const std::string &amp;name): m_name(name)
+    {
+        std::cout &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+    ~Person()
+    {
+        std::cout &lt;&lt; m_name &lt;&lt; &quot; destroyed\n&quot;;
+    }
+
+    friend bool partnerUp(std::shared_ptr&lt;Person&gt; &amp;p1, std::shared_ptr&lt;Person&gt; &amp;p2)
+    {
+        if (!p1 || !p2)
+            return false;
+
+        p1-&gt;m_partner = p2;
+        p2-&gt;m_partner = p1;
+
+        std::cout &lt;&lt; p1-&gt;m_name &lt;&lt; &quot; is now partnered with &quot; &lt;&lt; p2-&gt;m_name &lt;&lt; '\n';
+
+        return true;
+    }
+};
+
+int main()
+{
+    auto lucy { std::make_shared&lt;Person&gt;(&quot;Lucy&quot;) }; // crée une Person nommée &quot;Lucy&quot;
+    auto ricky { std::make_shared&lt;Person&gt;(&quot;Ricky&quot;) }; // crée une Person nommée &quot;Ricky&quot;
+
+    partnerUp(lucy, ricky); // fait pointer &quot;Lucy&quot; vers &quot;Ricky&quot; et inversement
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous allouons dynamiquement deux Person, « Lucy » et « Ricky », à l'aide de make_shared() (afin que lucy et ricky soient détruits à la fin de main()). Ensuite, nous les associons en couple. Cela fait pointer le std::shared_ptr contenu dans « Lucy » vers « Ricky », et le std::shared_ptr contenu dans « Ricky » vers « Lucy ». Les pointeurs partagés sont faits pour être partagés : il est donc normal que le pointeur partagé lucy et le membre m_partner de Ricky pointent tous deux vers « Lucy » (et inversement).</p>
+<p>Pourtant, ce programme ne s'exécute pas comme prévu :</p>
+<pre><code>
+Lucy created
+Ricky created
+Lucy is now partnered with Ricky
+</code></pre>
+<p>Et c'est tout. Aucune désallocation n'a eu lieu. Oups. Que s'est-il passé ?</p>
+<p>Après l'appel à partnerUp(), deux pointeurs partagés pointent vers « Ricky » (ricky, et m_partner de Lucy) et deux pointeurs partagés pointent vers « Lucy » (lucy, et m_partner de Ricky).</p>
+<p>À la fin de main(), le pointeur partagé ricky sort de portée en premier. Lorsque cela se produit, ricky vérifie s'il existe d'autres pointeurs partagés qui copropriétaient la Person « Ricky ». Il en existe un (m_partner de Lucy). Pour cette raison, il ne désalloue pas « Ricky » (si c'était le cas, m_partner de Lucy deviendrait un pointeur pendant). À ce stade, il ne reste qu'un pointeur partagé vers « Ricky » (m_partner de Lucy) et deux pointeurs partagés vers « Lucy » (lucy, et m_partner de Ricky).</p>
+<p>Ensuite, le pointeur partagé lucy sort de portée, et la même chose se produit. Le pointeur partagé lucy vérifie s'il existe d'autres pointeurs partagés qui copropriétaient la Person « Lucy ». Il en existe un (m_partner de Ricky), donc « Lucy » n'est pas désallouée. À ce stade, il ne reste qu'un pointeur partagé vers « Lucy » (m_partner de Ricky) et un pointeur partagé vers « Ricky » (m_partner de Lucy).</p>
+<p>Puis le programme se termine, et ni la Person « Lucy » ni la Person « Ricky » n'ont été désallouées ! En résumé, « Lucy » empêche « Ricky » d'être détruite, et « Ricky » empêche « Lucy » d'être détruite.</p>
+<p>Il s'avère que ce phénomène peut se produire chaque fois que des pointeurs partagés forment une référence circulaire.</p>
+<h2 id="références-circulaires">Références circulaires</h2>
+<p>Une <strong>référence circulaire</strong> (aussi appelée <strong>référence cyclique</strong> ou <strong>cycle</strong>) est une suite de références dans laquelle chaque objet référence le suivant, et le dernier objet référence le premier, ce qui crée une boucle de références. Ces références ne doivent pas nécessairement être de véritables références C++ : il peut s'agir de pointeurs, d'identifiants uniques ou de tout autre moyen permettant d'identifier des objets précis.</p>
+<p>Dans le contexte des pointeurs partagés, les références seront des pointeurs.</p>
+<p>C'est exactement ce que nous observons dans le cas précédent : « Lucy » pointe vers « Ricky », et « Ricky » pointe vers « Lucy ». Avec trois pointeurs, on obtiendrait le même résultat si A pointait vers B, B vers C, et C vers A. L'effet concret d'un cycle de pointeurs partagés est que chaque objet finit par maintenir en vie l'objet suivant, le dernier maintenant en vie le premier. Ainsi, aucun objet de la suite ne peut être désalloué, car chacun pense qu'un autre objet a encore besoin de lui !</p>
+<h2 id="un-cas-réduit">Un cas réduit</h2>
+<p>Il s'avère que ce problème de référence circulaire peut même survenir avec un seul std::shared_ptr : un std::shared_ptr qui référence l'objet qui le contient forme encore un cycle (simplement un cycle réduit). Bien qu'il soit assez peu probable que cela arrive en pratique, nous vous le montrons pour une meilleure compréhension :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt; // for std::shared_ptr
+
+class Resource
+{
+public:
+    std::shared_ptr&lt;Resource&gt; m_ptr {}; // initialement créé vide
+
+    Resource() { std::cout &lt;&lt; &quot;Resource acquired\n&quot;; }
+    ~Resource() { std::cout &lt;&lt; &quot;Resource destroyed\n&quot;; }
+};
+
+int main()
+{
+    auto ptr1 { std::make_shared&lt;Resource&gt;() };
+
+    ptr1-&gt;m_ptr = ptr1; // m_ptr partage désormais la Resource qui le contient
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, lorsque ptr1 sort de portée, la Resource n'est pas désallouée, car m_ptr de la Resource partage la Resource. À ce stade, la seule façon de libérer la Resource serait de changer m_ptr pour qu'il pointe vers autre chose (ainsi, plus rien ne partage la Resource). Mais nous ne pouvons pas accéder à m_ptr, car ptr1 est hors de portée : nous n'avons donc plus aucun moyen de le faire. La Resource est devenue une fuite de mémoire.</p>
+<p>Ainsi, le programme affiche :</p>
+<pre><code>
+Resource acquired
+</code></pre>
+<p>et c'est tout.</p>
+<h2 id="alors-à-quoi-sert-stdweak_ptr">Alors, à quoi sert std::weak_ptr ?</h2>
+<p>std::weak_ptr a été conçu pour résoudre le problème de « propriété cyclique » décrit ci-dessus. Un std::weak_ptr est un observateur : il peut observer et accéder au même objet qu'un std::shared_ptr (ou d'autres std::weak_ptr), mais il n'est pas considéré comme un propriétaire. Rappelez-vous que lorsqu'un std::shared_ptr sort de portée, il vérifie uniquement si d'autres std::shared_ptr copropriétent l'objet. std::weak_ptr n'est pas pris en compte !</p>
+<p>Résolvons le problème de nos Person à l'aide d'un std::weak_ptr :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt; // for std::shared_ptr and std::weak_ptr
+#include &lt;string&gt;
+
+class Person
+{
+    std::string m_name;
+    std::weak_ptr&lt;Person&gt; m_partner; // note : il s'agit maintenant d'un std::weak_ptr
+
+public:
+
+    Person(const std::string &amp;name): m_name(name)
+    {
+        std::cout &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+    ~Person()
+    {
+        std::cout &lt;&lt; m_name &lt;&lt; &quot; destroyed\n&quot;;
+    }
+
+    friend bool partnerUp(std::shared_ptr&lt;Person&gt; &amp;p1, std::shared_ptr&lt;Person&gt; &amp;p2)
+    {
+        if (!p1 || !p2)
+            return false;
+
+        p1-&gt;m_partner = p2;
+        p2-&gt;m_partner = p1;
+
+        std::cout &lt;&lt; p1-&gt;m_name &lt;&lt; &quot; is now partnered with &quot; &lt;&lt; p2-&gt;m_name &lt;&lt; '\n';
+
+        return true;
+    }
+};
+
+int main()
+{
+    auto lucy { std::make_shared&lt;Person&gt;(&quot;Lucy&quot;) };
+    auto ricky { std::make_shared&lt;Person&gt;(&quot;Ricky&quot;) };
+
+    partnerUp(lucy, ricky);
+
+    return 0;
+}
+</code></pre>
+<p>Ce code se comporte correctement :</p>
+<pre><code>
+Lucy created
+Ricky created
+Lucy is now partnered with Ricky
+Ricky destroyed
+Lucy destroyed
+</code></pre>
+<p>Fonctionnellement, il fonctionne presque de la même façon que l'exemple problématique. Cependant, désormais, lorsque ricky sort de portée, il constate qu'aucun autre std::shared_ptr ne pointe vers « Ricky » (le std::weak_ptr de « Lucy » ne compte pas). Il désalloue donc « Ricky ». Il en va de même pour lucy.</p>
+<h2 id="utiliser-stdweak_ptr">Utiliser std::weak_ptr</h2>
+<p>L'un des inconvénients de std::weak_ptr est qu'on ne peut pas l'utiliser directement (il n'a pas d'operator-&gt;). Pour utiliser un std::weak_ptr, vous devez d'abord le convertir en std::shared_ptr. Vous pouvez alors utiliser ce std::shared_ptr. Pour convertir un std::weak_ptr en std::shared_ptr, vous pouvez utiliser la fonction membre lock(). Voici l'exemple précédent, mis à jour pour illustrer cette opération :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt; // for std::shared_ptr and std::weak_ptr
+#include &lt;string&gt;
+
+class Person
+{
+    std::string m_name;
+    std::weak_ptr&lt;Person&gt; m_partner; // note : il s'agit maintenant d'un std::weak_ptr
+
+public:
+
+    Person(const std::string &amp;name) : m_name(name)
+    {
+        std::cout &lt;&lt; m_name &lt;&lt; &quot; created\n&quot;;
+    }
+    ~Person()
+    {
+        std::cout &lt;&lt; m_name &lt;&lt; &quot; destroyed\n&quot;;
+    }
+
+    friend bool partnerUp(std::shared_ptr&lt;Person&gt; &amp;p1, std::shared_ptr&lt;Person&gt; &amp;p2)
+    {
+        if (!p1 || !p2)
+            return false;
+
+        p1-&gt;m_partner = p2;
+        p2-&gt;m_partner = p1;
+
+        std::cout &lt;&lt; p1-&gt;m_name &lt;&lt; &quot; is now partnered with &quot; &lt;&lt; p2-&gt;m_name &lt;&lt; '\n';
+
+        return true;
+    }
+
+    std::shared_ptr&lt;Person&gt; getPartner() const { return m_partner.lock(); } // utilise lock() pour convertir le weak_ptr en shared_ptr
+    const std::string&amp; getName() const { return m_name; }
+};
+
+int main()
+{
+    auto lucy { std::make_shared&lt;Person&gt;(&quot;Lucy&quot;) };
+    auto ricky { std::make_shared&lt;Person&gt;(&quot;Ricky&quot;) };
+
+    partnerUp(lucy, ricky);
+
+    auto partner = ricky-&gt;getPartner(); // obtient un shared_ptr vers le partenaire de Ricky
+    std::cout &lt;&lt; ricky-&gt;getName() &lt;&lt; &quot;'s partner is: &quot; &lt;&lt; partner-&gt;getName() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Lucy created
+Ricky created
+Lucy is now partnered with Ricky
+Ricky's partner is: Lucy
+Ricky destroyed
+Lucy destroyed
+</code></pre>
+<p>Nous n'avons pas à nous soucier de dépendances circulaires avec la variable std::shared_ptr « partner », puisqu'il s'agit simplement d'une variable locale à la fonction. Elle sortira de portée à la fin de la fonction, et le compteur de références sera décrémenté de 1.</p>
+<h2 id="éviter-les-pointeurs-pendants-avec-stdweak_ptr">Éviter les pointeurs pendants avec std::weak_ptr</h2>
+<p>Considérons le cas où un pointeur « classique » (dumb) contient l'adresse d'un objet, puis que cet objet est détruit. Un tel pointeur est pendant, et le déréférencer entraîne un comportement indéfini. Malheureusement, il n'existe aucun moyen de déterminer si un pointeur contenant une adresse non nulle est pendant ou non. C'est en grande partie pour cette raison que les pointeurs classiques sont dangereux.</p>
+<p>Comme std::weak_ptr ne maintient pas en vie la ressource qu'il observe, il peut de même arriver qu'un std::weak_ptr soit laissé pointant vers une ressource désallouée par un std::shared_ptr. Cependant, std::weak_ptr a un atout dans sa manche : comme il a accès au compteur de références d'un objet, il peut déterminer s'il pointe vers un objet valide ou non ! Si le compteur de références est non nul, la ressource est encore valide. S'il vaut zéro, la ressource a été détruite.</p>
+<p>La façon la plus simple de tester si un std::weak_ptr est valide consiste à utiliser la fonction membre <code>expired()</code>, qui renvoie <code>true</code> si le std::weak_ptr pointe vers un objet invalide, et <code>false</code> sinon.</p>
+<p>Voici un exemple simple illustrant cette différence de comportement :</p>
+<pre><code class="language-cpp">// Merci au lecteur Waldo pour une première version de cet exemple
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+class Resource
+{
+public:
+    Resource() { std::cerr &lt;&lt; &quot;Resource acquired\n&quot;; }
+    ~Resource() { std::cerr &lt;&lt; &quot;Resource destroyed\n&quot;; }
+};
+
+// Renvoie un std::weak_ptr vers un objet invalide
+std::weak_ptr&lt;Resource&gt; getWeakPtr()
+{
+    auto ptr{ std::make_shared&lt;Resource&gt;() };
+    return std::weak_ptr&lt;Resource&gt;{ ptr };
+} // ptr sort de portée, Resource détruite
+
+// Renvoie un pointeur classique vers un objet invalide
+Resource* getDumbPtr()
+{
+    auto ptr{ std::make_unique&lt;Resource&gt;() };
+    return ptr.get();
+} // ptr sort de portée, Resource détruite
+
+int main()
+{
+    auto dumb{ getDumbPtr() };
+    std::cout &lt;&lt; &quot;Our dumb ptr is: &quot; &lt;&lt; ((dumb == nullptr) ? &quot;nullptr\n&quot; : &quot;non-null\n&quot;);
+
+    auto weak{ getWeakPtr() };
+    std::cout &lt;&lt; &quot;Our weak ptr is: &quot; &lt;&lt; ((weak.expired()) ? &quot;expired\n&quot; : &quot;valid\n&quot;);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Resource acquired
+Resource destroyed
+Our dumb ptr is: non-null
+Resource acquired
+Resource destroyed
+Our weak ptr is: expired
+</code></pre>
+<p><code>getDumbPtr()</code> et <code>getWeakPtr()</code> utilisent tous deux un pointeur intelligent pour allouer une Resource : ce pointeur intelligent garantit que la Resource allouée sera détruite à la fin de la fonction. Lorsque <code>getDumbPtr()</code> renvoie un Resource*, il renvoie un pointeur pendant (car std::unique_ptr a détruit la Resource à la fin de la fonction). Lorsque <code>getWeakPtr()</code> renvoie un std::weak_ptr, celui-ci pointe de même vers un objet invalide (car std::shared_ptr a détruit la Resource à la fin de la fonction).</p>
+<p>Dans main(), nous testons d'abord si le pointeur classique renvoyé est <code>nullptr</code>. Comme ce pointeur contient toujours l'adresse de la ressource désallouée, ce test échoue. Il n'existe aucun moyen pour <code>main()</code> de savoir si ce pointeur est pendant ou non. Dans le cas présent, comme il s'agit d'un pointeur pendant, si nous le déréférencions, cela entraînerait un comportement indéfini.</p>
+<p>Ensuite, nous testons si <code>weak.expired()</code> vaut <code>true</code>. Comme le compteur de références de l'objet pointé par <code>weak</code> vaut <code>0</code> (puisque l'objet pointé a déjà été détruit), l'expression vaut <code>true</code>. Le code de <code>main()</code> peut donc détecter que <code>weak</code> pointe vers un objet invalide, et nous pouvons adapter notre code en conséquence !</p>
+<p>Notez que si un std::weak_ptr est expiré, nous ne devons pas appeler <code>lock()</code> dessus, car l'objet pointé a déjà été détruit et il n'y a donc plus d'objet à partager. Si vous appelez <code>lock()</code> sur un std::weak_ptr expiré, il renverra un std::shared_ptr vers <code>nullptr</code>.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>std::shared_ptr peut être utilisé lorsque vous avez besoin de plusieurs pointeurs intelligents capables de copropriétaire une ressource. La ressource sera désallouée lorsque le dernier std::shared_ptr sortira de portée. std::weak_ptr peut être utilisé lorsque vous voulez un pointeur intelligent qui peut voir et utiliser une ressource partagée, mais qui ne participe pas à la propriété de cette ressource.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<ol>
+<li>Corrigez le programme présenté dans la section « Un cas réduit » afin que la Resource soit correctement désallouée. Ne modifiez pas le code de <code>main()</code>.</li>
+</ol>
+<p>Voici à nouveau le programme, pour référence :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt; // for std::shared_ptr
+
+class Resource
+{
+public:
+    std::shared_ptr&lt;Resource&gt; m_ptr {}; // initialement créé vide
+
+    Resource() { std::cout &lt;&lt; &quot;Resource acquired\n&quot;; }
+    ~Resource() { std::cout &lt;&lt; &quot;Resource destroyed\n&quot;; }
+};
+
+int main()
+{
+    auto ptr1 { std::make_shared&lt;Resource&gt;() };
+
+    ptr1-&gt;m_ptr = ptr1; // m_ptr partage désormais la Resource qui le contient
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt; // for std::shared_ptr and std::weak_ptr
+
+class Resource
+{
+public:
+    std::weak_ptr&lt;Resource&gt; m_ptr {}; // utilise std::weak_ptr pour que m_ptr ne maintienne pas la Resource en vie
+
+    Resource() { std::cout &lt;&lt; &quot;Resource acquired\n&quot;; }
+    ~Resource() { std::cout &lt;&lt; &quot;Resource destroyed\n&quot;; }
+};
+
+int main()
+{
+    auto ptr1 { std::make_shared&lt;Resource&gt;() };
+
+    ptr1-&gt;m_ptr = ptr1; // m_ptr partage désormais la Resource qui le contient
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/circular-dependency-issues-with-stdshared_ptr-and-stdweak_ptr/">https://www.learncpp.com/cpp-tutorial/circular-dependency-issues-with-stdshared_ptr-and-stdweak_ptr/</a></em></p>
+</main>
+</body>
+</html>

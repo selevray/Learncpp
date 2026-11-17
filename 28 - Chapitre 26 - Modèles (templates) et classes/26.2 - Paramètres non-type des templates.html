@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26.2 — Paramètres non-type des templates</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="262-paramètres-non-type-des-templates">26.2 — Paramètres non-type des templates</h1>
+<p>Dans les leçons précédentes, vous avez appris à utiliser des paramètres de type de template pour créer des fonctions et des classes indépendantes du type. Un paramètre de type de template est un type substitut, remplacé par le type passé en argument.</p>
+<p>Cependant, les paramètres de type ne sont pas les seuls paramètres de template disponibles. Les classes et les fonctions template peuvent aussi utiliser un autre genre de paramètre, appelé paramètre non-type.</p>
+<p><strong>Paramètres non-type</strong></p>
+<p>Un paramètre non-type de template est un paramètre de template dont le type est fixé à l'avance et qui est remplacé par une valeur <code>constexpr</code> passée en argument.</p>
+<p>Un paramètre non-type peut être de l'un des types suivants :</p>
+<ul>
+<li>Un type entier</li>
+<li>Un type énumération</li>
+<li>Un pointeur ou une référence vers un objet de classe</li>
+<li>Un pointeur ou une référence vers une fonction</li>
+<li>Un pointeur ou une référence vers une fonction membre de classe</li>
+<li><code>std::nullptr_t</code></li>
+<li>Un type à virgule flottante (depuis C++20)</li>
+</ul>
+<p>Dans l'exemple suivant, nous créons une classe de tableau statique (non dynamique) qui utilise à la fois un paramètre de type et un paramètre non-type. Le paramètre de type contrôle le type de données du tableau statique, et le paramètre non-type entier contrôle la taille de ce tableau.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T, int size&gt; // size est un paramètre non-type de type entier
+class StaticArray
+{
+private:
+    // Le paramètre non-type contrôle la taille du tableau
+    T m_array[size] {};
+
+public:
+    T* getArray();
+
+    T&amp; operator[](int index)
+    {
+        return m_array[index];
+    }
+};
+
+// Montre comment une fonction d'une classe ayant un paramètre non-type est définie en dehors de la classe
+template &lt;typename T, int size&gt;
+T* StaticArray&lt;T, size&gt;::getArray()
+{
+    return m_array;
+}
+
+int main()
+{
+    // déclare un tableau d'entiers pouvant contenir 12 entiers
+    StaticArray&lt;int, 12&gt; intArray;
+
+    // Le remplit dans l'ordre, puis l'affiche à l'envers
+    for (int count { 0 }; count &lt; 12; ++count)
+        intArray[count] = count;
+
+    for (int count { 11 }; count &gt;= 0; --count)
+        std::cout &lt;&lt; intArray[count] &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    // déclare un tampon de doubles pouvant contenir 4 doubles
+    StaticArray&lt;double, 4&gt; doubleArray;
+
+    for (int count { 0 }; count &lt; 4; ++count)
+        doubleArray[count] = 4.4 + 0.1 * count;
+
+    for (int count { 0 }; count &lt; 4; ++count)
+        std::cout &lt;&lt; doubleArray[count] &lt;&lt; ' ';
+
+    return 0;
+}
+</code></pre>
+<p>Ce code produit le résultat suivant :</p>
+<pre><code>
+11 10 9 8 7 6 5 4 3 2 1 0
+4.4 4.5 4.6 4.7
+</code></pre>
+<p>Un point remarquable de l'exemple ci-dessus est que nous n'avons pas besoin d'allouer dynamiquement la variable membre <code>m_array</code> ! En effet, pour chaque instance de la classe <code>StaticArray</code>, <code>size</code> doit être <code>constexpr</code>. Par exemple, si vous instanciez un <code>StaticArray&lt;int, 12&gt;</code>, le compilateur remplace <code>size</code> par <code>12</code>. Ainsi, <code>m_array</code> est de type <code>int[12]</code>, qui peut être alloué statiquement.</p>
+<p>Cette fonctionnalité est utilisée par la classe de la bibliothèque standard <code>std::array</code>. Lorsque vous allouez un <code>std::array&lt;int, 5&gt;</code>, <code>int</code> est un paramètre de type, et <code>5</code> est un paramètre non-type !</p>
+<p>Notez que si vous essayez d'instancier un paramètre non-type de template avec une valeur non <code>constexpr</code>, cela ne fonctionnera pas :</p>
+<pre><code class="language-cpp">template &lt;int size&gt;
+class Foo
+{
+};
+
+int main()
+{
+    int x{ 4 }; // x n'est pas constexpr
+    Foo&lt;x&gt; f; // erreur : l'argument non-type du template doit être constexpr
+
+    return 0;
+}
+</code></pre>
+<p>Dans un tel cas, votre compilateur émettra une erreur.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/template-non-type-parameters/">https://www.learncpp.com/cpp-tutorial/template-non-type-parameters/</a></em></p>
+</main>
+</body>
+</html>

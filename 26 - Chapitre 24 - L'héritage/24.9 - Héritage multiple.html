@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24.9 — Héritage multiple</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="249-héritage-multiple">24.9 — Héritage multiple</h1>
+<p>Jusqu'ici, tous les exemples d'héritage que nous avons présentés étaient de l'héritage simple, c'est-à-dire que chaque classe dérivée n'a qu'une seule et unique classe parente. Cependant, C++ permet de réaliser un héritage multiple. L'<strong>héritage multiple</strong> permet à une classe dérivée d'hériter des membres de plusieurs parents.</p>
+<p>Imaginons que nous voulions écrire un programme pour suivre un ensemble d'enseignants. Un enseignant est une personne. Cependant, un enseignant est aussi un employé (il est son propre employeur s'il travaille à son compte). L'héritage multiple peut être utilisé pour créer une classe Teacher qui hérite des propriétés à la fois de Person et d'Employee. Pour utiliser l'héritage multiple, il suffit de spécifier chaque classe de base (comme pour l'héritage simple), séparées par une virgule.</p>
+<p><img alt="" src="../images/images_CppTutorial_Section11_PersonTeacher.gif" /></p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Person
+{
+private:
+    std::string m_name{};
+    int m_age{};
+
+public:
+    Person(std::string_view name, int age)
+        : m_name{ name }, m_age{ age }
+    {
+    }
+
+    const std::string&amp; getName() const { return m_name; }
+    int getAge() const { return m_age; }
+};
+
+class Employee
+{
+private:
+    std::string m_employer{};
+    double m_wage{};
+
+public:
+    Employee(std::string_view employer, double wage)
+        : m_employer{ employer }, m_wage{ wage }
+    {
+    }
+
+    const std::string&amp; getEmployer() const { return m_employer; }
+    double getWage() const { return m_wage; }
+};
+
+// Teacher hérite publiquement de Person et de Employee
+class Teacher : public Person, public Employee
+{
+private:
+    int m_teachesGrade{};
+
+public:
+    Teacher(std::string_view name, int age, std::string_view employer, double wage, int teachesGrade)
+        : Person{ name, age }, Employee{ employer, wage }, m_teachesGrade{ teachesGrade }
+    {
+    }
+};
+
+int main()
+{
+    Teacher t{ &quot;Mary&quot;, 45, &quot;Boo&quot;, 14.3, 8 };
+
+    return 0;
+}
+</code></pre>
+<h2 id="mixins">Mixins</h2>
+<p>Un <strong>mixin</strong> (parfois écrit « mix-in ») est une petite classe dont on peut hériter afin d'ajouter des propriétés à une classe. Le nom mixin indique que la classe est destinée à être mélangée à d'autres classes, et non à être instanciée seule.</p>
+<p>Dans l'exemple suivant, les classes <code>Box</code>, <code>Label</code> et <code>Tooltip</code> sont des mixins dont nous héritons pour créer une nouvelle classe <code>Button</code>.</p>
+<pre><code class="language-cpp">// Merci au lecteur Waldo pour cet exemple
+#include &lt;string&gt;
+
+struct Point2D
+{
+    int x{};
+    int y{};
+};
+
+class Box // classe mixin Box
+{
+public:
+    void setTopLeft(Point2D point) { m_topLeft = point; }
+    void setBottomRight(Point2D point) { m_bottomRight = point; }
+private:
+    Point2D m_topLeft{};
+    Point2D m_bottomRight{};
+};
+
+class Label // classe mixin Label
+{
+public:
+    void setText(const std::string_view str) { m_text = str; }
+    void setFontSize(int fontSize) { m_fontSize = fontSize; }
+private:
+    std::string m_text{};
+    int m_fontSize{};
+};
+
+class Tooltip // classe mixin Tooltip
+{
+public:
+    void setText(const std::string_view str) { m_text = str; }
+private:
+    std::string m_text{};
+};
+
+class Button : public Box, public Label, public Tooltip {}; // Button utilisant trois mixins
+
+int main()
+{
+    Button button{};
+    button.Box::setTopLeft({ 1, 1 });
+    button.Box::setBottomRight({ 10, 10 });
+    button.Label::setText(&quot;Submit&quot;);
+    button.Label::setFontSize(6);
+    button.Tooltip::setText(&quot;Submit the form to the server&quot;);
+}
+</code></pre>
+<p>Vous vous demandez peut-être pourquoi nous utilisons les préfixes explicites de résolution de portée <code>Box::</code>, <code>Label::</code> et <code>Tooltip::</code> alors que ce n'est pas nécessaire dans la plupart des cas.</p>
+<ol>
+<li><code>Label::setText()</code> et <code>Tooltip::setText()</code> ont le même prototype. Si nous appelions <code>button.setText()</code>, le compilateur produirait une erreur de compilation due à un appel de fonction ambigu. Dans de tels cas, nous devons utiliser le préfixe pour indiquer la version que nous voulons.</li>
+<li>Dans les cas non ambigus, utiliser le nom du mixin sert de documentation indiquant à quel mixin s'applique l'appel de fonction, ce qui rend le code plus facile à comprendre.</li>
+<li>Des cas non ambigus peuvent devenir ambigus à l'avenir si nous ajoutons de nouveaux mixins. Utiliser des préfixes explicites permet d'éviter que cela ne se produise.</li>
+</ol>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les mixins étant conçus pour ajouter des fonctionnalités à la classe dérivée, et non pour fournir une interface, ils n'utilisent généralement pas de fonctions virtuelles (abordées dans le prochain chapitre). Si une classe mixin doit être personnalisée pour fonctionner d'une manière particulière, on utilise généralement des modèles (templates). C'est pourquoi les classes mixins sont souvent paramétrées par des modèles.</p>
+<p>Il peut être surprenant de constater qu'une classe dérivée peut hériter d'une classe de base mixin en utilisant la classe dérivée elle-même comme paramètre de type du modèle. Un tel héritage est appelé <strong>Curiously Recurring Template Pattern</strong> (CRTP en abrégé), et s'écrit ainsi :</p>
+<pre><code class="language-cpp">// The Curiously Recurring Template Pattern (CRTP)
+
+template &lt;class T&gt;
+class Mixin
+{
+    // Mixin&lt;T&gt; peut utiliser le paramètre de type T pour accéder aux membres de Derived
+    // via (static_cast&lt;T*&gt;(this))
+};
+
+class Derived : public Mixin&lt;Derived&gt;
+{
+};
+</code></pre>
+<p>Vous trouverez un exemple simple utilisant CRTP <a href="https://en.cppreference.com/w/cpp/language/crtp">ici</a>.</p>
+</div>
+<p><strong>Problèmes de l'héritage multiple</strong></p>
+<p>Bien que l'héritage multiple semble être une simple extension de l'héritage simple, il introduit de nombreux problèmes qui peuvent sensiblement augmenter la complexité des programmes et les transformer en cauchemar de maintenance. Examinons certaines de ces situations.</p>
+<p>Premièrement, une ambiguïté peut survenir lorsque plusieurs classes de base contiennent une fonction portant le même nom. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class USBDevice
+{
+private:
+    long m_id {};
+
+public:
+    USBDevice(long id)
+        : m_id { id }
+    {
+    }
+
+    long getID() const { return m_id; }
+};
+
+class NetworkDevice
+{
+private:
+    long m_id {};
+
+public:
+    NetworkDevice(long id)
+        : m_id { id }
+    {
+    }
+
+    long getID() const { return m_id; }
+};
+
+class WirelessAdapter: public USBDevice, public NetworkDevice
+{
+public:
+    WirelessAdapter(long usbId, long networkId)
+        : USBDevice { usbId }, NetworkDevice { networkId }
+    {
+    }
+};
+
+int main()
+{
+    WirelessAdapter c54G { 5442, 181742 };
+    std::cout &lt;&lt; c54G.getID(); // Quel getID() appelons-nous ?
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque <code>c54G.getID()</code> est compilé, le compilateur regarde si WirelessAdapter contient une fonction nommée getID(). Ce n'est pas le cas. Le compilateur examine alors si l'une des classes parentes possède une fonction nommée getID(). Voyez-vous le problème ? c54G contient en réalité DEUX fonctions getID() : l'une héritée de USBDevice, et l'autre héritée de NetworkDevice. Par conséquent, cet appel de fonction est ambigu, et vous obtiendrez une erreur de compilation si vous tentez de le compiler.</p>
+<p>Il existe toutefois un moyen de contourner ce problème : vous pouvez indiquer explicitement la version que vous souhaitez appeler :</p>
+<pre><code class="language-cpp">int main()
+{
+    WirelessAdapter c54G { 5442, 181742 };
+    std::cout &lt;&lt; c54G.USBDevice::getID();
+
+    return 0;
+}
+</code></pre>
+<p>Bien que ce contournement soit assez simple, vous pouvez voir comment les choses peuvent se complexifier lorsque votre classe hérite de quatre ou six classes de base, elles-mêmes issues d'autres classes. Le risque de conflits de noms augmente de manière exponentielle à mesure que vous héritez de davantage de classes, et chacun de ces conflits doit être résolu explicitement.</p>
+<p>Deuxièmement, et de manière plus sérieuse, il y a le <a href="http://en.wikipedia.org/wiki/Diamond_problem">problème du diamant</a>, que votre auteur aime appeler le « diamant de la perdition ». Il survient lorsqu'une classe hérite multiplement de deux classes qui héritent chacune d'une même classe de base. Cela produit une structure d'héritage en forme de losange.</p>
+<p>Considérons par exemple l'ensemble de classes suivant :</p>
+<pre><code class="language-cpp">class PoweredDevice
+{
+};
+
+class Scanner: public PoweredDevice
+{
+};
+
+class Printer: public PoweredDevice
+{
+};
+
+class Copier: public Scanner, public Printer
+{
+};
+</code></pre>
+<p><img alt="" src="../images/images_CppTutorial_Section11_PoweredDevice.gif" /></p>
+<p>Les scanners et les imprimantes sont tous deux des appareils électriques, ils dérivent donc de PoweredDevice. Cependant, une photocopieuse intègre les fonctionnalités à la fois des scanners et des imprimantes.</p>
+<p>Plusieurs problèmes se posent dans ce contexte, notamment : Copier doit-il posséder une ou deux copies de PoweredDevice, et comment résoudre certains types de références ambiguës ? Si la plupart de ces problèmes peuvent être résolus par une qualification de portée explicite, la charge de maintenance ajoutée à vos classes pour gérer cette complexité supplémentaire peut faire exploser le temps de développement. Nous reviendrons plus en détail sur les façons de résoudre le problème du diamant dans le prochain chapitre (leçon <a href="../27%20-%20Chapitre%2025%20-%20Les%20fonctions%20virtuelles/25.8%20-%20Classes%20de%20base%20virtuelles.html">25.8 -- Classes de base virtuelles</a>).</p>
+<p><strong>L'héritage multiple vaut-il la peine ?</strong></p>
+<p>Il s'avère que la plupart des problèmes pouvant être résolus par l'héritage multiple peuvent aussi l'être par l'héritage simple. De nombreux langages orientés objet (par exemple Smalltalk, PHP) ne prennent même pas en charge l'héritage multiple. Plusieurs langages relativement récents, comme Java et C#, limitent les classes ordinaires à l'héritage simple, mais autorisent l'héritage multiple de classes interfaces (que nous aborderons plus tard). L'idée directrice qui motive l'interdiction de l'héritage multiple dans ces langages est qu'il rend simplement le langage trop complexe, et qu'il engendre finalement davantage de problèmes qu'il n'en résout.</p>
+<p>De nombreux auteurs et programmeurs expérimentés estiment que l'héritage multiple en C++ doit être évité à tout prix en raison des nombreux problèmes potentiels qu'il entraîne. Votre auteur n'est pas d'accord avec cette approche, car il existe des situations où l'héritage multiple est la meilleure solution. Toutefois, il doit être utilisé avec une extrême parcimonie.</p>
+<p>Par ailleurs, vous avez déjà utilisé, sans le savoir, des classes écrites à l'aide de l'héritage multiple : les objets std::cin et std::cout de la bibliothèque iostream sont tous deux implémentés grâce à l'héritage multiple !</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez l'héritage multiple, sauf si les alternatives conduisent à une complexité plus grande.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/multiple-inheritance/">https://www.learncpp.com/cpp-tutorial/multiple-inheritance/</a></em></p>
+</main>
+</body>
+</html>

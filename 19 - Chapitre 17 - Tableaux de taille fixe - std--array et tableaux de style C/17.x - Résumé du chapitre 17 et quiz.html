@@ -1,0 +1,1697 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.x — Résumé du chapitre 17 et quiz</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="17x-résumé-du-chapitre-17-et-quiz">17.x — Résumé du chapitre 17 et quiz</h1>
+<h2 id="bilan-du-chapitre">Bilan du chapitre</h2>
+<p>Les <strong>tableaux de taille fixe</strong> (ou <strong>tableaux de longueur fixe</strong>, <em>fixed-size arrays</em> / <em>fixed-length arrays</em>) exigent que leur longueur soit connue au moment de l'instanciation, et cette longueur ne peut plus être modifiée ensuite. Les tableaux de style C et <code>std::array</code> sont tous deux des tableaux de taille fixe. Les tableaux dynamiques peuvent être redimensionnés à l'exécution. <code>std::vector</code> est un tableau dynamique.</p>
+<p>La longueur d'un <code>std::array</code> doit être une expression constante. Le plus souvent, la valeur fournie pour la longueur sera un littéral entier, une variable constexpr ou un énumérateur d'une énumération non scoped.</p>
+<p><code>std::array</code> est un agrégat (<em>aggregate</em>). Cela signifie qu'il n'a aucun constructeur et qu'il est initialisé par initialisation d'agrégat (<em>aggregate initialization</em>).</p>
+<p>Définissez votre <code>std::array</code> comme constexpr chaque fois que c'est possible. Si votre <code>std::array</code> n'est pas constexpr, envisagez plutôt d'utiliser un <code>std::vector</code>.</p>
+<p>Utilisez la déduction d'argument de modèle de classe (CTAD, <em>class template argument deduction</em>) pour laisser le compilateur déduire le type et la longueur d'un <code>std::array</code> à partir de ses initialiseurs.</p>
+<p><code>std::array</code> est implémenté comme une structure template dont la déclaration ressemble à ceci :</p>
+<pre><code class="language-cpp">template&lt;typename T, std::size_t N&gt; // N est un paramètre template non-type
+struct array;
+</code></pre>
+<p>Le paramètre template non-type représentant la longueur du tableau (<code>N</code>) est de type <code>std::size_t</code>.</p>
+<p>Pour obtenir la longueur d'un <code>std::array</code> :</p>
+<ul>
+<li>On peut demander à un objet <code>std::array</code> sa longueur à l'aide de la fonction membre <code>size()</code> (qui renvoie la longueur sous forme de <code>size_type</code> non signé).</li>
+<li>En C++17, on peut utiliser la fonction non membre <code>std::size()</code> (qui, pour <code>std::array</code>, appelle simplement la fonction membre <code>size()</code>, et renvoie donc la longueur sous forme de <code>size_type</code> non signé).</li>
+<li>En C++20, on peut utiliser la fonction non membre <code>std::ssize()</code>, qui renvoie la longueur sous la forme d'un grand type entier <em>signé</em> (généralement <code>std::ptrdiff_t</code>).</li>
+</ul>
+<p>Ces trois fonctions renvoient la longueur sous forme de valeur constexpr, sauf lorsqu'elles sont appelées sur un <code>std::array</code> passé par référence. Ce défaut a été corrigé en C++23 par <a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2280r4.html">P2280</a>.</p>
+<p>Pour indexer un <code>std::array</code> :</p>
+<ul>
+<li>Utilisez l'opérateur d'indexation (<code>operator[]</code>). Aucune vérification de bornes n'est effectuée dans ce cas, et passer un indice invalide provoque un comportement indéfini.</li>
+<li>Utilisez la fonction membre <code>at()</code>, qui effectue l'indexation avec une vérification des bornes à l'exécution. Nous vous recommandons d'éviter cette fonction, car nous voulons généralement vérifier les bornes avant l'indexation, ou bien effectuer une vérification des bornes à la compilation.</li>
+<li>Utilisez le modèle de fonction <code>std::get()</code>, qui prend l'indice comme argument template non-type, et effectue une vérification des bornes à la compilation.</li>
+</ul>
+<p>Vous pouvez passer à une fonction des <code>std::array</code> de types d'éléments et de longueurs différents, à l'aide d'un modèle de fonction dont la déclaration de paramètres template est <code>template &lt;typename T, std::size_t N&gt;</code>. Ou bien, en C++20, utilisez <code>template &lt;typename T, auto N&gt;</code>.</p>
+<p>Renvoyer un <code>std::array</code> par valeur crée une copie du tableau et de tous ses éléments. Cela peut toutefois convenir si le tableau est petit et que ses éléments ne coûtent pas cher à copier. Utiliser un paramètre de sortie (<em>out parameter</em>) peut être un meilleur choix dans certains contextes.</p>
+<p>Lorsque vous initialisez un <code>std::array</code> avec une struct, une classe ou un tableau, sans préciser le type de l'élément pour chaque initialiseur, vous devez ajouter une paire de accolades supplémentaire afin que le compilateur interprète correctement ce qu'il doit initialiser. C'est une conséquence de l'initialisation d'agrégat, et les autres types de conteneurs de la bibliothèque standard (qui utilisent des constructeurs prenant une liste) n'exigent pas ces doubles accolades dans ces cas.</p>
+<p>Les agrégats en C++ prennent en charge un concept appelé <strong>élision d'accolades</strong> (<em>brace elision</em>), qui définit des règles indiquant quand plusieurs accolades peuvent être omises. En général, vous pouvez omettre les accolades lorsque vous initialisez un <code>std::array</code> avec des valeurs scalaires (uniques), ou lorsque vous initialisez avec des types classes ou des tableaux dont le type est explicitement indiqué pour chaque élément.</p>
+<p>Vous ne pouvez pas créer de tableau de références, mais vous pouvez créer un tableau de <code>std::reference_wrapper</code>, qui se comporte comme une référence lvalue modifiable.</p>
+<p>Quelques points méritent d'être notés au sujet de <code>std::reference_wrapper</code> :</p>
+<ul>
+<li><code>operator=</code> réaffecte un <code>std::reference_wrapper</code> (change l'objet référencé).</li>
+<li><code>std::reference_wrapper&lt;T&gt;</code> se convertit implicitement en <code>T&amp;</code>.</li>
+<li>La fonction membre <code>get()</code> permet d'obtenir un <code>T&amp;</code>. C'est utile lorsque nous voulons modifier la valeur de l'objet référencé.</li>
+</ul>
+<p>Les fonctions <code>std::ref()</code> et <code>std::cref()</code> existent comme raccourcis pour créer des objets encapsulés de type <code>std::reference_wrapper</code> et <code>const std::reference_wrapper</code>.</p>
+<p>Utilisez <code>static_assert</code> chaque fois que possible pour vérifier qu'un <code>std::array</code> constexpr utilisant la CTAD possède le bon nombre d'initialiseurs.</p>
+<p>Les tableaux de style C ont été hérités du langage C et font partie intégrante du cœur du langage C++. Comme ils font partie du cœur du langage, les tableaux de style C possèdent leur propre syntaxe de déclaration. Dans une déclaration de tableau de style C, nous utilisons des crochets ([]) pour indiquer au compilateur qu'un objet déclaré est un tableau de style C. À l'intérieur des crochets, nous pouvons facultativement fournir la longueur du tableau, qui est une valeur entière de type <code>std::size_t</code> indiquant au compilateur le nombre d'éléments contenus dans le tableau. La longueur d'un tableau de style C doit être une expression constante.</p>
+<p>Les tableaux de style C sont des agrégats, ce qui signifie qu'ils peuvent être initialisés par initialisation d'agrégat. Lorsque vous utilisez une liste d'initialisation pour initialiser tous les éléments d'un tableau de style C, il est préférable d'omettre la longueur et de laisser le compilateur la calculer.</p>
+<p>Les tableaux de style C peuvent être indexés via <code>operator[]</code>. L'indice d'un tableau de style C peut être un entier signé ou non signé, ou une énumération non scoped. Cela signifie que les tableaux de style C ne sont pas soumis à tous les problèmes de conversion de signe liés à l'indexation que présentent les classes conteneurs de la bibliothèque standard !</p>
+<p>Les tableaux de style C peuvent être const ou constexpr.</p>
+<p>Pour obtenir la longueur d'un tableau de style C :</p>
+<ul>
+<li>En C++17, on peut utiliser la fonction non membre <code>std::size()</code>, qui renvoie la longueur sous forme de <code>std::size_t</code> non signé.</li>
+<li>En C++20, on peut utiliser la fonction non membre <code>std::ssize()</code>, qui renvoie la longueur sous la forme d'un grand type entier <em>signé</em> (généralement <code>std::ptrdiff_t</code>).</li>
+</ul>
+<p>Dans la plupart des cas, lorsqu'un tableau de style C est utilisé dans une expression, il est implicitement converti en pointeur vers le type de l'élément, initialisé avec l'adresse du premier élément (d'indice 0). Familièrement, on appelle cela la <strong>dégradation du tableau</strong> (<em>array decay</em>), ou simplement <em>decay</em>.</p>
+<p>L'<strong>arithmétique des pointeurs</strong> (<em>pointer arithmetic</em>) est une fonctionnalité qui nous permet d'appliquer certains opérateurs arithmétiques entiers (addition, soustraction, incrémentation ou décrémentation) à un pointeur afin de produire une nouvelle adresse mémoire. Étant donné un pointeur <code>ptr</code>, <code>ptr + 1</code> renvoie l'adresse du <em>prochain objet</em> en mémoire (en fonction du type pointé).</p>
+<p>Utilisez l'indexation par crochets lorsque vous indexez à partir du début du tableau (élément 0), afin que les indices du tableau correspondent à l'élément.
+Utilisez l'arithmétique des pointeurs lorsque vous vous positionnez de manière relative à partir d'un élément donné.</p>
+<p>Les chaînes de caractères de style C sont simplement des tableaux de style C dont le type d'élément est <code>char</code> ou <code>const char</code>. À ce titre, elles subissent la dégradation en pointeur.</p>
+<p>La <strong>dimension</strong> d'un tableau est le nombre d'indices nécessaires pour sélectionner un élément.</p>
+<p>Un tableau ne contenant qu'une seule dimension est appelé <strong>tableau à une dimension</strong> (<em>single-dimensional array</em>) ou <strong>tableau unidimensionnel</strong> (<em>one-dimensional array</em>), parfois abrégé en <strong>tableau 1d</strong>. Un tableau de tableaux est appelé <strong>tableau à deux dimensions</strong> (<em>two-dimensional array</em>), parfois abrégé en <strong>tableau 2d</strong>, car il possède deux indices. Les tableaux comportant plus d'une dimension sont appelés <strong>tableaux multidimensionnels</strong> (<em>multidimensional arrays</em>). L'<strong>aplatissement</strong> (<em>flattening</em>) d'un tableau est un procédé qui réduit sa dimensionnalité (souvent jusqu'à une seule dimension).</p>
+<p>En C++23, <code>std::mdspan</code> est une vue qui fournit une interface de tableau multidimensionnel pour une séquence contiguë d'éléments.</p>
+<h2 id="place-au-quiz">Place au quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Qu'est-ce qui ne va pas dans chacun de ces extraits, et comment le corrigeriez-vous ?</p>
+<p>a)</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::array arr { 0, 1, 2, 3 };
+
+    for (std::size_t count{ 0 }; count &lt;= std::size(arr); ++count)
+    {
+        std::cout &lt;&lt; arr[count] &lt;&lt; ' ';
+    }
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>La boucle for contient une erreur de off-by-one et tente d'accéder à l'élément de tableau d'indice 4, qui n'existe pas.</p>
+<p>Solution : la condition de la boucle for doit utiliser &lt; au lieu de &lt;=.</p>
+</details>
+<p>b)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printArray(int array[])
+{
+    for (int element : array)
+    {
+        std::cout &lt;&lt; element &lt;&lt; ' ';
+    }
+}
+
+int main()
+{
+    int array[] { 9, 7, 5, 3, 1 };
+
+    printArray(array);
+
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>array</code> subit une dégradation en pointeur lorsqu'il est passé à <code>printArray()</code>. Les boucles for basées sur un intervalle ne peuvent pas fonctionner avec un pointeur vers un tableau, car la taille du tableau n'est pas connue.</p>
+<p>Solution : utilisez plutôt <code>std::array</code>, qui ne subit pas de dégradation.</p>
+</details>
+<p>c)</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Enter the number of test scores: &quot;;
+    std::size_t length{};
+    std::cin &gt;&gt; length;
+
+    std::array&lt;int, length&gt; scores;
+
+    for (std::size_t i { 0 } ; i &lt; length; ++i)
+    {
+        std::cout &lt;&lt; &quot;Enter score &quot; &lt;&lt; i &lt;&lt; &quot;: &quot;;
+        std::cin &gt;&gt; scores[i];
+    }
+    return 0;
+}
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>length</code> n'est pas une expression constante et ne peut pas servir à définir la longueur d'un <code>std::array</code>.</p>
+<p>Solution : utilisez plutôt un <code>std::vector</code>.</p>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Dans ce quiz, nous allons implémenter l'échoppe de potions de Roscoe, la meilleure boutique de potions du pays ! Ce sera un défi plus important.</p>
+<p>Implémentez un programme qui affiche ce qui suit :</p>
+<pre><code>
+Welcome to Roscoe's potion emporium!
+Enter your name: Alex
+Hello, Alex, you have 85 gold.
+
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+Enter the number of the potion you'd like to buy, or 'q' to quit: a
+That is an invalid input.  Try again: 3
+You purchased a potion of invisibility.  You have 35 gold left.
+
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+Enter the number of the potion you'd like to buy, or 'q' to quit: 4
+That is an invalid input.  Try again: 2
+You purchased a potion of speed.  You have 23 gold left.
+
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+Enter the number of the potion you'd like to buy, or 'q' to quit: 2
+You purchased a potion of speed.  You have 11 gold left.
+
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+Enter the number of the potion you'd like to buy, or 'q' to quit: 4
+You can not afford that.
+
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+Enter the number of the potion you'd like to buy, or 'q' to quit: q
+
+Your inventory contains:
+2x potion of speed
+1x potion of invisibility
+You escaped with 11 gold remaining.
+
+Thanks for shopping at Roscoe's potion emporium!
+</code></pre>
+<p>Le joueur commence avec une somme d'or tirée au hasard, comprise entre 80 et 120.</p>
+<p>Ça vous semble amusant ? Allons-y ! Comme ce programme sera difficile à implémenter d'un seul coup, nous allons le développer par étapes.</p>
+<h4 id="étape-n-1">&gt; Étape n° 1</h4>
+<p>Créez un espace de noms <code>Potion</code> contenant une énumération nommée <code>Type</code> qui regroupe les types de potions. Créez deux <code>std::array</code> : un tableau d'<code>int</code> pour stocker les prix des potions, et un tableau de <code>std::string_view</code> pour stocker les noms des potions.</p>
+<p>Écrivez également une fonction nommée <code>shop()</code> qui parcourt la liste des <code>Potion</code> et affiche leur numéro, leur nom et leur prix.</p>
+<p>Le programme doit afficher ce qui suit :</p>
+<pre><code>
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+</code></pre>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : nous montrons une méthode de parcours d'une énumération à l'aide d'une boucle for basée sur un intervalle dans la leçon <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.6%20-%20std--array%20et%20%C3%A9num%C3%A9rations.html">17.6 -- std::array et les énumérations</a>.</p>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+namespace Potion
+{
+    enum Type
+    {
+    healing,
+    mana,
+    speed,
+    invisibility,
+    max_potions
+    };
+
+    constexpr std::array types { healing, mana, speed, invisibility }; // Un tableau de nos énumérateurs
+
+    // On pourrait les placer dans une struct, mais comme nous n'avons que deux attributs, nous les gardons séparés pour le moment
+    // Nous définissons explicitement le type d'élément afin de ne pas avoir à utiliser le suffixe sv
+    constexpr std::array&lt;std::string_view, max_potions&gt; name { &quot;healing&quot;, &quot;mana&quot;, &quot;speed&quot;, &quot;invisibility&quot; };
+    constexpr std::array cost { 20, 30, 12, 50 };
+
+    static_assert(std::size(types) == max_potions);  // vérifie que 'types' contient le bon nombre d'énumérateurs
+    static_assert(std::size(cost) == max_potions);
+    static_assert(std::size(name) == max_potions);
+}
+
+void shop()
+{
+    std::cout &lt;&lt; &quot;Here is our selection for today:\n&quot;;
+
+    for (auto p: Potion::types)
+        std::cout &lt;&lt; p &lt;&lt; &quot;) &quot; &lt;&lt; Potion::name[p] &lt;&lt; &quot; costs &quot; &lt;&lt; Potion::cost[p] &lt;&lt; '\n';
+}
+
+int main()
+{
+    shop();
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="étape-n-2">&gt; Étape n° 2</h4>
+<p>Créez une classe <code>Player</code> pour stocker le nom du joueur, son inventaire de potions et son or. Ajoutez le texte d'accueil et le texte d'au revoir de l'échoppe de Roscoe. Demandez le nom du joueur et tirez au hasard son or.</p>
+<p>Utilisez le fichier « Random.h » présenté dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.15%20-%20Nombres%20al%C3%A9atoires%20globaux%20%28Random.h%29.html#RandomH">8.15 -- Nombres aléatoires globaux (Random.h)</a> pour faciliter la randomisation.</p>
+<p>Le programme doit afficher ce qui suit :</p>
+<pre><code>
+Welcome to Roscoe's potion emporium!
+Enter your name: Alex
+Hello, Alex, you have 84 gold.
+
+Here is our selection for today:
+0) healing costs 20
+1) mana costs 30
+2) speed costs 12
+3) invisibility costs 50
+
+Thanks for shopping at Roscoe's potion emporium!
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+#include &quot;Random.h&quot;
+
+namespace Potion
+{
+    enum Type
+    {
+        healing,
+        mana,
+        speed,
+        invisibility,
+        max_potions
+    };
+
+    constexpr std::array types { healing, mana, speed, invisibility }; // Un tableau de nos énumérateurs
+
+    // On pourrait les placer dans une struct, mais comme nous n'avons que deux attributs, nous les gardons séparés pour le moment
+    // Nous définissons explicitement le type d'élément afin de ne pas avoir à utiliser le suffixe sv
+    constexpr std::array&lt;std::string_view, max_potions&gt; name { &quot;healing&quot;, &quot;mana&quot;, &quot;speed&quot;, &quot;invisibility&quot; };
+    constexpr std::array cost { 20, 30, 12, 50 };
+
+    static_assert(std::size(types) == max_potions);  // vérifie que 'types' contient le bon nombre d'énumérateurs
+    static_assert(std::size(cost) == max_potions);
+    static_assert(std::size(name) == max_potions);
+}
+
+class Player
+{
+private:
+    static constexpr int s_minStartingGold { 80 };
+    static constexpr int s_maxStartingGold { 120 };
+
+    std::string m_name {};
+    int m_gold {};
+    std::array&lt;int, Potion::max_potions&gt; m_inventory { };
+
+public:
+    explicit Player(std::string_view name) :
+        m_name { name },
+        m_gold { Random::get(s_minStartingGold, s_maxStartingGold) }
+    {
+    }
+
+    int gold() const { return m_gold; }
+    int inventory(Potion::Type p) const { return m_inventory[p]; }
+};
+
+void shop()
+{
+    std::cout &lt;&lt; &quot;Here is our selection for today:\n&quot;;
+
+    for (auto p: Potion::types)
+        std::cout &lt;&lt; p &lt;&lt; &quot;) &quot; &lt;&lt; Potion::name[p] &lt;&lt; &quot; costs &quot; &lt;&lt; Potion::cost[p] &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Welcome to Roscoe's potion emporium!\n&quot;;
+    std::cout &lt;&lt; &quot;Enter your name: &quot;;
+
+    std::string name{};
+    std::getline(std::cin &gt;&gt; std::ws, name); // lit une ligne entière de texte dans name
+
+    Player player { name };
+
+    std::cout &lt;&lt; &quot;Hello, &quot; &lt;&lt; name &lt;&lt; &quot;, you have &quot; &lt;&lt; player.gold() &lt;&lt; &quot; gold.\n\n&quot;;
+
+    shop();
+
+    std::cout &lt;&lt; &quot;\nThanks for shopping at Roscoe's potion emporium!\n&quot;;
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="étape-n-3">&gt; Étape n° 3</h4>
+<p>Ajoutez la possibilité d'acheter des potions, en gérant les entrées invalides (considérez toute entrée superflue comme un échec). Affichez l'inventaire du joueur après son départ. Le programme doit être complet après cette étape.</p>
+<p>Assurez-vous de tester les cas suivants :</p>
+<ul>
+<li>L'utilisateur saisit un numéro de potion invalide (par exemple « d »)</li>
+<li>L'utilisateur saisit un numéro de potion valide, mais avec une entrée superflue (par exemple <code>2d</code>, <code>25</code>)</li>
+</ul>
+<p>Nous traitons la gestion des entrées invalides dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.5%20-%20std--cin%20et%20gestion%20des%20entr%C3%A9es%20invalides.html">9.5 -- std::cin et la gestion des entrées invalides</a>.</p>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : l'utilisateur peut saisir soit un nombre, soit « q ». Lisez donc sa saisie dans un <code>char</code>.</p>
+<p>Pour convertir un caractère numérique ASCII en int (par exemple <code>'5'</code> en <code>5</code>), vous pouvez utiliser ceci :</p>
+<pre><code class="language-cpp">int charNumToInt(char c)
+{
+    return c - '0';
+}
+</code></pre>
+</details>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : écrivez une fonction pour gérer la saisie de l'utilisateur. Elle doit renvoyer le <code>Potion::Type</code> choisi par l'utilisateur. Si l'utilisateur a choisi de quitter, la fonction peut renvoyer <code>Potion::max_potions</code>. Vous devrez effectuer un static_cast de la saisie de l'utilisateur vers <code>Potion::Type</code>.</p>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;limits&gt; // pour std::numeric_limits
+#include &lt;string_view&gt;
+#include &quot;Random.h&quot;
+
+namespace Potion
+{
+    enum Type
+    {
+        healing,
+        mana,
+        speed,
+        invisibility,
+        max_potions
+    };
+
+    constexpr std::array types { healing, mana, speed, invisibility }; // Un tableau de nos énumérateurs
+
+    // On pourrait les placer dans une struct, mais comme nous n'avons que deux attributs, nous les gardons séparés pour le moment
+    // Nous définissons explicitement le type d'élément afin de ne pas avoir à utiliser le suffixe sv
+    constexpr std::array&lt;std::string_view, max_potions&gt; name { &quot;healing&quot;, &quot;mana&quot;, &quot;speed&quot;, &quot;invisibility&quot; };
+    constexpr std::array cost { 20, 30, 12, 50 };
+
+    static_assert(std::size(types) == max_potions);  // vérifie que 'types' contient le bon nombre d'énumérateurs
+    static_assert(std::size(cost) == max_potions);
+    static_assert(std::size(name) == max_potions);
+}
+
+class Player
+{
+private:
+    static constexpr int s_minStartingGold { 80 };
+    static constexpr int s_maxStartingGold { 120 };
+
+    std::string m_name {};
+    int m_gold {};
+    std::array&lt;int, Potion::max_potions&gt; m_inventory { };
+
+public:
+    explicit Player(std::string_view name) :
+        m_name { name },
+        m_gold { Random::get(s_minStartingGold, s_maxStartingGold) }
+    {
+    }
+
+    // renvoie false si le joueur ne peut pas se le permettre, true si l'achat est effectué
+    bool buy(Potion::Type type)
+    {
+        if (m_gold &lt; Potion::cost[type])
+            return false;
+
+        m_gold -= Potion::cost[type];
+        ++m_inventory[type];
+        return true;
+    }
+
+    int gold() const { return m_gold; }
+    int inventory(Potion::Type p) const { return m_inventory[p]; }
+};
+
+void ignoreLine()
+{
+    std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+}
+
+int charNumToInt(char c)
+{
+    return c - '0';
+}
+
+Potion::Type whichPotion()
+{
+    std::cout &lt;&lt; &quot;Enter the number of the potion you'd like to buy, or 'q' to quit: &quot;;
+    char input{};
+    while (true)
+    {
+        std::cin &gt;&gt; input;
+        if (!std::cin)
+        {
+            std::cin.clear(); // on revient en mode de fonctionnement « normal »
+            ignoreLine(); // et on supprime la mauvaise saisie
+            continue;
+        }
+
+        // S'il y a une saisie superflue, on traite le cas comme un échec
+        if (!std::cin.eof() &amp;&amp; std::cin.peek() != '\n')
+        {
+            std::cout &lt;&lt; &quot;I didn't understand what you said.  Try again: &quot;;
+            ignoreLine(); // ignore toute saisie superflue
+            continue;
+        }
+
+        if (input == 'q')
+            return Potion::max_potions;
+
+        // Convertit le char en nombre et vérifie qu'il s'agit d'une sélection de potion valide
+        int val { charNumToInt(input) };
+        if (val &gt;= 0 &amp;&amp; val &lt; Potion::max_potions)
+            return static_cast&lt;Potion::Type&gt;(val);
+
+        // Ce n'était pas une sélection de potion valide
+        std::cout &lt;&lt; &quot;I didn't understand what you said.  Try again: &quot;;
+        ignoreLine();
+    }
+}
+
+void shop(Player &amp;player)
+{
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Here is our selection for today:\n&quot;;
+
+        for (auto p: Potion::types)
+            std::cout &lt;&lt; p &lt;&lt; &quot;) &quot; &lt;&lt; Potion::name[p] &lt;&lt; &quot; costs &quot; &lt;&lt; Potion::cost[p] &lt;&lt; '\n';
+
+        Potion::Type which { whichPotion() };
+        if (which == Potion::max_potions)
+            return;
+
+        bool success { player.buy(which) };
+        if (!success)
+            std::cout &lt;&lt; &quot;You can not afford that.\n\n&quot;;
+        else
+            std::cout &lt;&lt; &quot;You purchased a potion of &quot; &lt;&lt; Potion::name[which] &lt;&lt; &quot;.  You have &quot; &lt;&lt; player.gold() &lt;&lt; &quot; gold left.\n\n&quot;;
+    }
+}
+
+void printInventory(Player&amp; player)
+{
+    std::cout &lt;&lt; &quot;Your inventory contains: \n&quot;;
+
+    for (auto p: Potion::types)
+    {
+        if (player.inventory(p) &gt; 0)
+            std::cout &lt;&lt; player.inventory(p) &lt;&lt; &quot;x potion of &quot; &lt;&lt; Potion::name[p] &lt;&lt; '\n';
+    }
+
+    std::cout &lt;&lt; &quot;You escaped with &quot; &lt;&lt; player.gold() &lt;&lt; &quot; gold remaining.\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Welcome to Roscoe's potion emporium!\n&quot;;
+    std::cout &lt;&lt; &quot;Enter your name: &quot;;
+
+    std::string name{};
+    std::cin &gt;&gt; name;
+
+    Player player { name };
+
+    std::cout &lt;&lt; &quot;Hello, &quot; &lt;&lt; name &lt;&lt; &quot;, you have &quot; &lt;&lt; player.gold() &lt;&lt; &quot; gold.\n\n&quot;;
+
+    shop(player);
+
+    std::cout &lt;&lt; '\n';
+
+    printInventory(player);
+
+    std::cout &lt;&lt; &quot;\nThanks for shopping at Roscoe's potion emporium!\n&quot;;
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-3">Question n° 3</h4>
+<p>Supposons que nous voulions écrire un jeu de cartes utilisant un jeu de cartes standard. Pour cela, nous avons besoin d'un moyen de représenter ces cartes et les paquets de cartes. Construisons cette fonctionnalité.</p>
+<p>Nous l'utiliserons dans la prochaine question du quiz pour implémenter réellement un jeu.</p>
+<h4 id="étape-n-1_1">&gt; Étape n° 1</h4>
+<p>Un paquet de cartes comporte 52 cartes uniques (13 valeurs de cartes pour 4 couleurs). Créez des énumérations pour les valeurs des cartes (as, 2, 3, 4, 5, 6, 7, 8, 9, 10, valet, dame, roi) et pour les couleurs (trèfle, carreau, cœur, pique).</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">// Comme les identifiants ne peuvent pas commencer par un chiffre, nous utiliserons le préfixe « rank_ » pour ceux-ci
+enum Rank
+{
+    rank_ace,
+    rank_2,
+    rank_3,
+    rank_4,
+    rank_5,
+    rank_6,
+    rank_7,
+    rank_8,
+    rank_9,
+    rank_10,
+    rank_jack,
+    rank_queen,
+    rank_king,
+
+    max_ranks
+};
+
+// Nous ajoutons aussi un préfixe pour plus de cohérence
+enum Suit
+{
+    suit_club,
+    suit_diamond,
+    suit_heart,
+    suit_spade,
+
+    max_suits
+};
+</code></pre>
+</details>
+<h4 id="étape-n-2_1">&gt; Étape n° 2</h4>
+<p>Chaque carte sera représentée par une struct nommée <code>Card</code> qui contient un membre <code>rank</code> et un membre <code>suit</code>. Créez la struct et déplacez-y les énumérations.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    Rank rank{};
+    Suit suit{};
+};
+</code></pre>
+</details>
+<h4 id="étape-n-3_1">&gt; Étape n° 3</h4>
+<p>Ensuite, ajoutons quelques fonctions utiles à notre struct Card. Tout d'abord, surchargez <code>operator&lt;&lt;</code> pour afficher la valeur et la couleur de la carte sous forme de code à 2 lettres (par exemple, le valet de pique s'affiche « JS »). Pour cela, complétez la fonction suivante :</p>
+<pre><code class="language-cpp">struct Card
+{
+    // Vos autres éléments ici
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        out &lt;&lt; // affichez ici la valeur et la couleur de votre carte
+        return out;
+    }
+};
+</code></pre>
+<p>Ensuite, ajoutez une fonction qui renvoie la valeur de la carte. Considérez l'as comme valant 11. Enfin, ajoutez un <code>std::array</code> de <code>Rank</code> et un de <code>Suit</code> (nommés respectivement <code>allRanks</code> et <code>allSuits</code>) afin de pouvoir les parcourir. Comme ils font partie d'une struct (et non d'un espace de noms), rendez-les static afin qu'ils ne soient instanciés qu'une seule fois (et non pour chaque objet).</p>
+<p>Le code suivant doit compiler :</p>
+<pre><code class="language-cpp">int main()
+{
+    // Affiche une carte
+    Card card { Card::rank_5, Card::suit_heart };
+    std::cout &lt;&lt; card &lt;&lt; '\n';
+
+    // Affiche toutes les cartes
+    for (auto suit : Card::allSuits)
+        for (auto rank : Card::allRanks)
+            std::cout &lt;&lt; Card { rank, suit } &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>et produire la sortie suivante :</p>
+<pre><code>
+5H
+AC 2C 3C 4C 5C 6C 7C 8C 9C TC JC QC KC AD 2D 3D 4D 5D 6D 7D 8D 9D TD JD QD KD AH 2H 3H 4H 5H 6H 7H 8H 9H TH JH QH KH AS 2S 3S 4S 5S 6S 7S 8S 9S TS JS QS KS
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    // Ces tableaux doivent être static pour n'être créés qu'une fois par programme, et non une fois par Card
+    static constexpr std::array allRanks { rank_ace, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8, rank_9, rank_10, rank_jack, rank_queen, rank_king };
+    static constexpr std::array allSuits { suit_club, suit_diamond, suit_heart, suit_spade };
+
+    Rank rank{};
+    Suit suit{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        static constexpr std::array ranks { 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K' };
+        static constexpr std::array suits { 'C', 'D', 'H', 'S' };
+
+        out &lt;&lt; ranks[card.rank] &lt;&lt; suits[card.suit];
+        return out;
+    }
+
+    int value() const
+    {
+        static constexpr std::array rankValues { 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10 };
+        return rankValues[rank];
+    }
+};
+
+int main()
+{
+    // Affiche une carte
+    Card card { Card::rank_5, Card::suit_heart };
+    std::cout &lt;&lt; card &lt;&lt; '\n';
+
+    // Affiche toutes les cartes
+    for (auto suit : Card::allSuits)
+        for (auto rank : Card::allRanks)
+            std::cout &lt;&lt; Card { rank, suit } &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="étape-n-4">&gt; Étape n° 4</h4>
+<p>Créons maintenant notre paquet de cartes. Créez une classe nommée <code>Deck</code> qui contient un <code>std::array</code> de Card. Vous pouvez supposer qu'un paquet comporte 52 Card.</p>
+<p>Le Deck doit proposer trois fonctions :</p>
+<p>Premièrement, le constructeur par défaut doit initialiser le tableau de cartes. Vous pouvez utiliser une boucle for basée sur un intervalle, similaire à celle de la fonction main() de l'exemple précédent, pour parcourir toutes les couleurs et toutes les valeurs.</p>
+<p>Deuxièmement, ajoutez une fonction <code>dealCard()</code> qui renvoie par valeur la prochaine carte du Deck. Comme <code>std::array</code> est un tableau de taille fixe, réfléchissez à la manière de garder la trace de la position de la prochaine carte. Cette fonction doit déclencher une assertion si elle est appelée alors que le Deck a déjà distribué toutes ses cartes.</p>
+<p>Troisièmement, écrivez une fonction membre <code>shuffle()</code> qui mélange le paquet. Pour faciliter cette tâche, nous allons faire appel à <code>std::shuffle</code> :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::shuffle
+#include &quot;Random.h&quot;  // pour Random::mt
+
+    // Placez cette ligne dans votre fonction shuffle pour mélanger m_cards avec le Mersenne Twister Random::mt
+    // Cela réordonne aléatoirement toutes les Card du paquet
+    std::shuffle(m_cards.begin(), m_cards.end(), Random::mt);
+</code></pre>
+<p>La fonction <code>shuffle()</code> doit aussi réinitialiser la position de la prochaine carte au début du paquet.</p>
+<p>Le programme suivant doit fonctionner :</p>
+<pre><code class="language-cpp">int main()
+{
+    Deck deck{};
+    std::cout &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; '\n';
+
+    deck.shuffle();
+    std::cout &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>et produire la sortie suivante (les 3 dernières cartes doivent être aléatoires) :</p>
+<pre><code>
+AC 2C 3C
+2H 7H 9C
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::shuffle
+#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &quot;Random.h&quot;
+
+struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    static constexpr std::array allRanks { rank_ace, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8, rank_9, rank_10, rank_jack, rank_queen, rank_king };
+    static constexpr std::array allSuits { suit_club, suit_diamond, suit_heart, suit_spade };
+
+    Rank rank{};
+    Suit suit{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        static constexpr std::array ranks { 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K' };
+        static constexpr std::array suits { 'C', 'D', 'H', 'S' };
+
+        out &lt;&lt; ranks[card.rank] &lt;&lt; suits[card.suit];
+        return out;
+    }
+
+    int value() const
+    {
+        static constexpr std::array rankValues { 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10 };
+        return rankValues[rank];
+    }
+};
+
+class Deck
+{
+private:
+    std::array&lt;Card, 52&gt; m_cards {};
+    std::size_t m_nextCardIndex { 0 };
+
+public:
+    Deck()
+    {
+        std::size_t count { 0 };
+        for (auto suit: Card::allSuits)
+            for (auto rank: Card::allRanks)
+                m_cards[count++] = Card{rank, suit};
+    }
+
+    void shuffle()
+    {
+        std::shuffle(m_cards.begin(), m_cards.end(), Random::mt);
+        m_nextCardIndex = 0;
+    }
+
+    Card dealCard()
+    {
+        assert(m_nextCardIndex != 52 &amp;&amp; &quot;Deck::dealCard ran out of cards&quot;);
+        return m_cards[m_nextCardIndex++];
+    }
+};
+
+int main()
+{
+    Deck deck{};
+    std::cout &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; '\n';
+
+    deck.shuffle();
+    std::cout &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; ' ' &lt;&lt; deck.dealCard() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-4">Question n° 4</h4>
+<p>Bon, utilisons maintenant nos Card et Deck pour implémenter une version simplifiée du Blackjack ! Si vous ne connaissez pas déjà le Blackjack, l'article Wikipedia sur le <a href="https://en.wikipedia.org/wiki/Blackjack">Blackjack</a> en donne un résumé.</p>
+<p>Voici les règles de notre version du Blackjack :</p>
+<ul>
+<li>Le croupier reçoit une carte au départ (dans la réalité, il en reçoit deux, mais l'une est face cachée, donc cela n'a pas d'importance à ce stade).</li>
+<li>Le joueur reçoit deux cartes au départ.</li>
+<li>Le joueur joue en premier.</li>
+<li>Un joueur peut « tirer » (<em>hit</em>) ou « rester » (<em>stand</em>) à plusieurs reprises.</li>
+<li>Si le joueur « reste », son tour est terminé et son score est calculé à partir des cartes qu'il a reçues.</li>
+<li>Si le joueur « tire », il reçoit une autre carte et la valeur de cette carte est ajoutée à son score total.</li>
+<li>Un as compte normalement pour 1 ou pour 11 (selon ce qui est le plus avantageux pour le score total). Par souci de simplicité, nous le compterons ici comme 11.</li>
+<li>Si le joueur dépasse un score de 21, il saute (<em>bust</em>) et perd immédiatement.</li>
+<li>Lorsque le joueur a terminé, c'est au tour du croupier.</li>
+<li>Le croupier tire des cartes jusqu'à atteindre un score de 17 ou plus, moment où il doit s'arrêter.</li>
+<li>Si le croupier dépasse un score de 21, il saute et le joueur gagne immédiatement.</li>
+<li>Sinon, si le joueur a un score supérieur à celui du croupier, le joueur gagne. Dans le cas contraire, le joueur perd (nous considérerons par souci de simplicité que les égalités sont des victoires du croupier).</li>
+</ul>
+<p>Dans notre version simplifiée du Blackjack, nous ne gardons pas la trace des cartes précises reçues par le joueur et par le croupier. Nous ne suivons que la somme des valeurs des cartes reçues par le joueur et par le croupier. Cela simplifie les choses.</p>
+<p>Partez du code que vous avez écrit dans le quiz précédent (ou utilisez notre solution de référence).</p>
+<h4 id="étape-n-1_2">&gt; Étape n° 1</h4>
+<p>Créez une struct nommée <code>Player</code> qui représentera un participant à notre jeu (le croupier ou le joueur). Comme dans ce jeu nous ne nous intéressons qu'au score d'un joueur, cette struct n'a besoin que d'un seul membre.</p>
+<p>Écrivez une fonction qui jouera (à terme) une manche de Blackjack. Pour l'instant, cette fonction doit tirer une carte aléatoire pour le croupier et deux cartes aléatoires pour le joueur. Elle doit renvoyer une valeur booléenne indiquant qui a le score le plus élevé.</p>
+<p>Le code doit afficher ce qui suit :</p>
+<pre><code>
+The dealer is showing: 10
+You have score: 13
+You win!
+</code></pre>
+<pre><code>
+The dealer is showing: 10
+You have score: 8
+You lose!
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::shuffle
+#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &quot;Random.h&quot;
+
+struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    static constexpr std::array allRanks { rank_ace, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8, rank_9, rank_10, rank_jack, rank_queen, rank_king };
+    static constexpr std::array allSuits { suit_club, suit_diamond, suit_heart, suit_spade };
+
+    Rank rank{};
+    Suit suit{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        static constexpr std::array ranks { 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K' };
+        static constexpr std::array suits { 'C', 'D', 'H', 'S' };
+
+        out &lt;&lt; ranks[card.rank] &lt;&lt; suits[card.suit];
+        return out;
+    }
+
+    int value() const
+    {
+        static constexpr std::array rankValues { 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10 };
+        return rankValues[rank];
+    }
+};
+
+class Deck
+{
+private:
+    std::array&lt;Card, 52&gt; m_cards {};
+    std::size_t m_nextCardIndex { 0 };
+
+public:
+    Deck()
+    {
+        std::size_t count { 0 };
+        for (auto suit: Card::allSuits)
+            for (auto rank: Card::allRanks)
+                m_cards[count++] = Card{rank, suit};
+    }
+
+    void shuffle()
+    {
+        std::shuffle(m_cards.begin(), m_cards.end(), Random::mt);
+        m_nextCardIndex = 0;
+    }
+
+    Card dealCard()
+    {
+        assert(m_nextCardIndex != 52 &amp;&amp; &quot;Deck::dealCard ran out of cards&quot;);
+        return m_cards[m_nextCardIndex++];
+    }
+};
+
+struct Player
+{
+    int score{};
+};
+
+bool playBlackjack()
+{
+    Deck deck{};
+    deck.shuffle();
+
+    Player dealer{ deck.dealCard().value() };
+
+    std::cout &lt;&lt; &quot;The dealer is showing: &quot; &lt;&lt; dealer.score &lt;&lt; '\n';
+
+    Player player { deck.dealCard().value() + deck.dealCard().value() };
+
+    std::cout &lt;&lt; &quot;You have score: &quot; &lt;&lt; player.score &lt;&lt; '\n';
+
+    return (player.score &gt; dealer.score);
+}
+
+int main()
+{
+    if (playBlackjack())
+    {
+        std::cout &lt;&lt; &quot;You win!\n&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;You lose!\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="étape-n-2_2">&gt; Étape n° 2</h4>
+<p>Ajoutez un espace de noms <code>Settings</code> qui contient deux constantes : la valeur au-delà de laquelle le joueur saute, et la valeur à partir de laquelle le croupier doit cesser de tirer des cartes.</p>
+<p>Ajoutez la logique qui gère le tour du croupier. Le croupier tire des cartes jusqu'à atteindre 17, puis il doit s'arrêter. S'il saute, le joueur gagne.</p>
+<p>Voici un exemple de sortie :</p>
+<pre><code>
+The dealer is showing: 8
+You have score: 9
+The dealer flips a 4D.  They now have: 12
+The dealer flips a JS.  They now have: 22
+The dealer went bust!
+You win!
+</code></pre>
+<pre><code>
+The dealer is showing: 6
+You have score: 13
+The dealer flips a 3D.  They now have: 9
+The dealer flips a 3H.  They now have: 12
+The dealer flips a 9S.  They now have: 21
+You lose!
+</code></pre>
+<pre><code>
+The dealer is showing: 7
+You have score: 21
+The dealer flips a JC.  They now have: 17
+You win!
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::shuffle
+#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &quot;Random.h&quot;
+
+struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    static constexpr std::array allRanks { rank_ace, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8, rank_9, rank_10, rank_jack, rank_queen, rank_king };
+    static constexpr std::array allSuits { suit_club, suit_diamond, suit_heart, suit_spade };
+
+    Rank rank{};
+    Suit suit{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        static constexpr std::array ranks { 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K' };
+        static constexpr std::array suits { 'C', 'D', 'H', 'S' };
+
+        out &lt;&lt; ranks[card.rank] &lt;&lt; suits[card.suit];
+        return out;
+    }
+
+    int value() const
+    {
+        static constexpr std::array rankValues { 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10 };
+        return rankValues[rank];
+    }
+};
+
+class Deck
+{
+private:
+    std::array&lt;Card, 52&gt; m_cards {};
+    std::size_t m_nextCardIndex { 0 };
+
+public:
+    Deck()
+    {
+        std::size_t count { 0 };
+        for (auto suit: Card::allSuits)
+            for (auto rank: Card::allRanks)
+                m_cards[count++] = Card{rank, suit};
+    }
+
+    void shuffle()
+    {
+        std::shuffle(m_cards.begin(), m_cards.end(), Random::mt);
+        m_nextCardIndex = 0;
+    }
+
+    Card dealCard()
+    {
+        assert(m_nextCardIndex != 52 &amp;&amp; &quot;Deck::dealCard ran out of cards&quot;);
+        return m_cards[m_nextCardIndex++];
+    }
+
+};
+
+struct Player
+{
+    int score{};
+};
+
+namespace Settings
+{
+    // Score maximum avant de perdre.
+    constexpr int bust{ 21 };
+
+    // Score minimum que le croupier doit atteindre.
+    constexpr int dealerStopsAt{ 17 };
+}
+
+// Renvoie true si le croupier a sauté. False sinon.
+bool dealerTurn(Deck&amp; deck, Player&amp; dealer)
+{
+    while (dealer.score &lt; Settings::dealerStopsAt)
+    {
+        Card card { deck.dealCard() };
+        dealer.score += card.value();
+        std::cout &lt;&lt; &quot;The dealer flips a &quot; &lt;&lt; card &lt;&lt; &quot;.  They now have: &quot; &lt;&lt; dealer.score &lt;&lt; '\n';
+    }
+
+    if (dealer.score &gt; Settings::bust)
+    {
+        std::cout &lt;&lt; &quot;The dealer went bust!\n&quot;;
+        return true;
+    }
+
+    return false;
+}
+
+bool playBlackjack()
+{
+    Deck deck{};
+    deck.shuffle();
+
+    Player dealer{ deck.dealCard().value() };
+
+    std::cout &lt;&lt; &quot;The dealer is showing: &quot; &lt;&lt; dealer.score &lt;&lt; '\n';
+
+    Player player { deck.dealCard().value() + deck.dealCard().value() };
+
+    std::cout &lt;&lt; &quot;You have score: &quot; &lt;&lt; player.score &lt;&lt; '\n';
+
+    if (dealerTurn(deck, dealer))
+        return true;
+
+    return (player.score &gt; dealer.score);
+}
+
+int main()
+{
+    if (playBlackjack())
+    {
+        std::cout &lt;&lt; &quot;You win!\n&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;You lose!\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="étape-n-3_2">&gt; Étape n° 3</h4>
+<p>Enfin, ajoutez la logique du tour du joueur. Cela complétera le jeu.</p>
+<p>Voici un exemple de sortie :</p>
+<pre><code>
+The dealer is showing: 2
+You have score: 14
+(h) to hit, or (s) to stand: h
+You were dealt KH.  You now have: 24
+You went bust!
+You lose!
+</code></pre>
+<pre><code>
+The dealer is showing: 10
+You have score: 9
+(h) to hit, or (s) to stand: h
+You were dealt TH.  You now have: 19
+(h) to hit, or (s) to stand: s
+The dealer flips a 3D.  They now have: 13
+The dealer flips a 7H.  They now have: 20
+You lose!
+</code></pre>
+<pre><code>
+The dealer is showing: 7
+You have score: 12
+(h) to hit, or (s) to stand: h
+You were dealt 7S.  You now have: 19
+(h) to hit, or (s) to stand: h
+You were dealt 2D.  You now have: 21
+(h) to hit, or (s) to stand: s
+The dealer flips a 6H.  They now have: 13
+The dealer flips a QC.  They now have: 23
+The dealer went bust!
+You win!
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::shuffle
+#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &quot;Random.h&quot;
+
+struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    static constexpr std::array allRanks { rank_ace, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8, rank_9, rank_10, rank_jack, rank_queen, rank_king };
+    static constexpr std::array allSuits { suit_club, suit_diamond, suit_heart, suit_spade };
+
+    Rank rank{};
+    Suit suit{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        static constexpr std::array ranks { 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K' };
+        static constexpr std::array suits { 'C', 'D', 'H', 'S' };
+
+        out &lt;&lt; ranks[card.rank] &lt;&lt; suits[card.suit];
+        return out;
+    }
+
+    int value() const
+    {
+        static constexpr std::array rankValues { 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10 };
+        return rankValues[rank];
+    }
+};
+
+class Deck
+{
+private:
+    std::array&lt;Card, 52&gt; m_cards {};
+    std::size_t m_nextCardIndex { 0 };
+
+public:
+    Deck()
+    {
+        std::size_t count { 0 };
+        for (auto suit: Card::allSuits)
+            for (auto rank: Card::allRanks)
+                m_cards[count++] = Card{rank, suit};
+    }
+
+    void shuffle()
+    {
+        std::shuffle(m_cards.begin(), m_cards.end(), Random::mt);
+        m_nextCardIndex = 0;
+    }
+
+    Card dealCard()
+    {
+        assert(m_nextCardIndex != 52 &amp;&amp; &quot;Deck::dealCard ran out of cards&quot;);
+        return m_cards[m_nextCardIndex++];
+    }
+
+};
+
+struct Player
+{
+    int score{};
+};
+
+namespace Settings
+{
+    // Score maximum avant de perdre.
+    constexpr int bust{ 21 };
+
+    // Score minimum que le croupier doit atteindre.
+    constexpr int dealerStopsAt{ 17 };
+}
+
+bool playerWantsHit()
+{
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;(h) to hit, or (s) to stand: &quot;;
+
+        char ch{};
+        std::cin &gt;&gt; ch;
+
+        switch (ch)
+        {
+            case 'h':
+                return true;
+            case 's':
+                return false;
+        }
+    }
+}
+
+// Renvoie true si le joueur a sauté. False sinon.
+bool playerTurn(Deck&amp; deck, Player&amp; player)
+{
+    while (player.score &lt; Settings::bust &amp;&amp; playerWantsHit())
+    {
+        Card card { deck.dealCard() };
+        player.score += card.value();
+
+        std::cout &lt;&lt; &quot;You were dealt &quot; &lt;&lt; card  &lt;&lt; &quot;. You now have: &quot; &lt;&lt; player.score &lt;&lt; '\n';
+    }
+
+    if (player.score &gt; Settings::bust)
+    {
+        std::cout &lt;&lt; &quot;You went bust!\n&quot;;
+        return true;
+    }
+
+    return false;
+}
+
+// Renvoie true si le croupier a sauté. False sinon.
+bool dealerTurn(Deck&amp; deck, Player&amp; dealer)
+{
+    while (dealer.score &lt; Settings::dealerStopsAt)
+    {
+        Card card { deck.dealCard() };
+        dealer.score += card.value();
+        std::cout &lt;&lt; &quot;The dealer flips a &quot; &lt;&lt; card &lt;&lt; &quot;.  They now have: &quot; &lt;&lt; dealer.score &lt;&lt; '\n';
+    }
+
+    if (dealer.score &gt; Settings::bust)
+    {
+        std::cout &lt;&lt; &quot;The dealer went bust!\n&quot;;
+        return true;
+    }
+
+    return false;
+}
+
+bool playBlackjack()
+{
+    Deck deck{};
+    deck.shuffle();
+
+    Player dealer{ deck.dealCard().value() };
+
+    std::cout &lt;&lt; &quot;The dealer is showing: &quot; &lt;&lt; dealer.score &lt;&lt; '\n';
+
+    Player player { deck.dealCard().value() + deck.dealCard().value() };
+
+    std::cout &lt;&lt; &quot;You have score: &quot; &lt;&lt; player.score &lt;&lt; '\n';
+
+    if (playerTurn(deck, player))
+        return false;
+
+    if (dealerTurn(deck, dealer))
+        return true;
+
+    return (player.score &gt; dealer.score);
+}
+
+int main()
+{
+    if (playBlackjack())
+    {
+        std::cout &lt;&lt; &quot;You win!\n&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;You lose!\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-5">Question n° 5</h4>
+<p>a) Décrivez comment vous modifieriez le programme ci-dessus pour gérer le cas où un as peut valoir 1 ou 11.</p>
+<p>Il est important de noter que nous ne gardons que la somme des cartes, et non les cartes précises reçues par l'utilisateur.</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Une solution consiste à garder le compte des as reçus par le joueur et par le croupier (dans la struct <code>Player</code>, sous forme d'entier). Si le joueur ou le croupier dépasse 21 et que son compteur d'as est supérieur à zéro, vous pouvez réduire son score de 10 (convertir un as de 11 points en 1 point) et décrémenter le compteur d'as. Cette opération peut être répétée autant de fois que nécessaire, jusqu'à ce que le compteur d'as atteigne zéro.</p>
+</details>
+<p>b) Dans le véritable Blackjack, si le joueur et le croupier ont le même score (et que le joueur n'a pas sauté), il y a égalité et personne ne gagne. Décrivez comment vous modifieriez le programme ci-dessus pour en tenir compte.</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Notre version de <code>playBlackjack()</code> renvoie actuellement un booléen indiquant si le joueur a gagné ou non. Nous devrons modifier cette fonction pour qu'elle renvoie trois possibilités : victoire du croupier, victoire du joueur, égalité. La meilleure façon de procéder serait de définir une énumération pour ces trois options, et de faire renvoyer à la fonction l'énumérateur approprié.</p>
+</details>
+<p>c) Exercice bonus : intégrez les deux idées ci-dessus dans votre jeu de Blackjack. Notez que vous devrez afficher la carte initiale du croupier et les deux cartes initiales du joueur, afin qu'ils sachent s'ils possèdent un as ou non.</p>
+<p>Voici un exemple de sortie :</p>
+<pre><code>
+The dealer is showing JH (10)
+You are showing AH 7D (18)
+(h) to hit, or (s) to stand: h
+You were dealt JD.  You now have: 18
+(h) to hit, or (s) to stand: s
+The dealer flips a 6C.  They now have: 16
+The dealer flips a AD.  They now have: 17
+You win!
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // pour std::shuffle
+#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &quot;Random.h&quot;
+
+namespace Settings
+{
+    // Score maximum avant de perdre.
+    constexpr int bust{ 21 };
+
+    // Score minimum que le croupier doit atteindre.
+    constexpr int dealerStopsAt{ 17 };
+}
+
+struct Card
+{
+    enum Rank
+    {
+        rank_ace,
+        rank_2,
+        rank_3,
+        rank_4,
+        rank_5,
+        rank_6,
+        rank_7,
+        rank_8,
+        rank_9,
+        rank_10,
+        rank_jack,
+        rank_queen,
+        rank_king,
+
+        max_ranks
+    };
+
+    enum Suit
+    {
+        suit_club,
+        suit_diamond,
+        suit_heart,
+        suit_spade,
+
+        max_suits
+    };
+
+    static constexpr std::array allRanks { rank_ace, rank_2, rank_3, rank_4, rank_5, rank_6, rank_7, rank_8, rank_9, rank_10, rank_jack, rank_queen, rank_king };
+    static constexpr std::array allSuits { suit_club, suit_diamond, suit_heart, suit_spade };
+
+    Rank rank{};
+    Suit suit{};
+
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Card &amp;card)
+    {
+        static constexpr std::array ranks { 'A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K' };
+        static constexpr std::array suits { 'C', 'D', 'H', 'S' };
+
+        out &lt;&lt; ranks[card.rank] &lt;&lt; suits[card.suit];
+        return out;
+    }
+
+    int value() const
+    {
+        static constexpr std::array rankValues { 11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10 };
+        return rankValues[rank];
+    }
+};
+
+class Deck
+{
+private:
+    std::array&lt;Card, 52&gt; m_cards {};
+    std::size_t m_nextCardIndex { 0 };
+
+public:
+    Deck()
+    {
+        std::size_t count { 0 };
+        for (auto suit: Card::allSuits)
+            for (auto rank: Card::allRanks)
+                m_cards[count++] = Card{rank, suit};
+    }
+
+    void shuffle()
+    {
+        std::shuffle(m_cards.begin(), m_cards.end(), Random::mt);
+        m_nextCardIndex = 0;
+    }
+
+    Card dealCard()
+    {
+        assert(m_nextCardIndex != 52 &amp;&amp; &quot;Deck::dealCard ran out of cards&quot;);
+        return m_cards[m_nextCardIndex++];
+    }
+
+};
+
+class Player
+{
+private:
+    int m_score{ };
+    int m_ace11Count { 0 }; // nombre d'as valant 11 points que possède le joueur
+
+public:
+    // Nous utilisons une fonction pour ajouter la carte au score du joueur
+    // car nous devons maintenant compter les as
+    void addToScore(Card card)
+    {
+        m_score += card.value();
+        if (card.rank == Card::rank_ace)
+            ++m_ace11Count; // les as valent 11 points au départ
+        consumeAces();
+    }
+
+    // Décrémente aceCount de 1 et
+    void consumeAces()
+    {
+        // Si le joueur devait sauter, on regarde si l'on peut faire passer des as de 11 points à 1
+        while (m_score &gt; Settings::bust &amp;&amp; m_ace11Count &gt; 0)
+        {
+            m_score -= 10;
+            --m_ace11Count;
+        }
+    }
+
+    int score() { return m_score; }
+};
+
+bool playerWantsHit()
+{
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;(h) to hit, or (s) to stand: &quot;;
+
+        char ch{};
+        std::cin &gt;&gt; ch;
+
+        switch (ch)
+        {
+            case 'h':
+                return true;
+            case 's':
+                return false;
+        }
+    }
+}
+
+// Renvoie true si le joueur a sauté. False sinon.
+bool playerTurn(Deck&amp; deck, Player&amp; player)
+{
+    while (player.score() &lt; Settings::bust &amp;&amp; playerWantsHit())
+    {
+        Card card { deck.dealCard() };
+        player.addToScore(card);
+
+        std::cout &lt;&lt; &quot;You were dealt &quot; &lt;&lt; card  &lt;&lt; &quot;. You now have: &quot; &lt;&lt; player.score() &lt;&lt; '\n';
+    }
+
+    if (player.score() &gt; Settings::bust)
+    {
+        std::cout &lt;&lt; &quot;You went bust!\n&quot;;
+        return true;
+    }
+
+    return false;
+}
+
+
+// Renvoie true si le croupier a sauté. False sinon.
+bool dealerTurn(Deck&amp; deck, Player&amp; dealer)
+{
+    while (dealer.score() &lt; Settings::dealerStopsAt)
+    {
+        Card card { deck.dealCard() };
+        dealer.addToScore(card);
+
+        std::cout &lt;&lt; &quot;The dealer flips a &quot; &lt;&lt; card &lt;&lt; &quot;.  They now have: &quot; &lt;&lt; dealer.score() &lt;&lt; '\n';
+    }
+
+    if (dealer.score() &gt; Settings::bust)
+    {
+        std::cout &lt;&lt; &quot;The dealer went bust!\n&quot;;
+        return true;
+    }
+
+    return false;
+}
+
+enum class GameResult
+{
+    playerWon,
+    dealerWon,
+    tie
+};
+
+GameResult playBlackjack()
+{
+    Deck deck{};
+    deck.shuffle();
+
+    Player dealer{};
+    Card card1 { deck.dealCard() };
+    dealer.addToScore(card1);
+    std::cout &lt;&lt; &quot;The dealer is showing &quot; &lt;&lt; card1 &lt;&lt; &quot; (&quot; &lt;&lt; dealer.score() &lt;&lt; &quot;)\n&quot;;
+
+    Player player{};
+    Card card2 { deck.dealCard() };
+    Card card3 { deck.dealCard() };
+    player.addToScore(card2);
+    player.addToScore(card3);
+    std::cout &lt;&lt; &quot;You are showing &quot; &lt;&lt; card2 &lt;&lt; ' ' &lt;&lt; card3 &lt;&lt; &quot; (&quot; &lt;&lt; player.score() &lt;&lt; &quot;)\n&quot;;
+
+    if (playerTurn(deck, player)) // si le joueur a sauté
+        return GameResult::dealerWon;
+
+    if (dealerTurn(deck, dealer)) // si le croupier a sauté
+        return GameResult::playerWon;
+
+    if (player.score() == dealer.score())
+        return GameResult::tie;
+
+    return (player.score() &gt; dealer.score() ? GameResult::playerWon : GameResult::dealerWon);
+}
+
+int main()
+{
+    switch (playBlackjack())
+    {
+    case GameResult::playerWon:
+        std::cout &lt;&lt; &quot;You win!\n&quot;;
+        return 0;
+    case GameResult::dealerWon:
+        std::cout &lt;&lt; &quot;You lose!\n&quot;;
+        return 0;
+    case GameResult::tie:
+        std::cout &lt;&lt; &quot;It's a tie.\n&quot;;
+        return 0;
+    }
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/chapter-17-summary-and-quiz/">https://www.learncpp.com/cpp-tutorial/chapter-17-summary-and-quiz/</a></em></p>
+</main>
+</body>
+</html>

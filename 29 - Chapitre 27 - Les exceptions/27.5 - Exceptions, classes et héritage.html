@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27.5 — Exceptions, classes et héritage</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="275-exceptions-classes-et-héritage">27.5 — Exceptions, classes et héritage</h1>
+<p><strong>Exceptions et fonctions membres</strong></p>
+<p>Jusqu'à présent dans ce tutoriel, vous n'avez vu les exceptions utilisées que dans des fonctions non membres. Elles sont pourtant tout aussi utiles dans les fonctions membres, et encore davantage dans les surcharges d'opérateurs. Considérons la surcharge de l'opérateur [] suivante, faisant partie d'une classe de tableau d'entiers simple :</p>
+<pre><code class="language-cpp">int&amp; IntArray::operator[](const int index)
+{
+    return m_data[index];
+}
+</code></pre>
+<p>Cette fonction fonctionne très bien tant que <code>index</code> est un indice valide du tableau, mais elle manque cruellement de vérifications d'erreurs. Nous pourrions ajouter une instruction <code>assert</code> pour nous assurer que l'indice est valide :</p>
+<pre><code class="language-cpp">int&amp; IntArray::operator[](const int index)
+{
+    assert (index &gt;= 0 &amp;&amp; index &lt; getLength());
+    return m_data[index];
+}
+</code></pre>
+<p>Désormais, si l'utilisateur passe un indice invalide, le programme provoque une erreur d'assertion. Malheureusement, comme les surcharges d'opérateurs ont des exigences précises quant au nombre et au type de leurs paramètres et de leur valeur de retour, il n'y a aucune souplesse pour renvoyer à l'appelant un code d'erreur ou une valeur booléenne qu'il pourrait traiter. En revanche, comme les exceptions ne modifient pas la signature d'une fonction, elles peuvent être très utiles ici. Voici un exemple :</p>
+<pre><code class="language-cpp">int&amp; IntArray::operator[](const int index)
+{
+    if (index &lt; 0 || index &gt;= getLength())
+        throw index;
+
+    return m_data[index];
+}
+</code></pre>
+<p>Désormais, si l'utilisateur passe un indice invalide, <code>operator[]</code> lance une exception de type <code>int</code>.</p>
+<h2 id="lorsque-les-constructeurs-échouent">Lorsque les constructeurs échouent</h2>
+<p>Les constructeurs sont un autre domaine des classes où les exceptions peuvent être très utiles. Si un constructeur doit échouer pour une raison quelconque (par exemple, si l'utilisateur a passé une entrée invalide), il suffit de lancer une exception pour indiquer que l'objet n'a pas pu être créé. Dans ce cas, la construction de l'objet est interrompue, et tous les membres de la classe (qui ont déjà été créés et initialisés avant l'exécution du corps du constructeur) sont détruits comme d'habitude.</p>
+<p>En revanche, le destructeur de la classe n'est jamais appelé (puisque la construction de l'objet n'a jamais été achevée). Comme le destructeur ne s'exécute jamais, vous ne pouvez pas compter sur lui pour libérer les ressources qui ont déjà été allouées.</p>
+<p>Cela soulève la question de ce que nous devons faire si nous avons alloué des ressources dans notre constructeur, puis qu'une exception survient avant la fin de ce constructeur. Comment garantir que les ressources déjà allouées soient correctement libérées ? Une solution consiste à placer le code susceptible d'échouer dans un bloc <code>try</code>, à capturer l'exception dans un bloc <code>catch</code> correspondant pour effectuer le nettoyage nécessaire, puis à relancer l'exception (un sujet que nous aborderons dans la leçon <a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.6%20-%20Relancer%20des%20exceptions.html">27.6 -- Relancer des exceptions</a>). Cependant, cela alourdit beaucoup le code, et il est facile de se tromper, en particulier si votre classe alloue plusieurs ressources.</p>
+<p>Heureusement, il existe une meilleure méthode. En tirant parti du fait que les membres d'une classe sont détruits même si le constructeur échoue, si vous effectuez les allocations de ressources à l'intérieur des membres de la classe (plutôt que dans le constructeur lui-même), alors ces membres peuvent se nettoyer eux-mêmes lorsqu'ils sont détruits.</p>
+<p>Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Member
+{
+public:
+    Member()
+    {
+        std::cerr &lt;&lt; &quot;Member allocated some resources\n&quot;;
+    }
+
+    ~Member()
+    {
+        std::cerr &lt;&lt; &quot;Member cleaned up\n&quot;;
+    }
+};
+
+class A
+{
+private:
+    int m_x {};
+    Member m_member;
+
+public:
+    A(int x) : m_x{x}
+    {
+        if (x &lt;= 0)
+            throw 1;
+    }
+
+    ~A()
+    {
+        std::cerr &lt;&lt; &quot;~A\n&quot;; // should not be called
+    }
+};
+
+
+int main()
+{
+    try
+    {
+        A a{0};
+    }
+    catch (int)
+    {
+        std::cerr &lt;&lt; &quot;Oops\n&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Member allocated some resources
+Member cleaned up
+Oops
+</code></pre>
+<p>Dans le programme ci-dessus, lorsque la classe <code>A</code> lance une exception, tous les membres de <code>A</code> sont détruits. Le destructeur de <code>m_member</code> est appelé, ce qui offre l'occasion de libérer les ressources qu'il a allouées.</p>
+<p>C'est en partie pour cette raison que la technique RAII (présentée dans la leçon <a href="../21%20-%20Chapitre%2019%20-%20Allocation%20dynamique%20%28en%20construction%29/19.3%20-%20Destructeurs.html">19.3 -- Destructeurs</a>) est tant recommandée : même dans des circonstances exceptionnelles, les classes qui implémentent RAII sont capables de se nettoyer elles-mêmes.</p>
+<p>Cependant, créer une classe personnalisée comme <code>Member</code> pour gérer une allocation de ressource n'est pas efficace. Heureusement, la bibliothèque standard C++ fournit des classes conformes à RAII pour gérer les types de ressources courants, comme les fichiers (<code>std::fstream</code>, présenté dans la leçon <a href="../30%20-%20Chapitre%2028%20-%20Entr%C3%A9es%20et%20sorties%20%28E-S%29/28.6%20-%20Entr%C3%A9es-sorties%20de%20fichiers%20de%20base.html">28.6 -- Entrées/sorties de fichiers de base</a>) et la mémoire dynamique (<code>std::unique_ptr</code> et les autres pointeurs intelligents, présentés dans <a href="../24%20-%20Chapitre%2022%20-%20S%C3%A9mantique%20de%20d%C3%A9placement%20et%20pointeurs%20intelligents/22.1%20-%20Introduction%20aux%20pointeurs%20intelligents%20et%20%C3%A0%20la%20s%C3%A9mantique%20de%20d%C3%A9placement.html">22.1 -- Introduction aux pointeurs intelligents et à la sémantique de déplacement</a>).</p>
+<p>Par exemple, au lieu de ceci :</p>
+<pre><code class="language-cpp">class Foo
+private:
+    int* ptr; // Foo will handle allocation/deallocation
+</code></pre>
+<p>Écrivez ceci :</p>
+<pre><code class="language-cpp">class Foo
+private:
+    std::unique_ptr&lt;int&gt; ptr; // std::unique_ptr will handle allocation/deallocation
+</code></pre>
+<p>Dans le premier cas, si le constructeur de <code>Foo</code> échoue après que <code>ptr</code> a alloué sa mémoire dynamique, <code>Foo</code> est responsable du nettoyage, ce qui peut s'avérer délicat. Dans le second cas, si le constructeur de <code>Foo</code> échoue après que <code>ptr</code> a alloué sa mémoire dynamique, le destructeur de <code>ptr</code> s'exécute et rend cette mémoire au système. <code>Foo</code> n'a aucun nettoyage explicite à effectuer lorsque la gestion des ressources est déléguée à des membres conformes à RAII !</p>
+<h2 id="classes-dexception">Classes d'exception</h2>
+<p>L'un des principaux problèmes de l'utilisation de types de base (comme <code>int</code>) comme types d'exception est qu'ils sont intrinsèquement vagues. Un problème encore plus grave est de déterminer ce que signifie une exception lorsque plusieurs instructions ou appels de fonctions se trouvent dans un bloc <code>try</code>.</p>
+<pre><code class="language-cpp">// Using the IntArray overloaded operator[] above
+
+try
+{
+    int* value{ new int{ array[index1] + array[index2]} };
+}
+catch (int value)
+{
+    // What are we catching here?
+}
+</code></pre>
+<p>Dans cet exemple, si nous capturons une exception de type <code>int</code>, qu'est-ce que cela nous apprend réellement ? L'un des indices de tableau était-il hors limites ? <code>operator+</code> a-t-il provoqué un dépassement de capacité entière ? <code>operator new</code> a-t-il échoué faute de mémoire ? Dans ce cas, il n'existe tout simplement aucun moyen facile de lever l'ambiguïté. Bien que nous puissions lancer des exceptions de type <code>const char*</code> pour identifier CE qui a mal tourné, cela ne nous permet toujours pas de traiter différemment les exceptions provenant de sources diverses.</p>
+<p>Une façon de résoudre ce problème consiste à utiliser des classes d'exception. Une <strong>classe d'exception</strong> (exception class) est simplement une classe ordinaire, conçue spécifiquement pour être lancée comme exception. Créons une classe d'exception simple à utiliser avec notre classe <code>IntArray</code> :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class ArrayException
+{
+private:
+    std::string m_error;
+
+public:
+    ArrayException(std::string_view error)
+        : m_error{ error }
+    {
+    }
+
+    const std::string&amp; getError() const { return m_error; }
+};
+</code></pre>
+<p>Voici un programme complet utilisant cette classe :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class ArrayException
+{
+private:
+    std::string m_error;
+
+public:
+    ArrayException(std::string_view error)
+        : m_error{ error }
+    {
+    }
+
+    const std::string&amp; getError() const { return m_error; }
+};
+
+class IntArray
+{
+private:
+    int m_data[3]{}; // assume array is length 3 for simplicity
+
+public:
+    IntArray() {}
+
+    int getLength() const { return 3; }
+
+    int&amp; operator[](const int index)
+    {
+        if (index &lt; 0 || index &gt;= getLength())
+            throw ArrayException{ &quot;Invalid index&quot; };
+
+        return m_data[index];
+    }
+
+};
+
+int main()
+{
+    IntArray array;
+
+    try
+    {
+        int value{ array[5] }; // out of range subscript
+    }
+    catch (const ArrayException&amp; exception)
+    {
+        std::cerr &lt;&lt; &quot;An array exception occurred (&quot; &lt;&lt; exception.getError() &lt;&lt; &quot;)\n&quot;;
+    }
+}
+</code></pre>
+<p>Grâce à une telle classe, l'exception peut renvoyer une description du problème survenu, ce qui donne du contexte sur l'origine de l'erreur. Et comme <code>ArrayException</code> est un type unique, nous pouvons capturer spécifiquement les exceptions lancées par la classe de tableau et les traiter différemment des autres exceptions si nous le souhaitons.</p>
+<p>Notez que les gestionnaires d'exceptions doivent capturer les objets d'exception de classe par référence plutôt que par valeur. Cela empêche le compilateur de créer une copie de l'exception au moment où elle est capturée, ce qui peut être coûteux lorsque l'exception est un objet de classe, et évite le phénomène de découpage (object slicing) lorsqu'on traite des classes d'exception dérivées (dont nous parlerons dans un instant). Capturer des exceptions par pointeur doit en général être évité, sauf si vous avez une raison particulière de le faire.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Les exceptions d'un type fondamental peuvent être capturées par valeur, car leur copie est peu coûteuse.<br />
+Les exceptions d'un type classe doivent être capturées par référence (constante) afin d'éviter une copie coûteuse et le découpage.</p>
+</div>
+<h2 id="exceptions-et-héritage">Exceptions et héritage</h2>
+<p>Puisqu'il est possible de lancer des classes comme exceptions, et que les classes peuvent être dérivées d'autres classes, nous devons examiner ce qui se passe lorsque des classes héritées servent d'exceptions. Il s'avère que les gestionnaires d'exceptions ne correspondent pas seulement aux classes d'un type donné, mais aussi aux classes dérivées de ce type ! Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    Base() {}
+};
+
+class Derived: public Base
+{
+public:
+    Derived() {}
+};
+
+int main()
+{
+    try
+    {
+        throw Derived();
+    }
+    catch (const Base&amp; base)
+    {
+        std::cerr &lt;&lt; &quot;caught Base&quot;;
+    }
+    catch (const Derived&amp; derived)
+    {
+        std::cerr &lt;&lt; &quot;caught Derived&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous lançons une exception de type <code>Derived</code>. Pourtant, la sortie de ce programme est :</p>
+<pre><code>
+caught Base
+</code></pre>
+<p>Que s'est-il passé ?</p>
+<p>Premièrement, comme indiqué plus haut, les classes dérivées seront capturées par les gestionnaires du type de base. Comme <code>Derived</code> dérive de <code>Base</code>, <code>Derived</code> est un <code>Base</code> (elles entretiennent une relation « est-un »). Deuxièmement, lorsque C++ cherche un gestionnaire pour une exception levée, il le fait séquentiellement. Par conséquent, la première chose que fait C++ est de vérifier si le gestionnaire pour <code>Base</code> correspond à l'exception <code>Derived</code>. Comme <code>Derived</code> est un <code>Base</code>, la réponse est oui, et le bloc <code>catch</code> pour le type <code>Base</code> est exécuté ! Le bloc <code>catch</code> pour <code>Derived</code> n'est même jamais testé dans ce cas.</p>
+<p>Pour que cet exemple fonctionne comme prévu, nous devons inverser l'ordre des blocs <code>catch</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    Base() {}
+};
+
+class Derived: public Base
+{
+public:
+    Derived() {}
+};
+
+int main()
+{
+    try
+    {
+        throw Derived();
+    }
+    catch (const Derived&amp; derived)
+    {
+        std::cerr &lt;&lt; &quot;caught Derived&quot;;
+    }
+    catch (const Base&amp; base)
+    {
+        std::cerr &lt;&lt; &quot;caught Base&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ainsi, le gestionnaire de <code>Derived</code> aura la première chance de capturer les objets de type <code>Derived</code> (avant que le gestionnaire de <code>Base</code> ne le puisse). Les objets de type <code>Base</code> ne correspondront pas au gestionnaire de <code>Derived</code> (<code>Derived</code> est un <code>Base</code>, mais <code>Base</code> n'est pas un <code>Derived</code>) et « passeront à travers » le gestionnaire de <code>Base</code>.</p>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Les gestionnaires des classes d'exception dérivées doivent être placés avant ceux des classes de base.</p>
+</div>
+<p>La possibilité d'utiliser un gestionnaire de classe de base pour capturer les exceptions de types dérivés s'avère extrêmement utile.</p>
+<h2 id="stdexception">std::exception</h2>
+<p>De nombreuses classes et opérateurs de la bibliothèque standard lancent des classes d'exception en cas d'échec. Par exemple, <code>operator new</code> peut lancer <code>std::bad_alloc</code> s'il ne parvient pas à allouer assez de mémoire. Un <code>dynamic_cast</code> échoué lance <code>std::bad_cast</code>. Et ainsi de suite. À partir de C++20, il existe 28 classes d'exception différentes pouvant être lancées, et d'autres sont ajoutées à chaque nouvelle norme du langage.</p>
+<p>La bonne nouvelle est que toutes ces classes d'exception dérivent d'une seule classe appelée <strong><code>std::exception</code></strong> (définie dans l'en-tête &lt;exception&gt;). <code>std::exception</code> est une petite classe d'interface conçue pour servir de classe de base à toute exception lancée par la bibliothèque standard C++.</p>
+<p>La plupart du temps, lorsqu'une exception est lancée par la bibliothèque standard, peu nous importe qu'il s'agisse d'une allocation échouée, d'un cast échoué ou d'autre chose. Nous voulons seulement savoir qu'un problème grave est survenu et que notre programme est en train de s'effondrer. Grâce à <code>std::exception</code>, nous pouvons mettre en place un gestionnaire d'exceptions qui capture les exceptions de type <code>std::exception</code>, ce qui nous permet de capturer <code>std::exception</code> et toutes les exceptions dérivées ensemble, à un seul endroit. Simple !</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt; // for std::size_t
+#include &lt;exception&gt; // for std::exception
+#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;string&gt; // for this example
+
+int main()
+{
+    try
+    {
+        // Your code using standard library goes here
+        // We'll trigger one of these exceptions intentionally for the sake of the example
+        std::string s;
+        s.resize(std::numeric_limits&lt;std::size_t&gt;::max()); // will trigger a std::length_error or allocation exception
+    }
+    // This handler will catch std::exception and all the derived exceptions too
+    catch (const std::exception&amp; exception)
+    {
+        std::cerr &lt;&lt; &quot;Standard exception: &quot; &lt;&lt; exception.what() &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, le programme ci-dessus affiche :</p>
+<pre><code>
+Standard exception: string too long
+</code></pre>
+<p>L'exemple ci-dessus devrait être assez simple. Un seul point mérite d'être relevé : <code>std::exception</code> possède une fonction membre virtuelle nommée <strong><code>what()</code></strong> qui renvoie une description de l'exception sous forme de chaîne de caractères de style C. La plupart des classes dérivées redéfinissent la fonction <code>what()</code> pour modifier le message. Notez que cette chaîne est destinée uniquement à un texte descriptif : ne l'utilisez pas pour des comparaisons, car elle n'est pas garantie d'être identique d'un compilateur à l'autre.</p>
+<p>Il arrive que nous souhaitions traiter différemment un type d'exception particulier. Dans ce cas, nous pouvons ajouter un gestionnaire pour ce type précis, et laisser toutes les autres exceptions « passer à travers » vers le gestionnaire de base. Considérons :</p>
+<pre><code class="language-cpp">try
+{
+     // code using standard library goes here
+}
+// This handler will catch std::length_error (and any exceptions derived from it) here
+catch (const std::length_error&amp; exception)
+{
+    std::cerr &lt;&lt; &quot;You ran out of memory!&quot; &lt;&lt; '\n';
+}
+// This handler will catch std::exception (and any exception derived from it) that fall
+// through here
+catch (const std::exception&amp; exception)
+{
+    std::cerr &lt;&lt; &quot;Standard exception: &quot; &lt;&lt; exception.what() &lt;&lt; '\n';
+}
+</code></pre>
+<p>Dans cet exemple, les exceptions de type <code>std::length_error</code> seront capturées et traitées par le premier gestionnaire. Les exceptions de type <code>std::exception</code> et toutes les autres classes dérivées seront capturées par le second gestionnaire.</p>
+<p>De telles hiérarchies d'héritage nous permettent d'utiliser des gestionnaires spécifiques pour cibler des classes d'exception dérivées précises, ou d'utiliser des gestionnaires de classe de base pour capturer toute une hiérarchie d'exceptions. Nous disposons ainsi d'un contrôle fin sur les exceptions que nous souhaitons traiter, tout en évitant d'avoir à fournir trop d'efforts pour capturer « tout le reste » au sein d'une hiérarchie.</p>
+<h2 id="utiliser-directement-les-exceptions-standard">Utiliser directement les exceptions standard</h2>
+<p>Rien ne lance directement un <code>std::exception</code>, et vous non plus ne devriez pas le faire. En revanche, n'hésitez pas à lancer les autres classes d'exception standard de la bibliothèque si elles répondent adéquatement à vos besoins. Vous pouvez trouver la liste de toutes les exceptions standard sur <a href="http://en.cppreference.com/w/cpp/error/exception">cppreference</a>.</p>
+<p><code>std::runtime_error</code> (inclus dans l'en-tête <code>stdexcept</code>) est un choix populaire, car il possède un nom générique et son constructeur accepte un message personnalisable :</p>
+<pre><code class="language-cpp">#include &lt;exception&gt; // for std::exception
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt; // for std::runtime_error
+
+int main()
+{
+    try
+    {
+        throw std::runtime_error(&quot;Bad things happened&quot;);
+    }
+    // This handler will catch std::exception and all the derived exceptions too
+    catch (const std::exception&amp; exception)
+    {
+        std::cerr &lt;&lt; &quot;Standard exception: &quot; &lt;&lt; exception.what() &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Standard exception: Bad things happened
+</code></pre>
+<h2 id="dériver-vos-propres-classes-de-stdexception-ou-stdruntime_error">Dériver vos propres classes de std::exception ou std::runtime_error</h2>
+<p>Vous pouvez bien sûr dériver vos propres classes de <code>std::exception</code> et redéfinir la fonction membre virtuelle <code>what() const</code>. Voici le même programme que précédemment, avec <code>ArrayException</code> dérivée de <code>std::exception</code> :</p>
+<pre><code class="language-cpp">#include &lt;exception&gt; // for std::exception
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class ArrayException : public std::exception
+{
+private:
+    std::string m_error{}; // handle our own string
+
+public:
+    ArrayException(std::string_view error)
+        : m_error{error}
+    {
+    }
+
+    // std::exception::what() returns a const char*, so we must as well
+    const char* what() const noexcept override { return m_error.c_str(); }
+};
+
+class IntArray
+{
+private:
+    int m_data[3] {}; // assume array is length 3 for simplicity
+
+public:
+    IntArray() {}
+
+    int getLength() const { return 3; }
+
+    int&amp; operator[](const int index)
+    {
+        if (index &lt; 0 || index &gt;= getLength())
+            throw ArrayException(&quot;Invalid index&quot;);
+
+        return m_data[index];
+    }
+
+};
+
+int main()
+{
+    IntArray array;
+
+    try
+    {
+        int value{ array[5] };
+    }
+    catch (const ArrayException&amp; exception) // derived catch blocks go first
+    {
+        std::cerr &lt;&lt; &quot;An array exception occurred (&quot; &lt;&lt; exception.what() &lt;&lt; &quot;)\n&quot;;
+    }
+    catch (const std::exception&amp; exception)
+    {
+        std::cerr &lt;&lt; &quot;Some other std::exception occurred (&quot; &lt;&lt; exception.what() &lt;&lt; &quot;)\n&quot;;
+    }
+}
+</code></pre>
+<p>Notez que la fonction virtuelle <code>what()</code> porte le spécificateur <code>noexcept</code> (ce qui signifie que la fonction promet de ne pas lancer elle-même d'exceptions). Par conséquent, notre redéfinition doit également porter le spécificateur <code>noexcept</code>.</p>
+<p>Comme <code>std::runtime_error</code> possède déjà des fonctionnalités de gestion de chaînes de caractères, il constitue aussi une classe de base populaire pour les classes d'exception dérivées. <code>std::runtime_error</code> peut accepter en paramètre une chaîne de style C ou une <code>const std::string&amp;</code>.</p>
+<p>Voici le même exemple, dérivé cette fois de <code>std::runtime_error</code> :</p>
+<pre><code class="language-cpp">#include &lt;exception&gt; // for std::exception
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt; // for std::runtime_error
+#include &lt;string&gt;
+
+class ArrayException : public std::runtime_error
+{
+public:
+    // std::runtime_error takes either a null-terminated const char* or a const std::string&amp;.
+    // We will follow their lead and take a const std::string&amp;
+    ArrayException(const std::string&amp; error)
+        : std::runtime_error{ error } // std::runtime_error will handle the string
+    {
+    }
+
+
+        // no need to override what() since we can just use std::runtime_error::what()
+};
+
+class IntArray
+{
+private:
+    int m_data[3]{}; // assume array is length 3 for simplicity
+
+public:
+    IntArray() {}
+
+    int getLength() const { return 3; }
+
+    int&amp; operator[](const int index)
+    {
+        if (index &lt; 0 || index &gt;= getLength())
+            throw ArrayException(&quot;Invalid index&quot;);
+
+        return m_data[index];
+    }
+
+};
+
+int main()
+{
+    IntArray array;
+
+    try
+    {
+        int value{ array[5] };
+    }
+    catch (const ArrayException&amp; exception) // derived catch blocks go first
+    {
+        std::cerr &lt;&lt; &quot;An array exception occurred (&quot; &lt;&lt; exception.what() &lt;&lt; &quot;)\n&quot;;
+    }
+    catch (const std::exception&amp; exception)
+    {
+        std::cerr &lt;&lt; &quot;Some other std::exception occurred (&quot; &lt;&lt; exception.what() &lt;&lt; &quot;)\n&quot;;
+    }
+}
+</code></pre>
+<p>Vous êtes libre de choisir entre créer vos propres classes d'exception autonomes, utiliser les classes d'exception standard, ou dériver vos propres classes d'exception de <code>std::exception</code> ou <code>std::runtime_error</code>. Toutes ces approches sont valides selon vos objectifs.</p>
+<h2 id="la-durée-de-vie-des-exceptions">La durée de vie des exceptions</h2>
+<p>Lorsqu'une exception est lancée, l'objet lancé est généralement un temporaire ou une variable locale allouée sur la pile. Cependant, le traitement de l'exception peut dérouler la pile d'appels de la fonction, ce qui entraîne la destruction de toutes les variables locales de la fonction. Comment l'objet d'exception lancé survit-il alors au déroulement de la pile ?</p>
+<p>Lorsqu'une exception est lancée, le compilateur crée une copie de l'objet d'exception dans une zone mémoire non précisée (située en dehors de la pile d'appels) réservée au traitement des exceptions. Ainsi, l'objet d'exception persiste quel que soit le déroulement de la pile, et quel que soit le nombre de fois où elle est déroulée. L'exception est garantie d'exister jusqu'à ce qu'elle ait été traitée.</p>
+<p>Cela signifie que les objets lancés doivent en général être copiables (même si la pile n'est pas réellement déroulée). Des compilateurs performants peuvent parfois effectuer un déplacement à la place, ou même supprimer complètement la copie dans certaines circonstances précises.</p>
+<div class="callout info"><p class="callout-title">Remarque</p>
+<p>Les objets d'exception doivent être copiables.</p>
+</div>
+<p>Voici un exemple montrant ce qui se passe lorsque nous essayons de lancer un objet <code>Derived</code> qui n'est pas copiable :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Base
+{
+public:
+    Base() {}
+};
+
+class Derived : public Base
+{
+public:
+    Derived() {}
+
+    Derived(const Derived&amp;) = delete; // not copyable
+};
+
+int main()
+{
+    Derived d{};
+
+    try
+    {
+        throw d; // compile error: Derived copy constructor was deleted
+    }
+    catch (const Derived&amp; derived)
+    {
+        std::cerr &lt;&lt; &quot;caught Derived&quot;;
+    }
+    catch (const Base&amp; base)
+    {
+        std::cerr &lt;&lt; &quot;caught Base&quot;;
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque ce programme est compilé, le compilateur signale que le constructeur de copie de <code>Derived</code> n'est pas disponible, et interrompt la compilation.</p>
+<p>Les objets d'exception ne doivent pas conserver de pointeurs ou de références vers des objets alloués sur la pile. Si une exception lancée entraîne le déroulement de la pile (et donc la destruction des objets alloués sur la pile), ces pointeurs ou références peuvent devenir des pointeurs pendants (dangling).</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/exceptions-classes-and-inheritance/">https://www.learncpp.com/cpp-tutorial/exceptions-classes-and-inheritance/</a></em></p>
+</main>
+</body>
+</html>

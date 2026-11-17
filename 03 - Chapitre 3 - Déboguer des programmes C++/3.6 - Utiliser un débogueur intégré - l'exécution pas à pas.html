@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3.6 — Utiliser un débogueur intégré : l&#x27;exécution pas à pas</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="36-utiliser-un-débogueur-intégré-lexécution-pas-à-pas">3.6 — Utiliser un débogueur intégré : l'exécution pas à pas</h1>
+<p>Lorsque vous lancez votre programme, l'exécution commence en haut de la fonction <em>main</em>, puis progresse séquentiellement instruction par instruction, jusqu'à la fin du programme. À tout moment pendant l'exécution, le programme garde la trace de nombreuses choses : la valeur des variables utilisées, les fonctions qui ont été appelées (afin que, lorsque ces fonctions retournent, le programme sache où revenir), ainsi que le point d'exécution courant dans le programme (afin de savoir quelle instruction exécuter ensuite). L'ensemble de ces informations suivies s'appelle l'<strong>état du programme</strong> (ou simplement <em>état</em>, en bref).</p>
+<p>Dans les leçons précédentes, nous avons exploré différentes façons de modifier votre code pour faciliter le débogage, notamment afficher des informations de diagnostic ou utiliser un journal (logger). Ce sont des méthodes simples pour examiner l'état d'un programme pendant son exécution. Bien qu'elles puissent être efficaces si on les utilise correctement, elles ont tout de même des inconvénients : elles exigent de modifier votre code, ce qui prend du temps et peut introduire de nouveaux bogues, et elles encombrent votre code, rendant le code existant plus difficile à comprendre.</p>
+<p>Derrière les techniques présentées jusqu'ici se cache une hypothèse implicite : une fois le code lancé, il s'exécute jusqu'au bout (en ne s'interrompant que pour accepter une saisie), sans que nous ayons la possibilité d'intervenir et d'inspecter les résultats du programme à l'endroit de notre choix.</p>
+<p>Or, que se passerait-il si nous pouvions lever cette hypothèse ? Heureusement, la plupart des EDI modernes sont livrés avec un outil intégré appelé débogueur (debugger), conçu justement pour cela.</p>
+<h2 id="le-débogueur">Le débogueur</h2>
+<p>Un <strong>débogueur</strong> est un programme informatique qui permet au programmeur de contrôler la façon dont un autre programme s'exécute et d'examiner l'état de ce programme pendant son exécution. Par exemple, le programmeur peut utiliser un débogueur pour exécuter un programme ligne par ligne, en examinant au passage la valeur des variables. En comparant la valeur réelle des variables à celle attendue, ou en suivant le chemin d'exécution à travers le code, le débogueur peut grandement aider à traquer les erreurs sémantiques (de logique).</p>
+<p>La puissance du débogueur repose sur deux éléments : la capacité de contrôler précisément l'exécution du programme, et la capacité de visualiser (et, si besoin, de modifier) l'état du programme.</p>
+<p>Initialement, les débogueurs (comme <a href="http://en.wikipedia.org/wiki/Gdb">gdb</a>) étaient des programmes séparés dotés d'interfaces en ligne de commande, où le programmeur devait taper des commandes obscures pour les faire fonctionner. Plus tard, des débogueurs (comme les premières versions du <a href="http://en.wikipedia.org/wiki/Turbo_Debugger">Turbo Debugger</a> de Borland) étaient toujours des programmes séparés, mais proposaient une interface graphique pour faciliter leur utilisation. Aujourd'hui, de nombreux EDI modernes disposent d'un <strong>débogueur intégré</strong> (integrated debugger), c'est-à-dire un débogueur qui utilise la même interface que l'éditeur de code, de sorte que vous pouvez déboguer dans le même environnement que celui dans lequel vous écrivez votre code (au lieu de devoir changer de programme).</p>
+<p>Bien que les débogueurs intégrés soient très pratiques et recommandés pour les débutants, les débogueurs en ligne de commande sont bien pris en charge et restent couramment utilisés dans les environnements qui ne disposent pas d'interface graphique (par exemple, les systèmes embarqués).</p>
+<p>La quasi-totalité des débogueurs modernes proposent le même ensemble de fonctionnalités de base. En revanche, il existe peu de cohérence dans la façon dont les menus donnant accès à ces fonctionnalités sont organisés, et encore moins dans les raccourcis clavier. Bien que nos exemples utilisent des captures d'écran de Microsoft Visual Studio (et nous verrons aussi comment tout faire dans Code::Blocks), vous ne devriez pas avoir de mal à trouver comment accéder à chaque fonctionnalité dont nous parlerons, quel que soit l'EDI que vous utilisez.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Les raccourcis clavier du débogueur ne fonctionnent que si l'EDI/le débogueur intégré est la fenêtre active.</p>
+</div>
+<p>Le reste de ce chapitre sera consacré à l'apprentissage de l'utilisation du débogueur.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Ne négligez pas l'apprentissage du débogueur. À mesure que vos programmes gagnent en complexité, le temps que vous passerez à apprendre à bien utiliser le débogueur intégré sera dérisoire comparé au temps que vous économiserez en trouvant et en corrigeant les problèmes.</p>
+</div>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Avant de poursuivre cette leçon (et les leçons suivantes portant sur l'utilisation du débogueur), assurez-vous que votre projet est compilé avec une configuration de compilation de débogage (voir <a href="../00%20-%20Chapitre%200%20-%20Introduction%20-%20Premiers%20pas/0.9%20-%20Configuration%20de%20votre%20compilateur%20-%20configurations%20de%20compilation.html">0.9 -- Configurer votre compilateur : les configurations de compilation</a> pour plus d'informations).</p>
+<p>Si vous compilez votre projet avec une configuration de version (release) à la place, les fonctionnalités du débogueur risquent de ne pas fonctionner correctement (par exemple, lorsque vous tenterez d'entrer dans votre programme, il se contentera de l'exécuter).</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Code::Blocks</p>
+<p>Si vous utilisez Code::Blocks, votre débogueur peut être correctement configuré ou non. Vérifions cela.</p>
+<p>Tout d'abord, allez dans le menu <em>Settings &gt; Debugger…</em>. Ensuite, ouvrez l'arborescence <em>GDB/CDB debugger</em> à gauche et choisissez <em>Default</em>. Une boîte de dialogue devrait s'ouvrir, ressemblant à ceci :</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_CB-DebuggingSetup-min.png" /></p>
+<p>Si vous voyez une grande barre rouge à l'emplacement du « Executable path », vous devez localiser votre débogueur. Pour cela, cliquez sur le bouton <em>…</em> à droite du champ <em>Executable path</em>. Ensuite, trouvez le fichier « gdb32.exe » sur votre système (le mien se trouvait dans <em>C:\Program Files (x86)\CodeBlocks\MinGW\bin\gdb32.exe</em>). Puis cliquez sur <em>OK</em>.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Code::Blocks</p>
+<p>Certains rapports font état de problèmes du débogueur intégré de Code::Blocks (GDB) avec la reconnaissance de chemins de fichiers contenant des espaces ou des caractères non anglais. Si le débogueur semble mal fonctionner pendant que vous suivez ces leçons, cela pourrait en être la raison.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de VS Code</p>
+<p>Pour configurer le débogage, appuyez sur <em>Ctrl+Maj+P</em> et sélectionnez « C/C++: Add Debug Configuration », puis « C/C++: g++ build and debug active file ». Cela devrait créer et ouvrir le fichier de configuration <code>launch.json</code>. Remplacez la valeur de « stopAtEntry » par true :
+<code>"stopAtEntry": true,</code></p>
+<p>Ensuite, ouvrez <em>main.cpp</em> et lancez le débogage en appuyant sur <em>F5</em>, ou en appuyant sur <em>Ctrl+Maj+P</em> et en sélectionnant « Debug: Start Debugging and Stop on Entry ».</p>
+</div>
+<h2 id="lexécution-pas-à-pas">L'exécution pas à pas</h2>
+<p>Nous allons commencer notre exploration du débogueur en examinant certains outils de débogage qui permettent de contrôler la façon dont un programme s'exécute.</p>
+<p>L'<strong>exécution pas à pas</strong> (stepping) désigne un ensemble de fonctionnalités liées du débogueur qui nous permettent d'exécuter notre code instruction par instruction (en avançant pas à pas).</p>
+<p>Il existe plusieurs commandes d'exécution pas à pas apparentées, que nous verrons tour à tour.</p>
+<h2 id="step-into">Step into</h2>
+<p>La commande <strong>step into</strong> exécute la prochaine instruction du chemin d'exécution normal du programme, puis suspend l'exécution du programme afin que nous puissions examiner son état à l'aide du débogueur. Si l'instruction en cours d'exécution contient un appel de fonction, <em>step into</em> fait sauter le programme au début de la fonction appelée, où il s'arrête.</p>
+<p>Examinons un programme très simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printValue(int value)
+{
+    std::cout &lt;&lt; value &lt;&lt; '\n';
+}
+
+int main()
+{
+    printValue(5);
+
+    return 0;
+}
+</code></pre>
+<p>Déboguons ce programme à l'aide de la commande <em>step into</em>.</p>
+<p>Commencez par repérer la commande de débogage <em>step into</em>, puis exécutez-la une fois.</p>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Visual Studio</p>
+<p>Dans Visual Studio, la commande <em>step into</em> est accessible via le menu <em>Debug &gt; Step Into</em>, ou en appuyant sur la touche F11.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Code::Blocks</p>
+<p>Dans Code::Blocks, la commande <em>step into</em> est accessible via le menu <em>Debug &gt; Step into</em>, ou en appuyant sur la combinaison Maj-F7.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de VS Code</p>
+<p>Dans VS Code, la commande <em>step into</em> est accessible via <em>Run &gt; Step Into</em>.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les autres compilateurs / EDI</p>
+<p>Si vous utilisez un autre EDI, vous trouverez probablement la commande <em>step into</em> dans un menu Debug ou Run.</p>
+</div>
+<p>Lorsque votre programme n'est pas en cours d'exécution et que vous lancez la première commande de débogage, vous pouvez voir plusieurs choses se produire :</p>
+<ul>
+<li>Le programme sera recompilé si nécessaire.</li>
+<li>Le programme commencera à s'exécuter. Comme notre application est un programme console, une fenêtre de sortie console devrait s'ouvrir. Elle sera vide, car nous n'avons encore rien affiché.</li>
+<li>Votre EDI peut ouvrir des fenêtres de diagnostic, pouvant porter des noms tels que « Diagnostic Tools », « Call Stack » ou « Watch ». Nous verrons plus tard à quoi certaines d'entre elles servent ; pour l'instant, vous pouvez les ignorer.</li>
+</ul>
+<p>Comme nous avons effectué un <em>step into</em>, vous devriez maintenant voir apparaître un marqueur à gauche de l'accolade ouvrante de la fonction <em>main</em> (ligne 9). Dans Visual Studio, ce marqueur est une flèche jaune (Code::Blocks utilise un triangle jaune). Si vous utilisez un autre EDI, vous devriez voir quelque chose qui remplit le même rôle.</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line9-min.png" /></p>
+<p>Cette flèche indique que la ligne pointée sera exécutée en premier. Ici, le débogueur nous indique que la prochaine ligne à exécuter est l'accolade ouvrante de la fonction <em>main</em> (ligne 9).</p>
+<p>Choisissez <em>step into</em> (avec la commande appropriée à votre EDI, listée ci-dessus) pour exécuter l'accolade ouvrante, et la flèche passera à l'instruction suivante (ligne 10).</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line10-min.png" /></p>
+<p>Cela signifie que la prochaine ligne à exécuter est l'appel à la fonction <em>printValue</em>.</p>
+<p>Choisissez à nouveau <em>step into</em>. Comme cette instruction contient un appel à <em>printValue</em>, nous entrons dans la fonction, et la flèche se place en haut du corps de <em>printValue</em> (ligne 4).</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line4-min.png" /></p>
+<p>Choisissez encore <em>step into</em> pour exécuter l'accolade ouvrante de la fonction <em>printValue</em>, ce qui fait avancer la flèche à la ligne 5.</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line5-min.png" /></p>
+<p>Choisissez encore <em>step into</em>, ce qui exécutera l'instruction <code>std::cout &lt;&lt; value &lt;&lt; '\n'</code> et fera passer la flèche à la ligne 6.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>La version de operator&lt;&lt; utilisée pour l'affichage est implémentée sous forme de fonction. Par conséquent, votre EDI peut plutôt entrer dans l'implémentation de la fonction operator&lt;&lt;.</p>
+<p>Si cela se produit, votre EDI ouvrira un nouveau fichier de code, et le marqueur de flèche se placera en haut d'une fonction nommée operator&lt;&lt; (cette fonction fait partie de la bibliothèque standard). Fermez le fichier de code qui vient de s'ouvrir, puis repérez et exécutez la commande de débogage <em>step out</em> (les instructions figurent plus bas dans la section « step out », si vous avez besoin d'aide).</p>
+</div>
+<p>Maintenant que <code>std::cout &lt;&lt; value &lt;&lt; '\n'</code> a été exécuté, nous devrions voir la valeur <em>5</em> apparaître dans la fenêtre console.</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Dans une leçon précédente, nous avons mentionné que std::cout est bufferisé, ce qui signifie qu'il peut y avoir un délai entre le moment où vous demandez à std::cout d'afficher une valeur et celui où il le fait réellement. Pour cette raison, il se peut que la valeur 5 n'apparaisse pas encore à ce stade. Pour garantir que toute la sortie de std::cout soit affichée immédiatement, vous pouvez ajouter temporairement l'instruction suivante en haut de votre fonction main() :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; std::unitbuf; // active le vidage automatique pour std::cout (pour le débogage)
+</code></pre>
+<p>Pour des raisons de performances, cette instruction doit être supprimée ou mise en commentaire après le débogage.</p>
+<p>Si vous ne souhaitez pas ajouter, supprimer, commenter ou décommenter continuellement l'instruction ci-dessus, vous pouvez l'encadrer dans une directive de compilation conditionnelle du préprocesseur (abordée dans la leçon <a href="../02%20-%20Chapitre%202%20-%20Les%20bases%20du%20C%2B%2B%20-%20fonctions%20et%20fichiers/2.10%20-%20Introduction%20au%20pr%C3%A9processeur.html">2.10 -- Introduction au préprocesseur</a>) :</p>
+<pre><code class="language-cpp">#ifdef DEBUG
+std::cout &lt;&lt; std::unitbuf; // active le vidage automatique pour std::cout (pour le débogage)
+#endif
+</code></pre>
+<p>Vous devrez vous assurer que la macro de préprocesseur DEBUG est définie, soit quelque part au-dessus de cette instruction, soit dans les paramètres de votre compilateur.</p>
+</div>
+<p>Choisissez à nouveau <em>step into</em> pour exécuter l'accolade fermante de la fonction <em>printValue</em>. À ce stade, <em>printValue</em> a fini son exécution et le contrôle revient à <em>main</em>.</p>
+<p>Vous remarquerez que la flèche pointe à nouveau vers <em>printValue</em> !</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line10-min.png" /></p>
+<p>Vous pourriez penser que le débogueur a l'intention d'appeler de nouveau <em>printValue</em>, mais en réalité, il vous indique simplement qu'il quitte l'appel de fonction.</p>
+<p>Choisissez <em>step into</em> trois fois de plus. À ce stade, nous avons exécuté toutes les lignes de notre programme, c'est donc terminé. Certains débogueurs mettent fin automatiquement à la session de débogage à ce moment-là, d'autres non. Si le vôtre ne le fait pas, vous devrez peut-être chercher une commande « Stop Debugging » dans vos menus (dans Visual Studio, elle se trouve dans <em>Debug &gt; Stop Debugging</em>).</p>
+<p>Notez que <em>Stop Debugging</em> peut être utilisé à n'importe quel moment du processus de débogage pour mettre fin à la session.</p>
+<p>Félicitations, vous avez maintenant parcouru un programme pas à pas et observé l'exécution de chaque ligne !</p>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Dans les prochaines leçons, nous explorerons d'autres commandes du débogueur, dont certaines ne seront disponibles que si le débogueur est déjà en cours d'exécution. Si la commande de débogage souhaitée n'est pas disponible, utilisez <em>step into</em> sur votre code pour démarrer le débogueur, puis réessayez.</p>
+</div>
+<h2 id="step-over">Step over</h2>
+<p>Comme <em>step into</em>, la commande <strong>step over</strong> exécute la prochaine instruction du chemin d'exécution normal du programme. Cependant, alors que <em>step into</em> entre dans les appels de fonction pour les exécuter ligne par ligne, <em>step over</em> exécute la fonction entière sans s'arrêter, et vous rend la main une fois la fonction exécutée.</p>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Visual Studio</p>
+<p>Dans Visual Studio, la commande <em>step over</em> est accessible via le menu <em>Debug &gt; Step Over</em>, ou en appuyant sur la touche F10.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Code::Blocks</p>
+<p>Dans Code::Blocks, la commande <em>step over</em> s'appelle plutôt <em>Next line</em>, et est accessible via le menu <em>Debug &gt; Next line</em>, ou en appuyant sur la touche F7.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de VS Code</p>
+<p>Dans VS Code, la commande <em>step over</em> est accessible via <em>Run &gt; Step Over</em>, ou en appuyant sur la touche <em>F10</em>.</p>
+</div>
+<p>Voyons un exemple où nous contournons l'appel de fonction à <em>printValue</em> avec <em>step over</em> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printValue(int value)
+{
+    std::cout &lt;&lt; value &lt;&lt; '\n';
+}
+
+int main()
+{
+    printValue(5);
+
+    return 0;
+}
+</code></pre>
+<p>Commencez par utiliser <em>step into</em> sur votre programme jusqu'à ce que le marqueur d'exécution soit à la ligne 10 :</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line10-min.png" /></p>
+<p>Choisissez maintenant <em>step over</em>. Le débogueur exécutera la fonction (qui affiche la valeur <em>5</em> dans la fenêtre de sortie console), puis vous rendra la main sur l'instruction suivante (ligne 12).</p>
+<p>La commande <em>step over</em> offre un moyen pratique de sauter les fonctions dont vous êtes certain qu'elles fonctionnent déjà, ou que vous ne souhaitez pas déboguer pour le moment.</p>
+<h2 id="step-out">Step out</h2>
+<p>Contrairement aux deux autres commandes d'exécution pas à pas, <strong>step out</strong> n'exécute pas seulement la ligne de code suivante. Elle exécute en revanche tout le code restant de la fonction en cours d'exécution, puis vous rend la main une fois que la fonction a retourné.</p>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Visual Studio</p>
+<p>Dans Visual Studio, la commande <em>step out</em> est accessible via le menu <em>Debug &gt; Step Out</em>, ou en appuyant sur la combinaison Maj-F11.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de Code::Blocks</p>
+<p>Dans Code::Blocks, la commande <em>step out</em> est accessible via le menu <em>Debug &gt; Step out</em>, ou en appuyant sur la combinaison Ctrl-F7.</p>
+</div>
+<div class="callout note"><p class="callout-title">Pour les utilisateurs de VS Code</p>
+<p>Dans VS Code, la commande <em>step out</em> est accessible via <em>Run &gt; Step Out</em>, ou en appuyant sur la combinaison <em>Maj+F11</em>.</p>
+</div>
+<p>Voyons un exemple avec le même programme que précédemment :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printValue(int value)
+{
+    std::cout &lt;&lt; value &lt;&lt; '\n';
+}
+
+int main()
+{
+    printValue(5);
+
+    return 0;
+}
+</code></pre>
+<p>Utilisez <em>step into</em> sur le programme jusqu'à ce que vous soyez à l'intérieur de la fonction <em>printValue</em>, avec le marqueur d'exécution à la ligne 4.</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line4-min.png" /></p>
+<p>Choisissez ensuite <em>step out</em>. Vous remarquerez que la valeur <em>5</em> apparaît dans la fenêtre de sortie, et que le débogueur vous rend la main une fois la fonction terminée (à la ligne 10).</p>
+<p><img alt="" src="../images/images_CppTutorial_Chapter3_VS2019-StepInto-Line10-min.png" /></p>
+<p>Cette commande est particulièrement utile lorsque vous êtes entré par mégarde dans une fonction que vous ne souhaitez pas déboguer.</p>
+<h2 id="un-pas-de-trop">Un pas de trop</h2>
+<p>Lors de l'exécution pas à pas d'un programme, vous ne pouvez normalement avancer que dans un seul sens. Il est très facile de dépasser (de « sauter ») accidentellement l'endroit que vous souhaitiez examiner.</p>
+<p>Si vous dépassez votre destination, la solution habituelle consiste à arrêter le débogage, puis à le relancer en faisant attention à ne pas dépasser la cible cette fois-ci.</p>
+<h2 id="step-back">Step back</h2>
+<p>Certains débogueurs (comme Visual Studio Enterprise Edition et <a href="https://github.com/rr-debugger/rr">rr</a>) ont introduit une capacité d'exécution pas à pas généralement appelée <em>step back</em> ou <em>reverse debugging</em> (débogage inversé). L'objectif du <em>step back</em> est de revenir en arrière sur la dernière étape, afin de remettre le programme dans un état antérieur. Cela peut être utile si vous avez dépassé une cible, ou si vous souhaitez réexaminer une instruction qui vient de s'exécuter.</p>
+<p>La mise en œuvre du <em>step back</em> exige beaucoup de sophistication de la part du débogueur (car il doit conserver un état de programme distinct pour chaque étape). En raison de cette complexité, cette fonctionnalité n'est pas encore standardisée et varie selon les débogueurs. Au moment de la rédaction (janvier 2019), ni l'édition Community de Visual Studio ni la dernière version de Code::Blocks ne prennent en charge cette capacité. Espérons qu'à l'avenir elle se répandra dans ces produits et sera accessible à un plus large public.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/using-an-integrated-debugger-stepping/">https://www.learncpp.com/cpp-tutorial/using-an-integrated-debugger-stepping/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.1 — Introduction à `std::array`</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="171-introduction-à-stdarray">17.1 — Introduction à <code>std::array</code></h1>
+<p>Dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.1%20-%20Introduction%20aux%20conteneurs%20et%20aux%20tableaux.html">16.1 -- Introduction aux conteneurs et aux tableaux</a>, nous avons présenté les conteneurs et les tableaux. En résumé :</p>
+<ul>
+<li>Les conteneurs fournissent un espace de stockage pour une collection d'objets sans nom (appelés éléments).</li>
+<li>Les tableaux allouent leurs éléments de manière contiguë en mémoire et permettent un accès rapide et direct à n'importe quel élément via l'opérateur d'indexation.</li>
+<li>C++ dispose de trois types de tableaux couramment utilisés : <code>std::vector</code>, <code>std::array</code> et les tableaux de style C.</li>
+</ul>
+<p>Dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.10%20-%20Redimensionnement%20et%20capacit%C3%A9%20de%20%60std--vector%60.html">16.10 -- Redimensionnement et capacité de std::vector</a>, nous avons mentionné que les tableaux se répartissent en deux catégories :</p>
+<ul>
+<li>Les tableaux de taille fixe (aussi appelés tableaux de longueur fixe) exigent que leur longueur soit connue au moment de l'instanciation, et cette longueur ne peut plus être modifiée ensuite. Les tableaux de style C et <code>std::array</code> sont tous deux des tableaux de taille fixe.</li>
+<li>Les tableaux dynamiques peuvent être redimensionnés à l'exécution. <code>std::vector</code> est un tableau dynamique.</li>
+</ul>
+<p>Dans le chapitre précédent, nous nous sommes concentrés sur <code>std::vector</code>, car il est rapide, relativement facile à utiliser et polyvalent. C'est donc notre choix par défaut lorsque nous avons besoin d'un conteneur de type tableau.</p>
+<h2 id="pourquoi-ne-pas-utiliser-les-tableaux-dynamiques-partout">Pourquoi ne pas utiliser les tableaux dynamiques partout ?</h2>
+<p>Les tableaux dynamiques sont puissants et pratiques, mais comme toute chose, ils impliquent des compromis en contrepartie des avantages qu'ils offrent.</p>
+<ul>
+<li><code>std::vector</code> est légèrement moins performant que les tableaux de taille fixe. Dans la plupart des cas, vous ne remarquerez probablement pas la différence (sauf si vous écrivez du code négligé qui provoque de nombreuses réallocations involontaires).</li>
+<li><code>std::vector</code> ne prend en charge <code>constexpr</code> que dans des contextes très limités.</li>
+</ul>
+<p>En C++ moderne, c'est vraiment ce dernier point qui est important. Les tableaux <code>constexpr</code> permettent d'écrire du code plus robuste, que le compilateur peut également optimiser davantage. Chaque fois que nous pouvons utiliser un tableau <code>constexpr</code>, nous devrions le faire, et si nous avons besoin d'un tableau <code>constexpr</code>, <code>std::array</code> est la classe de conteneur à utiliser.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez <code>std::array</code> pour les tableaux <code>constexpr</code>, et <code>std::vector</code> pour les tableaux non <code>constexpr</code>.</p>
+</div>
+<h2 id="définir-un-stdarray">Définir un <code>std::array</code></h2>
+<p><code>std::array</code> est défini dans l'en-tête &lt;array&gt;. Il est conçu pour fonctionner de manière similaire à <code>std::vector</code>, et comme vous le verrez, les ressemblances entre les deux sont plus nombreuses que les différences.</p>
+<p>Une différence concerne la manière de déclarer un <code>std::array</code> :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;  // pour std::array
+#include &lt;vector&gt; // pour std::vector
+
+int main()
+{
+    std::array&lt;int, 5&gt; a {};  // un std::array de 5 int
+
+    std::vector&lt;int&gt; b(5);    // un std::vector de 5 int (pour comparaison)
+
+    return 0;
+}
+</code></pre>
+<p>Notre déclaration de <code>std::array</code> possède deux arguments de modèle. Le premier (<code>int</code>) est un argument de modèle de type définissant le type des éléments du tableau. Le second (<code>5</code>) est un argument de modèle non-type entier définissant la longueur du tableau.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons les paramètres de modèle non-type dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.9%20-%20Param%C3%A8tres%20de%20mod%C3%A8le%20non-type.html">11.9 -- Paramètres de modèle non-type</a>.</p>
+</div>
+<h2 id="la-longueur-dun-stdarray-doit-être-une-expression-constante">La longueur d'un <code>std::array</code> doit être une expression constante</h2>
+<p>Contrairement à un <code>std::vector</code>, qui peut être redimensionné à l'exécution, la longueur d'un <code>std::array</code> doit être une expression constante. Le plus souvent, la valeur fournie pour la longueur sera un littéral entier, une variable <code>constexpr</code> ou un énumérateur non scopé.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+
+int main()
+{
+    std::array&lt;int, 7&gt; a {}; // Utilisation d'une constante littérale
+
+    constexpr int len { 8 };
+    std::array&lt;int, len&gt; b {}; // Utilisation d'une variable constexpr
+
+    enum Colors
+    {
+         red,
+         green,
+         blue,
+         max_colors
+    };
+
+    std::array&lt;int, max_colors&gt; c {}; // Utilisation d'un énumérateur
+
+#define DAYS_PER_WEEK 7
+    std::array&lt;int, DAYS_PER_WEEK&gt; d {}; // Utilisation d'une macro (à éviter, utilisez plutôt une variable constexpr)
+
+    return 0;
+}
+</code></pre>
+<p>Notez que les variables non constantes et les constantes d'exécution ne peuvent pas être utilisées pour la longueur :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+void foo(const int length) // length est une constante d'exécution
+{
+    std::array&lt;int, length&gt; e {}; // erreur : length n'est pas une expression constante
+}
+
+int main()
+{
+    // utilisation d'une variable non const
+    int numStudents{};
+    std::cin &gt;&gt; numStudents; // numStudents est non constant
+
+    std::array&lt;int, numStudents&gt; {}; // erreur : numStudents n'est pas une expression constante
+
+    foo(7);
+
+    return 0;
+}
+</code></pre>
+<div class="callout warning"><p class="callout-title">Avertissement</p>
+<p>Chose peut-être surprenante, un <code>std::array</code> peut être défini avec une longueur de 0 :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::array&lt;int, 0&gt; arr {}; // crée un std::array de longueur nulle
+    std::cout &lt;&lt; arr.empty();  // true si arr est de longueur nulle
+
+    return 0;
+}
+</code></pre>
+<p>Un <code>std::array</code> de longueur nulle est un cas particulier de classe qui ne contient aucune donnée. Par conséquent, appeler une fonction membre qui accède aux données d'un <code>std::array</code> de longueur nulle (y compris <code>operator[]</code>) provoque un comportement indéfini.</p>
+<p>Vous pouvez vérifier si un <code>std::array</code> est de longueur nulle à l'aide de la fonction membre <code>empty()</code>, qui renvoie <code>true</code> si le tableau est de longueur nulle, et <code>false</code> sinon.</p>
+</div>
+<h2 id="initialisation-par-agrégat-dun-stdarray">Initialisation par agrégat d'un <code>std::array</code></h2>
+<p>Chose peut-être surprenante, <code>std::array</code> est un agrégat. Cela signifie qu'il n'a pas de constructeurs et qu'il s'initialise par initialisation par agrégat. Pour rappel rapide, l'initialisation par agrégat nous permet d'initialiser directement les membres d'un agrégat. Pour cela, nous fournissons une liste d'initialisation, c'est-à-dire une liste de valeurs d'initialisation séparées par des virgules et entourées d'accolades.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous avons vu l'initialisation par agrégat pour les structures dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.8%20-%20Initialisation%20par%20agr%C3%A9gat%20des%20structures.html">13.8 -- Initialisation par agrégat des structures</a>.</p>
+</div>
+<pre><code class="language-cpp">#include &lt;array&gt;
+
+int main()
+{
+    std::array&lt;int, 6&gt; fibonnaci = { 0, 1, 1, 2, 3, 5 }; // initialisation par copie avec liste entre accolades
+    std::array&lt;int, 5&gt; prime { 2, 3, 5, 7, 11 };         // initialisation par liste avec accolades (à privilégier)
+
+    return 0;
+}
+</code></pre>
+<p>Chacune de ces formes d'initialisation initialise les membres du tableau dans l'ordre, en commençant par l'élément 0.</p>
+<p>Si un <code>std::array</code> est défini sans initialiseur, ses éléments sont initialisés par défaut. Dans la plupart des cas, cela laisse les éléments non initialisés.</p>
+<p>Comme nous voulons généralement que nos éléments soient initialisés, un <code>std::array</code> doit être initialisé par valeur (à l'aide d'accolades vides) lorsqu'il est défini sans initialiseur.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::array&lt;int, 5&gt; a;   // Membres initialisés par défaut (les éléments int restent non initialisés)
+    std::array&lt;int, 5&gt; b{}; // Membres initialisés par valeur (les éléments int sont initialisés à zéro) (à privilégier)
+
+    std::vector&lt;int&gt; v(5);  // Membres initialisés par valeur (les éléments int sont initialisés à zéro) (pour comparaison)
+
+    return 0;
+}
+</code></pre>
+<p>Si la liste d'initialisation contient plus d'initialiseurs que la longueur du tableau défini, le compilateur signale une erreur. Si elle en contient moins, les éléments restants sans initialiseur sont initialisés par valeur :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+
+int main()
+{
+    std::array&lt;int, 4&gt; a { 1, 2, 3, 4, 5 }; // erreur de compilation : trop d'initialiseurs
+    std::array&lt;int, 4&gt; b { 1, 2 };          // b[2] et b[3] sont initialisés par valeur
+
+    return 0;
+}
+</code></pre>
+<h2 id="stdarray-const-et-constexpr"><code>std::array</code> const et constexpr</h2>
+<p>Un <code>std::array</code> peut être <code>const</code> :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+
+int main()
+{
+    const std::array&lt;int, 5&gt; prime { 2, 3, 5, 7, 11 };
+
+    return 0;
+}
+</code></pre>
+<p>Bien que les éléments d'un <code>std::array</code> <code>const</code> ne soient pas explicitement marqués comme <code>const</code>, ils sont tout de même traités comme tels (puisque le tableau entier est <code>const</code>).</p>
+<p><code>std::array</code> prend également pleinement en charge <code>constexpr</code> :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+
+int main()
+{
+    constexpr std::array&lt;int, 5&gt; prime { 2, 3, 5, 7, 11 };
+
+    return 0;
+}
+</code></pre>
+<p>Cette prise en charge de <code>constexpr</code> est la raison principale d'utiliser <code>std::array</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Définissez votre <code>std::array</code> comme <code>constexpr</code> chaque fois que c'est possible. Si votre <code>std::array</code> ne peut pas être <code>constexpr</code>, envisagez plutôt un <code>std::vector</code>.</p>
+</div>
+<h2 id="déduction-darguments-de-modèle-de-classe-ctad-pour-stdarray-c17">Déduction d'arguments de modèle de classe (CTAD) pour <code>std::array</code> <em>(C++17)</em></h2>
+<p>Grâce à la CTAD (class template argument deduction) introduite en C++17, nous pouvons laisser le compilateur déduire à la fois le type des éléments et la longueur d'un <code>std::array</code> à partir d'une liste d'initialiseurs :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr std::array a1 { 9, 7, 5, 3, 1 }; // Le type est déduit comme std::array&lt;int, 5&gt;
+    constexpr std::array a2 { 9.7, 7.31 };     // Le type est déduit comme std::array&lt;double, 2&gt;
+
+    return 0;
+}
+</code></pre>
+<p>Nous privilégions cette syntaxe chaque fois que c'est possible. Si votre compilateur ne prend pas en charge C++17, vous devrez fournir explicitement les arguments de modèle de type et de longueur.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez la déduction d'arguments de modèle de classe (CTAD) pour que le compilateur déduise le type et la longueur d'un <code>std::array</code> à partir de ses initialiseurs.</p>
+</div>
+<p>La CTAD ne prend pas en charge l'omission partielle des arguments de modèle (jusqu'à C++23 inclus). Il n'existe donc aucun moyen d'omettre uniquement la longueur ou uniquement le type d'un <code>std::array</code> à l'aide de la fonctionnalité du langage :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr std::array&lt;int&gt; a2 { 9, 7, 5, 3, 1 };     // erreur : trop peu d'arguments de modèle (longueur manquante)
+    constexpr std::array&lt;5&gt; a2 { 9, 7, 5, 3, 1 };       // erreur : trop peu d'arguments de modèle (type manquant)
+
+    return 0;
+}
+</code></pre>
+<h2 id="omettre-uniquement-la-longueur-du-tableau-avec-stdto_array-c20">Omettre uniquement la longueur du tableau avec <code>std::to_array</code> <em>(C++20)</em></h2>
+<p>En revanche, la déduction d'arguments de modèle (TAD, utilisée pour la résolution des fonctions modèles) prend en charge l'omission partielle des arguments de modèle. Depuis C++20, il est possible d'omettre la longueur d'un <code>std::array</code> à l'aide de la fonction utilitaire <code>std::to_array</code> :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr auto myArray1 { std::to_array&lt;int, 5&gt;({ 9, 7, 5, 3, 1 }) }; // Spécifie le type et la taille
+    constexpr auto myArray2 { std::to_array&lt;int&gt;({ 9, 7, 5, 3, 1 }) };    // Spécifie uniquement le type, déduit la taille
+    constexpr auto myArray3 { std::to_array({ 9, 7, 5, 3, 1 }) };         // Déduit le type et la taille
+
+    return 0;
+}
+</code></pre>
+<p>Malheureusement, utiliser <code>std::to_array</code> coûte plus cher que de créer directement un <code>std::array</code>, car cela implique la création d'un <code>std::array</code> temporaire, qui sert ensuite à l'initialisation par copie du <code>std::array</code> souhaité. Pour cette raison, <code>std::to_array</code> ne doit être utilisé que lorsque le type ne peut pas être déterminé efficacement à partir des initialiseurs, et doit être évité lorsqu'un tableau est créé très souvent (par exemple dans une boucle).</p>
+<p>Par exemple, comme il n'existe pas de moyen d'écrire un littéral de type <code>short</code>, vous pouvez utiliser le code suivant pour créer un <code>std::array</code> de valeurs <code>short</code> sans avoir à spécifier explicitement la longueur du <code>std::array</code> :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr auto shortArray { std::to_array&lt;short&gt;({ 9, 7, 5, 3, 1 }) };
+    std::cout &lt;&lt; sizeof(shortArray[0]) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<h2 id="accéder-aux-éléments-dun-tableau-avec-operator">Accéder aux éléments d'un tableau avec <code>operator[]</code></h2>
+<p>Comme pour <code>std::vector</code>, la manière la plus courante d'accéder aux éléments d'un <code>std::array</code> est l'opérateur d'indexation (<code>operator[]</code>) :</p>
+<pre><code class="language-cpp">#include &lt;array&gt; // pour std::array
+#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr std::array&lt;int, 5&gt; prime{ 2, 3, 5, 7, 11 };
+
+    std::cout &lt;&lt; prime[3]; // affiche la valeur de l'élément d'indice 3 (7)
+    std::cout &lt;&lt; prime[9]; // indice invalide (comportement indéfini)
+
+    return 0;
+}
+</code></pre>
+<p>Pour rappel, <code>operator[]</code> ne vérifie pas les bornes. Si un indice invalide est fourni, il en résulte un comportement indéfini.</p>
+<p>Nous verrons quelques autres façons d'indexer un <code>std::array</code> dans la prochaine leçon.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Quel type d'initialisation <code>std::array</code> utilise-t-il ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>std::array</code> est un agrégat, il utilise donc l'initialisation par agrégat.</p>
+</details>
+<p>Pourquoi devez-vous explicitement initialiser par valeur un <code>std::array</code> si vous ne fournissez pas de valeurs d'initialisation ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p>Un <code>std::array</code> initialise par défaut ses membres si aucun initialiseur n'est fourni. Cela laisse non initialisés les éléments de la plupart des types.</p>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Définissez un <code>std::array</code> qui contiendra la température maximale de chaque jour de l'année (au dixième de degré près).</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+
+std::array&lt;double, 365&gt; highTemp {};
+</code></pre>
+</details>
+<h4 id="question-n-3">Question n° 3</h4>
+<p>Initialisez un <code>std::array</code> avec les valeurs suivantes : 'h', 'e', 'l', 'l', 'o'. Affichez la valeur de l'élément d'indice 1.</p>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+        constexpr std::array arr { 'h', 'e', 'l', 'l', 'o' };
+        std::cout &lt;&lt; arr[1] &lt;&lt; '\n';
+
+        return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-stdarray/">https://www.learncpp.com/cpp-tutorial/introduction-to-stdarray/</a></em></p>
+</main>
+</body>
+</html>

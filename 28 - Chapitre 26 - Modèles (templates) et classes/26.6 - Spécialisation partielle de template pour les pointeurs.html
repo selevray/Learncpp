@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26.6 — Spécialisation partielle de template pour les pointeurs</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="266-spécialisation-partielle-de-template-pour-les-pointeurs">26.6 — Spécialisation partielle de template pour les pointeurs</h1>
+<p>Dans la leçon précédente <a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.4%20-%20Sp%C3%A9cialisation%20de%20mod%C3%A8les%20de%20classes.html">26.4 -- Spécialisation de classe template</a>, nous avons examiné une classe template simple <code>Storage</code>, ainsi qu'une spécialisation pour le type <code>double</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+template&lt;&gt;
+void Storage&lt;double&gt;::print() // spécialisation complète pour le type double
+{
+    std::cout &lt;&lt; std::scientific &lt;&lt; m_value &lt;&lt; '\n';
+}
+
+int main()
+{
+    // Définissons quelques unités de stockage
+    Storage i { 5 };
+    Storage d { 6.7 }; // va entraîner l'instanciation implicite de Storage&lt;double&gt;
+
+    // Affichons quelques valeurs
+    i.print(); // appelle Storage&lt;int&gt;::print (instanciée depuis Storage&lt;T&gt;)
+    d.print(); // appelle Storage&lt;double&gt;::print (appelée depuis la spécialisation explicite de Storage&lt;double&gt;::print())
+}
+</code></pre>
+<p>Cependant, aussi simple que soit cette classe, elle possède un défaut caché : elle se compile mais fonctionne mal lorsque <code>T</code> est un type pointeur. Par exemple :</p>
+<pre><code class="language-cpp">int main()
+{
+    double d { 1.2 };
+    double *ptr { &amp;d };
+
+    Storage s { ptr };
+    s.print();
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a produit le résultat suivant :</p>
+<pre><code>
+0x7ffe164e0f50
+</code></pre>
+<p>Que s'est-il passé ? Comme <code>ptr</code> est un <code>double*</code>, <code>s</code> a le type <code>Storage&lt;double*&gt;</code>, ce qui signifie que <code>m_value</code> a le type <code>double*</code>. Lors de l'appel du constructeur, <code>m_value</code> reçoit une copie de l'adresse contenue dans <code>ptr</code>, et c'est cette adresse qui est affichée lorsque la fonction membre <code>print()</code> est appelée.</p>
+<p>Alors, comment corriger cela ?</p>
+<p>Une option consiste à ajouter une spécialisation complète pour le type <code>double*</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+template&lt;&gt;
+void Storage&lt;double*&gt;::print() // spécialisation complète pour le type double*
+{
+    if (m_value)
+        std::cout &lt;&lt; std::scientific &lt;&lt; *m_value &lt;&lt; '\n';
+}
+
+template&lt;&gt;
+void Storage&lt;double&gt;::print() // spécialisation complète pour le type double (pour comparaison, non utilisée)
+{
+    std::cout &lt;&lt; std::scientific &lt;&lt; m_value &lt;&lt; '\n';
+}
+
+int main()
+{
+    double d { 1.2 };
+    double *ptr { &amp;d };
+
+    Storage s { ptr };
+    s.print(); // appelle Storage&lt;double*&gt;::print()
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche maintenant le bon résultat :</p>
+<pre><code>
+1.200000e+00
+</code></pre>
+<p>Mais cela ne résout le problème que lorsque <code>T</code> est de type <code>double*</code>. Qu'en est-il lorsque <code>T</code> est <code>int*</code>, <code>char*</code>, ou tout autre type pointeur ?</p>
+<p>Nous ne voulons vraiment pas avoir à créer une spécialisation complète pour chaque type pointeur. Et en fait, ce n'est même pas possible, car l'utilisateur peut toujours passer un pointeur vers un type défini par le programme.</p>
+<h2 id="spécialisation-partielle-de-template-pour-les-pointeurs">Spécialisation partielle de template pour les pointeurs</h2>
+<p>Vous pourriez penser essayer de créer une fonction template surchargée sur le type <code>T*</code> :</p>
+<pre><code class="language-cpp">// ne fonctionne pas
+template&lt;typename T&gt;
+void Storage&lt;T*&gt;::print()
+{
+    if (m_value)
+        std::cout &lt;&lt; std::scientific &lt;&lt; *m_value &lt;&lt; '\n';
+}
+</code></pre>
+<p>Une telle fonction est une fonction template partiellement spécialisée, car elle restreint le type <code>T</code> (à un type pointeur), mais <code>T</code> reste un paramètre template de type.</p>
+<p>Malheureusement, cela ne fonctionne pas pour une raison simple : à la date de rédaction (C++23), les fonctions ne peuvent pas être partiellement spécialisées. Comme nous l'avons indiqué dans la leçon <a href="../28%20-%20Chapitre%2026%20-%20Mod%C3%A8les%20%28templates%29%20et%20classes/26.5%20-%20Sp%C3%A9cialisation%20partielle%20de%20mod%C3%A8les.html">26.5 -- Spécialisation partielle de template</a>, seules les classes peuvent être partiellement spécialisées.</p>
+<p>Spécialisons donc plutôt partiellement la classe <code>Storage</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage // Ceci est la classe template primaire (identique à précédemment)
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+template &lt;typename T&gt; // nous avons toujours un paramètre template de type
+class Storage&lt;T*&gt; // Ceci est partiellement spécialisé pour T*
+{
+private:
+    T* m_value {};
+public:
+    Storage(T* value)
+      : m_value { value }
+    {
+    }
+
+    void print();
+};
+
+template &lt;typename T&gt;
+void Storage&lt;T*&gt;::print() // Ceci est une fonction non spécialisée de la classe partiellement spécialisée Storage&lt;T*&gt;
+{
+    if (m_value)
+        std::cout &lt;&lt; std::scientific &lt;&lt; *m_value &lt;&lt; '\n';
+}
+
+int main()
+{
+    double d { 1.2 };
+    double *ptr { &amp;d };
+
+    Storage s { ptr }; // instancie Storage&lt;double*&gt; à partir de la classe partiellement spécialisée
+    s.print(); // appelle Storage&lt;double*&gt;::print()
+
+    return 0;
+}
+</code></pre>
+<p>Nous avons défini <code>Storage&lt;T*&gt;::print()</code> en dehors de la classe simplement pour montrer comment procéder, et pour montrer que cette définition est identique à la fonction <code>Storage&lt;T*&gt;::print()</code> partiellement spécialisée qui ne fonctionnait pas plus haut. Cependant, maintenant que <code>Storage&lt;T*&gt;</code> est une classe partiellement spécialisée, <code>Storage&lt;T*&gt;::print()</code> n'est plus partiellement spécialisée : c'est une fonction non spécialisée, c'est pourquoi elle est autorisée.</p>
+<p>Il est intéressant de noter que notre paramètre template de type est défini comme <code>T</code>, et non <code>T*</code>. Cela signifie que <code>T</code> sera déduit comme le type non pointeur, nous devons donc utiliser <code>T*</code> partout où nous voulons un pointeur vers <code>T</code>. Il faut également rappeler que la spécialisation partielle <code>Storage&lt;T*&gt;</code> doit être définie après la classe template primaire <code>Storage&lt;T&gt;</code>.</p>
+<h2 id="problèmes-de-propriété-et-de-durée-de-vie">Problèmes de propriété et de durée de vie</h2>
+<p>La classe partiellement spécialisée <code>Storage&lt;T*&gt;</code> ci-dessus présente un autre problème potentiel. Comme <code>m_value</code> est un <code>T*</code>, il s'agit d'un pointeur vers l'objet qui est passé en paramètre. Si cet objet est ensuite détruit, notre <code>Storage&lt;T*&gt;</code> se retrouvera avec un pointeur pendouillant (dangling).</p>
+<p>Le problème fondamental est que notre implémentation de <code>Storage&lt;T&gt;</code> a une sémantique de copie (c'est-à-dire qu'elle fait une copie de son initialiseur), alors que <code>Storage&lt;T*&gt;</code> a une sémantique de référence (c'est-à-dire qu'elle est une référence vers son initialiseur). Cette incohérence est une source de bugs.</p>
+<p>Il existe plusieurs façons de traiter ce type de problème (par ordre de complexité croissante) :</p>
+<ol>
+<li>Indiquer très clairement que <code>Storage&lt;T*&gt;</code> est une classe de vue (avec sémantique de référence), donc qu'il incombe à l'appelant de s'assurer que l'objet pointé reste valide tant que <code>Storage&lt;T*&gt;</code> existe. Malheureusement, comme cette classe partiellement spécialisée doit porter le même nom que la classe template primaire, nous ne pouvons pas lui donner un nom comme <code>StorageView</code>. Nous sommes donc limités à utiliser des commentaires ou d'autres moyens faciles à manquer. Ce n'est pas une excellente option.</li>
+<li>Empêcher totalement l'utilisation de <code>Storage&lt;T*&gt;</code>. Nous n'avons probablement pas besoin que <code>Storage&lt;T*&gt;</code> existe, car l'appelant peut toujours déréférencer le pointeur au moment de l'instanciation pour utiliser <code>Storage&lt;T&gt;</code> et faire une copie de la valeur (ce qui est sémantiquement approprié pour une classe de stockage).</li>
+</ol>
+<p>Cependant, alors que vous pouvez supprimer une fonction surchargée, le C++ (jusqu'à C++23) ne permet pas de supprimer une classe. La solution évidente serait de spécialiser partiellement <code>Storage&lt;T*&gt;</code> puis de faire en sorte qu'elle ne compile pas (par exemple avec <code>static_assert</code>) lorsque le template est instancié. Cette approche a cependant un inconvénient majeur : <code>std::nullptr_t</code> n'est pas un type pointeur, donc <code>Storage&lt;std::nullptr_t&gt;</code> ne correspond pas à <code>Storage&lt;T*&gt;</code> !</p>
+<p>Une meilleure solution consiste à éviter complètement la spécialisation partielle, et à utiliser un <code>static_assert</code> dans notre template primaire pour nous assurer que <code>T</code> est un type acceptable. Voici un exemple de cette approche :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt; // pour std::is_pointer_v et std::is_null_pointer_v
+
+template &lt;typename T&gt;
+class Storage
+{
+    // Vérifions que T n'est ni un pointeur ni un std::nullptr_t
+    static_assert(!std::is_pointer_v&lt;T&gt; &amp;&amp; !std::is_null_pointer_v&lt;T&gt;, &quot;Storage&lt;T*&gt; and Storage&lt;nullptr&gt; disallowed&quot;);
+
+private:
+    T m_value {};
+
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    double d { 1.2 };
+
+    Storage s1 { d }; // ok
+    s1.print();
+
+    Storage s2 { &amp;d }; // static_assert car T est un pointeur
+    s2.print();
+
+    Storage s3 { nullptr }; // static_assert car T est un nullptr
+    s3.print();
+
+    return 0;
+}
+</code></pre>
+<ol start="3">
+<li>Faire en sorte que <code>Storage&lt;T*&gt;</code> fasse une copie de l'objet sur le tas. Si vous gérez vous-même toute la gestion de la mémoire du tas, cela nécessite de surcharger le constructeur, le constructeur de copie, l'opérateur d'affectation par copie et le destructeur. Une alternative plus simple consiste simplement à utiliser <code>std::unique_ptr</code> (que nous présentons dans la leçon <a href="../24%20-%20Chapitre%2022%20-%20S%C3%A9mantique%20de%20d%C3%A9placement%20et%20pointeurs%20intelligents/22.5%20-%20std--unique_ptr.html">22.5 -- std::unique_ptr</a>) :</li>
+</ol>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt; // pour std::is_pointer_v et std::is_null_pointer_v
+#include &lt;memory&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+    // Vérifions que T n'est ni un pointeur ni un std::nullptr_t
+    static_assert(!std::is_pointer_v&lt;T&gt; &amp;&amp; !std::is_null_pointer_v&lt;T&gt;, &quot;Storage&lt;T*&gt; and Storage&lt;nullptr&gt; disallowed&quot;);
+
+private:
+    T m_value {};
+
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+template &lt;typename T&gt;
+class Storage&lt;T*&gt;
+{
+private:
+    std::unique_ptr&lt;T&gt; m_value {}; // utilise std::unique_ptr pour désallouer automatiquement lorsque Storage est détruit
+
+public:
+    Storage(T* value)
+      : m_value { std::make_unique&lt;T&gt;(value ? *value : 0) } // ou lever une exception lorsque !value
+    {
+    }
+
+    void print()
+    {
+        if (m_value)
+            std::cout &lt;&lt; *m_value &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    double d { 1.2 };
+
+    Storage s1 { d }; // ok
+    s1.print();
+
+    Storage s2 { &amp;d }; // ok, copie d sur le tas
+    s2.print();
+
+    return 0;
+}
+</code></pre>
+<p>Utiliser la spécialisation partielle de classe template pour créer des implémentations distinctes pour les pointeurs et les non-pointeurs d'une classe est extrêmement utile lorsque vous voulez qu'une classe traite ces cas différemment, tout en restant totalement transparente pour l'utilisateur final.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/partial-template-specialization-for-pointers/">https://www.learncpp.com/cpp-tutorial/partial-template-specialization-for-pointers/</a></em></p>
+</main>
+</body>
+</html>

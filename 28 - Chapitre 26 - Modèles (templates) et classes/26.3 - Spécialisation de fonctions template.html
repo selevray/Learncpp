@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26.3 — Spécialisation de fonctions template</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="263-spécialisation-de-fonctions-template">26.3 — Spécialisation de fonctions template</h1>
+<p>Lorsqu'il instancie une fonction template pour un type donné, le compilateur génère une copie de la fonction templatée en remplaçant les paramètres de type du template par les types réellement utilisés dans la déclaration de la variable. Cela signifie qu'une fonction aura les mêmes détails d'implémentation pour chaque type instancié (en utilisant simplement des types différents). Si, la plupart du temps, c'est exactement ce que vous voulez, il arrive parfois qu'il soit utile d'implémenter une fonction templatée légèrement différemment pour un type de données spécifique.</p>
+<h2 id="utiliser-une-fonction-non-template">Utiliser une fonction non template</h2>
+<p>Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+void print(const T&amp; t)
+{
+    std::cout &lt;&lt; t &lt;&lt; '\n';
+}
+
+int main()
+{
+    print(5);
+    print(6.7);
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+5
+6.7
+</code></pre>
+<p>Supposons maintenant que nous souhaitions que les valeurs de type double (et seulement celles-ci) soient affichées en notation scientifique.</p>
+<p>Une façon d'obtenir un comportement différent pour un type donné consiste à définir une fonction non template :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+void print(const T&amp; t)
+{
+    std::cout &lt;&lt; t &lt;&lt; '\n';
+}
+
+void print(double d)
+{
+    std::cout &lt;&lt; std::scientific &lt;&lt; d &lt;&lt; '\n';
+}
+
+int main()
+{
+    print(5);
+    print(6.7);
+
+    return 0;
+}
+</code></pre>
+<p>Lorsque le compilateur doit résoudre l'appel <code>print(6.7)</code>, il constate que <code>print(double)</code> a déjà été défini par nos soins, et utilise cette version plutôt que d'instancier une version à partir de <code>print(const T&amp;)</code>.</p>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+5
+6.700000e+000
+</code></pre>
+<p>Un avantage de cette manière de définir les fonctions est que la fonction non template n'a pas besoin d'avoir la même signature que la fonction template. Notez que <code>print(const T&amp;)</code> passe son argument par référence constante, alors que <code>print(double)</code> le passe par valeur.</p>
+<p>En règle générale, privilégiez la définition d'une fonction non template lorsque cette option est disponible.</p>
+<h2 id="spécialisation-de-fonctions-template">Spécialisation de fonctions template</h2>
+<p>Une autre façon d'obtenir un résultat similaire consiste à utiliser la spécialisation explicite de template. La <strong>spécialisation explicite de template</strong> (souvent abrégée en <strong>spécialisation de template</strong>) est une fonctionnalité qui nous permet de définir explicitement différentes implémentations d'un template pour des types ou des valeurs spécifiques. Lorsque tous les paramètres du template sont spécialisés, on parle de <strong>spécialisation complète</strong>. Lorsque seuls certains paramètres sont spécialisés, on parle de <strong>spécialisation partielle</strong>.</p>
+<p>Créons une spécialisation de <code>print&lt;T&gt;</code> pour le cas où <code>T</code> est un <code>double</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Voici notre template primaire (doit venir en premier)
+template &lt;typename T&gt;
+void print(const T&amp; t)
+{
+    std::cout &lt;&lt; t &lt;&lt; '\n';
+}
+
+// Une spécialisation complète du template primaire print&lt;T&gt; pour le type double
+// Les spécialisations complètes ne sont pas implicitement inline ; il faut donc
+// ajouter inline si elle est placée dans un fichier d'en-tête
+template&lt;&gt;                          // déclaration de paramètres de template vide
+void print&lt;double&gt;(const double&amp; d) // spécialisée pour le type double
+{
+    std::cout &lt;&lt; std::scientific &lt;&lt; d &lt;&lt; '\n';
+}
+
+int main()
+{
+    print(5);
+    print(6.7);
+
+    return 0;
+}
+</code></pre>
+<p>Pour spécialiser un template, le compilateur doit d'abord avoir vu une déclaration du template primaire. Le template primaire de l'exemple ci-dessus est <code>print&lt;T&gt;(const T&amp;)</code>.</p>
+<p>Examinons maintenant de plus près notre spécialisation de fonction template :</p>
+<pre><code class="language-cpp">template&lt;&gt;                          // déclaration de paramètres de template vide
+void print&lt;double&gt;(const double&amp; d) // spécialisée pour le type double
+</code></pre>
+<p>Tout d'abord, nous avons besoin d'une déclaration de paramètres de template afin que le compilateur sache que nous faisons quelque chose en rapport avec les templates. Cependant, dans ce cas, nous n'avons besoin d'aucun paramètre de template, nous utilisons donc une paire de chevrons vide. Comme la spécialisation ne comporte aucun paramètre de template, il s'agit d'une spécialisation complète.</p>
+<p>Sur la ligne suivante, <code>print&lt;double&gt;</code> indique au compilateur que nous spécialisons la fonction template primaire <code>print</code> pour le type <code>double</code>. La spécialisation doit avoir la même signature que le template primaire (à ceci près qu'elle remplace <code>T</code> par <code>double</code> partout où le template primaire l'utilise). Comme le template primaire possède un paramètre de type <code>const T&amp;</code>, la spécialisation doit posséder un paramètre de type <code>const double&amp;</code>. La spécialisation ne peut pas passer par valeur si le template primaire passe par référence (ou inversement).</p>
+<p>Cet exemple affiche le même résultat que précédemment.</p>
+<p>Notez que si une fonction non template et une spécialisation de fonction template correspondantes existent toutes deux, c'est la fonction non template qui est prioritaire. Par ailleurs, les spécialisations complètes ne sont pas implicitement inline ; si vous en définissez une dans un fichier d'en-tête, veillez à la déclarer <code>inline</code> afin d'éviter des violations de la règle de définition unique (ODR).</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Les spécialisations complètes ne sont pas implicitement inline (les spécialisations partielles le sont). Si vous placez une spécialisation complète dans un fichier d'en-tête, elle doit être marquée <code>inline</code> afin de ne pas provoquer de violations de l'ODR lorsqu'elle est incluse dans plusieurs unités de traduction.</p>
+</div>
+<p>Comme les fonctions ordinaires, les spécialisations de fonctions template peuvent être supprimées (à l'aide de <code>= delete</code>) si vous souhaitez que tout appel résolu vers cette spécialisation produise une erreur de compilation.</p>
+<p>En général, évitez les spécialisations de fonctions template au profit de fonctions non template chaque fois que c'est possible.</p>
+<h2 id="spécialisation-de-fonctions-template-pour-les-fonctions-membres">Spécialisation de fonctions template pour les fonctions membres ?</h2>
+<p>Considérons maintenant le template de classe suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Storage
+{
+private:
+    T m_value {};
+public:
+    Storage(T value)
+      : m_value { value }
+    {
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; m_value &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    // Définissons quelques conteneurs
+    Storage i { 5 };
+    Storage d { 6.7 };
+
+    // Affichons quelques valeurs
+    i.print();
+    d.print();
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code class="language-cpp">5
+6.7
+</code></pre>
+<p>Supposons que nous souhaitions à nouveau créer une version de la fonction <code>print()</code> qui affiche les doubles en notation scientifique. Cependant, cette fois, <code>print()</code> est une fonction membre : nous ne pouvons donc pas définir une fonction non membre. Comment faire alors ?</p>
+<p>Bien qu'il puisse sembler que nous devions utiliser une spécialisation de fonction template, ce n'est pas le bon outil. Remarquez que <code>i.print()</code> appelle <code>Storage&lt;int&gt;::print()</code> et que <code>d.print()</code> appelle <code>Storage&lt;double&gt;::print()</code>. Par conséquent, si nous voulons modifier le comportement de cette fonction lorsque <code>T</code> est un double, nous devons spécialiser <code>Storage&lt;double&gt;::print()</code>, qui est une spécialisation de template de classe, et non une spécialisation de fonction template !</p>
+<p>Comment procéder ? Nous aborderons la spécialisation de template de classe dans la prochaine leçon.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/function-template-specialization/">https://www.learncpp.com/cpp-tutorial/function-template-specialization/</a></em></p>
+</main>
+</body>
+</html>

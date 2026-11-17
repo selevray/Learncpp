@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.9 — Arithmétique des pointeurs et indexation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="179-arithmétique-des-pointeurs-et-indexation">17.9 — Arithmétique des pointeurs et indexation</h1>
+<p>Dans la leçon <a href="../18%20-%20Chapitre%2016%20-%20Tableaux%20dynamiques%20-%20std--vector/16.1%20-%20Introduction%20aux%20conteneurs%20et%20aux%20tableaux.html">16.1 -- Introduction aux conteneurs et aux tableaux</a>, nous avons mentionné que les tableaux sont stockés séquentiellement en mémoire. Dans cette leçon, nous allons examiner de plus près le calcul d'indexation des tableaux.</p>
+<p>Bien que nous n'utilisions pas ce calcul d'indexation dans les leçons suivantes, les notions abordées ici vous aideront à comprendre le fonctionnement interne des boucles basées sur une plage (range-based for loops), et seront utiles plus tard lorsque nous aborderons les itérateurs.</p>
+<h2 id="quest-ce-que-larithmétique-des-pointeurs">Qu'est-ce que l'arithmétique des pointeurs ?</h2>
+<p>L'<strong>arithmétique des pointeurs (pointer arithmetic)</strong> est une fonctionnalité qui permet d'appliquer certains opérateurs arithmétiques entiers (addition, soustraction, incrémentation ou décrémentation) à un pointeur pour produire une nouvelle adresse mémoire.</p>
+<p>Étant donné un pointeur <code>ptr</code>, <code>ptr + 1</code> renvoie l'adresse du <em>prochain objet</em> en mémoire (en fonction du type pointé). Ainsi, si <code>ptr</code> est un <code>int*</code> et qu'un <code>int</code> occupe 4 octets, <code>ptr + 1</code> renverra l'adresse située 4 octets après <code>ptr</code>, et <code>ptr + 2</code> renverra l'adresse située 8 octets après <code>ptr</code>.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x {};
+    const int* ptr{ &amp;x }; // en supposant des int de 4 octets
+
+    std::cout &lt;&lt; ptr &lt;&lt; ' ' &lt;&lt; (ptr + 1) &lt;&lt; ' ' &lt;&lt; (ptr + 2) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+00AFFD80 00AFFD84 00AFFD88
+</code></pre>
+<p>Notez que chaque adresse mémoire est supérieure de 4 octets à la précédente.</p>
+<p>Bien que moins courante, l'arithmétique des pointeurs fonctionne également avec la soustraction. Étant donné un pointeur <code>ptr</code>, <code>ptr - 1</code> renvoie l'adresse de l'<em>objet précédent</em> en mémoire (en fonction du type pointé).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x {};
+    const int* ptr{ &amp;x }; // en supposant des int de 4 octets
+
+    std::cout &lt;&lt; ptr &lt;&lt; ' ' &lt;&lt; (ptr - 1) &lt;&lt; ' ' &lt;&lt; (ptr - 2) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+00AFFD80 00AFFD7C 00AFFD78
+</code></pre>
+<p>Dans ce cas, chaque adresse mémoire est inférieure de 4 octets à la précédente.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>L'arithmétique des pointeurs renvoie l'adresse de l'objet suivant ou précédent (en fonction du type pointé), et non l'adresse suivante ou précédente en octets.</p>
+</div>
+<p>Appliquer les opérateurs d'incrémentation (<code>++</code>) et de décrémentation (<code>--</code>) à un pointeur revient respectivement à une addition et une soustraction de pointeur, mais modifie directement l'adresse contenue dans le pointeur.</p>
+<p>Étant donné un entier <code>x</code>, <code>++x</code> est l'abréviation de <code>x = x + 1</code>. De même, étant donné un pointeur <code>ptr</code>, <code>++ptr</code> est l'abréviation de <code>ptr = ptr + 1</code>, ce qui effectue une arithmétique des pointeurs et réaffecte le résultat à <code>ptr</code>.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x {};
+    const int* ptr{ &amp;x }; // en supposant des int de 4 octets
+
+    std::cout &lt;&lt; ptr &lt;&lt; '\n';
+
+    ++ptr; // ptr = ptr + 1
+    std::cout &lt;&lt; ptr &lt;&lt; '\n';
+
+    --ptr; // ptr = ptr - 1
+    std::cout &lt;&lt; ptr &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+00AFFD80 00AFFD84 00AFFD80
+</code></pre>
+<div class="callout warning"><p class="callout-title">Avertissement</p>
+<p>Techniquement, ce qui précède constitue un comportement indéfini. Selon la norme C++, <a href="https://eel.is/c++draft/expr.add#4">l'arithmétique des pointeurs n'est un comportement défini que lorsque le pointeur et le résultat se situent dans le même tableau (ou juste après sa fin)</a>. Cependant, les implémentations C++ modernes n'appliquent généralement pas cette règle et n'interdisent en général pas l'arithmétique des pointeurs en dehors des tableaux.</p>
+</div>
+<h2 id="lindexation-est-implémentée-via-larithmétique-des-pointeurs">L'indexation est implémentée via l'arithmétique des pointeurs</h2>
+<p>Dans la leçon précédente (<a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.8%20-%20D%C3%A9gradation%20des%20tableaux%20de%20style%20C%20%28array%20decay%29.html">17.8 -- Décroissance d'un tableau de style C</a>), nous avons indiqué que l'opérateur <code>operator[]</code> peut être appliqué à un pointeur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 9, 7, 5, 3, 1 };
+
+    const int* ptr{ arr }; // un pointeur ordinaire contenant l'adresse de l'élément 0
+    std::cout &lt;&lt; ptr[2];   // indexe ptr pour obtenir l'élément 2, affiche 5
+
+    return 0;
+}
+</code></pre>
+<p>Examinons de plus près ce qui se passe ici.</p>
+<p>En fait, l'opération d'indexation <code>ptr[n]</code> est une syntaxe concise équivalente à l'expression plus verbeuse <code>*((ptr) + (n))</code>. Vous remarquerez qu'il s'agit simplement d'arithmétique des pointeurs, avec des parenthèses supplémentaires pour garantir l'ordre d'évaluation correct, et d'un déréférencement implicite pour obtenir l'objet situé à cette adresse.</p>
+<p>Tout d'abord, nous initialisons <code>ptr</code> avec <code>arr</code>. Lorsque <code>arr</code> est utilisé comme initialiseur, il se transforme (décroît) en un pointeur contenant l'adresse de l'élément d'indice 0. Ainsi, <code>ptr</code> contient désormais l'adresse de l'élément 0.</p>
+<p>Ensuite, nous affichons <code>ptr[2]</code>. <code>ptr[2]</code> est équivalent à <code>*((ptr) + (2))</code>, soit <code>*(ptr + 2)</code>. <code>ptr + 2</code> renvoie l'adresse de l'objet situé deux objets après <code>ptr</code>, c'est-à-dire l'élément d'indice 2. L'objet situé à cette adresse est alors renvoyé à l'appelant.</p>
+<p>Voyons un autre exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 3, 2, 1 };
+
+    // Commençons par utiliser l'indexation pour obtenir les adresses et les valeurs des éléments du tableau
+    std::cout &lt;&lt; &amp;arr[0] &lt;&lt; ' ' &lt;&lt; &amp;arr[1] &lt;&lt; ' ' &lt;&lt; &amp;arr[2] &lt;&lt; '\n';
+    std::cout &lt;&lt; arr[0] &lt;&lt; ' ' &lt;&lt; arr[1] &lt;&lt; ' ' &lt;&lt; arr[2] &lt;&lt; '\n';
+
+    // Faisons maintenant la même chose avec l'arithmétique des pointeurs
+    std::cout &lt;&lt; arr&lt;&lt; ' ' &lt;&lt; (arr+ 1) &lt;&lt; ' ' &lt;&lt; (arr+ 2) &lt;&lt; '\n';
+    std::cout &lt;&lt; *arr&lt;&lt; ' ' &lt;&lt; *(arr+ 1) &lt;&lt; ' ' &lt;&lt; *(arr+ 2) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+00AFFD80 00AFFD84 00AFFD88
+3 2 1
+00AFFD80 00AFFD84 00AFFD88
+3 2 1
+</code></pre>
+<p>Vous remarquerez que <code>arr</code> contient l'adresse <code>00AFFD80</code>, que <code>(arr + 1)</code> renvoie une adresse située 4 octets plus loin, et que <code>(arr + 2)</code> renvoie une adresse située 8 octets plus loin. Nous pouvons déréférencer ces adresses pour obtenir les éléments qui s'y trouvent.</p>
+<p>Comme les éléments d'un tableau sont toujours séquentiels en mémoire, si <code>arr</code> est un pointeur vers l'élément 0 d'un tableau, <code>*(arr + n)</code> renverra le n-ième élément du tableau.</p>
+<p>C'est la principale raison pour laquelle les tableaux sont indexés à partir de 0 plutôt que de 1. Cela rend le calcul plus efficace, car le compilateur n'a pas à soustraire 1 à chaque indexation !</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Petite anecdote : comme le compilateur convertit <code>ptr[n]</code> en <code>*((ptr) + (n))</code> lors de l'indexation d'un pointeur, nous pouvons aussi écrire <code>n[ptr]</code> ! Le compilateur le convertit en <code>*((n) + (ptr))</code>, ce qui a exactement le même comportement que <code>*((ptr) + (n))</code>. Ne le faites toutefois pas, car c'est confus.</p>
+</div>
+<h2 id="larithmétique-des-pointeurs-et-lindexation-sont-des-adresses-relatives">L'arithmétique des pointeurs et l'indexation sont des adresses relatives</h2>
+<p>Lorsque l'on découvre l'indexation des tableaux, il est naturel de supposer que l'indice désigne un élément fixe du tableau : l'indice 0 est toujours le premier élément, l'indice 1 est toujours le deuxième, et ainsi de suite.</p>
+<p>C'est une illusion. Les indices de tableau sont en réalité des positions relatives. Ils semblent fixes simplement parce que nous indexons presque toujours à partir du début (élément 0) du tableau !</p>
+<p>Rappelez-vous : étant donné un pointeur <code>ptr</code>, <code>*(ptr + 1)</code> et <code>ptr[1]</code> renvoient tous deux le <em>prochain objet</em> en mémoire (en fonction du type pointé). « Prochain » est un terme relatif, non absolu. Ainsi, si <code>ptr</code> pointe sur l'élément 0, alors <code>*(ptr + 1)</code> et <code>ptr[1]</code> renverront l'élément 1. Mais si <code>ptr</code> pointe plutôt sur l'élément 3, alors <code>*(ptr + 1)</code> et <code>ptr[1]</code> renverront l'élément 4 !</p>
+<p>L'exemple suivant illustre ce point :</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 9, 8, 7, 6, 5 };
+    const int *ptr { arr }; // arr se transforme en un pointeur vers l'élément 0
+
+    // Vérifions que nous pointons sur l'élément 0
+    std::cout &lt;&lt; *ptr &lt;&lt; ptr[0] &lt;&lt; '\n'; // affiche 99
+    // Vérifions que ptr[1] est l'élément 1
+    std::cout &lt;&lt; *(ptr+1) &lt;&lt; ptr[1] &lt;&lt; '\n'; // affiche 88
+
+    // Faisons maintenant pointer ptr sur l'élément 3
+    ptr = &amp;arr[3];
+
+    // Vérifions que nous pointons sur l'élément 3
+    std::cout &lt;&lt; *ptr &lt;&lt; ptr[0] &lt;&lt; '\n'; // affiche 66
+    // Vérifions que ptr[1] est l'élément 4 !
+    std::cout &lt;&lt; *(ptr+1) &lt;&lt; ptr[1] &lt;&lt; '\n'; // affiche 55
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, vous remarquerez aussi que notre programme devient beaucoup plus difficile à comprendre si nous ne pouvons pas supposer que <code>ptr[1]</code> est toujours l'élément d'indice 1. Pour cette raison, nous recommandons d'utiliser l'indexation uniquement lorsque l'on part du début du tableau (élément 0). Utilisez l'arithmétique des pointeurs uniquement pour un positionnement relatif.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez l'indexation lorsque vous partez du début du tableau (élément 0), afin que les indices du tableau correspondent à la position de l'élément.</p>
+<p>Privilégiez l'arithmétique des pointeurs pour un positionnement relatif à partir d'un élément donné.</p>
+</div>
+<h2 id="indices-négatifs">Indices négatifs</h2>
+<p>Dans la dernière leçon, nous avons mentionné que (contrairement aux classes conteneurs de la bibliothèque standard) l'indice d'un tableau de style C peut être un entier non signé ou signé. Ce n'est pas seulement une question de commodité : il est en fait possible d'indexer un tableau de style C avec un indice négatif. Cela peut sembler étrange, mais c'est logique.</p>
+<p>Nous venons de voir que <code>*(ptr+1)</code> renvoie le <em>prochain objet</em> en mémoire, et que <code>ptr[1]</code> est une syntaxe pratique pour faire la même chose.</p>
+<p>Au début de cette leçon, nous avons indiqué que <code>*(ptr-1)</code> renvoie l'<em>objet précédent</em> en mémoire. Devinez quelle est la forme indexée équivalente ? Eh oui, <code>ptr[-1]</code>.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    const int arr[] { 9, 8, 7, 6, 5 };
+
+    // Faisons pointer ptr sur l'élément 3
+    const int* ptr { &amp;arr[3] };
+
+    // Vérifions que nous pointons sur l'élément 3
+    std::cout &lt;&lt; *ptr &lt;&lt; ptr[0] &lt;&lt; '\n'; // affiche 66
+    // Vérifions que ptr[-1] est l'élément 2 !
+    std::cout &lt;&lt; *(ptr-1) &lt;&lt; ptr[-1] &lt;&lt; '\n'; // affiche 77
+
+    return 0;
+}
+</code></pre>
+<h2 id="larithmétique-des-pointeurs-peut-servir-à-parcourir-un-tableau">L'arithmétique des pointeurs peut servir à parcourir un tableau</h2>
+<p>L'une des utilisations les plus courantes de l'arithmétique des pointeurs consiste à parcourir un tableau de style C sans indexation explicite. L'exemple suivant illustre cette technique :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr int arr[]{ 9, 7, 5, 3, 1 };
+
+    const int* begin{ arr };                // begin pointe sur l'élément de début
+    const int* end{ arr + std::size(arr) }; // end pointe sur l'élément situé juste après la fin
+
+    for (; begin != end; ++begin)           // parcourt de begin jusqu'à end (exclu)
+    {
+        std::cout &lt;&lt; *begin &lt;&lt; ' ';     // déréférence la variable de boucle pour obtenir l'élément courant
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous commençons le parcours à l'élément pointé par <code>begin</code> (c'est-à-dire l'élément 0 du tableau dans ce cas). Comme <code>begin != end</code> est vrai, le corps de la boucle s'exécute. Dans la boucle, nous accédons à l'élément courant via <code>*begin</code>, ce qui n'est qu'un déréférencement de pointeur. À la fin du corps de la boucle, nous effectuons <code>++begin</code>, qui utilise l'arithmétique des pointeurs pour faire pointer <code>begin</code> sur l'élément suivant. Comme <code>begin != end</code> est à nouveau vrai, le corps de la boucle s'exécute de nouveau. Cela se poursuit jusqu'à ce que <code>begin != end</code> soit <code>false</code>, c'est-à-dire lorsque <code>begin == end</code>.</p>
+<p>Ainsi, le programme ci-dessus affiche :</p>
+<pre><code>
+9 7 5 3 1
+</code></pre>
+<p>Notez que <code>end</code> est positionné juste après la fin du tableau. Il est correct que <code>end</code> contienne cette adresse (à condition de ne jamais le déréférencer, car il n'y a pas d'élément valide à cette adresse). Nous procédons ainsi parce que cela rend nos calculs et nos comparaisons aussi simples que possible (pas besoin d'ajouter ou de soustraire 1 quelque part).</p>
+<div class="callout info"><p class="callout-title">Conseil</p>
+<p>Pour un pointeur qui pointe sur un élément d'un tableau de style C, l'arithmétique des pointeurs est valide tant que l'adresse obtenue est celle d'un élément valide du tableau, ou celle situé juste après le dernier élément. Si l'arithmétique des pointeurs produit une adresse en dehors de ces limites, il s'agit d'un comportement indéfini (même si le résultat n'est pas déréférencé).</p>
+</div>
+<p>Dans la leçon précédente <a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.8%20-%20D%C3%A9gradation%20des%20tableaux%20de%20style%20C%20%28array%20decay%29.html">17.8 -- Décroissance d'un tableau de style C</a>, nous avons mentionné que la décroissance des tableaux complique la refactorisation des fonctions, car certaines opérations fonctionnent avec un tableau non décru mais pas avec un tableau décru (comme <code>std::size</code>). Un avantage intéressant de cette façon de parcourir un tableau est que nous pouvons extraire la partie boucle de l'exemple ci-dessus dans une fonction distincte, telle quelle, et elle fonctionnera toujours :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void printArray(const int* begin, const int* end)
+{
+    for (; begin != end; ++begin)   // parcourt de begin jusqu'à end (exclu)
+    {
+        std::cout &lt;&lt; *begin &lt;&lt; ' '; // déréférence la variable de boucle pour obtenir l'élément courant
+    }
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    constexpr int arr[]{ 9, 7, 5, 3, 1 };
+
+    const int* begin{ arr };                // begin pointe sur l'élément de début
+    const int* end{ arr + std::size(arr) }; // end pointe sur l'élément situé juste après la fin
+
+    printArray(begin, end);
+
+    return 0;
+}
+</code></pre>
+<p>Notez que ce programme se compile et produit le bon résultat, alors que nous ne passons jamais explicitement le tableau à la fonction ! Et comme nous ne passons pas <code>arr</code>, nous n'avons pas à gérer un tableau décru dans <code>printArray()</code>. À la place, <code>begin</code> et <code>end</code> contiennent toutes les informations nécessaires pour parcourir le tableau.</p>
+<p>Dans les leçons à venir (lorsque nous aborderons les itérateurs et les algorithmes), nous verrons que la bibliothèque standard regorge de fonctions qui utilisent une paire <code>begin</code> et <code>end</code> pour définir sur quels éléments d'un conteneur la fonction doit opérer.</p>
+<h2 id="les-boucles-basées-sur-une-plage-sur-les-tableaux-de-style-c-sont-implémentées-avec-larithmétique-des-pointeurs">Les boucles basées sur une plage sur les tableaux de style C sont implémentées avec l'arithmétique des pointeurs</h2>
+<p>Considérons la boucle basée sur une plage suivante :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr int arr[]{ 9, 7, 5, 3, 1 };
+
+    for (auto e : arr)         // parcourt de `begin` jusqu'à `end` (exclu)
+    {
+        std::cout &lt;&lt; e &lt;&lt; ' '; // déréférence la variable de boucle pour obtenir l'élément courant
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Si vous consultez la <a href="https://en.cppreference.com/w/cpp/language/range-for">documentation</a> des boucles basées sur une plage, vous verrez qu'elles sont généralement implémentées de la manière suivante :</p>
+<pre><code>
+{
+    auto __begin = begin-expr;
+    auto __end = end-expr;
+
+    for ( ; __begin != __end; ++__begin)
+    {
+        range-declaration = *__begin;
+        loop-statement;
+    }
+}
+</code></pre>
+<p>Remplaçons la boucle basée sur une plage de l'exemple précédent par cette implémentation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    constexpr int arr[]{ 9, 7, 5, 3, 1 };
+
+    auto __begin = arr;                // arr est notre begin-expr
+    auto __end = arr + std::size(arr); // arr + std::size(arr) est notre end-expr
+
+    for ( ; __begin != __end; ++__begin)
+    {
+        auto e = *__begin;         // e est notre range-declaration
+        std::cout &lt;&lt; e &lt;&lt; ' ';     // ici se trouve notre loop-statement
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Remarquez à quel point ceci ressemble à l'exemple de la section précédente ! La seule différence est que nous affectons <code>*__begin</code> à <code>e</code> et utilisons <code>e</code>, au lieu d'utiliser directement <code>*__begin</code> !</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>a) Pourquoi <code>arr[0]</code> est-il équivalent à <code>*arr</code> ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>arr[0]</code> est l'abréviation de <code>*((arr) + (0))</code>, ce qui équivaut à <code>*(arr + 0)</code>, qui vaut <code>*arr</code>.</p>
+</details>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous proposons d'autres questions de quiz sur l'arithmétique des pointeurs dans la prochaine leçon (<a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.10%20-%20Cha%C3%AEnes%20de%20caract%C3%A8res%20de%20style%20C.html">17.10 -- Chaînes de caractères de style C</a>).</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/pointer-arithmetic-and-subscripting/">https://www.learncpp.com/cpp-tutorial/pointer-arithmetic-and-subscripting/</a></em></p>
+</main>
+</body>
+</html>

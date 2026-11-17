@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15.10 — Qualificateurs de référence (ref-qualifiers)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1510-qualificateurs-de-référence-ref-qualifiers">15.10 — Qualificateurs de référence (ref-qualifiers)</h1>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Cette leçon est facultative. Nous vous recommandons de la parcourir rapidement pour vous familiariser avec le sujet, mais une compréhension complète n'est pas nécessaire pour suivre les prochaines leçons.</p>
+</div>
+<p>Dans la leçon <a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.7%20-%20Fonctions%20membres%20renvoyant%20des%20r%C3%A9f%C3%A9rences%20vers%20des%20membres%20de%20donn%C3%A9es.html">14.7 -- Fonctions membres renvoyant des références vers des membres de données</a>, nous avons vu que l'appel de fonctions d'accès renvoyant des références vers des membres de données peut être dangereux lorsque l'objet implicite est une rvalue. Voici un bref rappel :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name{};
+
+public:
+    Employee(std::string_view name): m_name { name } {}
+    const std::string&amp; getName() const { return m_name; } //  le getter renvoie une référence constante
+};
+
+// createEmployee() renvoie un Employee par valeur (la valeur renvoyée est donc une rvalue)
+Employee createEmployee(std::string_view name)
+{
+    Employee e { name };
+    return e;
+}
+
+int main()
+{
+    // Cas 1 : correct : utilisation de la référence renvoyée vers un membre d'un objet rvalue dans la même expression
+    std::cout &lt;&lt; createEmployee(&quot;Frank&quot;).getName() &lt;&lt; '\n';
+
+    // Cas 2 : incorrect : conservation de la référence renvoyée vers un membre d'un objet rvalue pour une utilisation ultérieure
+    const std::string&amp; ref { createEmployee(&quot;Garbo&quot;).getName() }; // la référence devient pendante lorsque la valeur renvoyée par createEmployee() est détruite
+    std::cout &lt;&lt; ref &lt;&lt; '\n'; // comportement indéfini
+
+    return 0;
+}
+</code></pre>
+<p>Dans le cas 2, l'objet rvalue renvoyé par <code>createEmployee("Garbo")</code> est détruit après l'initialisation de <code>ref</code>, ce qui laisse <code>ref</code> référencer un membre de données qui vient d'être détruit. Toute utilisation ultérieure de <code>ref</code> entraîne un comportement indéfini.</p>
+<p>Cela pose un véritable dilemme.</p>
+<ul>
+<li>Si notre fonction <code>getName()</code> renvoie par valeur, c'est sûr lorsque l'objet implicite est une rvalue, mais cela entraîne une copie coûteuse et inutile lorsque l'objet implicite est une lvalue (ce qui est le cas le plus courant).</li>
+<li>Si notre fonction <code>getName()</code> renvoie par référence constante, c'est efficace (aucune copie de <code>std::string</code> n'est réalisée), mais elle peut être mal utilisée lorsque l'objet implicite est une rvalue (ce qui entraîne un comportement indéfini).</li>
+</ul>
+<p>Les fonctions membres étant généralement appelées sur des objets implicites lvalues, le choix conventionnel consiste à renvoyer une référence constante, et simplement à éviter de mal utiliser la référence renvoyée lorsque l'objet implicite est une rvalue.</p>
+<h2 id="qualificateurs-de-référence-ref-qualifiers">Qualificateurs de référence (ref-qualifiers)</h2>
+<p>La racine du problème illustré ci-dessus est que nous voulons qu'une seule fonction serve deux cas différents (celui où l'objet implicite est une lvalue, et celui où il est une rvalue). Ce qui est optimal pour un cas ne l'est pas pour l'autre.</p>
+<p>Pour résoudre ce genre de situation, le C++11 a introduit une fonctionnalité peu connue, appelée <strong>qualificateur de référence</strong> (ref-qualifier), qui permet de surcharger une fonction membre selon que l'appel porte sur un objet implicite lvalue ou rvalue. Grâce à cette fonctionnalité, nous pouvons créer deux versions de <code>getName()</code> : l'une pour le cas où l'objet implicite est une lvalue, et l'autre pour le cas où il est une rvalue.</p>
+<p>Commençons par notre version de <code>getName()</code> sans qualificateur de référence :</p>
+<pre><code class="language-cpp">const std::string&amp; getName() const { return m_name; } // appelable avec des objets implicites lvalue et rvalue
+</code></pre>
+<p>Pour qualifier cette fonction par référence, nous ajoutons le qualificateur <code>&amp;</code> à la surcharge qui ne correspondra qu'aux objets implicites lvalue, et le qualificateur <code>&amp;&amp;</code> à la surcharge qui ne correspondra qu'aux objets implicites rvalue :</p>
+<pre><code class="language-cpp">const std::string&amp; getName() const &amp;  { return m_name; } //  le qualificateur &amp; limite la fonction aux objets implicites lvalue, renvoie par référence
+std::string        getName() const &amp;&amp; { return m_name; } // le qualificateur &amp;&amp; limite la fonction aux objets implicites rvalue, renvoie par valeur
+</code></pre>
+<p>Ces fonctions étant des surcharges distinctes, elles peuvent avoir des types de retour différents ! La surcharge qualifiée par lvalue renvoie une référence constante, tandis que la surcharge qualifiée par rvalue renvoie une valeur.</p>
+<p>Voici un exemple complet :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Employee
+{
+private:
+    std::string m_name{};
+
+public:
+    Employee(std::string_view name): m_name { name } {}
+
+    const std::string&amp; getName() const &amp;  { return m_name; } //  le qualificateur &amp; limite la fonction aux objets implicites lvalue
+    std::string        getName() const &amp;&amp; { return m_name; } // le qualificateur &amp;&amp; limite la fonction aux objets implicites rvalue
+};
+
+// createEmployee() renvoie un Employee par valeur (la valeur renvoyée est donc une rvalue)
+Employee createEmployee(std::string_view name)
+{
+    Employee e { name };
+    return e;
+}
+
+int main()
+{
+    Employee joe { &quot;Joe&quot; };
+    std::cout &lt;&lt; joe.getName() &lt;&lt; '\n'; // joe est une lvalue, donc cet appel invoque std::string&amp; getName() &amp; (renvoie une référence)
+
+    std::cout &lt;&lt; createEmployee(&quot;Frank&quot;).getName() &lt;&lt; '\n'; // Frank est une rvalue, donc cet appel invoque std::string getName() &amp;&amp; (produit une copie)
+
+    return 0;
+}
+</code></pre>
+<p>Cela nous permet de faire la chose performante lorsque l'objet implicite est une lvalue, et la chose sûre lorsqu'il est une rvalue.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>La surcharge rvalue de <code>getName()</code> ci-dessus peut être sous-optimale en termes de performance lorsque l'objet implicite est un temporaire non constant. Dans ce cas, l'objet implicite va de toute façon être détruit à la fin de l'expression. Plutôt que de faire renvoyer au getter rvalue une copie (potentiellement coûteuse) du membre, nous pouvons lui faire essayer de déplacer le membre (à l'aide de <code>std::move</code>).</p>
+<p>Cela se fait en ajoutant la surcharge suivante du getter pour les rvalues non constantes :</p>
+<pre><code class="language-cpp">        // Si l'objet implicite est une rvalue non constante, utiliser std::move pour tenter de déplacer m_name
+    std::string getName() &amp;&amp; { return std::move(m_name); }
+</code></pre>
+<p>Cette version peut coexister avec le getter rvalue constant, ou vous pouvez simplement la remplacer par celle-ci (les rvalues constantes étant assez rares).</p>
+<p>Nous abordons <code>std::move</code> dans la leçon <a href="../24%20-%20Chapitre%2022%20-%20S%C3%A9mantique%20de%20d%C3%A9placement%20et%20pointeurs%20intelligents/22.4%20-%20std--move.html">22.4 -- std::move</a>.</p>
+</div>
+<h2 id="quelques-remarques-sur-les-fonctions-membres-qualifiées-par-référence">Quelques remarques sur les fonctions membres qualifiées par référence</h2>
+<p>Tout d'abord, pour une fonction donnée, les surcharges non qualifiées par référence et les surcharges qualifiées par référence ne peuvent pas coexister. Utilisez l'une ou l'autre.</p>
+<p>Ensuite, à l'image de la façon dont une référence constante sur lvalue peut se lier à une rvalue, si seule une fonction qualifiée par lvalue constante existe, elle acceptera aussi bien les objets implicites lvalue que rvalue.</p>
+<p>Enfin, l'une ou l'autre des surcharges qualifiées peut être explicitement supprimée (à l'aide de <code>= delete</code>), ce qui interdit d'appeler cette fonction. Par exemple, supprimer la version qualifiée par rvalue empêche d'utiliser la fonction avec des objets implicites rvalue.</p>
+<h2 id="pourquoi-ne-recommandons-nous-pas-dutiliser-les-qualificateurs-de-référence">Pourquoi ne recommandons-nous pas d'utiliser les qualificateurs de référence ?</h2>
+<p>Si les qualificateurs de référence sont intéressants, leur utilisation de cette manière présente quelques inconvénients.</p>
+<ul>
+<li>Ajouter une surcharge rvalue à chaque getter renvoyant une référence encombre la classe, pour se prémunir contre un cas peu fréquent et facilement évitable avec de bonnes habitudes.</li>
+<li>Une surcharge rvalue qui renvoie par valeur nous oblige à payer le coût d'une copie (ou d'un déplacement) même dans les cas où nous aurions pu utiliser une référence en toute sécurité (par exemple dans le cas 1 de l'exemple du début de la leçon).</li>
+</ul>
+<p>De plus :</p>
+<ul>
+<li>La plupart des développeurs C++ ne connaissent pas cette fonctionnalité (ce qui peut entraîner des erreurs ou des inefficacités à l'utilisation).</li>
+<li>La bibliothèque standard n'utilise généralement pas cette fonctionnalité.</li>
+</ul>
+<p>Pour toutes ces raisons, nous ne recommandons pas l'utilisation des qualificateurs de référence comme bonne pratique. Nous recommandons plutôt de toujours utiliser immédiatement le résultat d'une fonction d'accès, sans conserver les références renvoyées pour une utilisation ultérieure.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/ref-qualifiers/">https://www.learncpp.com/cpp-tutorial/ref-qualifiers/</a></em></p>
+</main>
+</body>
+</html>

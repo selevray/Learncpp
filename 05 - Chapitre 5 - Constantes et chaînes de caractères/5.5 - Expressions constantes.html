@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5.5 — Expressions constantes</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="55-expressions-constantes">5.5 — Expressions constantes</h1>
+<p>Dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.10%20-%20Introduction%20aux%20expressions.html">1.10 -- Introduction aux expressions</a>, nous avons présenté les expressions. Par défaut, les expressions sont évaluées à l'exécution. Dans certains cas, elles doivent l'être :</p>
+<pre><code class="language-cpp">std::cin &gt;&gt; x;
+std::cout &lt;&lt; 5 &lt;&lt; '\n';
+</code></pre>
+<p>Comme les entrées et sorties ne peuvent pas être réalisées à la compilation, les expressions ci-dessus doivent obligatoirement être évaluées à l'exécution.</p>
+<p>Dans la leçon précédente <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.4%20-%20La%20r%C3%A8gle%20du%20as-if%20et%20l%27optimisation%20%C3%A0%20la%20compilation.html">5.4 -- La règle du as-if et l'optimisation à la compilation</a>, nous avons abordé la règle du as-if et la manière dont le compilateur peut optimiser un programme en déplaçant du travail de l'exécution vers la compilation. En vertu de cette règle, le compilateur peut choisir d'évaluer certaines expressions à l'exécution ou à la compilation :</p>
+<pre><code class="language-cpp">const double x { 1.2 };
+const double y { 3.4 };
+const double z { x + y }; // x + y peut être évaluée à l'exécution ou à la compilation
+</code></pre>
+<p>L'expression <code>x + y</code> serait normalement évaluée à l'exécution. Mais comme les valeurs de <code>x</code> et <code>y</code> sont connues à la compilation, le compilateur peut choisir de l'évaluer à la compilation et d'initialiser <code>z</code> avec la valeur calculée à la compilation, <code>4.6</code>.</p>
+<p>Dans quelques autres cas, le langage C++ exige une expression évaluable à la compilation. Par exemple, une variable constexpr exige un initialisateur évaluable à la compilation :</p>
+<pre><code class="language-cpp">int main()
+{
+    constexpr int x { expr }; // Comme la variable x est constexpr, expr doit être évaluable à la compilation
+}
+</code></pre>
+<p>Lorsqu'une expression constante est requise mais qu'aucune n'est fournie, le compilateur signale une erreur et interrompt la compilation.</p>
+<p>Nous étudierons les variables constexpr dans la leçon suivante (<a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.6%20-%20Variables%20constexpr.html">5.6 -- Variables constexpr</a>).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Quelques cas courants où une expression évaluable à la compilation est requise :</p>
+<ul>
+<li>L'initialisateur d'une variable constexpr (<a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.6%20-%20Variables%20constexpr.html">5.6 -- Variables constexpr</a>).</li>
+<li>Un argument de paramètre template non typé (<a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.9%20-%20Param%C3%A8tres%20de%20mod%C3%A8le%20non-type.html">11.9 -- Paramètres template non typés</a>).</li>
+<li>La taille déclarée d'un <code>std::array</code> (<a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.1%20-%20Introduction%20%C3%A0%20%60std--array%60.html">17.1 -- Introduction à std::array</a>) ou d'un tableau de style C (<a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.7%20-%20Introduction%20aux%20tableaux%20de%20style%20C.html">17.7 -- Introduction aux tableaux de style C</a>).</li>
+</ul>
+</div>
+<p>Dans cette leçon, nous allons explorer davantage les capacités de C++ en matière d'évaluation à la compilation, et voir comment C++ distingue ce dernier cas des deux précédents.</p>
+<h2 id="les-avantages-de-la-programmation-à-la-compilation">Les avantages de la programmation à la compilation</h2>
+<p>Si la règle du as-if est excellente pour améliorer les performances, elle nous laisse dépendants de la sophistication du compilateur pour déterminer ce qui peut être évalué à la compilation. Ainsi, si une portion de code doit impérativement s'exécuter à la compilation, ce n'est pas garanti. Ce même code, compilé sur une autre plateforme, avec un autre compilateur, avec d'autres options de compilation, ou légèrement modifié, peut produire un résultat différent. Comme la règle du as-if s'applique de manière invisible, le compilateur ne nous indique pas quelles parties du code il a décidé d'évaluer à la compilation, ni pourquoi. Un code que nous souhaitons évaluer à la compilation peut même ne pas en être éligible (à cause d'une coquille ou d'un malentendu), sans que nous le sachions jamais.</p>
+<p>Pour améliorer cette situation, le langage C++ nous permet d'indiquer explicitement les parties de code que nous voulons exécuter à la compilation. L'utilisation de fonctionnalités du langage qui entraînent une évaluation à la compilation s'appelle <strong>programmation à la compilation</strong> (compile-time programming).</p>
+<p>Ces fonctionnalités peuvent améliorer les logiciels dans plusieurs domaines :</p>
+<ul>
+<li>Performance : l'évaluation à la compilation rend nos programmes plus petits et plus rapides. Plus nous pouvons garantir qu'un code est évaluable à la compilation, plus le gain de performance est important.</li>
+<li>Polyvalence : nous pouvons toujours utiliser un tel code aux endroits qui exigent une valeur de compilation. Un code qui repose sur la règle du as-if pour être évalué à la compilation ne peut pas être utilisé à ces endroits (même si le compilateur choisit de l'évaluer à la compilation). Cette décision a été prise pour que le code qui compile aujourd'hui ne cesse pas de compiler demain, lorsque le compilateur décidera d'optimiser différemment.</li>
+<li>Prévisibilité : nous pouvons demander au compilateur d'interrompre la compilation s'il juge qu'un code ne peut pas être exécuté à la compilation (au lieu d'opter silencieusement pour une évaluation à l'exécution). Cela nous permet de nous assurer qu'une portion de code que nous voulons vraiment exécuter à la compilation le sera.</li>
+<li>Qualité : nous pouvons demander au compilateur de détecter de manière fiable certains types d'erreurs de programmation à la compilation, et d'interrompre la construction s'il en rencontre. C'est bien plus efficace que de tenter de détecter et de gérer proprement ces mêmes erreurs à l'exécution.</li>
+<li>Qualité : et c'est peut-être le plus important, le comportement indéfini n'est pas autorisé à la compilation. Si nous faisons quelque chose qui provoque un comportement indéfini à la compilation, le compilateur doit interrompre la construction et nous demander de corriger le problème. Notez que c'est un problème difficile pour les compilateurs, qui peuvent ne pas détecter tous les cas.</li>
+</ul>
+<p>En résumé, l'évaluation à la compilation nous permet d'écrire des programmes à la fois plus performants et de meilleure qualité (plus sûrs et comportant moins de bogues) ! Ainsi, même si l'évaluation à la compilation ajoute un peu de complexité au langage, ses bénéfices peuvent être substantiels.</p>
+<p>Les fonctionnalités de C++ suivantes sont les plus fondamentales pour la programmation à la compilation :</p>
+<ul>
+<li>Les variables constexpr (abordées dans la prochaine leçon, <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.6%20-%20Variables%20constexpr.html">5.6 -- Variables constexpr</a>).</li>
+<li>Les fonctions constexpr (abordées dans la leçon <a href="../13%20-%20Chapitre%20F%20-%20Fonctions%20constexpr/F.1%20-%20Fonctions%20constexpr.html">F.1 -- Fonctions constexpr</a>).</li>
+<li>Les templates (présentés dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.6%20-%20Templates%20de%20fonctions.html">11.6 -- Templates de fonctions</a>).</li>
+<li>static_assert (abordé dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.6%20-%20Assert%20et%20static_assert.html">9.6 -- Assert et static_assert</a>).</li>
+</ul>
+<p>Toutes ces fonctionnalités ont un point commun : elles utilisent des expressions constantes.</p>
+<h2 id="les-expressions-constantes">Les expressions constantes</h2>
+<p>Il est peut-être surprenant que la norme C++ mentionne à peine la « compilation ». Elle définit plutôt une « expression constante », c'est-à-dire une expression qui doit pouvoir être évaluée à la compilation, ainsi que des règles déterminant comment le compilateur doit traiter ces expressions. Les expressions constantes forment l'ossature de l'évaluation à la compilation en C++.</p>
+<p>Dans la leçon <a href="../01%20-%20Chapitre%201%20-%20Les%20bases%20du%20C%2B%2B/1.10%20-%20Introduction%20aux%20expressions.html">1.10 -- Introduction aux expressions</a>, nous avons défini une expression comme « une séquence non vide de littéraux, de variables, d'opérateurs et d'appels de fonctions ». Une <strong>expression constante</strong> (constant expression) est une séquence non vide de littéraux, de variables constantes, d'opérateurs et d'appels de fonctions, dont chaque élément doit pouvoir être évalué à la compilation. La différence essentielle est que, dans une expression constante, chaque partie de l'expression doit être évaluable à la compilation.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Dans une expression constante, chaque partie de l'expression doit être évaluable à la compilation.</p>
+</div>
+<p>Une expression qui n'est pas une expression constante est souvent appelée expression non constante, et peut être informellement nommée <strong>expression d'exécution</strong> (runtime expression), car ces expressions sont généralement évaluées à l'exécution.</p>
+<div class="callout quote"><p class="callout-title">Lecture facultative</p>
+<p>La norme C++20 (à la section [expr.const]) indique que « les expressions constantes peuvent être évaluées pendant la traduction ». Comme nous l'avons vu dans la leçon <a href="../02%20-%20Chapitre%202%20-%20Les%20bases%20du%20C%2B%2B%20-%20fonctions%20et%20fichiers/2.10%20-%20Introduction%20au%20pr%C3%A9processeur.html">2.10 -- Introduction au préprocesseur</a>, la traduction désigne l'ensemble du processus de construction d'un programme (qui comprend le prétraitement, la compilation et l'édition de liens). Ainsi, dans un programme compilé, les expressions constantes peuvent être évaluées dans le cadre du processus de compilation. Dans un programme interprété, la traduction a lieu à l'exécution.</p>
+<p>Comme les programmes C++ sont généralement compilés, nous partirons du principe que les expressions constantes peuvent être évaluées à la compilation.</p>
+</div>
+<h2 id="que-peut-contenir-une-expression-constante">Que peut contenir une expression constante ?</h2>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Sur le plan technique, les expressions constantes sont assez complexes. Dans cette section, nous allons approfondir un peu ce qu'elles peuvent et ne peuvent pas contenir. Vous n'avez pas besoin de retenir la plupart de ces détails. Si une expression constante est requise à un endroit et que vous n'en fournissez pas, le compilateur vous signalera volontiers votre erreur, et vous pourrez la corriger à ce moment-là.</p>
+</div>
+<p>Le plus souvent, les expressions constantes contiennent les éléments suivants :</p>
+<ul>
+<li>Des littéraux (par exemple <code>'5'</code>, <code>1.2</code>)</li>
+<li>La plupart des opérateurs dont les opérandes sont des expressions constantes (par exemple <code>3 + 4</code>, <code>2 * sizeof(int)</code>).</li>
+<li>Des variables constantes de type entier avec un initialisateur qui est une expression constante (par exemple <code>const int x { 5 };</code>). C'est une exception historique : en C++ moderne, on préfère les variables constexpr.</li>
+<li>Des variables constexpr (abordées dans la prochaine leçon, <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.6%20-%20Variables%20constexpr.html">5.6 -- Variables constexpr</a>).</li>
+<li>Des appels de fonctions constexpr dont les arguments sont des expressions constantes (voir <a href="../13%20-%20Chapitre%20F%20-%20Fonctions%20constexpr/F.1%20-%20Fonctions%20constexpr.html">F.1 -- Fonctions constexpr</a>).</li>
+</ul>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les expressions constantes peuvent aussi contenir :</p>
+<ul>
+<li>Des paramètres template non typés (voir <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.9%20-%20Param%C3%A8tres%20de%20mod%C3%A8le%20non-type.html">11.9 -- Paramètres template non typés</a>).</li>
+<li>Des énumérateurs (voir <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.2%20-%20%C3%89num%C3%A9rations%20non%20d%C3%A9limit%C3%A9es.html">13.2 -- Énumérations non délimitées</a>).</li>
+<li>Des traits de type (voir la <a href="https://en.cppreference.com/w/cpp/header/type_traits">page cppreference sur les traits de type</a>).</li>
+<li>Des expressions lambda constexpr (voir <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.6%20-%20Introduction%20aux%20lambdas%20%28fonctions%20anonymes%29.html">20.6 -- Introduction aux lambdas (fonctions anonymes)</a>).</li>
+</ul>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Notamment, les éléments suivants ne peuvent pas être utilisés dans une expression constante :</p>
+<ul>
+<li>Les variables non constantes.</li>
+<li>Les variables constantes non entières, même lorsqu'elles ont un initialisateur qui est une expression constante (par exemple <code>const double d { 1.2 };</code>). Pour utiliser de telles variables dans une expression constante, définissez-les plutôt comme des variables constexpr (voir la leçon <a href="../05%20-%20Chapitre%205%20-%20Constantes%20et%20cha%C3%AEnes%20de%20caract%C3%A8res/5.6%20-%20Variables%20constexpr.html">5.6 -- Variables constexpr</a>).</li>
+<li>Les valeurs de retour des fonctions non constexpr (même lorsque l'expression de retour est une expression constante).</li>
+<li>Les paramètres de fonction (même lorsque la fonction est constexpr).</li>
+<li>Les opérateurs dont les opérandes ne sont pas des expressions constantes (par exemple <code>x + y</code> lorsque <code>x</code> ou <code>y</code> n'est pas une expression constante, ou <code>std::cout &lt;&lt; "hello\n"</code> car <code>std::cout</code> n'est pas une expression constante).</li>
+<li>Les opérateurs <code>new</code>, <code>delete</code>, <code>throw</code>, <code>typeid</code> et <code>operator,</code> (virgule).</li>
+</ul>
+<p>Une expression contenant l'un des éléments ci-dessus est une expression d'exécution.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Pour aller plus loin</p>
+<p>Pour la définition précise d'une expression constante, consultez la <a href="https://en.cppreference.com/w/cpp/language/constant_expression">page cppreference sur les expressions constantes</a>. Notez qu'une expression constante est définie par ce qu'elle n'est pas. Il nous faut donc deviner ce qu'elle est. Bonne chance !</p>
+</div>
+<div class="callout quote"><p class="callout-title">Terminologie</p>
+<p>Lorsqu'on parle d'expressions constantes, on utilise couramment l'une de ces deux formulations :</p>
+<ul>
+<li>« X est utilisable dans une expression constante » est souvent employé pour insister sur ce qu'est X. Par exemple, « <code>5</code> est utilisable dans une expression constante » souligne que le littéral <code>5</code> peut figurer dans une expression constante.</li>
+<li>« X est une expression constante » est parfois employé pour insister sur le fait que l'expression complète (constituée de X) est une expression constante. Par exemple, « <code>5</code> est une expression constante » souligne que l'expression <code>5</code> est une expression constante.</li>
+</ul>
+<p>La seconde formulation peut sembler maladroite lorsqu'on dit « les littéraux sont des expressions constantes » (car ce sont en réalité des valeurs). Mais cela signifie simplement qu'une expression constituée d'un littéral est une expression constante.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Lorsque les expressions constantes ont été définies, les types entiers <code>const</code> ont été admis par tolérance, car le langage les traitait déjà comme des expressions constantes.</p>
+<p>Le comité a discuté de la question de savoir si les types <code>const</code> non entiers, avec un initialisateur qui est une expression constante, devaient également être traités comme des expressions constantes (par cohérence avec le cas des types entiers <code>const</code>). Finalement, il a décidé que non, afin de favoriser un usage plus cohérent de <code>constexpr</code>.</p>
+</div>
+<h2 id="exemples-dexpressions-constantes-et-non-constantes">Exemples d'expressions constantes et non constantes</h2>
+<p>Dans le programme suivant, nous examinons quelques instructions d'expression et indiquons si chaque expression est une expression constante ou une expression d'exécution :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int getNumber()
+{
+    std::cout &lt;&lt; &quot;Enter a number: &quot;;
+    int y{};
+    std::cin &gt;&gt; y; // ne peut s'exécuter qu'à l'exécution
+
+    return y;      // cette expression de retour est une expression d'exécution
+}
+
+// La valeur de retour d'une fonction non constexpr est une expression d'exécution
+// même lorsque l'expression de retour est une expression constante
+int five()
+{
+    return 5;      // cette expression de retour est une expression constante
+}
+
+int main()
+{
+    // Les littéraux peuvent être utilisés dans les expressions constantes
+    5;                           // expression constante
+    1.2;                         // expression constante
+    &quot;Hello world!&quot;;              // expression constante
+
+    // La plupart des opérateurs dont les opérandes sont des expressions constantes peuvent être utilisés dans les expressions constantes
+    5 + 6;                       // expression constante
+    1.2 * 3.4;                   // expression constante
+    8 - 5.6;                     // expression constante (même si les opérandes ont des types différents)
+    sizeof(int) + 1;             // expression constante (sizeof peut être déterminé à la compilation)
+
+    // Les valeurs de retour des fonctions non constexpr ne peuvent être utilisées que dans des expressions d'exécution
+    getNumber();                 // expression d'exécution
+    five();                      // expression d'exécution (même si l'expression de retour est une expression constante)
+
+    // Les opérateurs dont les opérandes ne sont pas des expressions constantes ne peuvent être utilisés que dans des expressions d'exécution
+    std::cout &lt;&lt; 5;              // expression d'exécution (std::cout n'est pas un opérande d'expression constante)
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'extrait suivant, nous définissons plusieurs variables et indiquons si elles peuvent être utilisées dans des expressions constantes :</p>
+<pre><code class="language-cpp">    // Les variables constantes de type entier avec un initialisateur qui est une expression constante peuvent être utilisées dans les expressions constantes :
+    const int a { 5 };           // a est utilisable dans les expressions constantes
+    const int b { a };           // b est utilisable dans les expressions constantes (a est une expression constante, d'après l'instruction précédente)
+    const long c { a + 2 };      // c est utilisable dans les expressions constantes (operator+ a des opérandes qui sont des expressions constantes)
+
+    // Les autres variables ne peuvent pas être utilisées dans les expressions constantes (même lorsqu'elles ont un initialisateur qui est une expression constante) :
+    int d { 5 };                 // d n'est pas utilisable dans les expressions constantes (d n'est pas const)
+    const int e { d };           // e n'est pas utilisable dans les expressions constantes (l'initialisateur n'est pas une expression constante)
+    const double f { 1.2 };      // f n'est pas utilisable dans les expressions constantes (ce n'est pas une variable constante de type entier)
+</code></pre>
+<h2 id="quand-les-expressions-constantes-sont-elles-évaluées-à-la-compilation">Quand les expressions constantes sont-elles évaluées à la compilation ?</h2>
+<p>Comme les expressions constantes peuvent toujours être évaluées à la compilation, on pourrait supposer qu'elles le seront toujours. Contre toute intuition, ce n'est pas le cas.</p>
+<p>Le compilateur n'est <em>tenu</em> d'évaluer les expressions constantes à la compilation que dans les contextes qui <em>exigent</em> une expression constante.</p>
+<div class="callout quote"><p class="callout-title">Terminologie</p>
+<p>Le terme technique désignant une expression qui doit être évaluée à la compilation est <strong>expression évaluée manifestement à la compilation</strong> (manifestly constant-evaluated expression). Vous ne rencontrerez probablement ce terme que dans la documentation technique.</p>
+</div>
+<p>Dans les contextes qui n'exigent pas d'expression constante, le compilateur peut choisir d'évaluer une expression constante à la compilation ou à l'exécution.</p>
+<pre><code class="language-cpp">const int x { 3 + 4 }; // l'expression constante 3 + 4 doit être évaluée à la compilation
+int y { 3 + 4 };       // l'expression constante 3 + 4 peut être évaluée à la compilation ou à l'exécution
+</code></pre>
+<p>La variable <code>x</code> est de type <code>const int</code> et possède un initialisateur qui est une expression constante : <code>x</code> est donc utilisable dans une expression constante. Son initialisateur doit être évalué à la compilation (sinon la valeur de <code>x</code> ne serait pas connue à la compilation, et <code>x</code> ne serait pas utilisable dans une expression constante). En revanche, la variable <code>y</code> n'est pas constante, donc elle n'est pas utilisable dans une expression constante. Même si son initialisateur est une expression constante, le compilateur peut décider de l'évaluer à la compilation ou à l'exécution.</p>
+<p>Même lorsqu'il n'y est pas tenu, un compilateur moderne évaluera <em>généralement</em> une expression constante à la compilation lorsque les optimisations sont activées.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Le compilateur n'est <em>tenu</em> d'évaluer les expressions constantes à la compilation que dans les contextes qui <em>exigent</em> une expression constante. Dans les autres cas, il peut le faire ou non.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>La probabilité qu'une expression soit entièrement évaluée à la compilation peut être classée comme suit :</p>
+<ul>
+<li>Jamais : une expression non constante dont le compilateur ne peut pas déterminer toutes les valeurs à la compilation.</li>
+<li>Éventuellement : une expression non constante dont le compilateur peut déterminer toutes les valeurs à la compilation (optimisée selon la règle du as-if).</li>
+<li>Probablement : une expression constante utilisée dans un contexte qui n'exige pas d'expression constante.</li>
+<li>Toujours : une expression constante utilisée dans un contexte qui exige une expression constante.</li>
+</ul>
+</div>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Pourquoi C++ n'exige-t-il pas que toutes les expressions constantes soient évaluées à la compilation ? Il existe au moins deux bonnes raisons :</p>
+<ol>
+<li>L'évaluation à la compilation rend le débogage plus difficile. Si notre code contient un calcul bogué évalué à la compilation, nous disposons de peu d'outils pour diagnostiquer le problème. Autoriser l'évaluation à l'exécution des expressions constantes qui n'y sont pas tenues (généralement lorsque les optimisations sont désactivées) permet de déboguer notre code à l'exécution. Pouvoir parcourir pas à pas et inspecter l'état de nos programmes pendant leur exécution peut rendre la recherche de bogues plus simple.</li>
+<li>Donner au compilateur la liberté d'optimiser comme il l'entend (ou selon les options du compilateur). Par exemple, un compilateur pourrait proposer une option qui reporte à l'exécution toute évaluation d'expression constante non exigée, afin de réduire les temps de compilation pour les développeurs.</li>
+</ol>
+</div>
+<h2 id="pourquoi-les-expressions-de-compilation-doivent-elles-être-constantes-facultatif">Pourquoi les expressions de compilation doivent-elles être constantes <em>(Facultatif)</em></h2>
+<p>Vous vous demandez peut-être pourquoi les expressions de compilation ne peuvent contenir que des objets constants (ainsi que des opérateurs et des fonctions qui peuvent être évalués à la compilation en constantes).</p>
+<p>Considérons le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int x { 5 };
+    // x est connu du compilateur à ce stade
+
+    std::cin &gt;&gt; x; // lit la valeur de x saisie par l'utilisateur
+    // x n'est plus connu du compilateur
+
+    return 0;
+}
+</code></pre>
+<p>Au départ, <code>x</code> est initialisé avec la valeur <code>5</code>. La valeur de <code>x</code> est connue du compilateur à ce stade. Mais ensuite, <code>x</code> reçoit une valeur saisie par l'utilisateur. Le compilateur ne peut pas savoir, à la compilation, quelle valeur l'utilisateur fournira. Au-delà de ce point, la valeur de <code>x</code> n'est donc plus connue du compilateur. L'expression <code>x</code> n'est donc pas toujours évaluable à la compilation, ce qui viole l'exigence selon laquelle une telle expression doit toujours pouvoir être évaluée à la compilation.</p>
+<p>Comme les constantes ne peuvent pas voir leur valeur modifiée, une variable constante dont l'initialisateur est évaluable à la compilation aura toujours une valeur connue à la compilation. Cela simplifie les choses.</p>
+<p>Les concepteurs du langage auraient pu définir une expression de compilation comme une expression dont toutes les valeurs sont connues <em>actuellement</em> à la compilation (plutôt que comme une expression qui doit toujours pouvoir être évaluée à la compilation). Mais cela aurait considérablement complexifié le compilateur, qui aurait alors dû déterminer à chaque instant quelles variables pourraient prendre une valeur inconnue à la compilation. Ajouter une seule ligne de code (comme <code>std::cin &gt;&gt; x</code>) pourrait casser le programme ailleurs (si <code>x</code> était utilisée dans un contexte exigeant une valeur connue à la compilation).</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Pour chaque instruction, indiquez :</p>
+<ul>
+<li>si l'initialisateur est une expression constante ou non constante ;</li>
+<li>si la variable est une expression constante ou non constante.</li>
+</ul>
+<p>a)</p>
+<pre><code class="language-cpp">    char a { 'q' };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>'q'</code> est une expression constante, car c'est un littéral.<br />
+<code>a</code> est une expression non constante, car elle n'est pas définie comme const.</p>
+</details>
+<p>b)</p>
+<pre><code class="language-cpp">    const int b { 0 };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>0</code> est une expression constante, car c'est un littéral.<br />
+<code>b</code> est une expression constante, car c'est un type entier <code>const</code> avec un initialisateur qui est une expression constante.</p>
+</details>
+<p>c)</p>
+<pre><code class="language-cpp">    const double c { 5.0 };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>5.0</code> est une expression constante, car c'est un littéral.<br />
+<code>c</code> est une expression non constante, car elle est définie comme <code>const</code> mais n'est pas de type entier.</p>
+<p>Selon la définition d'une constante de compilation, seules les variables <code>const</code> de type <em>entier</em> avec un initialisateur qui est une expression constante sont des constantes de compilation. <code>c</code> est un double, qui n'est pas un type entier : elle ne répond donc pas à cette définition.</p>
+</details>
+<p>d)</p>
+<pre><code class="language-cpp">    const int d { a * 2 }; // a définie comme char a { 'q' };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>a</code> n'est pas une expression constante, donc <code>a * 2</code> est une expression non constante.<br />
+<code>d</code> est une expression non constante, car son initialisateur n'est pas une expression constante.</p>
+</details>
+<p>e)</p>
+<pre><code class="language-cpp">    int e { c + 1.0 }; // c définie comme const double c { 5.0 };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>c</code> est une expression non constante, donc <code>c + 1.0</code> est une expression non constante.<br />
+<code>e</code> est une expression non constante, car elle n'est pas définie comme <code>const</code> et n'a pas d'initialisateur qui est une expression constante.</p>
+</details>
+<p>f)</p>
+<pre><code class="language-cpp">    const int f { d * 2 }; // d définie comme const int d { 0 };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>d</code> et <code>2</code> sont des expressions constantes, donc <code>d * 2</code> est une expression constante.<br />
+<code>f</code> est une expression constante, car c'est un type entier <code>const</code> avec un initialisateur qui est une expression constante.</p>
+</details>
+<p>g)</p>
+<pre><code class="language-cpp">    const int g { getNumber() }; // getNumber renvoie un int par valeur
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>getNumber()</code> renvoie une valeur non constante, c'est donc une expression non constante.<br />
+<code>g</code> est une expression non constante, car son initialisateur est une expression non constante.</p>
+</details>
+<p>h)<br />
+Bonus :</p>
+<pre><code class="language-cpp">    const int h{};
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p><code>{}</code> déclenche l'initialisation par valeur. Il n'y a pas d'initialisateur explicite ici.<br />
+<code>h</code> est une expression constante, car c'est un type entier <code>const</code> avec un initialisateur qui est une expression constante (l'initialisation par valeur donne à <code>h</code> la valeur <code>0</code>, qui est une expression constante).</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/constant-expressions/">https://www.learncpp.com/cpp-tutorial/constant-expressions/</a></em></p>
+</main>
+</body>
+</html>

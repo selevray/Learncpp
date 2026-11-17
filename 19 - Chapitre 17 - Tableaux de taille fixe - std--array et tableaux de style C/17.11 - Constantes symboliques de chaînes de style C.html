@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>17.11 — Constantes symboliques de chaînes de style C</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1711-constantes-symboliques-de-chaînes-de-style-c">17.11 — Constantes symboliques de chaînes de style C</h1>
+<p>Dans la leçon précédente (<a href="../19%20-%20Chapitre%2017%20-%20Tableaux%20de%20taille%20fixe%20-%20std--array%20et%20tableaux%20de%20style%20C/17.10%20-%20Cha%C3%AEnes%20de%20caract%C3%A8res%20de%20style%20C.html">17.10 -- Chaînes de style C</a>), nous avons vu comment créer et initialiser des objets chaînes de style C :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    char name[]{ &quot;Alex&quot; }; // chaîne de style C
+    std::cout &lt;&lt; name &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>C++ prend en charge deux manières différentes de créer des constantes symboliques de chaînes de style C :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const char name[] { &quot;Alex&quot; };        // cas 1 : chaîne de style C constante initialisée avec un littéral de chaîne de style C
+    const char* const color{ &quot;Orange&quot; }; // cas 2 : pointeur constant vers un littéral de chaîne de style C
+
+    std::cout &lt;&lt; name &lt;&lt; ' ' &lt;&lt; color &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+Alex Orange
+</code></pre>
+<p>Bien que ces deux méthodes produisent le même résultat, C++ gère l'allocation mémoire de ces deux cas un peu différemment.</p>
+<p>Dans le cas 1, « Alex » est placé quelque part en mémoire (probablement en lecture seule). Ensuite, le programme alloue un tableau de style C de longueur 5 (quatre caractères explicites plus le caractère de fin de chaîne nul) et initialise cette mémoire avec la chaîne « Alex ». Nous nous retrouvons donc avec 2 copies de « Alex » : une dans la mémoire globale, et l'autre appartenant à <code>name</code>. Comme <code>name</code> est constant (et ne sera jamais modifié), faire une copie est inefficace.</p>
+<p>Dans le cas 2, la façon dont le compilateur procède dépend de l'implémentation. Ce qui se passe <em>généralement</em> est que le compilateur place la chaîne « Orange » en mémoire en lecture seule, puis initialise le pointeur avec l'adresse de cette chaîne.</p>
+<p>À des fins d'optimisation, plusieurs littéraux de chaînes peuvent être regroupés en une seule valeur. Par exemple :</p>
+<pre><code class="language-cpp">const char* name1{ &quot;Alex&quot; };
+const char* name2{ &quot;Alex&quot; };
+</code></pre>
+<p>Ce sont deux littéraux de chaînes différents ayant la même valeur. Comme ces littéraux sont constants, le compilateur peut choisir d'économiser de la mémoire en les fusionnant en un seul littéral partagé, <code>name1</code> et <code>name2</code> pointant alors vers la même adresse.</p>
+<h2 id="déduction-de-type-avec-les-chaînes-de-style-c-constantes">Déduction de type avec les chaînes de style C constantes</h2>
+<p>La déduction de type à partir d'un littéral de chaîne de style C est assez simple :</p>
+<pre><code class="language-cpp">    auto s1{ &quot;Alex&quot; };  // type déduit : const char*
+    auto* s2{ &quot;Alex&quot; }; // type déduit : const char*
+    auto&amp; s3{ &quot;Alex&quot; }; // type déduit : const char(&amp;)[5]
+</code></pre>
+<h2 id="affichage-de-pointeurs-et-de-chaînes-de-style-c">Affichage de pointeurs et de chaînes de style C</h2>
+<p>Vous avez peut-être remarqué quelque chose d'intéressant dans la manière dont <code>std::cout</code> traite les pointeurs de différents types.</p>
+<p>Considérez l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    int narr[]{ 9, 7, 5, 3, 1 };
+    char carr[]{ &quot;Hello!&quot; };
+    const char* ptr{ &quot;Alex&quot; };
+
+    std::cout &lt;&lt; narr &lt;&lt; '\n'; // narr se dégrade en type int*
+    std::cout &lt;&lt; carr &lt;&lt; '\n'; // carr se dégrade en type char*
+    std::cout &lt;&lt; ptr &lt;&lt; '\n'; // ptr est déjà de type char*
+
+    return 0;
+}
+</code></pre>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+003AF738
+Hello!
+Alex
+</code></pre>
+<p>Pourquoi le tableau d'entiers affiche-t-il une adresse, alors que les tableaux de caractères s'affichent comme des chaînes ?</p>
+<p>La réponse est que les flux de sortie (par exemple <code>std::cout</code>) font certaines hypothèses sur vos intentions. Si vous leur transmettez un pointeur qui n'est pas de type <code>char</code>, ils affichent simplement le contenu de ce pointeur (l'adresse qu'il contient). En revanche, si vous leur transmettez un objet de type <code>char*</code> ou <code>const char*</code>, ils supposent que vous souhaitez afficher une chaîne. Par conséquent, au lieu d'afficher la valeur du pointeur (une adresse), ils affichent la chaîne pointée !</p>
+<p>Bien que ce comportement soit souhaitable la plupart du temps, il peut conduire à des résultats inattendus. Considérez le cas suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    char c{ 'Q' };
+    std::cout &lt;&lt; &amp;c;
+
+    return 0;
+}
+</code></pre>
+<p>Dans ce cas, le programmeur souhaite afficher l'adresse de la variable <code>c</code>. Cependant, <code>&amp;c</code> est de type <code>char*</code>, donc <code>std::cout</code> tente de l'afficher comme une chaîne ! Et comme <code>c</code> n'est pas terminée par un caractère nul, nous obtenons un comportement indéfini.</p>
+<p>Sur la machine de l'auteur, ce programme a affiché :</p>
+<pre><code>
+Q╠╠╠╠╜╡4;¿■A
+</code></pre>
+<p>Pourquoi cela s'est-il produit ? Eh bien, il a d'abord supposé que <code>&amp;c</code> (de type <code>char*</code>) était une chaîne de style C. Il a donc affiché le 'Q', puis a continué. Ensuite, en mémoire, se trouvaient des données aléatoires. Finalement, il a rencontré une zone mémoire contenant la valeur <code>0</code>, qu'il a interprétée comme un caractère de fin de chaîne, et s'est arrêté. Ce que vous observerez peut être différent, selon le contenu de la mémoire située après la variable <code>c</code>.</p>
+<p>Ce cas est assez peu probable dans la pratique (vous n'aurez sans doute pas réellement besoin d'afficher des adresses mémoire), mais il illustre le fonctionnement interne du langage et la façon dont un programme peut involontairement dérailler.</p>
+<p>Si vous souhaitez réellement afficher l'adresse contenue dans un pointeur de caractères, effectuez un <code>static_cast</code> vers le type <code>const void*</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    const char* ptr{ &quot;Alex&quot; };
+
+    std::cout &lt;&lt; ptr &lt;&lt; '\n';                           // affiche ptr comme une chaîne de style C
+    std::cout &lt;&lt; static_cast&lt;const void*&gt;(ptr) &lt;&lt; '\n'; // affiche l'adresse contenue dans ptr
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons <code>void*</code> dans la leçon <a href="../21%20-%20Chapitre%2019%20-%20Allocation%20dynamique%20%28en%20construction%29/19.5%20-%20Pointeurs%20void.html">19.5 -- Pointeurs void</a>. Vous n'avez pas besoin de savoir comment il fonctionne pour l'utiliser ici.</p>
+</div>
+<h2 id="privilégier-stdstring_view-pour-les-constantes-symboliques-de-chaînes-de-style-c">Privilégier std::string_view pour les constantes symboliques de chaînes de style C</h2>
+<p>Il y a peu de raisons d'utiliser des constantes symboliques de chaînes de style C en C++ moderne. Privilégiez plutôt les objets <code>constexpr std::string_view</code>, qui sont généralement aussi rapides (voire plus) et se comportent de manière plus cohérente.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez les constantes symboliques de chaînes de style C au profit de <code>constexpr std::string_view</code>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/c-style-string-symbolic-constants/">https://www.learncpp.com/cpp-tutorial/c-style-string-symbolic-constants/</a></em></p>
+</main>
+</body>
+</html>

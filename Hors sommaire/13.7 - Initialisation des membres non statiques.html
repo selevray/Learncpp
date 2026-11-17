@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.7 — Initialisation des membres non statiques</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="137-initialisation-des-membres-non-statiques">13.7 — Initialisation des membres non statiques</h1>
+<p>Lorsqu'on écrit une classe qui possède plusieurs constructeurs (c'est le cas de la plupart des classes), devoir spécifier les valeurs par défaut de tous les membres dans chaque constructeur produit du code redondant. Si vous modifiez la valeur par défaut d'un membre, vous devez alors retoucher chaque constructeur.</p>
+<p>Il est possible de donner directement une valeur d'initialisation par défaut aux variables membres ordinaires (celles qui n'utilisent pas le mot-clé <code>static</code>) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Rectangle
+{
+private:
+    double m_length{ 1.0 }; // m_length a une valeur par défaut de 1.0
+    double m_width{ 1.0 }; // m_width a une valeur par défaut de 1.0
+
+public:
+    void print()
+    {
+        std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; m_length &lt;&lt; &quot;, width: &quot; &lt;&lt; m_width &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    Rectangle x{}; // x.m_length = 1.0, x.m_width = 1.0
+    x.print();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+length: 1.0, width: 1.0
+</code></pre>
+<p>L'initialisation des membres non statiques (également appelée initialisation directe dans la classe, ou <em>in-class member initializers</em>) fournit des valeurs par défaut à vos variables membres, que vos constructeurs utiliseront si ceux-ci ne fournissent pas eux-mêmes de valeurs d'initialisation pour ces membres (via la liste d'initialisation des membres).</p>
+<p>Notez toutefois que ce sont toujours les constructeurs qui déterminent les types d'objets qui peuvent être créés. Considérons le cas suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Rectangle
+{
+private:
+    double m_length{ 1.0 };
+    double m_width{ 1.0 };
+
+public:
+
+    // note : aucun constructeur par défaut n'est fourni dans cet exemple
+
+    Rectangle(double length, double width)
+        : m_length{ length },
+          m_width{ width }
+    {
+        // m_length et m_width sont initialisés par le constructeur (les valeurs par défaut ne sont pas utilisées)
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; m_length &lt;&lt; &quot;, width: &quot; &lt;&lt; m_width &lt;&lt; '\n';
+    }
+
+};
+
+int main()
+{
+    Rectangle x{}; // ne compilera pas, aucun constructeur par défaut n'existe, bien que les membres aient des valeurs d'initialisation par défaut
+
+    return 0;
+}
+</code></pre>
+<p>Bien que nous ayons fourni des valeurs par défaut pour tous les membres, aucun constructeur par défaut n'a été défini. Nous ne pouvons donc pas créer d'objets <code>Rectangle</code> sans argument.</p>
+<p>Si une valeur d'initialisation par défaut est fournie et que le constructeur initialise le membre via la liste d'initialisation des membres, c'est la liste d'initialisation qui prévaut. L'exemple suivant le montre :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Rectangle
+{
+private:
+    double m_length{ 1.0 };
+    double m_width{ 1.0 };
+
+public:
+
+    Rectangle(double length, double width)
+        : m_length{ length },
+          m_width{ width }
+    {
+        // m_length et m_width sont initialisés par le constructeur (les valeurs par défaut ne sont pas utilisées)
+    }
+
+    Rectangle(double length)
+        : m_length{ length }
+    {
+        // m_length est initialisé par le constructeur.
+        // La valeur par défaut de m_width (1.0) est utilisée.
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; &quot;length: &quot; &lt;&lt; m_length &lt;&lt; &quot;, width: &quot; &lt;&lt; m_width &lt;&lt; '\n';
+    }
+
+};
+
+int main()
+{
+    Rectangle x{ 2.0, 3.0 };
+    x.print();
+
+    Rectangle y{ 4.0 };
+    y.print();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+length: 2.0, width: 3.0
+length: 4.0, width: 1.0
+</code></pre>
+<p>Notez que pour initialiser des membres avec l'initialisation directe des membres non statiques, il faut utiliser soit le signe égal, soit un initialisateur entre accolades (initialisation uniforme). La forme avec parenthèses ne fonctionne pas ici :</p>
+<pre><code class="language-cpp">class A
+{
+    int m_a = 1;  // ok (initialisation par copie)
+    int m_b{ 2 }; // ok (initialisation avec accolades)
+    int m_c(3);   // ne fonctionne pas (initialisation avec parenthèses)
+};
+</code></pre>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Privilégiez l'utilisation de l'initialisation directe des membres non statiques pour donner des valeurs par défaut à vos variables membres.</p>
+</div>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Le programme ci-dessous contient beaucoup de redondance. Modifiez-le pour utiliser l'initialisation directe des membres non statiques et les listes d'initialisation des membres.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Ball
+{
+private:
+    std::string m_color;
+    double m_radius;
+
+public:
+    // Constructeur par défaut sans paramètre
+    Ball()
+    {
+        m_color = &quot;black&quot;;
+        m_radius = 10.0;
+    }
+
+    // Constructeur avec seulement le paramètre color (radius utilise la valeur par défaut)
+    Ball(std::string_view color)
+    {
+        m_color = color;
+        m_radius = 10.0;
+    }
+
+    // Constructeur avec seulement le paramètre radius (color utilise la valeur par défaut)
+    Ball(double radius)
+    {
+        m_color = &quot;black&quot;;
+        m_radius = radius;
+    }
+
+    // Constructeur avec les paramètres color et radius
+    Ball(std::string_view color, double radius)
+    {
+        m_color = color;
+        m_radius = radius;
+    }
+
+    void print()
+    {
+        std::cout &lt;&lt; &quot;color: &quot; &lt;&lt; m_color &lt;&lt; &quot;, radius: &quot; &lt;&lt; m_radius &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    Ball def;
+    def.print();
+
+    Ball blue{ &quot;blue&quot; };
+    blue.print();
+
+    Ball twenty{ 20.0 };
+    twenty.print();
+
+    Ball blueTwenty{ &quot;blue&quot;, 20.0 };
+    blueTwenty.print();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme doit produire le résultat suivant :</p>
+<pre><code>
+color: black, radius: 10
+color: blue, radius: 10
+color: black, radius: 20
+color: blue, radius: 20
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Ball
+{
+private:
+    // Nos initialisations directes des membres non statiques
+    std::string m_color{ &quot;black&quot; };
+    double m_radius{ 10.0 };
+
+public:
+    // Constructeur par défaut (color et radius utilisent la valeur par défaut)
+    Ball() = default;
+
+    // Constructeur avec seulement le paramètre radius (color utilise la valeur par défaut)
+    Ball(double radius)
+        : m_radius{ radius }
+    {
+    }
+
+    // Constructeur avec seulement le paramètre color (radius utilise la valeur par défaut)
+    Ball(std::string_view color)
+        : m_color{ color }
+    {
+    }
+
+    // Constructeur avec les paramètres color et radius
+    Ball(std::string_view color, double radius)
+        : m_color{ color }, m_radius{ radius }
+    {
+    }
+
+
+    void print()
+    {
+        std::cout &lt;&lt; &quot;color: &quot; &lt;&lt; m_color &lt;&lt; &quot;, radius: &quot; &lt;&lt; m_radius &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    Ball def{};
+    def.print();
+
+    Ball blue{ &quot;blue&quot; };
+    blue.print();
+
+    Ball twenty{ 20.0 };
+    twenty.print();
+
+    Ball blueTwenty{ &quot;blue&quot;, 20.0 };
+    blueTwenty.print();
+
+    return 0;
+}
+</code></pre>
+</details>
+<p>%Missing lookup for lesson id 3679%</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/non-static-member-initialization/">https://www.learncpp.com/cpp-tutorial/non-static-member-initialization/</a></em></p>
+</main>
+</body>
+</html>

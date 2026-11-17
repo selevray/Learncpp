@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28.5 — États des flux et validation des entrées</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="285-états-des-flux-et-validation-des-entrées">28.5 — États des flux et validation des entrées</h1>
+<h2 id="états-des-flux">États des flux</h2>
+<p>La classe <code>ios_base</code> contient plusieurs indicateurs d'état qui signalent les différentes situations pouvant survenir lors de l'utilisation des flux :</p>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>goodbit</td>
+<td>Tout va bien</td>
+</tr>
+<tr>
+<td>badbit</td>
+<td>Une erreur fatale s'est produite (par exemple, le programme a tenté de lire au-delà de la fin d'un fichier)</td>
+</tr>
+<tr>
+<td>eofbit</td>
+<td>Le flux a atteint la fin d'un fichier</td>
+</tr>
+<tr>
+<td>failbit</td>
+<td>Une erreur non fatale s'est produite (par exemple, l'utilisateur a saisi des lettres alors que le programme attendait un entier)</td>
+</tr>
+</tbody>
+</table>
+<p>Bien que ces indicateurs soient définis dans <code>ios_base</code>, comme <code>ios</code> dérive de <code>ios_base</code> et que <code>ios</code> s'écrit plus rapidement qu'<code>ios_base</code>, on y accède généralement via <code>ios</code> (par exemple sous la forme <code>std::ios::failbit</code>).</p>
+<p><code>ios</code> fournit également un certain nombre de fonctions membres permettant d'accéder commodément à ces états :</p>
+<table>
+<thead>
+<tr>
+<th>Fonction membre</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>good()</td>
+<td>Renvoie <code>true</code> si le goodbit est positionné (le flux est correct)</td>
+</tr>
+<tr>
+<td>bad()</td>
+<td>Renvoie <code>true</code> si le badbit est positionné (une erreur fatale s'est produite)</td>
+</tr>
+<tr>
+<td>eof()</td>
+<td>Renvoie <code>true</code> si l'eofbit est positionné (le flux est à la fin d'un fichier)</td>
+</tr>
+<tr>
+<td>fail()</td>
+<td>Renvoie <code>true</code> si le failbit est positionné (une erreur non fatale s'est produite)</td>
+</tr>
+<tr>
+<td>clear()</td>
+<td>Efface tous les indicateurs et remet le flux dans l'état goodbit</td>
+</tr>
+<tr>
+<td>clear(state)</td>
+<td>Efface tous les indicateurs et positionne l'indicateur passé en paramètre</td>
+</tr>
+<tr>
+<td>rdstate()</td>
+<td>Renvoie les indicateurs actuellement positionnés</td>
+</tr>
+<tr>
+<td>setstate(state)</td>
+<td>Positionne l'indicateur passé en paramètre</td>
+</tr>
+</tbody>
+</table>
+<p>Le bit le plus souvent rencontré est le failbit, positionné lorsque l'utilisateur saisit une entrée invalide. Par exemple, considérons le programme suivant :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; &quot;Enter your age: &quot;;
+int age {};
+std::cin &gt;&gt; age;
+</code></pre>
+<p>Notez que ce programme attend de l'utilisateur qu'il saisisse un entier. Cependant, si l'utilisateur saisit des données non numériques, comme « Alex », <code>cin</code> ne pourra rien extraire vers <code>age</code>, et le failbit sera positionné.</p>
+<p>Si une erreur survient et qu'un flux est positionné sur autre chose que le goodbit, les opérations ultérieures sur ce flux seront ignorées. Cette situation peut être corrigée en appelant la fonction <code>clear()</code>.</p>
+<h2 id="validation-des-entrées">Validation des entrées</h2>
+<p>La <strong>validation des entrées</strong> (input validation) consiste à vérifier que la saisie de l'utilisateur respecte un ensemble de critères. On peut généralement la diviser en deux types : la validation de chaînes et la validation numérique.</p>
+<p>Avec la validation de chaînes, on accepte toute saisie de l'utilisateur sous forme de chaîne, puis on accepte ou on rejette cette chaîne selon qu'elle est correctement formatée. Par exemple, si l'on demande à l'utilisateur de saisir un numéro de téléphone, on peut vouloir s'assurer que les données comportent dix chiffres. Dans la plupart des langages (en particulier les langages de script comme Perl et PHP), cela se fait à l'aide d'expressions régulières. La bibliothèque standard C++ dispose elle aussi d'une <a href="https://en.cppreference.com/w/cpp/regex">bibliothèque d'expressions régulières</a>. Les expressions régulières étant lentes comparées à une validation manuelle des chaînes, il ne faut les utiliser que si les performances (à la compilation comme à l'exécution) importent peu, ou si la validation manuelle est trop fastidieuse.</p>
+<p>Avec la validation numérique, on s'intéresse généralement à vérifier que le nombre saisi par l'utilisateur se situe dans un intervalle donné (par exemple entre 0 et 20). Cependant, contrairement à la validation de chaînes, l'utilisateur peut saisir des choses qui ne sont pas du tout des nombres, et il faut gérer ces cas également.</p>
+<p>Pour nous aider, C++ fournit plusieurs fonctions utiles permettant de déterminer si des caractères donnés sont des chiffres ou des lettres. Les fonctions suivantes se trouvent dans l'en-tête <code>cctype</code> :</p>
+<table>
+<thead>
+<tr>
+<th>Fonction</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>std::isalnum(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est une lettre ou un chiffre</td>
+</tr>
+<tr>
+<td>std::isalpha(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est une lettre</td>
+</tr>
+<tr>
+<td>std::iscntrl(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est un caractère de contrôle</td>
+</tr>
+<tr>
+<td>std::isdigit(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est un chiffre</td>
+</tr>
+<tr>
+<td>std::isgraph(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est un caractère imprimable qui n'est pas un espace blanc</td>
+</tr>
+<tr>
+<td>std::isprint(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est un caractère imprimable (espaces blancs compris)</td>
+</tr>
+<tr>
+<td>std::ispunct(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre n'est ni alphanumérique ni un espace blanc</td>
+</tr>
+<tr>
+<td>std::isspace(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est un espace blanc</td>
+</tr>
+<tr>
+<td>std::isxdigit(int)</td>
+<td>Renvoie une valeur non nulle si le paramètre est un chiffre hexadécimal (0-9, a-f, A-F)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="validation-de-chaînes">Validation de chaînes</h2>
+<p>Prenons un exemple simple de validation de chaîne en demandant à l'utilisateur de saisir son nom. Notre critère de validation sera que l'utilisateur ne saisisse que des caractères alphabétiques ou des espaces. Si un autre caractère est rencontré, la saisie sera rejetée.</p>
+<p>Lorsqu'il s'agit d'entrées de longueur variable, la meilleure façon de valider des chaînes (hormis l'usage d'une bibliothèque d'expressions régulières) consiste à parcourir chaque caractère de la chaîne et à vérifier qu'il respecte le critère de validation. C'est exactement ce que nous allons faire ici, ou plutôt, c'est ce que <code>std::all_of</code> fait pour nous.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // std::all_of
+#include &lt;cctype&gt; // std::isalpha, std::isspace
+#include &lt;iostream&gt;
+#include &lt;ranges&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+bool isValidName(std::string_view name)
+{
+  return std::ranges::all_of(name, [](char ch) {
+    return std::isalpha(ch) || std::isspace(ch);
+  });
+
+  // Avant C++20, sans les ranges
+  // return std::all_of(name.begin(), name.end(), [](char ch) {
+  //    return std::isalpha(ch) || std::isspace(ch);
+  // });
+}
+
+int main()
+{
+  std::string name{};
+
+  do
+  {
+    std::cout &lt;&lt; &quot;Enter your name: &quot;;
+    std::getline(std::cin, name); // récupère la ligne entière, espaces compris
+  } while (!isValidName(name));
+
+  std::cout &lt;&lt; &quot;Hello &quot; &lt;&lt; name &lt;&lt; &quot;!\n&quot;;
+}
+</code></pre>
+<p>Notez que ce code n'est pas parfait : l'utilisateur pourrait saisir comme nom « asf w jweo s di we ao » ou une autre suite de mots dénuée de sens, voire, pire encore, une simple suite d'espaces. On pourrait en partie remédier à cela en affinant nos critères de validation pour n'accepter que des chaînes contenant au moins un caractère et au plus un espace.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Le lecteur « Waldo » propose une solution en C++20 (utilisant std::ranges) qui corrige ces lacunes <a href="#comment-571052">ici</a></p>
+</div>
+<p>Voyons maintenant un autre exemple où l'on demande à l'utilisateur de saisir son numéro de téléphone. Contrairement au nom d'un utilisateur, qui est de longueur variable et dont les critères de validation sont identiques pour chaque caractère, un numéro de téléphone a une longueur fixe, mais les critères de validation dépendent de la position du caractère. En conséquence, nous allons adopter une approche différente pour valider la saisie du numéro de téléphone. Ici, nous allons écrire une fonction qui vérifie la saisie de l'utilisateur par rapport à un modèle prédéfini. Le modèle fonctionne de la manière suivante :</p>
+<p>Un # correspond à n'importe quel chiffre de la saisie de l'utilisateur.<br />
+Un @ correspond à n'importe quel caractère alphabétique de la saisie de l'utilisateur.<br />
+Un _ correspond à n'importe quel espace blanc.<br />
+Un ? correspond à n'importe quel caractère.<br />
+Sinon, les caractères de la saisie de l'utilisateur et du modèle doivent correspondre exactement.</p>
+<p>Ainsi, si nous demandons à la fonction de faire correspondre le modèle « (###) ###-#### », cela signifie que nous attendons de l'utilisateur qu'il saisisse un caractère « ( », trois chiffres, un caractère « ) », un espace, trois chiffres, un tiret, puis quatre chiffres supplémentaires. Si l'un de ces éléments ne correspond pas, la saisie sera rejetée.</p>
+<p>Voici le code :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt; // std::equal
+#include &lt;cctype&gt; // std::isdigit, std::isspace, std::isalpha
+#include &lt;iostream&gt;
+#include &lt;map&gt;
+#include &lt;ranges&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+bool inputMatches(std::string_view input, std::string_view pattern)
+{
+    if (input.length() != pattern.length())
+    {
+        return false;
+    }
+
+    // Cette table définit tous les symboles spéciaux pouvant correspondre à une plage de saisie utilisateur
+    // Chaque symbole est associé à une fonction qui détermine si la saisie est valide pour ce symbole
+    static const std::map&lt;char, int (*)(int)&gt; validators{
+      { '#', &amp;std::isdigit },
+      { '_', &amp;std::isspace },
+      { '@', &amp;std::isalpha },
+      { '?', [](int) { return 1; } }
+    };
+
+    // Avant C++20, utilisez
+    // return std::equal(input.begin(), input.end(), pattern.begin(), [](char ch, char mask) -&gt; bool {
+    // ...
+
+    return std::ranges::equal(input, pattern, [](char ch, char mask) -&gt; bool {
+        auto found{ validators.find(mask) };
+
+        if (found != validators.end())
+        {
+            // L'élément courant du modèle a été trouvé dans validators. Appelle la
+            // fonction correspondante.
+            return (*found-&gt;second)(ch);
+        }
+
+        // L'élément courant du modèle n'a pas été trouvé dans validators. Les
+        // caractères doivent correspondre exactement.
+        return ch == mask;
+        }); // fin de la lambda
+}
+
+int main()
+{
+    std::string phoneNumber{};
+
+    do
+    {
+        std::cout &lt;&lt; &quot;Enter a phone number (###) ###-####: &quot;;
+        std::getline(std::cin, phoneNumber);
+    } while (!inputMatches(phoneNumber, &quot;(###) ###-####&quot;));
+
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; phoneNumber &lt;&lt; '\n';
+}
+</code></pre>
+<p>Cette fonction nous permet d'imposer à l'utilisateur de respecter exactement notre format. Cependant, elle reste soumise à plusieurs contraintes : si #, @, _ et ? sont des caractères valides dans la saisie de l'utilisateur, cette fonction ne fonctionnera pas, car ces symboles ont reçu une signification particulière. De plus, contrairement aux expressions régulières, il n'existe aucun symbole de modèle signifiant « un nombre variable de caractères peut être saisi ». Ainsi, un tel modèle ne pourrait pas servir à s'assurer que l'utilisateur saisit deux mots séparés par un espace blanc, car il ne peut pas gérer le fait que les mots sont de longueurs variables. Pour ce type de problème, l'approche sans modèle est généralement plus appropriée.</p>
+<h2 id="validation-numérique">Validation numérique</h2>
+<p>Lorsqu'on traite une saisie numérique, la solution évidente consiste à utiliser l'opérateur d'extraction pour extraire la saisie vers un type numérique. En testant le failbit, on peut alors savoir si l'utilisateur a saisi un nombre ou non.</p>
+<p>Essayons cette approche :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+
+int main()
+{
+    int age{};
+
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Enter your age: &quot;;
+        std::cin &gt;&gt; age;
+
+        if (std::cin.fail()) // aucune extraction n'a eu lieu
+        {
+            std::cin.clear(); // remet les bits d'état à goodbit afin de pouvoir utiliser ignore()
+            std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // vide la mauvaise saisie du flux
+            continue; // on recommence
+        }
+
+        if (age &lt;= 0) // vérifie que l'âge est positif
+            continue;
+
+        break;
+    }
+
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; age &lt;&lt; '\n';
+}
+</code></pre>
+<p>Si l'utilisateur saisit un entier, l'extraction réussit. <code>std::cin.fail()</code> vaut alors <code>false</code>, le bloc conditionnel est ignoré et, en supposant que l'utilisateur ait saisi un nombre positif, on atteint l'instruction <code>break</code>, ce qui quitte la boucle.</p>
+<p>Si l'utilisateur saisit une entrée commençant par une lettre, l'extraction échoue. <code>std::cin.fail()</code> vaut alors <code>true</code> et nous entrons dans le bloc conditionnel. À la fin de ce bloc, on atteint l'instruction <code>continue</code>, qui renvoie au début de la boucle <code>while</code>, et l'utilisateur est invité à saisir de nouveau.</p>
+<p>Cependant, il reste un cas que nous n'avons pas testé : celui où l'utilisateur saisit une chaîne commençant par des chiffres mais contenant ensuite des lettres (par exemple « 34abcd56 »). Dans ce cas, les chiffres initiaux (34) sont extraits vers <code>age</code>, le reste de la chaîne (« abcd56 ») reste dans le flux d'entrée, et le failbit n'est PAS positionné. Cela pose deux problèmes potentiels :</p>
+<ol>
+<li>Si vous souhaitez que cette saisie soit valide, vous avez maintenant des données parasites dans votre flux.</li>
+<li>Si vous ne souhaitez pas que cette saisie soit valide, elle n'est pas rejetée (et vous avez tout de même des données parasites dans votre flux).</li>
+</ol>
+<p>Corrigeons le premier problème. C'est facile :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+
+int main()
+{
+    int age{};
+
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Enter your age: &quot;;
+        std::cin &gt;&gt; age;
+
+        if (std::cin.fail()) // aucune extraction n'a eu lieu
+        {
+            std::cin.clear(); // remet les bits d'état à goodbit afin de pouvoir utiliser ignore()
+            std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // vide la mauvaise saisie du flux
+            continue; // on recommence
+        }
+
+        std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // vide les éventuelles saisies supplémentaires du flux
+
+        if (age &lt;= 0) // vérifie que l'âge est positif
+            continue;
+
+      break;
+    }
+
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; age &lt;&lt; '\n';
+}
+</code></pre>
+<p>Si vous ne voulez pas qu'une telle saisie soit valide, il faudra un peu plus de travail. Heureusement, la solution précédente nous fait déjà parcourir la moitié du chemin. Nous pouvons utiliser la fonction <code>gcount()</code> pour déterminer combien de caractères ont été ignorés. Si la saisie était valide, <code>gcount()</code> devrait renvoyer 1 (le caractère de fin de ligne qui a été écarté). S'il renvoie plus de 1, l'utilisateur a saisi quelque chose qui n'a pas été extrait correctement, et nous devons lui demander une nouvelle saisie. Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;limits&gt;
+
+int main()
+{
+    int age{};
+
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Enter your age: &quot;;
+        std::cin &gt;&gt; age;
+
+        if (std::cin.fail()) // aucune extraction n'a eu lieu
+        {
+            std::cin.clear(); // remet les bits d'état à goodbit afin de pouvoir utiliser ignore()
+            std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // vide la mauvaise saisie du flux
+            continue; // on recommence
+        }
+
+        std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n'); // vide les éventuelles saisies supplémentaires du flux
+        if (std::cin.gcount() &gt; 1) // si nous avons vidé plus d'un caractère supplémentaire
+        {
+            continue; // nous considérons cette saisie comme invalide
+        }
+
+        if (age &lt;= 0) // vérifie que l'âge est positif
+        {
+            continue;
+        }
+
+        break;
+    }
+
+    std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; age &lt;&lt; '\n';
+}
+</code></pre>
+<h2 id="validation-numérique-sous-forme-de-chaîne">Validation numérique sous forme de chaîne</h2>
+<p>L'exemple précédent représentait beaucoup de travail pour obtenir une simple valeur ! Une autre façon de traiter une saisie numérique consiste à la lire sous forme de chaîne, puis à tenter de la convertir en type numérique. Le programme suivant utilise cette méthode :</p>
+<pre><code class="language-cpp">#include &lt;charconv&gt; // std::from_chars
+#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;optional&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+// std::optional&lt;int&gt; renvoie soit un int, soit rien
+std::optional&lt;int&gt; extractAge(std::string_view age)
+{
+    int result{};
+    const auto end{ age.data() + age.length() }; // obtient l'itérateur de fin de la chaîne de style C sous-jacente
+
+    // Tente d'analyser un int à partir de age
+    // Si une erreur quelconque s'est produite...
+    if (std::from_chars(age.data(), end, result).ec != std::errc{})
+    {
+        return {}; // renvoie rien
+    }
+
+    if (result &lt;= 0) // vérifie que l'âge est positif
+    {
+        return {}; // renvoie rien
+    }
+
+    return result; // renvoie une valeur int
+}
+
+int main()
+{
+    int age{};
+
+    while (true)
+    {
+        std::cout &lt;&lt; &quot;Enter your age: &quot;;
+        std::string strAge{};
+
+        // Tente de récupérer une ligne de saisie
+        if (!std::getline(std::cin &gt;&gt; std::ws, strAge))
+        {
+            // En cas d'échec, nettoie et recommence
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits&lt;std::streamsize&gt;::max(), '\n');
+            continue;
+        }
+
+        // Tente d'extraire l'âge
+        auto extracted{ extractAge(strAge) };
+
+        // En cas d'échec, on recommence
+        if (!extracted)
+            continue;
+
+        age = *extracted; // récupère la valeur
+        break;
+    }
+
+  std::cout &lt;&lt; &quot;You entered: &quot; &lt;&lt; age &lt;&lt; '\n';
+}
+</code></pre>
+<p>Le fait que cette approche demande plus ou moins de travail que l'extraction numérique directe dépend de vos paramètres et de vos contraintes de validation.</p>
+<p>Comme vous le voyez, la validation des entrées en C++ demande beaucoup de travail. Heureusement, nombre de ces tâches (par exemple la validation numérique sous forme de chaîne) peuvent facilement être transformées en fonctions réutilisables dans des situations très variées.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stream-states-and-input-validation/">https://www.learncpp.com/cpp-tutorial/stream-states-and-input-validation/</a></em></p>
+</main>
+</body>
+</html>

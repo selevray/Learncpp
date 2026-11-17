@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>23.3 — Agrégation</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="233-agrégation">23.3 — Agrégation</h1>
+<p>Dans la leçon précédente <a href="../25%20-%20Chapitre%2023%20-%20Relations%20entre%20objets/23.2%20-%20Composition.html">23.2 -- Composition</a>, nous avons indiqué que la composition d'objets est le processus consistant à créer des objets complexes à partir d'objets plus simples. Nous avons aussi évoqué un type de composition d'objets, appelé composition (composition). Dans une relation de composition, l'objet entier est responsable de l'existence de ses parties.</p>
+<p>Dans cette leçon, nous allons examiner l'autre sous-type de composition d'objets, appelé agrégation.</p>
+<h2 id="agrégation">Agrégation</h2>
+<p>Pour qualifier une relation d'<strong>agrégation</strong> (aggregation), un objet entier et ses parties doivent respecter les conditions suivantes :</p>
+<ul>
+<li>La partie (membre) fait partie de l'objet (classe)</li>
+<li>La partie (membre) peut (si besoin) appartenir à plus d'un objet (classe) à la fois</li>
+<li>L'existence de la partie (membre) n'est <em>pas</em> gérée par l'objet (classe)</li>
+<li>La partie (membre) ne connaît pas l'existence de l'objet (classe)</li>
+</ul>
+<p>Comme une composition, une agrégation reste une relation tout-partie, où les parties sont contenues dans le tout, et c'est une relation unidirectionnelle. Cependant, contrairement à une composition, les parties peuvent appartenir à plusieurs objets à la fois, et l'objet entier n'est pas responsable de l'existence et de la durée de vie des parties. Lorsqu'une agrégation est créée, elle n'est pas responsable de la création des parties. Lorsqu'elle est détruite, elle n'est pas responsable de la destruction des parties.</p>
+<p>Prenons par exemple la relation entre une personne et son adresse domicile. Dans cet exemple, par simplicité, nous dirons que chaque personne a une adresse. Cependant, cette adresse peut appartenir à plusieurs personnes à la fois : par exemple, à vous et à votre colocataire ou à votre conjoint. En revanche, cette adresse n'est pas gérée par la personne : l'adresse existait probablement avant l'arrivée de la personne, et existera encore après son départ. De plus, une personne sait à quelle adresse elle habite, mais les adresses ne savent pas quelles personnes y vivent. Il s'agit donc d'une relation d'agrégation.</p>
+<p>Considérons aussi une voiture et un moteur. Le moteur fait partie de la voiture. Et bien qu'il appartienne à la voiture, il peut aussi appartenir à d'autres choses, comme la personne qui possède la voiture. La voiture n'est pas responsable de la création ni de la destruction du moteur. Et si la voiture sait qu'elle a un moteur (elle doit le savoir pour aller quelque part), le moteur ne sait pas qu'il fait partie de la voiture.</p>
+<p>Lorsqu'on modélise des objets physiques, le terme « détruit » peut poser problème. On pourrait objecter : « Si une météorite tombait du ciel et écrasait la voiture, les pièces de la voiture ne seraient-elles pas toutes détruites aussi ? » Oui, bien sûr. Mais c'est la faute de la météorite. L'essentiel est que la voiture n'est pas responsable de la destruction de ses parties (mais une force extérieure peut l'être).</p>
+<p>On peut dire que l'agrégation modélise des relations « a-un » (un département a des enseignants, la voiture a un moteur).</p>
+<p>Comme pour une composition, les parties d'une agrégation peuvent être uniques ou multiples.</p>
+<h2 id="implémenter-des-agrégations">Implémenter des agrégations</h2>
+<p>Comme les agrégations et les compositions sont toutes deux des relations tout-partie, elles s'implémentent presque de la même façon, et la différence est surtout sémantique. Dans une composition, on ajoute typiquement les parties comme membres ordinaires (ou sous forme de pointeurs lorsque la classe composite gère elle-même l'allocation et la désallocation).</p>
+<p>Dans une agrégation, on ajoute aussi les parties comme membres. Cependant, ces membres sont généralement des références ou des pointeurs qui désignent des objets créés en dehors de la portée de la classe. Par conséquent, une agrégation prend habituellement en paramètres du constructeur les objets qu'elle va pointer, ou bien démarre vide et les sous-objets sont ajoutés plus tard via des fonctions d'accès ou des opérateurs.</p>
+<p>Comme ces parties existent en dehors de la portée de la classe, lorsque la classe est détruite, le membre pointeur ou référence est détruit (mais pas supprimé). Les parties elles-mêmes continuent donc d'exister.</p>
+<p>Examinons plus en détail l'exemple Teacher et Department. Dans cet exemple, nous faisons quelques simplifications : premièrement, le département ne contient qu'un seul enseignant. Deuxièmement, l'enseignant ignore dans quel département il se trouve.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+class Teacher
+{
+private:
+  std::string m_name{};
+
+public:
+  Teacher(std::string_view name)
+      : m_name{ name }
+  {
+  }
+
+  const std::string&amp; getName() const { return m_name; }
+};
+
+class Department
+{
+private:
+  const Teacher&amp; m_teacher; // This dept holds only one teacher for simplicity, but it could hold many teachers
+
+public:
+  Department(const Teacher&amp; teacher)
+      : m_teacher{ teacher }
+  {
+  }
+};
+
+int main()
+{
+  // Create a teacher outside the scope of the Department
+  Teacher bob{ &quot;Bob&quot; }; // create a teacher
+
+  {
+    // Create a department and use the constructor parameter to pass
+    // the teacher to it.
+    Department department{ bob };
+
+  } // department goes out of scope here and is destroyed
+
+  // bob still exists here, but the department doesn't
+
+  std::cout &lt;&lt; bob.getName() &lt;&lt; &quot; still exists!\n&quot;;
+
+  return 0;
+}
+</code></pre>
+<p>Ici, <code>bob</code> est créé indépendamment de <code>department</code>, puis passé au constructeur de <code>department</code>. Lorsque <code>department</code> est détruit, la référence <code>m_teacher</code> est détruite, mais l'enseignant lui-même ne l'est pas : il continue d'exister jusqu'à sa destruction indépendante plus tard dans <code>main()</code>.</p>
+<h2 id="choisir-la-relation-adaptée-à-ce-que-vous-modélisez">Choisir la relation adaptée à ce que vous modélisez</h2>
+<p>Bien qu'il puisse sembler un peu absurde, dans l'exemple ci-dessus, que les Teacher ne sachent pas pour quel Department ils travaillent, cela peut parfaitement convenir dans le contexte d'un programme donné. Lorsque vous déterminez quel type de relation implémenter, choisissez la relation la plus simple qui répond à vos besoins, et non celle qui semble la mieux correspondre à un contexte réel.</p>
+<p>Par exemple, si vous écrivez un simulateur d'atelier de carrosserie, vous pourriez implémenter voiture et moteur comme une agrégation, afin que le moteur puisse être retiré et rangé sur une étagère pour plus tard. En revanche, si vous écrivez une simulation de course automobile, vous pourriez implémenter voiture et moteur comme une composition, puisque le moteur n'existera jamais en dehors de la voiture dans ce contexte.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Implémentez le type de relation le plus simple qui répond aux besoins de votre programme, et non ce qui semble correct dans la vie réelle.</p>
+</div>
+<h2 id="résumé-de-la-composition-et-de-lagrégation">Résumé de la composition et de l'agrégation</h2>
+<p>Compositions :</p>
+<ul>
+<li>Utilisent typiquement des membres ordinaires- Peuvent utiliser des membres pointeurs si la classe gère elle-même l'allocation et la désallocation des objets- Sont responsables de la création et de la destruction des parties</li>
+</ul>
+<p>Agrégations :</p>
+<ul>
+<li>Utilisent typiquement des membres pointeurs ou références qui désignent des objets vivant en dehors de la portée de la classe agrégat- Ne sont pas responsables de la création ni de la destruction des parties</li>
+</ul>
+<p>Il est à noter que les concepts de composition et d'agrégation peuvent être librement mélangés au sein d'une même classe. Il est tout à fait possible d'écrire une classe responsable de la création et de la destruction de certaines parties, mais pas d'autres. Par exemple, notre classe Department pourrait avoir un nom et un Teacher. Le nom serait probablement ajouté au Department par composition, et serait créé et détruit avec le Department. En revanche, le Teacher serait ajouté au département par agrégation, et créé et détruit indépendamment.</p>
+<p>Bien que les agrégations puissent être extrêmement utiles, elles sont aussi potentiellement plus dangereuses, car elles ne gèrent pas la désallocation de leurs parties. Ces désallocations sont laissées à une entité externe. Si cette entité externe ne possède plus de pointeur ou de référence vers les parties abandonnées, ou si elle oublie simplement de faire le nettoyage (en supposant que la classe s'en chargera), alors de la mémoire sera perdue (fuite mémoire).</p>
+<p>Pour cette raison, il faut privilégier les compositions aux agrégations.</p>
+<h2 id="quelques-avertissements-et-corrections">Quelques avertissements et corrections</h2>
+<p>Pour diverses raisons historiques et contextuelles, contrairement à la composition, la définition de l'agrégation n'est pas précise : vous pourrez donc rencontrer, dans d'autres ouvrages de référence, une définition différente de la nôtre. Ce n'est pas grave, mais il faut en être conscient.</p>
+<p>Une dernière remarque : dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.7%20-%20Introduction%20aux%20structures%2C%20membres%20et%20s%C3%A9lection%20de%20membres.html">13.7 -- Introduction aux structures, aux membres et à la sélection de membre</a>, nous avons défini les types de données agrégats (comme les struct et les class) comme des types de données regroupant plusieurs variables. Vous rencontrerez peut-être aussi le terme classe agrégat (aggregate class) au cours de votre apprentissage du C++ : il désigne une struct ou une classe sans constructeur fourni, sans destructeur ni surcharge d'affectation fournis, dont tous les membres sont publics, et qui n'utilise pas l'héritage. C'est essentiellement une struct de type POD (plain-old-data). Malgré la similitude des noms, agrégats et agrégation sont différents et ne doivent pas être confondus.</p>
+<h2 id="stdreference_wrapper">std::reference_wrapper</h2>
+<p>Dans l'exemple <code>Department</code>/<code>Teacher</code> ci-dessus, nous avons utilisé une référence dans <code>Department</code> pour stocker le <code>Teacher</code>. Cela fonctionne bien s'il n'y a qu'un seul <code>Teacher</code>, mais que faire si un Department a plusieurs Teachers ? Nous aimerions stocker ces Teachers dans une liste d'un certain type (par exemple un <code>std::vector</code>), mais les tableaux de taille fixe et les différentes listes de la bibliothèque standard ne peuvent pas contenir de références (car les éléments d'une liste doivent pouvoir être affectés, et une référence ne peut pas être réaffectée).</p>
+<pre><code class="language-cpp">std::vector&lt;const Teacher&amp;&gt; m_teachers{}; // Illegal
+</code></pre>
+<p>Au lieu de références, nous pourrions utiliser des pointeurs, mais cela ouvrirait la possibilité de stocker ou de passer des pointeurs nuls. Dans l'exemple <code>Department</code>/<code>Teacher</code>, nous ne voulons pas autoriser les pointeurs nuls. Pour résoudre ce problème, il existe <code>std::reference_wrapper</code>.</p>
+<p>En substance, <code>std::reference_wrapper</code> est une classe qui se comporte comme une référence, mais qui autorise aussi l'affectation et la copie, et elle est donc compatible avec des listes comme <code>std::vector</code>.</p>
+<p>La bonne nouvelle est qu'il n'est pas indispensable de comprendre son fonctionnement pour l'utiliser. Il vous suffit de connaître trois points :</p>
+<ol>
+<li><code>std::reference_wrapper</code> se trouve dans l'en-tête &lt;functional&gt;.</li>
+<li>Lorsque vous créez votre objet encapsulé par <code>std::reference_wrapper</code>, cet objet ne peut pas être un objet anonyme (car les objets anonymes ont une portée d'expression, ce qui laisserait la référence pendante).</li>
+<li>Pour récupérer votre objet depuis <code>std::reference_wrapper</code>, vous utilisez la fonction membre <code>get()</code>.</li>
+</ol>
+<p>Voici un exemple utilisant <code>std::reference_wrapper</code> dans un <code>std::vector</code> :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt; // std::reference_wrapper
+#include &lt;iostream&gt;
+#include &lt;vector&gt;
+#include &lt;string&gt;
+
+int main()
+{
+  std::string tom{ &quot;Tom&quot; };
+  std::string berta{ &quot;Berta&quot; };
+
+  std::vector&lt;std::reference_wrapper&lt;std::string&gt;&gt; names{ tom, berta }; // these strings are stored by reference, not value
+
+  std::string jim{ &quot;Jim&quot; };
+
+  names.emplace_back(jim);
+
+  for (auto name : names)
+  {
+    // Use the get() member function to get the referenced string.
+    name.get() += &quot; Beam&quot;;
+  }
+
+  std::cout &lt;&lt; jim &lt;&lt; '\n'; // prints Jim Beam
+
+  return 0;
+}
+</code></pre>
+<p>Pour créer un vecteur de références constantes, il faut ajouter const devant le <code>std::string</code>, comme ceci :</p>
+<pre><code class="language-cpp">// Vector of const references to std::string
+std::vector&lt;std::reference_wrapper&lt;const std::string&gt;&gt; names{ tom, berta };
+</code></pre>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Implémenteriez-vous plutôt les éléments suivants sous forme de composition ou d'agrégation ?<br />
+a) Une balle qui a une couleur<br />
+b) Un employeur qui emploie plusieurs personnes<br />
+c) Les départements d'une université<br />
+d) Votre âge<br />
+e) Un sac de billes</p>
+<details class="callout success"><summary>Solution</summary>
+<p>a) Composition : la couleur est une propriété intrinsèque de la balle.<br />
+b) Agrégation : un employeur ne commence pas avec des employés et, espérons-le, ne détruit pas tous ses employés lorsqu'il fait faillite.<br />
+c) Composition : les départements ne peuvent pas exister en l'absence d'université.<br />
+d) Composition : votre âge est une propriété intrinsèque de vous.<br />
+e) Agrégation : le sac et les billes qu'il contient ont des existences indépendantes.</p>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Mettez à jour l'exemple <code>Department</code>/<code>Teacher</code> afin que <code>Department</code> puisse gérer plusieurs Teachers. Le code suivant doit pouvoir s'exécuter :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// ...
+
+int main()
+{
+  // Create a teacher outside the scope of the Department
+  Teacher t1{ &quot;Bob&quot; };
+  Teacher t2{ &quot;Frank&quot; };
+  Teacher t3{ &quot;Beth&quot; };
+
+  {
+    // Create a department and add some Teachers to it
+    Department department{}; // create an empty Department
+
+    department.add(t1);
+    department.add(t2);
+    department.add(t3);
+
+    std::cout &lt;&lt; department;
+
+  } // department goes out of scope here and is destroyed
+
+  std::cout &lt;&lt; t1.getName() &lt;&lt; &quot; still exists!\n&quot;;
+  std::cout &lt;&lt; t2.getName() &lt;&lt; &quot; still exists!\n&quot;;
+  std::cout &lt;&lt; t3.getName() &lt;&lt; &quot; still exists!\n&quot;;
+
+  return 0;
+}
+</code></pre>
+<p>Cela doit afficher :</p>
+<pre><code>
+Department: Bob Frank Beth
+Bob still exists!
+Frank still exists!
+Beth still exists!
+</code></pre>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice : stockez les enseignants dans un <code>std::vector</code></p>
+<pre><code class="language-cpp">std::vector&lt;std::reference_wrapper&lt;const Teacher&gt;&gt; m_teachers{};
+</code></pre>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;functional&gt; // std::reference_wrapper
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+class Teacher
+{
+private:
+  std::string m_name{};
+
+public:
+  Teacher(std::string_view name)
+      : m_name{ name }
+  {
+  }
+
+  const std::string&amp; getName() const { return m_name; }
+};
+
+class Department
+{
+private:
+  std::vector&lt;std::reference_wrapper&lt;const Teacher&gt;&gt; m_teachers{};
+
+public:
+  Department() = default;
+
+  // Pass by regular reference. The user of the Department class shouldn't care
+  // about how it's implemented.
+  void add(const Teacher&amp; teacher)
+  {
+    m_teachers.emplace_back(teacher);
+  }
+
+  friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Department&amp; department)
+  {
+    out &lt;&lt; &quot;Department: &quot;;
+
+    for (const auto&amp; teacher : department.m_teachers)
+    {
+      out &lt;&lt; teacher.get().getName() &lt;&lt; ' ';
+    }
+
+    out &lt;&lt; '\n';
+
+    return out;
+  }
+};
+
+int main()
+{
+  // Create a teacher outside the scope of the Department
+  Teacher t1{ &quot;Bob&quot; };
+  Teacher t2{ &quot;Frank&quot; };
+  Teacher t3{ &quot;Beth&quot; };
+
+  {
+    // Create a department and add some Teachers to it
+    Department department{}; // create an empty Department
+
+    department.add(t1);
+    department.add(t2);
+    department.add(t3);
+
+    std::cout &lt;&lt; department;
+
+  } // department goes out of scope here and is destroyed
+
+  std::cout &lt;&lt; t1.getName() &lt;&lt; &quot; still exists!\n&quot;;
+  std::cout &lt;&lt; t2.getName() &lt;&lt; &quot; still exists!\n&quot;;
+  std::cout &lt;&lt; t3.getName() &lt;&lt; &quot; still exists!\n&quot;;
+
+  return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/aggregation/">https://www.learncpp.com/cpp-tutorial/aggregation/</a></em></p>
+</main>
+</body>
+</html>

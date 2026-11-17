@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13.6 — Énumérations à portée (enum class)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="136-énumérations-à-portée-enum-class">13.6 — Énumérations à portée (enum class)</h1>
+<p>Bien que les énumérations sans portée soient des types distincts en C++, elles ne sont pas sûres du point de vue des types. Dans certains cas, elles permettent de faire des choses qui n'ont pas de sens. Considérons le cas suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    enum Color
+    {
+        red,
+        blue,
+    };
+
+    enum Fruit
+    {
+        banana,
+        apple,
+    };
+
+    Color color { red };
+    Fruit fruit { banana };
+
+    if (color == fruit) // Le compilateur compare color et fruit comme des entiers
+        std::cout &lt;&lt; &quot;color and fruit are equal\n&quot;; // et constate qu'ils sont égaux !
+    else
+        std::cout &lt;&lt; &quot;color and fruit are not equal\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+color and fruit are equal
+</code></pre>
+<p>Lorsque <code>color</code> et <code>fruit</code> sont comparés, le compilateur vérifie s'il sait comparer un <code>Color</code> avec un <code>Fruit</code>. Ce n'est pas le cas. Il essaie alors de convertir <code>Color</code> et/ou <code>Fruit</code> en entiers pour trouver une correspondance. Finalement, le compilateur constate que, une fois les deux convertis en entiers, la comparaison est possible. Comme <code>color</code> et <code>fruit</code> valent tous deux l'énumérateur qui se convertit en la valeur entière <code>0</code>, <code>color</code> est égal à <code>fruit</code>.</p>
+<p>Cela n'a aucun sens sur le plan sémantique, puisque <code>color</code> et <code>fruit</code> appartiennent à des énumérations différentes et ne sont pas censés être comparables. Avec les énumérateurs standard, il n'existe pas de moyen simple d'empêcher cela.</p>
+<p>Face à ces difficultés, ainsi qu'au problème de pollution de l'espace de noms (les énumérations sans portée définies dans la portée globale placent leurs énumérateurs dans l'espace de noms global), les concepteurs du C++ ont jugé utile de disposer d'une solution plus propre pour les énumérations.</p>
+<h2 id="énumérations-à-portée">Énumérations à portée</h2>
+<p>Cette solution est l'<strong>énumération à portée</strong> (souvent appelée <strong>enum class</strong> en C++, pour des raisons qui deviendront évidentes sous peu).</p>
+<p>Les énumérations à portée fonctionnent de façon similaire aux énumérations sans portée (<a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.2%20-%20%C3%89num%C3%A9rations%20non%20d%C3%A9limit%C3%A9es.html">13.2 -- Énumérations sans portée</a>), mais présentent deux différences principales : elles ne se convertissent pas implicitement en entiers, et leurs énumérateurs sont placés <em>uniquement</em> dans la région de portée de l'énumération (et non dans la région de portée où l'énumération est définie).</p>
+<p>Pour créer une énumération à portée, on utilise les mots-clés <code>enum class</code>. Le reste de la définition est identique à celui d'une énumération sans portée. Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+int main()
+{
+    enum class Color // &quot;enum class&quot; définit une énumération à portée plutôt qu'une énumération sans portée
+    {
+        red, // red fait partie de la région de portée de Color
+        blue,
+    };
+
+    enum class Fruit
+    {
+        banana, // banana fait partie de la région de portée de Fruit
+        apple,
+    };
+
+    Color color { Color::red }; // remarque : red n'est pas directement accessible, il faut utiliser Color::red
+    Fruit fruit { Fruit::banana }; // remarque : banana n'est pas directement accessible, il faut utiliser Fruit::banana
+
+    if (color == fruit) // erreur de compilation : le compilateur ne sait pas comparer les types différents Color et Fruit
+        std::cout &lt;&lt; &quot;color and fruit are equal\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;color and fruit are not equal\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit une erreur de compilation à la ligne 19, car l'énumération à portée ne se convertit vers aucun type pouvant être comparé à un autre type.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Le mot-clé <code>class</code> (ainsi que le mot-clé <code>static</code>) est l'un des mots-clés les plus surchargés du langage C++ : il peut avoir des significations différentes selon le contexte. Bien que les énumérations à portée utilisent le mot-clé <code>class</code>, elles ne sont pas considérées comme un « type classe » (réservé aux structures, classes et unions).</p>
+<p><code>enum struct</code> fonctionne aussi dans ce contexte et se comporte exactement comme <code>enum class</code>. Cependant, l'usage de <code>enum struct</code> n'est pas idiomatique ; évitez-le.</p>
+</div>
+<h2 id="les-énumérations-à-portée-définissent-leur-propre-région-de-portée">Les énumérations à portée définissent leur propre région de portée</h2>
+<p>Contrairement aux énumérations sans portée, qui placent leurs énumérateurs dans la même portée que l'énumération elle-même, les énumérations à portée placent leurs énumérateurs <em>uniquement</em> dans la région de portée de l'énumération. En d'autres termes, les énumérations à portée agissent comme un espace de noms pour leurs énumérateurs. Cette séparation intégrée aide à réduire la pollution de l'espace de noms global et les risques de conflits de noms lorsque ces énumérations sont utilisées dans la portée globale.</p>
+<p>Pour accéder à un énumérateur d'une énumération à portée, on procède comme s'il appartenait à un espace de noms portant le même nom que l'énumération :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    enum class Color // &quot;enum class&quot; définit une énumération à portée plutôt qu'une énumération sans portée
+    {
+        red, // red fait partie de la région de portée de Color
+        blue,
+    };
+
+    std::cout &lt;&lt; red &lt;&lt; '\n';        // erreur de compilation : red n'est pas défini dans cette région de portée
+    std::cout &lt;&lt; Color::red &lt;&lt; '\n'; // erreur de compilation : std::cout ne sait pas afficher ceci (pas de conversion implicite en int)
+
+    Color color { Color::blue }; // correct
+
+    return 0;
+}
+</code></pre>
+<p>Comme les énumérations à portée offrent leur propre espace de noms implicite pour leurs énumérateurs, il n'est pas nécessaire de placer une énumération à portée dans une autre région de portée (comme un espace de noms), sauf raison impérieuse, car cela serait redondant.</p>
+<h2 id="les-énumérations-à-portée-ne-se-convertissent-pas-implicitement-en-entiers">Les énumérations à portée ne se convertissent pas implicitement en entiers</h2>
+<p>Contrairement aux énumérateurs sans portée, les énumérateurs à portée ne se convertissent pas implicitement en entiers. Dans la plupart des cas, c'est une bonne chose, car cette conversion a rarement un sens et permet d'éviter des erreurs sémantiques, comme comparer des énumérateurs de jeux d'énumérations différents, ou écrire des expressions telles que <code>red + 5</code>.</p>
+<p>Notez que vous pouvez tout de même comparer des énumérateurs appartenant à la même énumération à portée (puisqu'ils sont du même type) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+int main()
+{
+    enum class Color
+    {
+        red,
+        blue,
+    };
+
+    Color shirt { Color::red };
+
+    if (shirt == Color::red) // cette comparaison Color à Color est correcte
+        std::cout &lt;&lt; &quot;The shirt is red!\n&quot;;
+    else if (shirt == Color::blue)
+        std::cout &lt;&lt; &quot;The shirt is blue!\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Il arrive parfois qu'il soit utile de traiter un énumérateur à portée comme une valeur entière. Dans ce cas, vous pouvez convertir explicitement un énumérateur à portée en entier à l'aide d'un <code>static_cast</code>. Depuis C++23, un meilleur choix consiste à utiliser <code>std::to_underlying()</code> (défini dans l'en-tête &lt;utility&gt;), qui convertit un énumérateur en une valeur de type sous-jacent de l'énumération.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt; // pour std::to_underlying() (C++23)
+
+int main()
+{
+    enum class Color
+    {
+        red,
+        blue,
+    };
+
+    Color color { Color::blue };
+
+    std::cout &lt;&lt; color &lt;&lt; '\n'; // ne fonctionne pas, car il n'y a pas de conversion implicite en int
+    std::cout &lt;&lt; static_cast&lt;int&gt;(color) &lt;&lt; '\n';   // conversion explicite en int, affichera 1
+    std::cout &lt;&lt; std::to_underlying(color) &lt;&lt; '\n'; // conversion vers le type sous-jacent, affichera 1 (C++23)
+
+    return 0;
+}
+</code></pre>
+<p>Inversement, vous pouvez aussi utiliser <code>static_cast</code> pour convertir un entier en énumérateur à portée, ce qui peut être utile lors de la saisie utilisateur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    enum class Pet
+    {
+        cat, // reçoit 0
+        dog, // reçoit 1
+        pig, // reçoit 2
+        whale, // reçoit 3
+    };
+
+    std::cout &lt;&lt; &quot;Enter a pet (0=cat, 1=dog, 2=pig, 3=whale): &quot;;
+
+    int input{};
+    std::cin &gt;&gt; input; // saisie d'un entier
+
+    Pet pet{ static_cast&lt;Pet&gt;(input) }; // conversion de notre entier en Pet par static_cast
+
+    return 0;
+}
+</code></pre>
+<p>Depuis C++17, vous pouvez initialiser une énumération à portée par liste à l'aide d'une valeur entière, sans <code>static_cast</code> (et, contrairement à une énumération sans portée, vous n'avez pas besoin de spécifier de type de base) :</p>
+<pre><code class="language-cpp">   // utilise enum class Pet de l'exemple précédent
+   Pet pet { 1 }; // correct
+</code></pre>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez les énumérations à portée aux énumérations sans portée, sauf raison impérieuse de faire autrement.</p>
+</div>
+<p>Malgré les avantages qu'offrent les énumérations à portée, les énumérations sans portée restent couramment utilisées en C++, car il existe des situations où l'on souhaite la conversion implicite en <code>int</code> (multiplier les <code>static_cast</code> devient vite pénible) et où l'espace de noms supplémentaire n'est pas nécessaire.</p>
+<h2 id="faciliter-la-conversion-des-énumérateurs-à-portée-en-entiers-avancé">Faciliter la conversion des énumérateurs à portée en entiers (avancé)</h2>
+<p>Les énumérations à portée sont très utiles, mais l'absence de conversion implicite en entiers peut parfois être gênante. Si nous devons convertir souvent une énumération à portée en entiers (par exemple lorsque nous voulons utiliser des énumérateurs à portée comme indices de tableau), écrire <code>static_cast</code> à chaque conversion peut alourdir considérablement le code.</p>
+<p>Si vous vous trouvez dans une telle situation et souhaitez faciliter la conversion des énumérateurs à portée en entiers, une astuce utile consiste à surcharger l'opérateur unaire <code>operator+</code> pour effectuer cette conversion :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt; // pour std::underlying_type_t
+
+enum class Animals
+{
+    chicken, // 0
+    dog, // 1
+    cat, // 2
+    elephant, // 3
+    duck, // 4
+    snake, // 5
+
+    maxAnimals,
+};
+
+// Surcharge de l'opérateur unaire + pour convertir une énumération en son type sous-jacent
+// adapté de https://stackoverflow.com/a/42198760, merci à Pixelchemist pour l'idée
+// En C++23, vous pouvez #include &lt;utility&gt; et renvoyer std::to_underlying(a) à la place
+template &lt;typename T&gt;
+constexpr auto operator+(T a) noexcept
+{
+    return static_cast&lt;std::underlying_type_t&lt;T&gt;&gt;(a);
+}
+
+int main()
+{
+    std::cout &lt;&lt; +Animals::elephant &lt;&lt; '\n'; // convertit Animals::elephant en entier à l'aide de l'opérateur unaire +
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+3
+</code></pre>
+<p>Cette méthode empêche les conversions implicites non voulues vers un type entier, tout en offrant un moyen pratique de demander explicitement ces conversions lorsque c'est nécessaire.</p>
+<h2 id="instructions-using-enum-c20">Instructions <code>using enum</code> <em>(C++20)</em></h2>
+<p>Introduite en C++20, l'instruction <code>using enum</code> importe tous les énumérateurs d'une énumération dans la portée courante. Appliquée à un type enum class, elle nous permet d'accéder à ses énumérateurs sans avoir à faire précéder chacun du nom de l'énumération.</p>
+<p>Cela peut être utile lorsque nous aurions autrement de nombreux préfixes identiques et répétés, par exemple dans une instruction switch :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+enum class Color
+{
+    black,
+    red,
+    blue,
+};
+
+constexpr std::string_view getColor(Color color)
+{
+    using enum Color; // importe tous les énumérateurs de Color dans la portée courante (C++20)
+    // Nous pouvons maintenant accéder aux énumérateurs de Color sans le préfixe Color::
+
+    switch (color)
+    {
+    case black: return &quot;black&quot;; // remarque : black au lieu de Color::black
+    case red:   return &quot;red&quot;;
+    case blue:  return &quot;blue&quot;;
+    default:    return &quot;???&quot;;
+    }
+}
+
+int main()
+{
+    Color shirt{ Color::blue };
+
+    std::cout &lt;&lt; &quot;Your shirt is &quot; &lt;&lt; getColor(shirt) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, <code>Color</code> est une enum class ; nous devrions donc normalement accéder à ses énumérateurs par leur nom complet (par exemple <code>Color::blue</code>). Cependant, dans la fonction <code>getColor()</code>, nous avons ajouté l'instruction <code>using enum Color;</code>, qui nous permet d'accéder à ces énumérateurs sans le préfixe <code>Color::</code>.</p>
+<p>Cela nous évite des préfixes multiples, redondants et évidents à l'intérieur de l'instruction switch.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Définissez une enum class nommée Animal qui contient les animaux suivants : pig, chicken, goat, cat, dog, duck. Écrivez une fonction nommée getAnimalName() qui prend un paramètre Animal et utilise une instruction switch pour renvoyer le nom de cet animal sous forme de std::string_view (ou de std::string si vous utilisez C++14). Écrivez une autre fonction nommée printNumberOfLegs() qui utilise une instruction switch pour afficher le nombre de pattes sur lesquelles chaque animal marche. Assurez-vous que les deux fonctions possèdent un cas default qui affiche un message d'erreur. Appelez printNumberOfLegs() depuis main() avec un cat et un chicken. Votre sortie doit ressembler à ceci :</p>
+<pre><code>
+A cat has 4 legs.
+A chicken has 2 legs.
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt; // C++17
+//#include &lt;string&gt; // pour C++14
+
+enum class Animal
+{
+    pig,
+    chicken,
+    goat,
+    cat,
+    dog,
+    duck,
+};
+
+constexpr std::string_view getAnimalName(Animal animal) // C++17
+// const std::string getAnimalName(Animal animal) // C++14
+{
+    // Si vous êtes en C++20, vous pouvez utiliser `using enum Animal` ici pour réduire la redondance du préfixe Animal
+    switch (animal)
+    {
+        case Animal::chicken:
+            return &quot;chicken&quot;;
+        case Animal::duck:
+            return &quot;duck&quot;;
+        case Animal::pig:
+            return &quot;pig&quot;;
+        case Animal::goat:
+            return &quot;goat&quot;;
+        case Animal::cat:
+            return &quot;cat&quot;;
+        case Animal::dog:
+            return &quot;dog&quot;;
+
+        default:
+            return &quot;???&quot;;
+    }
+}
+
+void printNumberOfLegs(Animal animal)
+{
+    std::cout &lt;&lt; &quot;A &quot; &lt;&lt; getAnimalName(animal) &lt;&lt; &quot; has &quot;;
+
+    // Si vous êtes en C++20, vous pouvez utiliser `using enum Animal` ici pour réduire la redondance du préfixe Animal
+    switch (animal)
+    {
+        case Animal::chicken:
+        case Animal::duck:
+            std::cout &lt;&lt; 2;
+            break;
+
+        case Animal::pig:
+        case Animal::goat:
+        case Animal::cat:
+        case Animal::dog:
+            std::cout &lt;&lt; 4;
+            break;
+
+        default:
+            std::cout &lt;&lt; &quot;???&quot;;
+            break;
+    }
+
+    std::cout &lt;&lt; &quot; legs.\n&quot;;
+}
+
+int main()
+{
+    printNumberOfLegs(Animal::cat);
+    printNumberOfLegs(Animal::chicken);
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/scoped-enumerations-enum-classes/">https://www.learncpp.com/cpp-tutorial/scoped-enumerations-enum-classes/</a></em></p>
+</main>
+</body>
+</html>

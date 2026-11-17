@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2.10 — Introduction au préprocesseur</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="210-introduction-au-préprocesseur">2.10 — Introduction au préprocesseur</h1>
+<p>Lorsque vous compilez votre projet, vous pourriez vous attendre à ce que le compilateur compile chaque fichier de code exactement tel que vous l'avez écrit. Ce n'est en réalité pas le cas.</p>
+<p>En effet, avant la compilation, chaque fichier de code (.cpp) passe par une phase de <strong>prétraitement</strong>. Durant cette phase, un programme appelé <strong>préprocesseur</strong> apporte diverses modifications au texte du fichier de code. Le préprocesseur ne modifie en aucune façon les fichiers de code originaux : toutes les modifications qu'il effectue se font soit temporairement en mémoire, soit à l'aide de fichiers temporaires.</p>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Historiquement, le préprocesseur était un programme distinct du compilateur, mais dans les compilateurs modernes, le préprocesseur peut être intégré directement au compilateur lui-même.</p>
+</div>
+<p>La plupart des tâches du préprocesseur sont assez peu passionnantes. Par exemple, il supprime les commentaires et s'assure que chaque fichier de code se termine par un saut de ligne. Cependant, le préprocesseur joue un rôle très important : c'est lui qui traite les directives <code>#include</code> (dont nous parlerons plus en détail dans un instant).</p>
+<p>Une fois que le préprocesseur a fini de traiter un fichier de code, le résultat est appelé <strong>unité de traduction</strong>. C'est cette unité de traduction qui est ensuite compilée par le compilateur.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>L'ensemble du processus de prétraitement, de compilation et d'édition de liens est appelé <strong>traduction</strong>.</p>
+<p>Si vous êtes curieux, voici la liste des <a href="https://en.cppreference.com/w/cpp/language/translation_phases">phases de traduction</a>. Au moment où ces lignes sont écrites, le prétraitement couvre les phases 1 à 4, et la compilation les phases 5 à 7.</p>
+</div>
+<h2 id="directives-du-préprocesseur">Directives du préprocesseur</h2>
+<p>Lorsque le préprocesseur s'exécute, il parcourt le fichier de code (de haut en bas) à la recherche de directives du préprocesseur. Les <strong>directives du préprocesseur</strong> (souvent simplement appelées <em>directives</em>) sont des instructions qui commencent par le symbole <em>#</em> et se terminent par un saut de ligne (et NON par un point-virgule). Ces directives indiquent au préprocesseur d'effectuer certaines tâches de manipulation de texte. Notez que le préprocesseur ne comprend pas la syntaxe C++ : les directives ont leur propre syntaxe (qui, dans certains cas, ressemble à celle du C++, et dans d'autres cas, beaucoup moins).</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>La sortie finale du préprocesseur ne contient aucune directive : seul le résultat du traitement des directives est transmis au compilateur.</p>
+</div>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Les <code>using directives</code> (introduites dans la leçon <a href="../02%20-%20Chapitre%202%20-%20Les%20bases%20du%20C%2B%2B%20-%20fonctions%20et%20fichiers/2.9%20-%20Collisions%20de%20noms%20et%20introduction%20aux%20espaces%20de%20noms.html">2.9 -- Collisions de noms et introduction aux espaces de noms</a>) ne sont pas des directives du préprocesseur (et ne sont donc pas traitées par le préprocesseur). Ainsi, si le terme <code>directive</code> désigne <em>généralement</em> une <code>directive du préprocesseur</code>, ce n'est pas toujours le cas.</p>
+</div>
+<h2 id="include">#include</h2>
+<p>Vous avez déjà vu la directive <em>#include</em> en action (généralement pour #include &lt;iostream&gt;). Lorsque vous <em>#include</em> un fichier, le préprocesseur remplace la directive #include par le contenu du fichier inclus. Le contenu inclus est ensuite prétraité (ce qui peut entraîner le traitement récursif d'autres #include), puis le reste du fichier est prétraité.</p>
+<p>Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Hello, world!\n&quot;;
+    return 0;
+}
+</code></pre>
+<p>Lorsque le préprocesseur traite ce programme, il remplace <code>#include &lt;iostream&gt;</code> par le contenu du fichier nommé « iostream », puis prétraite le contenu inclus ainsi que le reste du fichier.</p>
+<p>Comme <em>#include</em> est presque exclusivement utilisée pour inclure des fichiers d'en-tête, nous étudierons <em>#include</em> plus en détail dans la prochaine leçon (consacrée aux fichiers d'en-tête).</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Chaque unité de traduction se compose généralement d'un seul fichier de code (.cpp) et de tous les fichiers d'en-tête qu'il #include (appliqué récursivement, car les fichiers d'en-tête peuvent eux-mêmes #include d'autres fichiers d'en-tête).</p>
+</div>
+<h2 id="définitions-de-macros-avec-define">Définitions de macros avec #define</h2>
+<p>La directive <em>#define</em> peut être utilisée pour créer une macro. En C++, une <strong>macro</strong> est une règle qui définit comment un texte d'entrée est converti en un texte de sortie de remplacement.</p>
+<p>Il existe deux types de base de macros : les <em>macros de type objet</em> et les <em>macros de type fonction</em>.</p>
+<p>Les <em>macros de type fonction</em> se comportent comme des fonctions et servent un but similaire. Leur utilisation est généralement considérée comme dangereuse, et presque tout ce qu'elles peuvent faire peut être réalisé par une fonction normale.</p>
+<p>Les <em>macros de type objet</em> peuvent être définies de deux façons :</p>
+<pre><code>
+#define IDENTIFIANT
+#define IDENTIFIANT texte_de_substitution
+</code></pre>
+<p>La première définition n'a pas de texte de substitution, alors que la seconde en a un. Comme il s'agit de directives du préprocesseur (et non d'instructions), notez qu'aucune de ces formes ne se termine par un point-virgule.</p>
+<p>L'identifiant d'une macro suit les mêmes règles de nommage que les identifiants ordinaires : il peut utiliser des lettres, des chiffres et des tirets bas, ne peut pas commencer par un chiffre, et ne devrait pas commencer par un tiret bas. Par convention, les noms de macros sont généralement entièrement en majuscules, les mots étant séparés par des tirets bas.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Les noms de macros doivent être écrits entièrement en majuscules, les mots étant séparés par des tirets bas.</p>
+</div>
+<h2 id="macros-de-type-objet-avec-texte-de-substitution">Macros de type objet avec texte de substitution</h2>
+<p>Lorsque le préprocesseur rencontre cette directive, une association est créée entre l'identifiant de la macro et <em>texte_de_substitution</em>. Toutes les occurrences ultérieures de l'identifiant de la macro (en dehors de leur utilisation dans d'autres commandes du préprocesseur) sont remplacées par le <em>texte_de_substitution</em>.</p>
+<p>Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+#define MY_NAME &quot;Alex&quot;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;My name is: &quot; &lt;&lt; MY_NAME &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Le préprocesseur transforme le programme ci-dessus en le suivant :</p>
+<pre><code class="language-cpp">// Le contenu de iostream est inséré ici
+
+int main()
+{
+    std::cout &lt;&lt; &quot;My name is: &quot; &lt;&lt; &quot;Alex&quot; &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Une fois exécuté, il affiche la sortie <code>My name is: Alex</code>.</p>
+<p>Les macros de type objet avec texte de substitution étaient utilisées (en C) pour donner des noms à des littéraux. Ce n'est plus nécessaire, car de meilleures méthodes sont disponibles en C++ (voir <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.10%20-%20Partager%20des%20constantes%20globales%20entre%20plusieurs%20fichiers%20%28%C3%A0%20l%27aide%20de%20variables%20inline%29.html">7.10 -- Partager des constantes globales entre plusieurs fichiers (à l'aide de variables inline)</a>). Les macros de type objet avec texte de substitution se rencontrent désormais surtout dans du code hérité, et nous recommandons de les éviter dans la mesure du possible.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez les macros avec texte de substitution, sauf si aucune alternative viable n'existe.</p>
+</div>
+<h2 id="macros-de-type-objet-sans-texte-de-substitution">Macros de type objet sans texte de substitution</h2>
+<p>Les <em>macros de type objet</em> peuvent aussi être définies sans texte de substitution.</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#define USE_YEN
+</code></pre>
+<p>Les macros de cette forme fonctionnent comme on pourrait s'y attendre : toutes les occurrences ultérieures de l'identifiant sont supprimées et remplacées par rien !</p>
+<p>Cela peut sembler peu utile, et ça l'est <em>effectivement</em> pour faire de la substitution de texte. Toutefois, ce n'est pas à cela que sert généralement cette forme de la directive. Nous en verrons les usages dans un instant.</p>
+<p>Contrairement aux macros de type objet avec texte de substitution, les macros de cette forme sont généralement considérées comme acceptables.</p>
+<h2 id="compilation-conditionnelle">Compilation conditionnelle</h2>
+<p>Les directives de <em>compilation conditionnelle</em> vous permettent de préciser dans quelles conditions un élément sera ou ne sera pas compilé. Il existe de nombreuses directives de compilation conditionnelle, mais nous n'en verrons que quelques-unes parmi les plus utilisées : <em>#ifdef</em>, <em>#ifndef</em> et <em>#endif</em>.</p>
+<p>La directive du préprocesseur <em>#ifdef</em> permet au préprocesseur de vérifier si un identifiant a été préalablement défini via #define. Si c'est le cas, le code compris entre <em>#ifdef</em> et le <em>#endif</em> correspondant est compilé. Sinon, le code est ignoré.</p>
+<p>Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+#define PRINT_JOE
+
+int main()
+{
+#ifdef PRINT_JOE
+    std::cout &lt;&lt; &quot;Joe\n&quot;; // will be compiled since PRINT_JOE is defined
+#endif
+
+#ifdef PRINT_BOB
+    std::cout &lt;&lt; &quot;Bob\n&quot;; // will be excluded since PRINT_BOB is not defined
+#endif
+
+    return 0;
+}
+</code></pre>
+<p>Comme PRINT_JOE a été défini avec #define, la ligne <code>std::cout &lt;&lt; "Joe\n"</code> sera compilée. Comme PRINT_BOB n'a pas été défini avec #define, la ligne <code>std::cout &lt;&lt; "Bob\n"</code> sera ignorée.</p>
+<p><em>#ifndef</em> est l'opposé de <em>#ifdef</em> : il permet de vérifier qu'un identifiant n'a <em>PAS</em> encore été défini avec <em>#define</em>.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+#ifndef PRINT_BOB
+    std::cout &lt;&lt; &quot;Bob\n&quot;;
+#endif
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche « Bob », car PRINT_BOB n'a jamais été défini avec <em>#define</em>.</p>
+<p>À la place de <code>#ifdef PRINT_BOB</code> et <code>#ifndef PRINT_BOB</code>, vous verrez également <code>#if defined(PRINT_BOB)</code> et <code>#if !defined(PRINT_BOB)</code>. Ces formes sont équivalentes, mais utilisent une syntaxe un peu plus proche du style C++.</p>
+<p>Vous verrez un usage pratique de cette fonctionnalité dans la leçon <a href="../00%20-%20Chapitre%200%20-%20Introduction%20-%20Premiers%20pas/0.13%20-%20Quel%20standard%20de%20langage%20utilise%20mon%20compilateur%20-.html">0.13 -- Quel standard du langage mon compilateur utilise-t-il ?</a>.</p>
+<h2 id="if-0">#if 0</h2>
+<p>Un autre usage courant de la compilation conditionnelle consiste à utiliser <em>#if 0</em> pour exclure un bloc de code de la compilation (comme s'il était placé dans un bloc de commentaire) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Joe\n&quot;;
+
+#if 0 // Don't compile anything starting here
+    std::cout &lt;&lt; &quot;Bob\n&quot;;
+    std::cout &lt;&lt; &quot;Steve\n&quot;;
+#endif // until this point
+
+    return 0;
+}
+</code></pre>
+<p>Le code ci-dessus n'affiche que « Joe », car « Bob » et « Steve » sont exclus de la compilation par la directive du préprocesseur <em>#if 0</em>.</p>
+<p>Cela offre un moyen pratique de « commenter » du code contenant des commentaires multilignes (qu'on ne peut pas commenter à l'aide d'un autre commentaire multiligne, car les commentaires multilignes ne sont pas imbriquables) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Joe\n&quot;;
+
+#if 0 // Don't compile anything starting here
+    std::cout &lt;&lt; &quot;Bob\n&quot;;
+    /* Some
+     * multi-line
+     * comment here
+     */
+    std::cout &lt;&lt; &quot;Steve\n&quot;;
+#endif // until this point
+
+    return 0;
+}
+</code></pre>
+<p>Pour réactiver temporairement du code enveloppé dans un <code>#if 0</code>, vous pouvez remplacer <code>#if 0</code> par <code>#if 1</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Joe\n&quot;;
+
+#if 1 // always true, so the following code will be compiled
+    std::cout &lt;&lt; &quot;Bob\n&quot;;
+    /* Some
+     * multi-line
+     * comment here
+     */
+    std::cout &lt;&lt; &quot;Steve\n&quot;;
+#endif
+
+    return 0;
+}
+</code></pre>
+<h2 id="substitution-de-macros-dans-les-autres-commandes-du-préprocesseur">Substitution de macros dans les autres commandes du préprocesseur</h2>
+<p>Vous vous demandez peut-être, à propos du code suivant :</p>
+<pre><code class="language-cpp">#define PRINT_JOE
+
+int main()
+{
+#ifdef PRINT_JOE
+    std::cout &lt;&lt; &quot;Joe\n&quot;; // will be compiled since PRINT_JOE is defined
+#endif
+
+    return 0;
+}
+</code></pre>
+<p>Puisque nous avons défini <em>PRINT_JOE</em> comme n'ayant aucun contenu, pourquoi le préprocesseur n'a-t-il pas remplacé <em>PRINT_JOE</em> dans <em>#ifdef PRINT_JOE</em> par rien, excluant ainsi l'instruction d'affichage de la compilation ?</p>
+<p>Dans la plupart des cas, la substitution de macro ne se produit pas lorsqu'un identifiant de macro est utilisé à l'intérieur d'une autre commande du préprocesseur.</p>
+<div class="callout quote"><p class="callout-title">En complément…</p>
+<p>Il existe au moins une exception à cette règle : la plupart des formes de <code>#if</code> et <code>#elif</code> effectuent une substitution de macro à l'intérieur de la commande du préprocesseur.</p>
+</div>
+<p>Voici un autre exemple :</p>
+<pre><code class="language-cpp">#define FOO 9 // Here's a macro substitution
+
+#ifdef FOO // This FOO does not get replaced with 9 because it’s part of another preprocessor directive
+    std::cout &lt;&lt; FOO &lt;&lt; '\n'; // This FOO gets replaced with 9 because it's part of the normal code
+#endif
+</code></pre>
+<h2 id="la-portée-des-define">La portée des #define</h2>
+<p>Les directives sont traitées avant la compilation, de haut en bas, fichier par fichier.</p>
+<p>Considérez le programme suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void foo()
+{
+#define MY_NAME &quot;Alex&quot;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;My name is: &quot; &lt;&lt; MY_NAME &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Bien qu'il semble que <em>#define MY_NAME “Alex”</em> soit défini à l'intérieur de la fonction <em>foo</em>, le préprocesseur ne comprend pas les concepts C++ comme les fonctions. Ce programme se comporte donc exactement comme un programme où <em>#define MY_NAME “Alex”</em> serait défini soit avant, soit immédiatement après la fonction <em>foo</em>. Pour éviter toute confusion, vous devriez généralement définir les identifiants en dehors des fonctions.</p>
+<p>Comme une directive #include remplace la directive #include par le contenu du fichier inclus, un #include peut copier des directives du fichier inclus dans le fichier courant. Ces directives sont alors traitées dans l'ordre.</p>
+<p>Par exemple, le code suivant se comporte également de manière identique aux exemples précédents :</p>
+<p>Alex.h :</p>
+<pre><code class="language-cpp">#define MY_NAME &quot;Alex&quot;
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;Alex.h&quot; // copies #define MY_NAME from Alex.h here
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;My name is: &quot; &lt;&lt; MY_NAME &lt;&lt; '\n'; // preprocessor replaces MY_NAME with &quot;Alex&quot;
+
+    return 0;
+}
+</code></pre>
+<p>Une fois le préprocesseur terminé, tous les identifiants définis dans ce fichier sont abandonnés. Cela signifie que les directives ne sont valides que depuis le point de leur définition jusqu'à la fin du fichier dans lequel elles sont définies. Les directives définies dans un fichier n'ont aucun effet sur les autres fichiers (sauf s'ils sont #include dans un autre fichier). Par exemple :</p>
+<p>function.cpp :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void doSomething()
+{
+#ifdef PRINT
+    std::cout &lt;&lt; &quot;Printing!\n&quot;;
+#endif
+#ifndef PRINT
+    std::cout &lt;&lt; &quot;Not printing!\n&quot;;
+#endif
+}
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">void doSomething(); // forward declaration for function doSomething()
+
+#define PRINT
+
+int main()
+{
+    doSomething();
+
+    return 0;
+}
+</code></pre>
+<p>Le programme ci-dessus affichera :</p>
+<pre><code>
+Not printing!
+</code></pre>
+<p>Bien que PRINT ait été défini dans <em>main.cpp</em>, cela n'a aucun effet sur le code de <em>function.cpp</em> (PRINT n'est défini avec #define qu'à partir du point de définition jusqu'à la fin de main.cpp). Cela aura des conséquences lorsque nous aborderons les gardes d'inclusion dans une future leçon.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-the-preprocessor/">https://www.learncpp.com/cpp-tutorial/introduction-to-the-preprocessor/</a></em></p>
+</main>
+</body>
+</html>

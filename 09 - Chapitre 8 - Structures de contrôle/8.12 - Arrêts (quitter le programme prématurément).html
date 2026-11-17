@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8.12 — Arrêts (quitter le programme prématurément)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="812-arrêts-quitter-le-programme-prématurément">8.12 — Arrêts (quitter le programme prématurément)</h1>
+<p>Le dernier type d'instruction de contrôle de flux que nous aborderons dans ce chapitre est l'arrêt. Un <strong>arrêt</strong> (halt) est une instruction de contrôle de flux qui termine le programme. En C++, les arrêts sont implémentés sous forme de fonctions (et non de mots-clés), donc nos instructions d'arrêt seront des appels de fonctions.</p>
+<p>Faisons un bref détour et récapitulons ce qui se passe lorsqu'un programme se termine normalement. Lorsque la fonction <code>main()</code> retourne (soit en atteignant la fin de la fonction, soit via une instruction <code>return</code>), plusieurs choses se produisent.</p>
+<p>Tout d'abord, puisque nous quittons la fonction, toutes les variables locales et tous les paramètres de la fonction sont détruits (comme d'habitude).</p>
+<p>Ensuite, une fonction spéciale appelée <code>std::exit()</code> est invoquée, avec la valeur de retour de <code>main()</code> (le <code>status code</code>) passée en argument. Qu'est-ce que <code>std::exit()</code> ?</p>
+<h2 id="la-fonction-stdexit">La fonction std::exit()</h2>
+<p><code>std::exit()</code> est une fonction qui provoque la terminaison normale du programme. <strong>Terminaison normale</strong> signifie que le programme s'est arrêté de manière attendue. Notez que le terme « terminaison normale » n'indique rien quant à la réussite du programme (c'est le rôle du <code>status code</code>). Par exemple, supposons que vous écriviez un programme dans lequel vous attendez de l'utilisateur qu'il saisisse le nom d'un fichier à traiter. Si l'utilisateur saisit un nom de fichier invalide, votre programme renverra probablement un <code>status code</code> non nul pour indiquer l'échec, mais il se terminera tout de même normalement.</p>
+<p><code>std::exit()</code> effectue plusieurs opérations de nettoyage. Tout d'abord, les objets ayant une durée de stockage statique sont détruits. Ensuite, un autre nettoyage divers des fichiers est effectué si des fichiers ont été utilisés. Enfin, le contrôle est rendu au système d'exploitation, l'argument passé à <code>std::exit()</code> étant utilisé comme <code>status code</code>.</p>
+<h2 id="appeler-stdexit-explicitement">Appeler std::exit() explicitement</h2>
+<p>Bien que <code>std::exit()</code> soit appelée implicitement après le retour de la fonction <code>main()</code>, elle peut aussi être appelée explicitement pour arrêter le programme avant sa terminaison normale. Lorsque <code>std::exit()</code> est appelée de cette façon, vous devez inclure l'en-tête <code>cstdlib</code>.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p><code>std::exit</code> est appelée implicitement lorsque <code>main()</code> retourne.</p>
+</div>
+<p>Voici un exemple d'utilisation explicite de <code>std::exit()</code> :</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt; // pour std::exit()
+#include &lt;iostream&gt;
+
+void cleanup()
+{
+    // code ici pour effectuer tout type de nettoyage nécessaire
+    std::cout &lt;&lt; &quot;cleanup!\n&quot;;
+}
+
+int main()
+{
+    std::cout &lt;&lt; 1 &lt;&lt; '\n';
+    cleanup();
+
+    std::exit(0); // termine et renvoie le status code 0 au système d'exploitation
+
+    // Les instructions suivantes ne sont jamais exécutées
+    std::cout &lt;&lt; 2 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme affiche :</p>
+<pre><code>
+1
+cleanup!
+</code></pre>
+<p>Notez que les instructions après l'appel à <code>std::exit()</code> ne sont jamais exécutées, car le programme s'est déjà terminé.</p>
+<p>Bien que dans le programme ci-dessus nous appelions <code>std::exit()</code> depuis la fonction <code>main()</code>, <code>std::exit()</code> peut être appelée depuis n'importe quelle fonction pour terminer le programme à cet endroit.</p>
+<h2 id="stdexit-ne-nettoie-pas-les-variables-locales">std::exit() ne nettoie pas les variables locales</h2>
+<p>Une remarque importante concernant l'appel explicite à <code>std::exit()</code> : <code>std::exit()</code> ne nettoie aucune variable locale (que ce soit dans la fonction courante ou dans les fonctions situées plus haut dans la pile d'appels). Cela signifie que l'appel à <code>std::exit()</code> peut être dangereux si votre programme repose sur la destruction automatique de certaines variables locales.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>La fonction <code>std::exit()</code> ne nettoie pas les variables locales de la fonction courante ni celles des fonctions de la pile d'appels.</p>
+</div>
+<h2 id="stdatexit">std::atexit</h2>
+<p>Comme <code>std::exit()</code> termine le programme immédiatement, vous pouvez vouloir effectuer manuellement un nettoyage avant la terminaison. Dans ce contexte, le nettoyage désigne des opérations telles que la fermeture des connexions à une base de données ou au réseau, la libération de la mémoire allouée, l'écriture d'informations dans un fichier journal, etc.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Lorsqu'une application se termine, les systèmes d'exploitation modernes nettoient généralement la mémoire que l'application n'a pas correctement libérée elle-même. Cela soulève la question : « pourquoi se donner la peine de nettoyer à la sortie ? » Il y a (au moins) deux raisons :</p>
+<ol>
+<li>Libérer la mémoire allouée est une « bonne habitude » que vous devrez adopter pour éviter les fuites de mémoire pendant l'exécution de l'application. Nettoyer dans certains cas et pas dans d'autres est incohérent et peut conduire à des erreurs. Ne pas libérer correctement la mémoire peut aussi affecter le comportement de certains outils, comme les profileurs de mémoire (ils peuvent être incapables de distinguer la mémoire que vous ne libérez pas par inadvertance de celle que vous ne libérez pas volontairement parce que vous n'en avez pas besoin).</li>
+<li>D'autres types de nettoyage peuvent être nécessaires pour que votre programme se comporte de manière prévisible. Par exemple, si vous écrivez des données dans un fichier puis quittez de façon inattendue, ces données peuvent ne pas avoir encore été vidées (flushed) dans le fichier et être perdues à la fermeture du programme. Fermer le fichier avant l'arrêt permet de s'assurer que toutes les données en cache sont écrites au préalable. Ou vous pourriez vouloir envoyer à un serveur les données de la session de l'utilisateur, ou la raison de l'arrêt du programme, avant que l'arrêt n'ait réellement lieu.</li>
+</ol>
+</div>
+<p>Dans l'exemple ci-dessus, nous avons appelé la fonction <code>cleanup()</code> pour gérer nos tâches de nettoyage. Cependant, penser à appeler manuellement une fonction de nettoyage avant chaque appel à <code>exit()</code> alourdit la charge du programmeur et est une recette pour les erreurs.</p>
+<p>Pour faciliter cela, le C++ propose la fonction <code>std::atexit()</code>, qui permet de spécifier une fonction qui sera automatiquement appelée à la terminaison du programme via <code>std::exit()</code>.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous abordons le passage de fonctions en tant qu'arguments dans la leçon <a href="../22%20-%20Chapitre%2020%20-%20Les%20fonctions/20.1%20-%20Pointeurs%20vers%20fonctions.html">20.1 -- Pointeurs de fonctions</a>.</p>
+</div>
+<p>Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt; // pour std::exit()
+#include &lt;iostream&gt;
+
+void cleanup()
+{
+    // code ici pour effectuer tout type de nettoyage nécessaire
+    std::cout &lt;&lt; &quot;cleanup!\n&quot;;
+}
+
+int main()
+{
+    // enregistre cleanup() pour qu'elle soit appelée automatiquement lorsque std::exit() est invoquée
+    std::atexit(cleanup); // remarque : on utilise cleanup et non cleanup() car nous n'appelons pas la fonction cleanup() à ce stade
+
+    std::cout &lt;&lt; 1 &lt;&lt; '\n';
+
+    std::exit(0); // termine et renvoie le status code 0 au système d'exploitation
+
+    // Les instructions suivantes ne sont jamais exécutées
+    std::cout &lt;&lt; 2 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit la même sortie que l'exemple précédent :</p>
+<pre><code>
+1
+cleanup!
+</code></pre>
+<p>Notez que lorsque nous passons la fonction <code>cleanup()</code> en argument, nous utilisons <code>cleanup</code> (le nom de la fonction) et non <code>cleanup()</code> (ce qui appellerait réellement la fonction).</p>
+<p>L'avantage de <code>std::atexit()</code> est que nous n'avons à l'appeler qu'une seule fois (probablement depuis la fonction <code>main()</code>). Comme <code>std::atexit()</code> est appelée automatiquement à la sortie, nous n'avons pas à penser à appeler quoi que ce soit avant <code>std::exit()</code>.</p>
+<p>Quelques remarques sur <code>std::atexit()</code> et la fonction de nettoyage : tout d'abord, comme <code>std::exit()</code> est appelée implicitement lorsque <code>main()</code> se termine, cela invoquera toutes les fonctions enregistrées par <code>std::atexit()</code> si le programme se termine de cette façon. Ensuite, la fonction enregistrée ne doit prendre aucun paramètre et ne doit rien retourner. Enfin, vous pouvez enregistrer plusieurs fonctions de nettoyage avec <code>std::atexit()</code>, et elles seront appelées dans l'ordre inverse de leur enregistrement (la dernière enregistrée sera appelée en premier).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Dans les programmes multithreads, l'appel à <code>std::exit()</code> peut faire planter votre programme (car le thread qui appelle <code>std::exit()</code> détruira les objets statiques auxquels d'autres threads peuvent encore accéder). Pour cette raison, le C++ a introduit une autre paire de fonctions, analogues à <code>std::exit()</code> et <code>std::atexit()</code> : <code>std::quick_exit()</code> et <code>std::at_quick_exit()</code>. <code>std::quick_exit()</code> termine le programme normalement, mais ne détruit pas les objets statiques et peut ou non effectuer d'autres types de nettoyage. <code>std::at_quick_exit()</code> joue le même rôle que <code>std::atexit()</code> pour les programmes terminés avec <code>std::quick_exit()</code>.</p>
+</div>
+<h2 id="stdabort-et-stdterminate">std::abort et std::terminate</h2>
+<p>Le C++ contient deux autres fonctions liées aux arrêts.</p>
+<p>La fonction <code>std::abort()</code> provoque la terminaison anormale de votre programme. <strong>Terminaison anormale</strong> signifie que le programme a rencontré une erreur d'exécution inhabituelle et ne peut pas continuer à s'exécuter. Par exemple, tenter de diviser par 0 entraîne une terminaison anormale. <code>std::abort()</code> n'effectue aucun nettoyage.</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt; // pour std::abort()
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; 1 &lt;&lt; '\n';
+    std::abort();
+
+    // Les instructions suivantes ne sont jamais exécutées
+    std::cout &lt;&lt; 2 &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Nous verrons dans la leçon <a href="../10%20-%20Chapitre%209%20-%20D%C3%A9tection%20et%20gestion%20des%20erreurs/9.6%20-%20Assert%20et%20static_assert.html">9.6 -- Assert et static_assert</a> des cas où <code>std::abort</code> est appelée implicitement.</p>
+<p>La fonction <code>std::terminate()</code> est généralement utilisée en conjonction avec les <code>exceptions</code> (que nous aborderons dans un chapitre ultérieur). Bien qu'elle puisse être appelée explicitement, elle est plus souvent appelée implicitement lorsqu'une exception n'est pas gérée (et dans quelques autres cas liés aux exceptions). Par défaut, <code>std::terminate()</code> appelle <code>std::abort()</code>.</p>
+<h2 id="quand-faut-il-utiliser-un-arrêt">Quand faut-il utiliser un arrêt ?</h2>
+<p>La réponse courte est « presque jamais ». La destruction des objets locaux est un aspect important du C++ (en particulier lorsque nous aborderons les classes), et aucune des fonctions mentionnées ci-dessus ne nettoie les variables locales. Les exceptions constituent un mécanisme meilleur et plus sûr pour gérer les cas d'erreur.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>N'utilisez un arrêt que s'il n'existe aucun moyen sûr ou raisonnable de revenir normalement depuis la fonction <code>main</code>. Si vous n'avez pas désactivé les exceptions, privilégiez leur utilisation pour gérer les erreurs de manière sûre.</p>
+</div>
+<div class="callout info"><p class="callout-title">Astuce</p>
+<p>Bien que l'usage explicite des arrêts doive être minimisé, il existe de nombreuses autres façons pour un programme de s'arrêter de manière inattendue. Par exemple :</p>
+<ul>
+<li>L'application peut planter à cause d'un bogue (auquel cas le système d'exploitation la fermera).</li>
+<li>L'utilisateur peut tuer l'application de différentes manières.</li>
+<li>L'utilisateur peut couper (ou perdre) l'alimentation de son ordinateur.</li>
+<li>Le soleil pourrait devenir une supernova et consumer la Terre dans une énorme boule de feu.</li>
+</ul>
+<p>Un programme bien conçu doit pouvoir supporter d'être arrêté à tout moment avec un minimum de conséquences.</p>
+<p>Pour un exemple courant, les jeux modernes sauvegardent souvent automatiquement l'état du jeu et les paramètres de l'utilisateur à intervalles réguliers, de sorte que si le jeu est fermé de façon inattendue sans sauvegarde, l'utilisateur peut reprendre plus tard (à partir de la sauvegarde automatique précédente) sans perdre beaucoup de progression.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/halts-exiting-your-program-early/">https://www.learncpp.com/cpp-tutorial/halts-exiting-your-program-early/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20.5 — Les points de suspension (ellipsis) et pourquoi les éviter</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="205-les-points-de-suspension-ellipsis-et-pourquoi-les-éviter">20.5 — Les points de suspension (ellipsis) et pourquoi les éviter</h1>
+<p>Dans toutes les fonctions que nous avons vues jusqu'à présent, le nombre de paramètres qu'une fonction accepte doit être connu à l'avance (même s'ils possèdent des valeurs par défaut). Cependant, il existe certains cas où il peut être utile de pouvoir passer un nombre variable de paramètres à une fonction. C++ fournit un spécificateur particulier, connu sous le nom d'ellipsis (ou « ... »), qui permet de faire exactement cela.</p>
+<p>Comme les ellipsis sont rarement utilisées, potentiellement dangereuses, et que nous recommandons de les éviter, cette section peut être considérée comme une lecture facultative.</p>
+<p>Les fonctions qui utilisent une ellipsis ont la forme suivante :</p>
+<pre><code>
+type_de_retour nom_de_fonction(liste_d_arguments, ...)
+</code></pre>
+<p>La <em>liste_d_arguments</em> est constituée d'un ou plusieurs paramètres de fonction normaux. Notez que les fonctions qui utilisent une ellipsis doivent posséder au moins un paramètre qui n'est pas une ellipsis. Les arguments passés à la fonction doivent d'abord correspondre aux paramètres de la liste_d_arguments.</p>
+<p>L'ellipsis (qui s'écrit sous la forme de trois points consécutifs) doit toujours être le dernier paramètre de la fonction. Elle capture les arguments supplémentaires éventuels. Bien que ce ne soit pas tout à fait exact, il est utile conceptuellement de considérer l'ellipsis comme un tableau qui contient les paramètres supplémentaires au-delà de ceux de la liste_d_arguments.</p>
+<p><strong>Un exemple avec ellipsis</strong></p>
+<p>La meilleure façon d'apprendre les ellipsis est de passer par un exemple. Écrivons donc un programme simple qui utilise une ellipsis. Supposons que nous voulions écrire une fonction qui calcule la moyenne d'un ensemble d'entiers. Nous procéderions ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;cstdarg&gt; // nécessaire pour utiliser une ellipsis
+
+// L'ellipsis doit être le dernier paramètre
+// count est le nombre d'arguments supplémentaires que nous passons
+double findAverage(int count, ...)
+{
+    int sum{ 0 };
+
+    // Nous accédons à l'ellipsis à travers une va_list, déclarons donc une va_list
+    std::va_list list;
+
+    // Nous initialisons la va_list avec va_start. Le premier argument est
+    // la liste à initialiser. Le second argument est le dernier paramètre
+    // qui n'est pas une ellipsis.
+    va_start(list, count);
+
+    // Parcourir toutes les valeurs de l'ellipsis
+    for (int arg{ 0 }; arg &lt; count; ++arg)
+    {
+         // Nous utilisons va_arg pour extraire des valeurs de l'ellipsis
+         // Le premier argument est la va_list utilisée
+         // Le second argument est le type de la valeur
+         sum += va_arg(list, int);
+    }
+
+    // Nettoyer la va_list lorsque nous avons terminé.
+    va_end(list);
+
+    return static_cast&lt;double&gt;(sum) / count;
+}
+
+int main()
+{
+    std::cout &lt;&lt; findAverage(5, 1, 2, 3, 4, 5) &lt;&lt; '\n';
+    std::cout &lt;&lt; findAverage(6, 1, 2, 3, 4, 5, 6) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce code affiche :</p>
+<pre><code>
+3
+3.5
+</code></pre>
+<p>Comme vous pouvez le voir, cette fonction accepte un nombre variable de paramètres ! Examinons maintenant les composants de cet exemple.</p>
+<p>Tout d'abord, nous devons inclure l'en-tête cstdarg. Cet en-tête définit va_list, va_arg, va_start et va_end, qui sont des macros nécessaires pour accéder aux paramètres faisant partie de l'ellipsis.</p>
+<p>Nous déclarons ensuite notre fonction qui utilise l'ellipsis. Rappelez-vous que la liste d'arguments doit contenir un ou plusieurs paramètres fixes. Ici, nous passons un seul entier qui indique combien de nombres il faut moyenner. L'ellipsis vient toujours en dernier.</p>
+<p>Notez que le paramètre ellipsis n'a pas de nom ! Nous accédons plutôt aux valeurs de l'ellipsis par l'intermédiaire d'un type spécial appelé va_list. Il est utile conceptuellement de considérer va_list comme un pointeur qui pointe vers le tableau de l'ellipsis. Nous commençons donc par déclarer une va_list, que nous avons nommée « list » par simplicité.</p>
+<p>La prochaine étape consiste à faire pointer list vers nos paramètres de l'ellipsis. Pour cela, nous appelons va_start(). va_start() prend deux paramètres : la va_list elle-même, et le nom du <em>dernier</em> paramètre de la fonction qui n'est pas une ellipsis. Une fois va_start() appelée, va_list pointe vers le premier paramètre de l'ellipsis.</p>
+<p>Pour obtenir la valeur du paramètre vers lequel va_list pointe actuellement, nous utilisons va_arg(). va_arg() prend également deux paramètres : la va_list elle-même, et le type du paramètre auquel nous essayons d'accéder. Notez que va_arg() déplace aussi va_list vers le paramètre suivant de l'ellipsis !</p>
+<p>Enfin, pour nettoyer lorsque nous avons terminé, nous appelons va_end(), avec va_list comme paramètre.</p>
+<p>Notez que va_start() peut être appelée à nouveau à tout moment pour réinitialiser va_list afin qu'elle pointe de nouveau vers le premier paramètre de l'ellipsis.</p>
+<p><strong>Pourquoi les ellipsis sont dangereuses : la vérification de type est suspendue</strong></p>
+<p>Les ellipsis offrent au programmeur une grande souplesse pour implémenter des fonctions qui acceptent un nombre variable de paramètres. Cependant, cette souplesse a quelques inconvénients.</p>
+<p>Avec les paramètres de fonction ordinaires, le compilateur utilise la vérification de type pour s'assurer que les types des arguments correspondent aux types des paramètres (ou peuvent être convertis implicitement pour correspondre). Cela permet d'éviter de passer à une fonction un entier alors qu'elle attend une chaîne, ou l'inverse. Cependant, notez que les paramètres ellipsis n'ont aucune déclaration de type. Lorsqu'on utilise une ellipsis, le compilateur suspend complètement la vérification de type pour ces paramètres. Cela signifie qu'il est possible d'envoyer des arguments de n'importe quel type à l'ellipsis ! L'inconvénient est que le compilateur ne peut plus vous avertir si vous appelez la fonction avec des arguments ellipsis qui n'ont pas de sens. Lorsqu'on utilise l'ellipsis, il appartient entièrement à l'appelant de s'assurer que la fonction est appelée avec des arguments que celle-ci sait traiter. Cela laisse évidemment une grande place aux erreurs (surtout si l'appelant n'est pas celui qui a écrit la fonction).</p>
+<p>Examinons un exemple d'erreur assez subtile :</p>
+<pre><code class="language-cpp">    std::cout &lt;&lt; findAverage(6, 1.0, 2, 3, 4, 5, 6) &lt;&lt; '\n';
+</code></pre>
+<p>Bien que cela semble anodin à première vue, notez que le deuxième argument (le premier argument de l'ellipsis) est un double et non un entier. Cela compile sans problème et produit un résultat plutôt surprenant :</p>
+<pre><code>
+1.78782e+008
+</code></pre>
+<p>soit un nombre VRAIMENT énorme. Comment cela s'est-il produit ?</p>
+<p>Comme vous l'avez appris dans les leçons précédentes, un ordinateur stocke toutes les données sous forme de suites de bits. Le type d'une variable indique à l'ordinateur comment interpréter cette suite de bits pour en tirer une valeur significative. Or, vous venez d'apprendre que l'ellipsis élimine le type des variables ! Par conséquent, la seule façon d'obtenir une valeur exploitable depuis l'ellipsis est d'indiquer manuellement à va_arg() quel est le type attendu du prochain paramètre. C'est précisément le rôle du second paramètre de va_arg(). Si le type réel du paramètre ne correspond pas au type attendu, de mauvaises choses se produisent généralement.</p>
+<p>Dans le programme findAverage ci-dessus, nous avons indiqué à va_arg() que nos variables devaient toutes être de type int. Par conséquent, chaque appel à va_arg() renvoie la prochaine suite de bits interprétée comme un entier.</p>
+<p>Dans ce cas, le problème vient du fait que le double passé comme premier argument de l'ellipsis occupe 8 octets, alors que va_arg(list, int) ne renvoie que 4 octets de données à chaque appel. Ainsi, le premier appel à va_arg ne lit que les 4 premiers octets du double (produisant un résultat aberrant), et le second appel lit les 4 octets suivants du double (produisant un autre résultat aberrant). Notre résultat global est donc n'importe quoi.</p>
+<p>Comme la vérification de type est suspendue, le compilateur ne se plaindra même pas si nous faisons quelque chose de totalement absurde, comme ceci :</p>
+<pre><code class="language-cpp">    int value{ 7 };
+    std::cout &lt;&lt; findAverage(6, 1.0, 2, &quot;Hello, world!&quot;, 'G', &amp;value, &amp;findAverage) &lt;&lt; '\n';
+</code></pre>
+<p>Incroyable mais vrai, cela compile sans problème et produit sur la machine de l'auteur le résultat suivant :</p>
+<pre><code>
+1.79766e+008
+</code></pre>
+<p>Ce résultat illustre parfaitement l'expression « Garbage in, garbage out » (des données absurdes en entrée donnent des résultats absurdes en sortie), une expression populaire en informatique, « utilisée principalement pour attirer l'attention sur le fait que les ordinateurs, contrairement aux humains, traitent sans broncher les données d'entrée les plus absurdes et produisent des résultats absurdes » (<a href="http://en.wikipedia.org/wiki/Garbage_in,_garbage_out">Wikipédia</a>).</p>
+<p>En résumé, la vérification de type des paramètres est suspendue, et nous devons faire confiance à l'appelant pour passer les bons types de paramètres. Si ce n'est pas le cas, le compilateur ne dira rien : notre programme produira simplement des résultats aberrants (ou plantera peut-être).</p>
+<p><strong>Pourquoi les ellipsis sont dangereuses : les ellipsis ne connaissent pas le nombre de paramètres passés</strong></p>
+<p>Non seulement les ellipsis éliminent le <em>type</em> des paramètres, mais elles éliminent aussi le <em>nombre</em> de paramètres de l'ellipsis. Cela signifie que nous devons trouver nous-mêmes une solution pour garder la trace du nombre de paramètres passés à l'ellipsis. En général, cela se fait de l'une des trois façons suivantes.</p>
+<p><strong>Méthode 1 : passer un paramètre de longueur</strong></p>
+<p>La méthode n° 1 consiste à utiliser l'un des paramètres fixes pour représenter le nombre de paramètres optionnels passés. C'est la solution que nous avons utilisée dans l'exemple findAverage() ci-dessus.</p>
+<p>Cependant, même ici, nous rencontrons des difficultés. Par exemple, considérons l'appel suivant :</p>
+<pre><code class="language-cpp">    std::cout &lt;&lt; findAverage(6, 1, 2, 3, 4, 5) &lt;&lt; '\n';
+</code></pre>
+<p>Sur la machine de l'auteur, au moment de la rédaction, cela a produit le résultat :</p>
+<pre><code>
+699773
+</code></pre>
+<p>Que s'est-il passé ? Nous avons indiqué à findAverage() que nous allions fournir 6 valeurs supplémentaires, mais nous n'en avons donné que 5. Par conséquent, les cinq premières valeurs renvoyées par va_arg() sont celles que nous avons passées. La sixième valeur renvoyée est une valeur aléatoire située quelque part dans la pile. Nous obtenons donc un résultat aberrant.</p>
+<p>Un cas plus sournois :</p>
+<pre><code class="language-cpp">    std::cout &lt;&lt; findAverage(6, 1, 2, 3, 4, 5, 6, 7) &lt;&lt; '\n';
+</code></pre>
+<p>Cela produit la réponse 3.5, qui peut sembler correcte à première vue, mais qui omet le dernier nombre de la moyenne, car nous n'avons indiqué que 6 valeurs supplémentaires (alors que nous en avons réellement fourni 7). Ce genre d'erreur peut être très difficile à détecter.</p>
+<p><strong>Méthode 2 : utiliser une valeur sentinelle</strong></p>
+<p>La méthode n° 2 consiste à utiliser une valeur sentinelle. Une <strong>sentinelle</strong> est une valeur particulière qui termine une boucle lorsqu'elle est rencontrée. Par exemple, pour les chaînes de caractères, le caractère nul de fin sert de sentinelle pour marquer la fin de la chaîne. Avec les ellipsis, la sentinelle est généralement passée comme dernier paramètre. Voici un exemple de findAverage() réécrit pour utiliser la valeur sentinelle -1 :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;cstdarg&gt; // nécessaire pour utiliser une ellipsis
+
+// L'ellipsis doit être le dernier paramètre
+double findAverage(int first, ...)
+{
+    // Nous devons traiter le premier nombre à part
+    int sum{ first };
+
+    // Nous accédons à l'ellipsis à travers une va_list, déclarons donc une va_list
+    std::va_list list;
+
+    // Nous initialisons la va_list avec va_start. Le premier argument est
+    // la liste à initialiser. Le second argument est le dernier paramètre
+    // qui n'est pas une ellipsis.
+    va_start(list, first);
+
+    int count{ 1 };
+    // Boucle infinie
+    while (true)
+    {
+        // Nous utilisons va_arg pour extraire des valeurs de l'ellipsis
+        // Le premier argument est la va_list utilisée
+        // Le second argument est le type de la valeur
+        int arg{ va_arg(list, int) };
+
+        // Si ce paramètre est notre valeur sentinelle, on arrête la boucle
+        if (arg == -1)
+            break;
+
+        sum += arg;
+        ++count;
+    }
+
+    // Nettoyer la va_list lorsque nous avons terminé.
+    va_end(list);
+
+    return static_cast&lt;double&gt;(sum) / count;
+}
+
+int main()
+{
+    std::cout &lt;&lt; findAverage(1, 2, 3, 4, 5, -1) &lt;&lt; '\n';
+    std::cout &lt;&lt; findAverage(1, 2, 3, 4, 5, 6, -1) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Notez que nous n'avons plus besoin de passer une longueur explicite comme premier paramètre. Nous passons à la place une valeur sentinelle comme dernier paramètre.</p>
+<p>Cependant, cette approche pose quelques difficultés. Premièrement, C++ exige que nous passions au moins un paramètre fixe. Dans l'exemple précédent, il s'agissait de notre variable count. Dans cet exemple, la première valeur fait en réalité partie des nombres à moyenner. Plutôt que de traiter cette première valeur comme faisant partie des paramètres de l'ellipsis, nous la déclarons explicitement comme paramètre normal. Nous devons alors la traiter de façon particulière dans la fonction (dans ce cas, nous initialisons sum à first au lieu de 0).</p>
+<p>Deuxièmement, cela oblige l'utilisateur à passer la sentinelle comme dernière valeur. Si l'utilisateur oublie de passer la valeur sentinelle (ou passe une mauvaise valeur), la fonction bouclera indéfiniment jusqu'à tomber sur une donnée aberrante qui correspond à la sentinelle (ou plantera).</p>
+<p>Enfin, notez que nous avons choisi -1 comme sentinelle. C'est acceptable si nous ne voulons calculer la moyenne que de nombres positifs, mais que faire si nous voulions inclure les nombres négatifs ? Les valeurs sentinelles ne fonctionnent bien que s'il existe une valeur située en dehors de l'ensemble des valeurs valides pour le problème à résoudre.</p>
+<p><strong>Méthode 3 : utiliser une chaîne de décodage</strong></p>
+<p>La méthode n° 3 consiste à passer une « chaîne de décodage » qui indique au programme comment interpréter les paramètres.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+#include &lt;cstdarg&gt; // nécessaire pour utiliser une ellipsis
+
+// L'ellipsis doit être le dernier paramètre
+double findAverage(std::string_view decoder, ...)
+{
+    double sum{ 0 };
+
+    // Nous accédons à l'ellipsis à travers une va_list, déclarons donc une va_list
+    std::va_list list;
+
+    // Nous initialisons la va_list avec va_start. Le premier argument est
+    // la liste à initialiser. Le second argument est le dernier paramètre
+    // qui n'est pas une ellipsis.
+    va_start(list, decoder);
+
+    for (auto codetype: decoder)
+    {
+        switch (codetype)
+        {
+        case 'i':
+            sum += va_arg(list, int);
+            break;
+
+        case 'd':
+            sum += va_arg(list, double);
+            break;
+        }
+    }
+
+    // Nettoyer la va_list lorsque nous avons terminé.
+    va_end(list);
+
+    return sum / std::size(decoder);
+}
+
+int main()
+{
+    std::cout &lt;&lt; findAverage(&quot;iiiii&quot;, 1, 2, 3, 4, 5) &lt;&lt; '\n';
+    std::cout &lt;&lt; findAverage(&quot;iiiiii&quot;, 1, 2, 3, 4, 5, 6) &lt;&lt; '\n';
+    std::cout &lt;&lt; findAverage(&quot;iiddi&quot;, 1, 2, 3.5, 4.5, 5) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, nous passons une chaîne qui encode à la fois le nombre de variables optionnelles et leurs types. L'avantage est que cela nous permet de traiter des paramètres de types différents. Cependant, cette méthode a aussi des inconvénients : la chaîne de décodage peut être assez cryptique, et si le nombre ou les types des paramètres optionnels ne correspondent pas précisément à la chaîne de décodage, de mauvaises choses peuvent arriver.</p>
+<p>Pour ceux d'entre vous qui viennent du C, c'est exactement ce que fait printf !</p>
+<p><strong>Recommandations pour une utilisation plus sûre des ellipsis</strong></p>
+<p>Premièrement, si possible, n'utilisez pas du tout les ellipsis ! Il existe souvent d'autres solutions raisonnables, même si elles demandent un peu plus de travail. Par exemple, dans notre programme findAverage(), nous aurions pu passer un tableau d'entiers de taille dynamique. Cela aurait assuré une vérification de type stricte (pour empêcher l'appelant de faire quelque chose d'absurde) tout en conservant la possibilité de passer un nombre variable d'entiers à moyenner.</p>
+<p>Deuxièmement, si vous utilisez des ellipsis, il est préférable que toutes les valeurs passées au paramètre ellipsis soient du même type (par exemple toutes des <code>int</code>, ou toutes des <code>double</code>, et non un mélange). Mélanger les types augmente considérablement la possibilité que l'appelant passe par inadvertance des données du mauvais type, et que va_arg() produise un résultat aberrant.</p>
+<p>Troisièmement, utiliser un paramètre de comptage ou une chaîne de décodage est généralement plus sûr qu'une valeur sentinelle. Cela oblige l'utilisateur à choisir une valeur appropriée pour le paramètre de comptage ou de décodage, ce qui garantit que la boucle sur l'ellipsis se termine après un nombre raisonnable d'itérations, même si elle produit une valeur aberrante.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Pour améliorer les fonctionnalités de type ellipsis, C++11 a introduit les <code>packs de paramètres</code> (parameter packs) et les <code>modèles variadiques</code> (variadic templates), qui offrent des fonctionnalités similaires aux ellipsis, mais avec une vérification de type stricte. Cependant, d'importantes difficultés d'utilisation ont freiné l'adoption de cette fonctionnalité.</p>
+<p>En C++17, les <a href="https://en.cppreference.com/w/cpp/language/fold">expressions de pliage</a> (fold expressions) ont été ajoutées, ce qui améliore considérablement l'utilisabilité des packs de paramètres, au point qu'ils constituent désormais une option viable.</p>
+<p>Nous espérons présenter des leçons sur ces sujets dans une future mise à jour du site.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/ellipsis-and-why-to-avoid-them/">https://www.learncpp.com/cpp-tutorial/ellipsis-and-why-to-avoid-them/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.2 — Surcharge des opérateurs arithmétiques à l&#x27;aide de fonctions amies</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="212-surcharge-des-opérateurs-arithmétiques-à-laide-de-fonctions-amies">21.2 — Surcharge des opérateurs arithmétiques à l'aide de fonctions amies</h1>
+<p>Certains des opérateurs les plus utilisés en C++ sont les opérateurs arithmétiques, à savoir l'opérateur d'addition (+), de soustraction (-), de multiplication (*) et de division (/). Notez que tous les opérateurs arithmétiques sont des opérateurs binaires, c'est-à-dire qu'ils prennent deux opérandes, un de chaque côté de l'opérateur. Ces quatre opérateurs se surchargent exactement de la même manière.</p>
+<p>Il existe en fait trois façons de surcharger des opérateurs : la méthode par fonction membre, la méthode par fonction amie et la méthode par fonction ordinaire. Dans cette leçon, nous verrons la méthode par fonction amie (car elle est plus intuitive pour la plupart des opérateurs binaires). La leçon suivante traitera de la méthode par fonction ordinaire. Enfin, dans une leçon ultérieure de ce chapitre, nous aborderons la méthode par fonction membre. Nous résumerons également plus en détail quand utiliser chacune d'elles.</p>
+<h2 id="surcharge-des-opérateurs-à-laide-de-fonctions-amies">Surcharge des opérateurs à l'aide de fonctions amies</h2>
+<p>Considérez la classe suivante :</p>
+<pre><code class="language-cpp">class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    Cents(int cents) : m_cents{ cents } { }
+    int getCents() const { return m_cents; }
+};
+</code></pre>
+<p>L'exemple suivant montre comment surcharger l'opérateur d'addition (+) pour additionner deux objets « Cents » :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    Cents(int cents) : m_cents{ cents } { }
+
+    // addition Cents + Cents à l'aide d'une fonction amie
+    friend Cents operator+(const Cents&amp; c1, const Cents&amp; c2);
+
+    int getCents() const { return m_cents; }
+};
+
+// note : cette fonction n'est pas une fonction membre !
+Cents operator+(const Cents&amp; c1, const Cents&amp; c2)
+{
+    // utilise le constructeur de Cents et operator+(int, int)
+    // nous pouvons accéder directement à m_cents car il s'agit d'une fonction amie
+    return c1.m_cents + c2.m_cents;
+}
+
+int main()
+{
+    Cents cents1{ 6 };
+    Cents cents2{ 8 };
+    Cents centsSum{ cents1 + cents2 };
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; centsSum.getCents() &lt;&lt; &quot; cents.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme produit le résultat suivant :</p>
+<pre><code>
+I have 14 cents.
+</code></pre>
+<p>Surcharger l'opérateur d'addition (+) revient simplement à déclarer une fonction nommée operator+, à lui donner deux paramètres du type des opérandes à additionner, à choisir un type de retour approprié, puis à écrire la fonction.</p>
+<p>Dans le cas de notre objet Cents, l'implémentation de operator+() est très simple. Tout d'abord, les types des paramètres : dans cette version de operator+, nous allons additionner deux objets Cents, donc notre fonction prend deux objets de type Cents. Ensuite, le type de retour : notre operator+ renvoie un résultat de type Cents, c'est donc notre type de retour.</p>
+<p>Enfin, l'implémentation : pour additionner deux objets Cents, il faut réellement additionner le membre m_cents de chacun d'eux. Comme notre fonction operator+() surchargée est une amie de la classe, nous pouvons accéder directement au membre m_cents de ses paramètres. De plus, comme m_cents est un entier, et que C++ sait additionner des entiers à l'aide de la version intégrée de l'opérateur plus pour les opérandes entiers, nous pouvons simplement utiliser l'opérateur + pour effectuer l'addition.</p>
+<p>La surcharge de l'opérateur de soustraction (-) est tout aussi simple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    explicit Cents(int cents) : m_cents{ cents } { }
+
+    // addition Cents + Cents à l'aide d'une fonction amie
+    friend Cents operator+(const Cents&amp; c1, const Cents&amp; c2);
+
+    // soustraction Cents - Cents à l'aide d'une fonction amie
+    friend Cents operator-(const Cents&amp; c1, const Cents&amp; c2);
+
+    int getCents() const { return m_cents; }
+};
+
+// note : cette fonction n'est pas une fonction membre !
+Cents operator+(const Cents&amp; c1, const Cents&amp; c2)
+{
+    // utilise le constructeur de Cents et operator+(int, int)
+    // nous pouvons accéder directement à m_cents car il s'agit d'une fonction amie
+    return Cents { c1.m_cents + c2.m_cents };
+}
+
+// note : cette fonction n'est pas une fonction membre !
+Cents operator-(const Cents&amp; c1, const Cents&amp; c2)
+{
+    // utilise le constructeur de Cents et operator-(int, int)
+    // nous pouvons accéder directement à m_cents car il s'agit d'une fonction amie
+    return Cents { c1.m_cents - c2.m_cents };
+}
+
+int main()
+{
+    Cents cents1{ 6 };
+    Cents cents2{ 2 };
+    Cents centsSum{ cents1 - cents2 };
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; centsSum.getCents() &lt;&lt; &quot; cents.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Surcharger l'opérateur de multiplication (*) et l'opérateur de division (/) est aussi simple que de définir respectivement les fonctions <code>operator*</code> et <code>operator/</code>.</p>
+<h2 id="les-fonctions-amies-peuvent-être-définies-à-lintérieur-de-la-classe">Les fonctions amies peuvent être définies à l'intérieur de la classe</h2>
+<p>Bien que les fonctions amies ne soient pas membres de la classe, elles peuvent tout de même être définies à l'intérieur de celle-ci si on le souhaite :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    explicit Cents(int cents) : m_cents{ cents } { }
+
+    // addition Cents + Cents à l'aide d'une fonction amie
+        // Cette fonction n'est pas considérée comme un membre de la classe, bien que sa définition soit à l'intérieur de celle-ci
+    friend Cents operator+(const Cents&amp; c1, const Cents&amp; c2)
+    {
+        // utilise le constructeur de Cents et operator+(int, int)
+        // nous pouvons accéder directement à m_cents car il s'agit d'une fonction amie
+        return Cents { c1.m_cents + c2.m_cents };
+    }
+
+    int getCents() const { return m_cents; }
+};
+
+int main()
+{
+    Cents cents1{ 6 };
+    Cents cents2{ 8 };
+    Cents centsSum{ cents1 + cents2 };
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; centsSum.getCents() &lt;&lt; &quot; cents.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Cette approche convient pour les opérateurs surchargés dont l'implémentation est triviale.</p>
+<h2 id="surcharge-des-opérateurs-pour-des-opérandes-de-types-différents">Surcharge des opérateurs pour des opérandes de types différents</h2>
+<p>Il arrive souvent que vous souhaitiez que vos opérateurs surchargés fonctionnent avec des opérandes de types différents. Par exemple, si nous avons Cents(4), nous pouvons vouloir y ajouter l'entier 6 pour obtenir Cents(10).</p>
+<p>Lorsque C++ évalue l'expression <code>x + y</code>, x devient le premier paramètre et y le second. Lorsque x et y ont le même type, il importe peu d'écrire x + y ou y + x : dans les deux cas, la même version de operator+ est appelée. En revanche, lorsque les opérandes ont des types différents, <code>x + y</code> n'appelle pas la même fonction que <code>y + x</code>.</p>
+<p>Par exemple, <code>Cents(4) + 6</code> appelle operator+(Cents, int), tandis que <code>6 + Cents(4)</code> appelle operator+(int, Cents). Par conséquent, lorsque nous surchargeons des opérateurs binaires pour des opérandes de types différents, nous devons en réalité écrire deux fonctions, une pour chaque cas. Voici un exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    explicit Cents(int cents) : m_cents{ cents } { }
+
+    // addition Cents + int à l'aide d'une fonction amie
+    friend Cents operator+(const Cents&amp; c1, int value);
+
+    // addition int + Cents à l'aide d'une fonction amie
+    friend Cents operator+(int value, const Cents&amp; c1);
+
+
+    int getCents() const { return m_cents; }
+};
+
+// note : cette fonction n'est pas une fonction membre !
+Cents operator+(const Cents&amp; c1, int value)
+{
+    // utilise le constructeur de Cents et operator+(int, int)
+    // nous pouvons accéder directement à m_cents car il s'agit d'une fonction amie
+    return Cents { c1.m_cents + value };
+}
+
+// note : cette fonction n'est pas une fonction membre !
+Cents operator+(int value, const Cents&amp; c1)
+{
+    // utilise le constructeur de Cents et operator+(int, int)
+    // nous pouvons accéder directement à m_cents car il s'agit d'une fonction amie
+    return Cents { c1.m_cents + value };
+}
+
+int main()
+{
+    Cents c1{ Cents{ 4 } + 6 };
+    Cents c2{ 6 + Cents{ 4 } };
+
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; c1.getCents() &lt;&lt; &quot; cents.\n&quot;;
+    std::cout &lt;&lt; &quot;I have &quot; &lt;&lt; c2.getCents() &lt;&lt; &quot; cents.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Notez que les deux fonctions surchargées ont la même implémentation : elles font la même chose, elles reçoivent simplement leurs paramètres dans un ordre différent.</p>
+<h2 id="un-autre-exemple">Un autre exemple</h2>
+<p>Examinons un autre exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class MinMax
+{
+private:
+    int m_min {}; // La plus petite valeur vue jusqu'à présent
+    int m_max {}; // La plus grande valeur vue jusqu'à présent
+
+public:
+    MinMax(int min, int max)
+        : m_min { min }, m_max { max }
+    { }
+
+    int getMin() const { return m_min; }
+    int getMax() const { return m_max; }
+
+    friend MinMax operator+(const MinMax&amp; m1, const MinMax&amp; m2);
+    friend MinMax operator+(const MinMax&amp; m, int value);
+    friend MinMax operator+(int value, const MinMax&amp; m);
+};
+
+MinMax operator+(const MinMax&amp; m1, const MinMax&amp; m2)
+{
+    // Obtient la plus petite valeur vue dans m1 et m2
+    int min{ m1.m_min &lt; m2.m_min ? m1.m_min : m2.m_min };
+
+    // Obtient la plus grande valeur vue dans m1 et m2
+    int max{ m1.m_max &gt; m2.m_max ? m1.m_max : m2.m_max };
+
+    return MinMax { min, max };
+}
+
+MinMax operator+(const MinMax&amp; m, int value)
+{
+    // Obtient la plus petite valeur vue dans m et value
+    int min{ m.m_min &lt; value ? m.m_min : value };
+
+    // Obtient la plus grande valeur vue dans m et value
+    int max{ m.m_max &gt; value ? m.m_max : value };
+
+    return MinMax { min, max };
+}
+
+MinMax operator+(int value, const MinMax&amp; m)
+{
+    // appelle operator+(MinMax, int)
+    return m + value;
+}
+
+int main()
+{
+    MinMax m1{ 10, 15 };
+    MinMax m2{ 8, 11 };
+    MinMax m3{ 3, 12 };
+
+    MinMax mFinal{ m1 + m2 + 5 + 8 + m3 + 16 };
+
+    std::cout &lt;&lt; &quot;Result: (&quot; &lt;&lt; mFinal.getMin() &lt;&lt; &quot;, &quot; &lt;&lt;
+        mFinal.getMax() &lt;&lt; &quot;)\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>La classe MinMax garde la trace des valeurs minimale et maximale vues jusqu'à présent. Nous avons surchargé l'opérateur + à 3 reprises, afin de pouvoir additionner deux objets MinMax ou ajouter des entiers à des objets MinMax.</p>
+<p>Cet exemple produit le résultat suivant :</p>
+<pre><code>
+Result: (3, 16)
+</code></pre>
+<p>Vous remarquerez qu'il s'agit des valeurs minimale et maximale que nous avons ajoutées à mFinal.</p>
+<p>Expliquons plus en détail comment s'évalue l'expression « MinMax mFinal { m1 + m2 + 5 + 8 + m3 + 16 } ». Rappelez-vous que operator+ s'évalue de gauche à droite, donc m1 + m2 s'évalue en premier. Cela correspond à un appel à operator+(m1, m2), qui produit la valeur de retour MinMax(8, 15). Vient ensuite MinMax(8, 15) + 5, qui correspond à un appel à operator+(MinMax(8, 15), 5) et produit MinMax(5, 15). Puis MinMax(5, 15) + 8 s'évalue de la même manière pour produire MinMax(5, 15). Ensuite, MinMax(5, 15) + m3 donne MinMax(3, 15). Enfin, MinMax(3, 15) + 16 donne MinMax(3, 16). Ce résultat final sert alors à initialiser mFinal.</p>
+<p>Autrement dit, cette expression s'évalue comme « MinMax mFinal = (((((m1 + m2) + 5) + 8) + m3) + 16) », chaque opération successive renvoyant un objet MinMax qui devient l'opérande de gauche de l'opérateur suivant.</p>
+<h2 id="implémenter-des-opérateurs-à-laide-dautres-opérateurs">Implémenter des opérateurs à l'aide d'autres opérateurs</h2>
+<p>Dans l'exemple ci-dessus, notez que nous avons défini operator+(int, MinMax) en appelant operator+(MinMax, int), qui produit le même résultat. Cela nous permet de réduire l'implémentation de operator+(int, MinMax) à une seule ligne, ce qui rend le code plus facile à maintenir en limitant la redondance et en simplifiant la compréhension de la fonction.</p>
+<p>Il est souvent possible de définir des opérateurs surchargés en appelant d'autres opérateurs surchargés. Vous devriez le faire lorsque cela produit un code plus simple. Lorsque l'implémentation est triviale (par exemple une seule ligne), il peut ou non être utile de procéder ainsi.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>a) Écrivez une classe nommée Fraction possédant deux membres entiers, numerator et denominator. Écrivez une fonction print() qui affiche la fraction.</p>
+<p>Le code suivant doit compiler :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Fraction f1{ 1, 4 };
+    f1.print();
+
+    Fraction f2{ 1, 2 };
+    f2.print();
+
+    return 0;
+}
+</code></pre>
+<p>Il doit afficher :</p>
+<pre><code>
+1/4
+1/2
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Fraction
+{
+private:
+    int m_numerator { 0 };
+    int m_denominator { 1 };
+
+public:
+    explicit Fraction(int numerator, int denominator=1)
+        : m_numerator{numerator}, m_denominator{denominator}
+    {
+    }
+
+    void print() const
+    {
+        std::cout &lt;&lt; m_numerator &lt;&lt; '/' &lt;&lt; m_denominator &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    Fraction f1 {1, 4};
+    f1.print();
+
+    Fraction f2 {1, 2};
+    f2.print();
+
+    return 0;
+}
+</code></pre>
+</details>
+<p>b) Ajoutez des surcharges de l'opérateur de multiplication pour gérer la multiplication entre une Fraction et un entier, et entre deux Fraction. Utilisez la méthode par fonction amie.</p>
+<p>Indice : pour multiplier deux fractions, multipliez d'abord les deux numérateurs entre eux, puis les deux dénominateurs entre eux. Pour multiplier une fraction par un entier, multipliez le numérateur de la fraction par cet entier et laissez le dénominateur inchangé.</p>
+<p>Le code suivant doit compiler :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Fraction f1{2, 5};
+    f1.print();
+
+    Fraction f2{3, 8};
+    f2.print();
+
+    Fraction f3{ f1 * f2 };
+    f3.print();
+
+    Fraction f4{ f1 * 2 };
+    f4.print();
+
+    Fraction f5{ 2 * f2 };
+    f5.print();
+
+    Fraction f6{ Fraction{1, 2} * Fraction{2, 3} * Fraction{3, 4} };
+    f6.print();
+
+    return 0;
+}
+</code></pre>
+<p>Il doit afficher :</p>
+<pre><code>
+2/5
+3/8
+6/40
+4/5
+6/8
+6/24
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Fraction
+{
+private:
+    int m_numerator { 0 };
+    int m_denominator { 1 };
+
+public:
+    explicit Fraction(int numerator, int denominator=1)
+        : m_numerator{numerator}, m_denominator{denominator}
+    {
+    }
+
+    // Nous ne voulons pas passer par valeur, car la copie est coûteuse.
+    // Nous ne pouvons pas et ne devons pas passer par référence non constante, car
+    // nos fonctions ne fonctionneraient alors pas avec les valeurs r.
+    friend Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2);
+    friend Fraction operator*(const Fraction&amp; f1, int value);
+    friend Fraction operator*(int value, const Fraction&amp; f1);
+
+    void print() const
+    {
+        std::cout &lt;&lt; m_numerator &lt;&lt; '/' &lt;&lt; m_denominator &lt;&lt; '\n';
+    }
+};
+
+Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2)
+{
+    return Fraction { f1.m_numerator * f2.m_numerator, f1.m_denominator * f2.m_denominator };
+}
+
+Fraction operator*(const Fraction&amp; f1, int value)
+{
+    return Fraction { f1.m_numerator * value, f1.m_denominator };
+}
+
+Fraction operator*(int value, const Fraction&amp; f1)
+{
+    return Fraction { f1 * value };
+}
+
+int main()
+{
+    Fraction f1{2, 5};
+    f1.print();
+
+    Fraction f2{3, 8};
+    f2.print();
+
+    Fraction f3{ f1 * f2 };
+    f3.print();
+
+    Fraction f4{ f1 * 2 };
+    f4.print();
+
+    Fraction f5{ 2 * f2 };
+    f5.print();
+
+    Fraction f6{ Fraction{1, 2} * Fraction{2, 3} * Fraction{3, 4} };
+    f6.print();
+
+    return 0;
+}
+</code></pre>
+</details>
+<p>c) Pourquoi le programme continue-t-il de fonctionner correctement si nous retirons le mot-clé explicit du constructeur et supprimons les opérateurs de multiplication par un entier de la solution précédente ?</p>
+<pre><code class="language-cpp">// Retrait de explicit du constructeur
+    Fraction(int numerator, int denominator=1)
+        : m_numerator{numerator}, m_denominator{denominator}
+    {
+    }
+
+// Nous pouvons supprimer ces opérateurs, et le programme continue de fonctionner
+Fraction operator*(const Fraction&amp; f1, int value);
+Fraction operator*(int value, const Fraction&amp; f1);
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>Nous conservons</p>
+<pre><code class="language-cpp">Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2)
+</code></pre>
+<p>Lorsque nous multiplions une fraction par un entier, par exemple</p>
+<pre><code class="language-cpp">Fraction f5{ 2 * f2 };
+</code></pre>
+<p>le constructeur <code>Fraction(int, int)</code> non explicit est utilisé pour construire une nouvelle <code>Fraction</code> à partir de 2. Cette nouvelle <code>Fraction</code> est ensuite multipliée par <code>f2</code> à l'aide de l'opérateur <code>Fraction * Fraction</code>.</p>
+<p>Comme cela nécessite de convertir <code>2</code> en <code>Fraction</code>, c'est légèrement plus lent que l'implémentation avec des surcharges spécifiques pour la multiplication par un entier.</p>
+</details>
+<p>d) Si nous rendons non constantes les références paramètres de <code>operator*(Fraction, Fraction)</code>, la ligne suivante de la fonction <code>main</code> ne fonctionne plus. Pourquoi ?</p>
+<pre><code class="language-cpp">// L'opérateur de multiplication non constant ressemble à ceci
+Fraction operator*(Fraction&amp; f1, Fraction&amp; f2)
+
+// Ceci ne fonctionne plus
+Fraction f6{ Fraction{1, 2} * Fraction{2, 3} * Fraction{3, 4} };
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<p>Nous multiplions des objets <code>Fraction</code> temporaires, or une référence non constante ne peut pas se lier à un temporaire.</p>
+</details>
+<p>e) Pour aller plus loin : la fraction 2/4 est égale à 1/2, mais 2/4 n'est pas réduite à sa plus simple expression. Nous pouvons réduire n'importe quelle fraction à sa forme irréductible en calculant le plus grand commun diviseur (PGCD) du numérateur et du dénominateur, puis en divisant le numérateur et le dénominateur par ce PGCD.</p>
+<p><code>std::gcd()</code> a été ajoutée à la bibliothèque standard en C++17 (dans l'en-tête &lt;numeric&gt;).</p>
+<p>Si vous utilisez un compilateur plus ancien, vous pouvez utiliser cette fonction pour calculer le PGCD :</p>
+<pre><code class="language-cpp">#include &lt;cmath&gt; // pour std::abs
+
+int gcd(int a, int b) {
+    return (b == 0) ? std::abs(a) : gcd(b, a % b);
+}
+</code></pre>
+<p>Écrivez une fonction membre nommée reduce() qui réduit votre fraction. Assurez-vous que toutes les fractions sont correctement réduites.</p>
+<p>Le code suivant doit compiler :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Fraction f1{2, 5};
+    f1.print();
+
+    Fraction f2{3, 8};
+    f2.print();
+
+    Fraction f3{ f1 * f2 };
+    f3.print();
+
+    Fraction f4{ f1 * 2 };
+    f4.print();
+
+    Fraction f5{ 2 * f2 };
+    f5.print();
+
+    Fraction f6{ Fraction{1, 2} * Fraction{2, 3} * Fraction{3, 4} };
+    f6.print();
+
+    Fraction f7{0, 6};
+    f7.print();
+
+    return 0;
+}
+</code></pre>
+<p>Et produit le résultat suivant :</p>
+<pre><code>
+2/5
+3/8
+3/20
+4/5
+3/4
+1/4
+0/1
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;numeric&gt; // pour std::gcd
+
+// Cette version de la classe Fraction réduit automatiquement les fractions
+class Fraction
+{
+private:
+    int m_numerator{ 0 };
+    int m_denominator{ 1 };
+
+public:
+    explicit Fraction(int numerator, int denominator = 1)
+        : m_numerator{ numerator }, m_denominator{ denominator }
+    {
+        // Nous plaçons reduce() dans le constructeur pour garantir que toute fraction créée soit réduite !
+        // Comme tous les opérateurs surchargés créent de nouvelles Fraction, nous pouvons garantir l'appel ici
+        reduce();
+    }
+
+    void reduce()
+    {
+        int gcd{ std::gcd(m_numerator, m_denominator) };
+        if (gcd) // S'assure de ne pas diviser par 0
+        {
+            m_numerator /= gcd;
+            m_denominator /= gcd;
+        }
+    }
+
+    friend Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2);
+    friend Fraction operator*(const Fraction&amp; f1, int value);
+    friend Fraction operator*(int value, const Fraction&amp; f1);
+
+    void print() const
+    {
+        std::cout &lt;&lt; m_numerator &lt;&lt; '/' &lt;&lt; m_denominator &lt;&lt; '\n';
+    }
+};
+
+Fraction operator*(const Fraction&amp; f1, const Fraction&amp; f2)
+{
+    return Fraction { f1.m_numerator * f2.m_numerator, f1.m_denominator * f2.m_denominator };
+}
+
+Fraction operator*(const Fraction&amp; f1, int value)
+{
+    return Fraction { f1.m_numerator * value, f1.m_denominator };
+}
+
+Fraction operator*(int value, const Fraction&amp; f1)
+{
+    return Fraction { f1 * value };
+}
+
+int main()
+{
+    Fraction f1{ 2, 5 };
+    f1.print();
+
+    Fraction f2{ 3, 8 };
+    f2.print();
+
+    Fraction f3{ f1 * f2 };
+    f3.print();
+
+    Fraction f4{ f1 * 2 };
+    f4.print();
+
+    Fraction f5{ 2 * f2 };
+    f5.print();
+
+    Fraction f6{ Fraction{1, 2} * Fraction{2, 3} * Fraction{3, 4} };
+    f6.print();
+
+    Fraction f7{ 0, 6 };
+    f7.print();
+
+    return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-the-arithmetic-operators-using-friend-functions/">https://www.learncpp.com/cpp-tutorial/overloading-the-arithmetic-operators-using-friend-functions/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24.5 — Héritage et spécificateurs d&#x27;accès</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="245-héritage-et-spécificateurs-daccès">24.5 — Héritage et spécificateurs d'accès</h1>
+<p>Dans les leçons précédentes de ce chapitre, vous avez découvert un peu le fonctionnement de l'héritage de base. Dans tous nos exemples jusqu'ici, nous avons utilisé l'héritage public. Autrement dit, notre classe dérivée hérite publiquement de la classe de base.</p>
+<p>Dans cette leçon, nous allons examiner de plus près l'héritage public, ainsi que les deux autres types d'héritage (privé et protégé). Nous verrons aussi comment les différents types d'héritage interagissent avec les spécificateurs d'accès pour autoriser ou restreindre l'accès aux membres.</p>
+<p>Jusqu'à présent, vous avez vu les spécificateurs d'accès private et public, qui déterminent qui peut accéder aux membres d'une classe. Pour rappel, les membres public peuvent être accédés par n'importe qui. Les membres private ne peuvent être accédés que par les fonctions membres de la même classe ou par les amis (friend). Cela signifie que les classes dérivées ne peuvent pas accéder directement aux membres private de la classe de base !</p>
+<pre><code class="language-cpp">class Base
+{
+private:
+    int m_private {}; // ne peut être accédé que par les membres de Base et les amis (pas par les classes dérivées)
+public:
+    int m_public {}; // peut être accédé par n'importe qui
+};
+</code></pre>
+<p>C'est assez simple, et vous devriez y être bien habitué maintenant.</p>
+<h2 id="le-spécificateur-daccès-protected">Le spécificateur d'accès protected</h2>
+<p>Lorsqu'il s'agit de classes héritées, les choses se compliquent un peu.</p>
+<p>C++ possède un troisième spécificateur d'accès dont nous n'avons pas encore parlé, car il n'est utile que dans un contexte d'héritage. Le spécificateur d'accès <strong>protected</strong> permet à la classe à laquelle appartient le membre, aux amis et aux classes dérivées d'accéder à ce membre. En revanche, les membres protected ne sont pas accessibles depuis l'extérieur de la classe.</p>
+<pre><code class="language-cpp">class Base
+{
+public:
+    int m_public {}; // peut être accédé par n'importe qui
+protected:
+    int m_protected {}; // peut être accédé par les membres de Base, les amis et les classes dérivées
+private:
+    int m_private {}; // ne peut être accédé que par les membres de Base et les amis (mais pas par les classes dérivées)
+};
+
+class Derived: public Base
+{
+public:
+    Derived()
+    {
+        m_public = 1; // autorisé : une classe dérivée peut accéder aux membres publics de la base
+        m_protected = 2; // autorisé : une classe dérivée peut accéder aux membres protégés de la base
+        m_private = 3; // non autorisé : une classe dérivée ne peut pas accéder aux membres privés de la base
+    }
+};
+
+int main()
+{
+    Base base;
+    base.m_public = 1; // autorisé : accès à un membre public depuis l'extérieur de la classe
+    base.m_protected = 2; // non autorisé : les membres protégés ne sont pas accessibles depuis l'extérieur de la classe
+    base.m_private = 3; // non autorisé : les membres privés ne sont pas accessibles depuis l'extérieur de la classe
+
+    return 0;
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, vous pouvez voir que le membre protégé de la base m_protected est directement accessible par la classe dérivée, mais pas par le public.</p>
+<h2 id="alors-quand-faut-il-utiliser-le-spécificateur-daccès-protected">Alors, quand faut-il utiliser le spécificateur d'accès protected ?</h2>
+<p>Avec un attribut protected dans une classe de base, les classes dérivées peuvent accéder directement à ce membre. Cela signifie que si vous modifiez plus tard quoi que ce soit concernant cet attribut protégé (son type, la signification de sa valeur, etc.), vous devrez probablement modifier à la fois la classe de base ET toutes les classes dérivées.</p>
+<p>Par conséquent, le spécificateur d'accès protected est surtout utile lorsque vous (ou votre équipe) êtes ceux qui dérivent vos propres classes, et que le nombre de classes dérivées reste raisonnable. Ainsi, si vous modifiez l'implémentation de la classe de base et que des mises à jour des classes dérivées deviennent nécessaires, vous pouvez les effectuer vous-même (et cela ne prendra pas une éternité, puisque le nombre de classes dérivées est limité).</p>
+<p>Rendre vos membres private signifie que les classes publiques et dérivées ne peuvent pas modifier directement la classe de base. C'est une bonne façon d'isoler les classes publiques ou dérivées des changements d'implémentation, et de garantir que les invariants sont correctement maintenus. En revanche, cela signifie aussi que votre classe peut avoir besoin d'une interface publique (ou protégée) plus importante, pour fournir toutes les fonctions dont les classes publiques ou dérivées ont besoin, ce qui a un coût propre en termes de construction, de tests et de maintenance.</p>
+<p>En général, il vaut mieux rendre vos membres private lorsque c'est possible, et n'utiliser protected que lorsque des classes dérivées sont prévues et que le coût de construction et de maintenance d'une interface vers ces membres private est trop élevé.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Privilégiez les membres private aux membres protected.</p>
+</div>
+<h2 id="les-différents-types-dhéritage-et-leur-impact-sur-laccès">Les différents types d'héritage et leur impact sur l'accès</h2>
+<p>Tout d'abord, il existe trois façons différentes pour une classe d'hériter d'une autre : public, protected et private.</p>
+<p>Pour cela, il suffit de préciser le type d'accès souhaité lors du choix de la classe à hériter :</p>
+<pre><code class="language-cpp">// Hérite publiquement de Base
+class Pub: public Base
+{
+};
+
+// Hérite de manière protégée de Base
+class Pro: protected Base
+{
+};
+
+// Hérite privément de Base
+class Pri: private Base
+{
+};
+
+class Def: Base // Privé par défaut
+{
+};
+</code></pre>
+<p>Si vous ne choisissez pas de type d'héritage, C++ utilise par défaut l'héritage privé (de la même façon que les membres sont private par défaut si vous ne précisez rien d'autre).</p>
+<p>Cela nous donne 9 combinaisons : 3 spécificateurs d'accès des membres (public, private et protected) et 3 types d'héritage (public, private et protected).</p>
+<p>Quelle est donc la différence entre ces combinaisons ? En résumé, lorsque des membres sont hérités, le spécificateur d'accès d'un membre hérité peut changer (dans la classe dérivée uniquement) selon le type d'héritage utilisé. Autrement dit, les membres public ou protected de la classe de base peuvent changer de spécificateur d'accès dans la classe dérivée.</p>
+<p>Cela peut sembler un peu déroutant, mais ce n'est pas si compliqué. Nous allons passer le reste de cette leçon à explorer ce point en détail.</p>
+<p>Gardez à l'esprit les règles suivantes au fil des exemples :</p>
+<ul>
+<li>Une classe peut toujours accéder à ses propres membres (non hérités).</li>
+<li>Le public accède aux membres d'une classe en fonction des spécificateurs d'accès de la classe qu'il consulte.</li>
+<li>Une classe dérivée accède aux membres hérités en fonction du spécificateur d'accès hérité de la classe parente. Cela varie selon le spécificateur d'accès et le type d'héritage utilisés.</li>
+</ul>
+<h2 id="lhéritage-public">L'héritage public</h2>
+<p>L'héritage public est de loin le type d'héritage le plus utilisé. En pratique, vous verrez ou utiliserez très rarement les autres types d'héritage ; concentrez-vous donc en priorité sur la compréhension de cette section. Heureusement, l'héritage public est aussi le plus simple à comprendre. Lorsque vous héritez publiquement d'une classe de base, les membres public hérités restent public, et les membres protected hérités restent protected. Les membres private hérités, qui étaient inaccessibles parce que private dans la classe de base, restent inaccessibles.</p>
+<table>
+<thead>
+<tr>
+<th>Spécificateur d'accès dans la classe de base</th>
+<th>Spécificateur d'accès lors d'un héritage public</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public</td>
+<td>Public</td>
+</tr>
+<tr>
+<td>Protected</td>
+<td>Protected</td>
+</tr>
+<tr>
+<td>Private</td>
+<td>Inaccessible</td>
+</tr>
+</tbody>
+</table>
+<p>Voici un exemple qui montre le fonctionnement :</p>
+<pre><code class="language-cpp">class Base
+{
+public:
+    int m_public {};
+protected:
+    int m_protected {};
+private:
+    int m_private {};
+};
+
+class Pub: public Base // note : héritage public
+{
+    // L'héritage public signifie :
+    // Les membres publics hérités restent publics (m_public est donc traité comme public)
+    // Les membres protégés hérités restent protégés (m_protected est donc traité comme protected)
+    // Les membres privés hérités restent inaccessibles (m_private est donc inaccessible)
+public:
+    Pub()
+    {
+        m_public = 1; // ok : m_public a été hérité comme public
+        m_protected = 2; // ok : m_protected a été hérité comme protected
+        m_private = 3; // non ok : m_private est inaccessible depuis la classe dérivée
+    }
+};
+
+int main()
+{
+    // L'accès depuis l'extérieur utilise les spécificateurs d'accès de la classe consultée.
+    Base base;
+    base.m_public = 1; // ok : m_public est public dans Base
+    base.m_protected = 2; // non ok : m_protected est protected dans Base
+    base.m_private = 3; // non ok : m_private est private dans Base
+
+    Pub pub;
+    pub.m_public = 1; // ok : m_public est public dans Pub
+    pub.m_protected = 2; // non ok : m_protected est protected dans Pub
+    pub.m_private = 3; // non ok : m_private est inaccessible dans Pub
+
+    return 0;
+}
+</code></pre>
+<p>C'est le même exemple que celui présenté plus haut pour introduire le spécificateur protected, à ceci près que nous avons aussi instancié la classe dérivée, simplement pour montrer qu'avec l'héritage public, le fonctionnement est identique dans la classe de base et dans la classe dérivée.</p>
+<p>L'héritage public est ce que vous devriez utiliser, sauf si vous avez une raison particulière de faire autrement.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Utilisez l'héritage public, sauf si vous avez une raison précise de faire autrement.</p>
+</div>
+<h2 id="lhéritage-protégé">L'héritage protégé</h2>
+<p>L'héritage protégé est le type d'héritage le moins courant. Il est presque jamais utilisé, sauf dans des cas très particuliers. Avec l'héritage protégé, les membres public et protected deviennent protected, et les membres private restent inaccessibles.</p>
+<p>Comme cette forme d'héritage est si rare, nous ne donnerons pas d'exemple et résumerons simplement avec un tableau :</p>
+<table>
+<thead>
+<tr>
+<th>Spécificateur d'accès dans la classe de base</th>
+<th>Spécificateur d'accès lors d'un héritage protégé</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public</td>
+<td>Protected</td>
+</tr>
+<tr>
+<td>Protected</td>
+<td>Protected</td>
+</tr>
+<tr>
+<td>Private</td>
+<td>Inaccessible</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lhéritage-privé">L'héritage privé</h2>
+<p>Avec l'héritage privé, tous les membres de la classe de base sont hérités comme private. Cela signifie que les membres private restent inaccessibles, et que les membres protected et public deviennent private.</p>
+<p>Notez que cela ne change pas la façon dont la classe dérivée accède aux membres hérités de sa classe parente ! Cela affecte uniquement le code qui tente d'accéder à ces membres à travers la classe dérivée.</p>
+<pre><code class="language-cpp">class Base
+{
+public:
+    int m_public {};
+protected:
+    int m_protected {};
+private:
+    int m_private {};
+};
+
+class Pri: private Base // note : héritage privé
+{
+    // L'héritage privé signifie :
+    // Les membres publics hérités deviennent privés (m_public est donc traité comme private)
+    // Les membres protégés hérités deviennent privés (m_protected est donc traité comme private)
+    // Les membres privés hérités restent inaccessibles (m_private est donc inaccessible)
+public:
+    Pri()
+    {
+        m_public = 1; // ok : m_public est maintenant private dans Pri
+        m_protected = 2; // ok : m_protected est maintenant private dans Pri
+        m_private = 3; // non ok : les classes dérivées ne peuvent pas accéder aux membres privés de la classe de base
+    }
+};
+
+int main()
+{
+    // L'accès depuis l'extérieur utilise les spécificateurs d'accès de la classe consultée.
+    // Ici, il s'agit des spécificateurs d'accès de base.
+    Base base;
+    base.m_public = 1; // ok : m_public est public dans Base
+    base.m_protected = 2; // non ok : m_protected est protected dans Base
+    base.m_private = 3; // non ok : m_private est private dans Base
+
+    Pri pri;
+    pri.m_public = 1; // non ok : m_public est maintenant private dans Pri
+    pri.m_protected = 2; // non ok : m_protected est maintenant private dans Pri
+    pri.m_private = 3; // non ok : m_private est inaccessible dans Pri
+
+    return 0;
+}
+</code></pre>
+<p>Pour résumer sous forme de tableau :</p>
+<table>
+<thead>
+<tr>
+<th>Spécificateur d'accès dans la classe de base</th>
+<th>Spécificateur d'accès lors d'un héritage privé</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public</td>
+<td>Private</td>
+</tr>
+<tr>
+<td>Protected</td>
+<td>Private</td>
+</tr>
+<tr>
+<td>Private</td>
+<td>Inaccessible</td>
+</tr>
+</tbody>
+</table>
+<p>L'héritage privé peut être utile lorsque la classe dérivée n'a pas de lien évident avec la classe de base, mais utilise cette dernière en interne pour son implémentation. Dans un tel cas, nous ne voulons probablement pas que l'interface publique de la classe de base soit exposée à travers les objets de la classe dérivée (ce qui serait le cas avec un héritage public).</p>
+<p>En pratique, l'héritage privé est rarement utilisé.</p>
+<h2 id="un-dernier-exemple">Un dernier exemple</h2>
+<pre><code class="language-cpp">class Base
+{
+public:
+    int m_public {};
+protected:
+    int m_protected {};
+private:
+    int m_private {};
+};
+</code></pre>
+<p>Base peut accéder à ses propres membres sans restriction. Le public ne peut accéder qu'à m_public. Les classes dérivées peuvent accéder à m_public et à m_protected.</p>
+<pre><code class="language-cpp">class D2 : private Base // note : héritage privé
+{
+    // L'héritage privé signifie :
+    // Les membres publics hérités deviennent privés
+    // Les membres protégés hérités deviennent privés
+    // Les membres privés hérités restent inaccessibles
+public:
+    int m_public2 {};
+protected:
+    int m_protected2 {};
+private:
+    int m_private2 {};
+};
+</code></pre>
+<p>D2 peut accéder à ses propres membres sans restriction. D2 peut accéder aux membres m_public et m_protected de Base, mais pas à m_private. Comme D2 hérite de Base de manière privée, m_public et m_protected sont désormais considérés comme private lorsqu'on y accède à travers D2. Cela signifie que le public ne peut pas accéder à ces variables lorsqu'il utilise un objet D2, pas plus que les classes dérivées de D2.</p>
+<pre><code class="language-cpp">class D3 : public D2
+{
+    // L'héritage public signifie :
+    // Les membres publics hérités restent publics
+    // Les membres protégés hérités restent protégés
+    // Les membres privés hérités restent inaccessibles
+public:
+    int m_public3 {};
+protected:
+    int m_protected3 {};
+private:
+    int m_private3 {};
+};
+</code></pre>
+<p>D3 peut accéder à ses propres membres sans restriction. D3 peut accéder aux membres m_public2 et m_protected2 de D2, mais pas à m_private2. Comme D3 hérite de D2 publiquement, m_public2 et m_protected2 conservent leurs spécificateurs d'accès lorsqu'on y accède à travers D3. D3 n'a aucun accès à m_private de Base, qui était déjà private dans Base. Il n'a pas non plus accès à m_protected ou m_public de Base, qui sont devenus private lorsque D2 les a hérités.</p>
+<h2 id="résumé">Résumé</h2>
+<p>L'interaction entre les spécificateurs d'accès, les types d'héritage et les classes dérivées est source de beaucoup de confusion. Pour clarifier les choses autant que possible :</p>
+<p>Premièrement, une classe (et ses amis) peut toujours accéder à ses propres membres non hérités. Les spécificateurs d'accès n'affectent que la possibilité, pour l'extérieur et pour les classes dérivées, d'accéder à ces membres.</p>
+<p>Deuxièmement, lorsque des classes dérivées héritent de membres, ces membres peuvent changer de spécificateur d'accès dans la classe dérivée. Cela n'affecte pas les membres propres (non hérités) de la classe dérivée, qui ont leurs propres spécificateurs d'accès. Cela affecte uniquement la possibilité, pour l'extérieur et pour les classes dérivées de la classe dérivée, d'accéder à ces membres hérités.</p>
+<p>Voici un tableau présentant toutes les combinaisons de spécificateurs d'accès et de types d'héritage :</p>
+<table>
+<thead>
+<tr>
+<th>Spécificateur d'accès dans la classe de base</th>
+<th>Spécificateur d'accès lors d'un héritage public</th>
+<th>Spécificateur d'accès lors d'un héritage privé</th>
+<th>Spécificateur d'accès lors d'un héritage protégé</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public</td>
+<td>Public</td>
+<td>Private</td>
+<td>Protected</td>
+</tr>
+<tr>
+<td>Protected</td>
+<td>Protected</td>
+<td>Private</td>
+<td>Protected</td>
+</tr>
+<tr>
+<td>Private</td>
+<td>Inaccessible</td>
+<td>Inaccessible</td>
+<td>Inaccessible</td>
+</tr>
+</tbody>
+</table>
+<p>Enfin, bien que nos exemples ci-dessus n'aient présenté que des variables membres, ces règles d'accès s'appliquent à tous les membres (par exemple les fonctions membres et les types déclarés à l'intérieur de la classe).</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/inheritance-and-access-specifiers/">https://www.learncpp.com/cpp-tutorial/inheritance-and-access-specifiers/</a></em></p>
+</main>
+</body>
+</html>

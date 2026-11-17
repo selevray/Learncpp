@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15.1 — Le pointeur caché « this » et l&#x27;enchaînement des appels de fonctions membres</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="151-le-pointeur-caché-this-et-lenchaînement-des-appels-de-fonctions-membres">15.1 — Le pointeur caché « this » et l'enchaînement des appels de fonctions membres</h1>
+<p>Une question que se posent souvent les programmeurs débutants à propos des classes est : « Quand une fonction membre est appelée, comment C++ sait-il sur quel objet elle a été appelée ? ».</p>
+<p>Commençons par définir une classe simple. Cette classe encapsule un entier et fournit quelques fonctions d'accès pour lire et modifier cette valeur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Simple
+{
+private:
+    int m_id{};
+
+public:
+    Simple(int id)
+        : m_id{ id }
+    {
+    }
+
+    int getID() const { return m_id; }
+    void setID(int id) { m_id = id; }
+
+    void print() const { std::cout &lt;&lt; m_id; }
+};
+
+int main()
+{
+    Simple simple{1};
+    simple.setID(2);
+
+    simple.print();
+
+    return 0;
+}
+</code></pre>
+<p>Comme vous pouvez vous y attendre, ce programme produit le résultat :</p>
+<pre><code>
+2
+</code></pre>
+<p>D'une manière ou d'une autre, lorsque nous appelons <code>simple.setID(2);</code>, C++ sait que la fonction <code>setID()</code> doit opérer sur l'objet <code>simple</code>, et que <code>m_id</code> désigne en réalité <code>simple.m_id</code>.</p>
+<p>La réponse est que C++ utilise un pointeur caché nommé <code>this</code> ! Dans cette leçon, nous allons examiner <code>this</code> plus en détail.</p>
+<h2 id="le-pointeur-caché-this">Le pointeur caché <code>this</code></h2>
+<p>Dans chaque fonction membre, le mot-clé <strong>this</strong> est un pointeur constant qui contient l'adresse de l'objet implicite courant.</p>
+<p>La plupart du temps, nous ne mentionnons pas explicitement <code>this</code>, mais pour prouver que nous le pouvons :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Simple
+{
+private:
+    int m_id{};
+
+public:
+    Simple(int id)
+        : m_id{ id }
+    {
+    }
+
+    int getID() const { return m_id; }
+    void setID(int id) { m_id = id; }
+
+    void print() const { std::cout &lt;&lt; this-&gt;m_id; } // utilise le pointeur `this` pour accéder à l'objet implicite, et l'opérateur -&gt; pour sélectionner le membre m_id
+};
+
+int main()
+{
+    Simple simple{ 1 };
+    simple.setID(2);
+
+    simple.print();
+
+    return 0;
+}
+</code></pre>
+<p>Ce programme fonctionne exactement comme l'exemple précédent et affiche :</p>
+<pre><code>
+2
+</code></pre>
+<p>Notez que les fonctions membres <code>print()</code> des deux exemples précédents font exactement la même chose :</p>
+<pre><code class="language-cpp">    void print() const { std::cout &lt;&lt; m_id; }       // utilisation implicite de this
+    void print() const { std::cout &lt;&lt; this-&gt;m_id; } // utilisation explicite de this
+</code></pre>
+<p>Il s'avère que la première forme est un raccourci pour la seconde. Lorsque nous compilons nos programmes, le compilateur préfixe implicitement par <code>this-&gt;</code> tout membre qui fait référence à l'objet implicite. Cela permet de garder notre code plus concis et évite d'avoir à écrire <code>this-&gt;</code> explicitement encore et encore.</p>
+<div class="callout quote"><p class="callout-title">Rappel</p>
+<p>Nous utilisons <code>-&gt;</code> pour sélectionner un membre à partir d'un pointeur vers un objet. <code>this-&gt;m_id</code> est équivalent à <code>(*this).m_id</code>.</p>
+<p>Nous abordons <code>operator-&gt;</code> dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.12%20-%20S%C3%A9lection%20de%20membres%20avec%20les%20pointeurs%20et%20les%20r%C3%A9f%C3%A9rences.html">13.12 -- Sélection de membres à l'aide de pointeurs et de références</a>.</p>
+</div>
+<h2 id="comment-this-est-il-initialisé">Comment <code>this</code> est-il initialisé ?</h2>
+<p>Examinons de plus près cet appel de fonction :</p>
+<pre><code class="language-cpp">    simple.setID(2);
+</code></pre>
+<p>Bien que l'appel <code>setID(2)</code> ne semble avoir qu'un seul argument, il en a en réalité deux ! À la compilation, le compilateur réécrit l'expression <code>simple.setID(2);</code> de la façon suivante :</p>
+<pre><code class="language-cpp">    Simple::setID(&amp;simple, 2); // notez que simple est passé du préfixe d'objet à un argument de fonction !
+</code></pre>
+<p>Notez qu'il s'agit maintenant d'un simple appel de fonction standard, et que l'objet <code>simple</code> (qui était auparavant un préfixe d'objet) est désormais passé par adresse en tant qu'argument de la fonction.</p>
+<p>Mais ce n'est que la moitié de la réponse. Puisque l'appel de fonction possède maintenant un argument supplémentaire, la définition de la fonction membre doit aussi être modifiée pour accepter (et utiliser) cet argument comme paramètre. Voici notre définition originale de la fonction membre <code>setID()</code> :</p>
+<pre><code class="language-cpp">    void setID(int id) { m_id = id; }
+</code></pre>
+<p>La manière dont le compilateur réécrit les fonctions est un détail propre à chaque implémentation, mais le résultat final ressemble à ceci :</p>
+<pre><code class="language-cpp">    static void setID(Simple* const this, int id) { this-&gt;m_id = id; }
+</code></pre>
+<p>Notez que notre fonction <code>setID</code> possède un nouveau paramètre le plus à gauche nommé <code>this</code>, qui est un pointeur constant (ce qui signifie qu'il ne peut pas être redirigé vers un autre objet, mais que le contenu pointé peut être modifié). Le membre <code>m_id</code> a également été réécrit en <code>this-&gt;m_id</code>, en utilisant le pointeur <code>this</code>.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Dans ce contexte, le mot-clé <code>static</code> signifie que la fonction n'est pas associée aux objets de la classe, mais qu'elle est traitée comme une fonction ordinaire située dans la région de portée de la classe. Nous abordons les fonctions membres statiques dans la leçon <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.7%20-%20Fonctions%20membres%20statiques.html">15.7 -- Fonctions membres statiques</a>.</p>
+</div>
+<p>En résumé :</p>
+<ol>
+<li>Lorsque nous appelons <code>simple.setID(2)</code>, le compilateur appelle en réalité <code>Simple::setID(&amp;simple, 2)</code>, et <code>simple</code> est passé par adresse à la fonction.</li>
+<li>La fonction possède un paramètre caché nommé <code>this</code> qui reçoit l'adresse de <code>simple</code>.</li>
+<li>Les variables membres à l'intérieur de <code>setID()</code> sont préfixées par <code>this-&gt;</code>, qui pointe vers <code>simple</code>. Ainsi, lorsque le compilateur évalue <code>this-&gt;m_id</code>, cela correspond en réalité à <code>simple.m_id</code>.</li>
+</ol>
+<p>La bonne nouvelle est que tout cela se fait automatiquement, et il n'est pas vraiment important de se souvenir du fonctionnement interne. Il suffit de retenir que toutes les fonctions membres non statiques possèdent un pointeur <code>this</code> qui désigne l'objet sur lequel la fonction a été appelée.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Toutes les fonctions membres non statiques possèdent un pointeur constant <code>this</code> qui contient l'adresse de l'objet implicite.</p>
+</div>
+<h2 id="this-désigne-toujours-lobjet-sur-lequel-on-opère"><code>this</code> désigne toujours l'objet sur lequel on opère</h2>
+<p>Les programmeurs débutants se demandent parfois combien de pointeurs <code>this</code> existent. Chaque fonction membre possède un seul paramètre pointeur <code>this</code> qui désigne l'objet implicite. Considérons :</p>
+<pre><code class="language-cpp">int main()
+{
+    Simple a{1}; // this = &amp;a à l'intérieur du constructeur de Simple
+    Simple b{2}; // this = &amp;b à l'intérieur du constructeur de Simple
+    a.setID(3); // this = &amp;a à l'intérieur de la fonction membre setID()
+    b.setID(4); // this = &amp;b à l'intérieur de la fonction membre setID()
+
+    return 0;
+}
+</code></pre>
+<p>Notez que le pointeur <code>this</code> contient alternativement l'adresse de l'objet <code>a</code> ou de l'objet <code>b</code>, selon que nous avons appelé une fonction membre sur l'objet <code>a</code> ou sur l'objet <code>b</code>.</p>
+<p>Comme <code>this</code> n'est qu'un paramètre de fonction (et non un membre), il n'augmente pas la taille en mémoire des instances de votre classe.</p>
+<h2 id="référencer-explicitement-this">Référencer explicitement <code>this</code></h2>
+<p>La plupart du temps, vous n'aurez pas besoin de référencer explicitement le pointeur <code>this</code>. Cependant, il existe quelques situations où cela peut être utile :</p>
+<p>D'abord, si une fonction membre possède un paramètre portant le même nom qu'un membre de données, vous pouvez les distinguer en utilisant <code>this</code> :</p>
+<pre><code class="language-cpp">struct Something
+{
+    int data{}; // pas de préfixe m_ car il s'agit d'une struct
+
+    void setData(int data)
+    {
+        this-&gt;data = data; // this-&gt;data est le membre, data est le paramètre local
+    }
+};
+</code></pre>
+<p>Cette classe <code>Something</code> possède un membre nommé <code>data</code>. Le paramètre de la fonction <code>setData()</code> porte également le nom <code>data</code>. Dans la fonction <code>setData()</code>, <code>data</code> désigne le paramètre de la fonction (car le paramètre masque le membre de données), donc si nous voulons référencer le membre <code>data</code>, nous utilisons <code>this-&gt;data</code>.</p>
+<p>Certains développeurs préfèrent ajouter explicitement <code>this-&gt;</code> devant tous les membres de la classe, pour bien montrer qu'ils référencent un membre. Nous recommandons d'éviter cette pratique, car elle tend à rendre le code moins lisible pour un bénéfice minime. Utiliser le préfixe « m_ » est une manière plus concise de distinguer les variables membres privées des variables non membres (locales).</p>
+<h2 id="renvoyer-this">Renvoyer <code>*this</code></h2>
+<p>Ensuite, il peut être utile qu'une fonction membre renvoie l'objet implicite comme valeur de retour. La raison principale est de permettre d'« enchaîner » les fonctions membres, de sorte que plusieurs fonctions membres puissent être appelées sur le même objet dans une seule expression ! C'est ce qu'on appelle un <strong>enchaînement de fonctions</strong> (ou <strong>enchaînement de méthodes</strong>, <em>function chaining</em> ou <em>method chaining</em>).</p>
+<p>Considérons cet exemple courant où l'on affiche plusieurs morceaux de texte à l'aide de <code>std::cout</code> :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; &quot;Hello, &quot; &lt;&lt; userName;
+</code></pre>
+<p>Le compilateur évalue l'extrait ci-dessus de cette façon :</p>
+<pre><code class="language-cpp">(std::cout &lt;&lt; &quot;Hello, &quot;) &lt;&lt; userName;
+</code></pre>
+<p>D'abord, <code>operator&lt;&lt;</code> utilise <code>std::cout</code> et la chaîne littérale <code>"Hello, "</code> pour afficher <code>"Hello, "</code> dans la console. Cependant, comme il s'agit d'une partie d'une expression, <code>operator&lt;&lt;</code> doit aussi renvoyer une valeur (ou <code>void</code>). Si <code>operator&lt;&lt;</code> renvoyait <code>void</code>, l'expression partiellement évaluée serait :</p>
+<pre><code class="language-cpp">void{} &lt;&lt; userName;
+</code></pre>
+<p>ce qui n'a manifestement aucun sens (et le compilateur produirait une erreur). À la place, <code>operator&lt;&lt;</code> renvoie l'objet flux qui lui a été passé, c'est-à-dire ici <code>std::cout</code>. Ainsi, après l'évaluation du premier <code>operator&lt;&lt;</code>, nous obtenons :</p>
+<pre><code class="language-cpp">(std::cout) &lt;&lt; userName;
+</code></pre>
+<p>qui affiche ensuite le nom de l'utilisateur.</p>
+<p>De cette manière, nous n'avons besoin de spécifier <code>std::cout</code> qu'une seule fois, puis nous pouvons enchaîner autant de morceaux de texte que nous le voulons avec <code>operator&lt;&lt;</code>. Chaque appel à <code>operator&lt;&lt;</code> renvoie <code>std::cout</code>, de sorte que l'appel suivant à <code>operator&lt;&lt;</code> utilise <code>std::cout</code> comme opérande de gauche.</p>
+<p>Nous pouvons implémenter ce type de comportement dans nos propres fonctions membres. Considérons la classe suivante :</p>
+<pre><code class="language-cpp">class Calc
+{
+private:
+    int m_value{};
+
+public:
+
+    void add(int value) { m_value += value; }
+    void sub(int value) { m_value -= value; }
+    void mult(int value) { m_value *= value; }
+
+    int getValue() const { return m_value; }
+};
+</code></pre>
+<p>Si vous voulez ajouter 5, soustraire 3 et multiplier par 4, vous devez procéder ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Calc calc{};
+    calc.add(5); // renvoie void
+    calc.sub(3); // renvoie void
+    calc.mult(4); // renvoie void
+
+    std::cout &lt;&lt; calc.getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cependant, si nous faisons en sorte que chaque fonction renvoie <code>*this</code> par référence, nous pouvons enchaîner les appels. Voici la nouvelle version de <code>Calc</code> avec des fonctions « enchaînables » :</p>
+<pre><code class="language-cpp">class Calc
+{
+private:
+    int m_value{};
+
+public:
+    Calc&amp; add(int value) { m_value += value; return *this; }
+    Calc&amp; sub(int value) { m_value -= value; return *this; }
+    Calc&amp; mult(int value) { m_value *= value; return *this; }
+
+    int getValue() const { return m_value; }
+};
+</code></pre>
+<p>Notez que <code>add()</code>, <code>sub()</code> et <code>mult()</code> renvoient maintenant <code>*this</code> par référence. Par conséquent, nous pouvons écrire :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    Calc calc{};
+    calc.add(5).sub(3).mult(4); // enchaînement de méthodes
+
+    std::cout &lt;&lt; calc.getValue() &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Nous avons effectivement condensé trois lignes en une seule expression ! Examinons de plus près le fonctionnement de ce code.</p>
+<p>D'abord, <code>calc.add(5)</code> est appelé, ce qui ajoute <code>5</code> à <code>m_value</code>. <code>add()</code> renvoie ensuite une référence à <code>*this</code>, c'est-à-dire une référence à l'objet implicite <code>calc</code>, de sorte que <code>calc</code> est l'objet utilisé pour la suite de l'évaluation. Ensuite, <code>calc.sub(3)</code> s'évalue, ce qui soustrait <code>3</code> de <code>m_value</code> et renvoie de nouveau <code>calc</code>. Enfin, <code>calc.mult(4)</code> multiplie <code>m_value</code> par <code>4</code> et renvoie <code>calc</code>, valeur qui n'est plus utilisée et qui est donc ignorée.</p>
+<p>Comme chaque fonction a modifié <code>calc</code> lors de son exécution, la valeur de <code>m_value</code> de <code>calc</code> contient maintenant (((0 + 5) - 3) * 4), soit <code>8</code>.</p>
+<p>C'est probablement l'utilisation explicite la plus courante de <code>this</code>, et c'est celle que vous devriez envisager chaque fois qu'il est pertinent de disposer de fonctions membres enchaînables.</p>
+<p>Comme <code>this</code> désigne toujours l'objet implicite, nous n'avons pas besoin de vérifier s'il s'agit d'un pointeur nul avant de le déréférencer.</p>
+<h2 id="remettre-une-classe-dans-son-état-par-défaut">Remettre une classe dans son état par défaut</h2>
+<p>Si votre classe possède un constructeur par défaut, vous pouvez souhaiter fournir un moyen de ramener un objet existant à son état par défaut.</p>
+<p>Comme indiqué dans les leçons précédentes (<a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.12%20-%20Constructeurs%20d%C3%A9l%C3%A9gants.html">14.12 -- Constructeurs délégants</a>), les constructeurs ne servent qu'à initialiser de nouveaux objets et ne doivent pas être appelés directement. Le faire conduira à un comportement inattendu.</p>
+<p>La meilleure façon de remettre une classe dans un état par défaut est de créer une fonction membre <code>reset()</code>, qui crée un nouvel objet (à l'aide du constructeur par défaut), puis affecte ce nouvel objet à l'objet implicite courant, comme ceci :</p>
+<pre><code class="language-cpp">    void reset()
+    {
+        *this = {}; // initialise par valeur un nouvel objet et écrase l'objet implicite
+    }
+</code></pre>
+<p>Voici un programme complet qui illustre le fonctionnement de cette fonction <code>reset()</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Calc
+{
+private:
+    int m_value{};
+
+public:
+    Calc&amp; add(int value) { m_value += value; return *this; }
+    Calc&amp; sub(int value) { m_value -= value; return *this; }
+    Calc&amp; mult(int value) { m_value *= value; return *this; }
+
+    int getValue() const { return m_value; }
+
+    void reset() { *this = {}; }
+};
+
+
+int main()
+{
+    Calc calc{};
+    calc.add(5).sub(3).mult(4);
+
+    std::cout &lt;&lt; calc.getValue() &lt;&lt; '\n'; // affiche 8
+
+    calc.reset();
+
+    std::cout &lt;&lt; calc.getValue() &lt;&lt; '\n'; // affiche 0
+
+    return 0;
+}
+</code></pre>
+<h2 id="this-et-les-objets-constants"><code>this</code> et les objets constants</h2>
+<p>Pour les fonctions membres non constantes, <code>this</code> est un pointeur constant vers une valeur non constante (ce qui signifie que <code>this</code> ne peut pas pointer vers autre chose, mais que l'objet pointé peut être modifié). Pour les fonctions membres constantes, <code>this</code> est un pointeur constant vers une valeur constante (ce qui signifie que le pointeur ne peut pas pointer vers autre chose, et que l'objet pointé ne peut pas non plus être modifié).</p>
+<p>Les erreurs générées lorsqu'on tente d'appeler une fonction membre non constante sur un objet constant peuvent être un peu obscures :</p>
+<pre><code>
+error C2662: 'int Something::getValue(void)': cannot convert 'this' pointer from 'const Something' to 'Something &amp;'
+error: passing 'const Something' as 'this' argument discards qualifiers [-fpermissive]
+</code></pre>
+<p>Lorsque nous appelons une fonction membre non constante sur un objet constant, le paramètre implicite <code>this</code> est un pointeur constant vers un objet <em>non constant</em>. Or l'argument est de type pointeur constant vers un objet <em>constant</em>. Convertir un pointeur vers un objet constant en un pointeur vers un objet non constant nécessite de supprimer le qualificatif <code>const</code>, ce qui ne peut pas se faire implicitement. L'erreur de compilation produite par certains compilateurs traduit le fait que le compilateur refuse d'effectuer une telle conversion.</p>
+<h2 id="pourquoi-this-est-il-un-pointeur-et-non-une-référence">Pourquoi <code>this</code> est-il un pointeur et non une référence ?</h2>
+<p>Comme le pointeur <code>this</code> désigne toujours l'objet implicite (et ne peut jamais être un pointeur nul, sauf si nous avons provoqué un comportement indéfini), vous vous demandez peut-être pourquoi <code>this</code> est un pointeur plutôt qu'une référence. La réponse est simple : lorsque <code>this</code> a été ajouté à C++, les références n'existaient pas encore.</p>
+<p>Si <code>this</code> était ajouté au langage C++ aujourd'hui, il serait sans aucun doute une référence plutôt qu'un pointeur. Dans d'autres langages modernes proches de C++, comme Java et C#, <code>this</code> est implémenté sous forme de référence.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/the-hidden-this-pointer-and-member-function-chaining/">https://www.learncpp.com/cpp-tutorial/the-hidden-this-pointer-and-member-function-chaining/</a></em></p>
+</main>
+</body>
+</html>

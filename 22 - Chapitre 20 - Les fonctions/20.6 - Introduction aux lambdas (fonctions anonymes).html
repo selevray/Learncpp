@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20.6 — Introduction aux lambdas (fonctions anonymes)</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="206-introduction-aux-lambdas-fonctions-anonymes">20.6 — Introduction aux lambdas (fonctions anonymes)</h1>
+<p>Considérons ce bout de code que nous avons introduit dans la leçon <a href="../20%20-%20Chapitre%2018%20-%20It%C3%A9rateurs%20et%20algorithmes%20%28en%20construction%29/18.3%20-%20Introduction%20aux%20algorithmes%20de%20la%20biblioth%C3%A8que%20standard.html">18.3 -- Introduction aux algorithmes de la bibliothèque standard</a> :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+// Notre fonction renvoie true si l'élément correspond
+bool containsNut(std::string_view str)
+{
+    // std::string_view::find renvoie std::string_view::npos s'il ne trouve pas
+    // la sous-chaîne. Sinon, il renvoie l'indice où la sous-chaîne apparaît
+    // dans str.
+    return str.find(&quot;nut&quot;) != std::string_view::npos;
+}
+
+int main()
+{
+    constexpr std::array&lt;std::string_view, 4&gt; arr{ &quot;apple&quot;, &quot;banana&quot;, &quot;walnut&quot;, &quot;lemon&quot; };
+
+    // Parcourir notre tableau pour voir si un élément contient la sous-chaîne &quot;nut&quot;
+    auto found{ std::find_if(arr.begin(), arr.end(), containsNut) };
+
+    if (found == arr.end())
+    {
+        std::cout &lt;&lt; &quot;No nuts\n&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;Found &quot; &lt;&lt; *found &lt;&lt; '\n';
+    }
+
+    return 0;
+}
+</code></pre>
+<p>Ce code parcourt un tableau de chaînes à la recherche du premier élément qui contient la sous-chaîne « nut ». Il produit donc le résultat suivant :</p>
+<pre><code>
+Found walnut
+</code></pre>
+<p>Ce code fonctionne, mais il peut être amélioré.</p>
+<p>Le problème vient de ce que <code>std::find_if</code> exige qu'on lui passe un pointeur de fonction. Nous sommes donc obligés de définir une fonction qui ne sera utilisée qu'une seule fois, qui doit recevoir un nom et qui doit être placée dans la portée globale (car les fonctions ne peuvent pas être imbriquées !). De plus, la fonction est si courte qu'il est presque plus facile de comprendre ce qu'elle fait en lisant cette seule ligne de code qu'en lisant son nom et ses commentaires.</p>
+<h2 id="les-lambdas-sont-des-fonctions-anonymes">Les lambdas sont des fonctions anonymes</h2>
+<p>Une <strong>expression lambda</strong> (appelée aussi <strong>lambda</strong> ou <strong>fermeture</strong>, <em>closure</em> en anglais) permet de définir une fonction anonyme à l'intérieur d'une autre fonction. Cette imbrication est importante : elle permet à la fois d'éviter de polluer l'espace de noms et de définir la fonction aussi près que possible de l'endroit où elle est utilisée, ce qui apporte un contexte supplémentaire.</p>
+<p>La syntaxe des lambdas est l'une des choses les plus étranges du C++ et demande un peu d'habitude. Une lambda prend la forme suivante :</p>
+<pre><code>
+[ captureClause ] ( parameters ) -&gt; returnType
+{
+    statements;
+}
+</code></pre>
+<ul>
+<li>La clause de capture peut être vide si aucune capture n'est nécessaire.</li>
+<li>La liste de paramètres peut être vide si aucun paramètre n'est requis. Elle peut aussi être omise entièrement, sauf si un type de retour est spécifié.</li>
+<li>Le type de retour est facultatif. S'il est omis, <code>auto</code> est supposé (la déduction de type sert alors à déterminer le type de retour). Nous avons indiqué précédemment qu'il fallait éviter la déduction de type pour les types de retour des fonctions, mais dans ce contexte, son utilisation est acceptable, car ces fonctions sont généralement très simples.</li>
+</ul>
+<p>Notez également que les lambdas, étant anonymes, n'ont pas de nom, et nous n'avons donc pas besoin d'en fournir un.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Cela signifie qu'une définition de lambda triviale ressemble à ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+  [] {}; // une lambda au type de retour omis, sans capture et sans paramètres.
+
+  return 0;
+}
+</code></pre>
+</div>
+<p>Réécrivons l'exemple ci-dessus à l'aide d'une lambda :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+  constexpr std::array&lt;std::string_view, 4&gt; arr{ &quot;apple&quot;, &quot;banana&quot;, &quot;walnut&quot;, &quot;lemon&quot; };
+
+  // Définir la fonction exactement à l'endroit où nous l'utilisons.
+  auto found{ std::find_if(arr.begin(), arr.end(),
+                           [](std::string_view str) // voici notre lambda, sans clause de capture
+                           {
+                             return str.find(&quot;nut&quot;) != std::string_view::npos;
+                           }) };
+
+  if (found == arr.end())
+  {
+    std::cout &lt;&lt; &quot;No nuts\n&quot;;
+  }
+  else
+  {
+    std::cout &lt;&lt; &quot;Found &quot; &lt;&lt; *found &lt;&lt; '\n';
+  }
+
+  return 0;
+}
+</code></pre>
+<p>Cela fonctionne exactement comme le cas du pointeur de fonction et produit un résultat identique :</p>
+<pre><code>
+Found walnut
+</code></pre>
+<p>Remarquez à quel point notre lambda ressemble à la fonction <code>containsNut</code>. Elles ont des paramètres et des corps identiques. La lambda n'a pas de clause de capture (nous expliquerons ce qu'est une clause de capture dans la prochaine leçon) parce qu'elle n'en a pas besoin. Nous avons omis le type de retour final dans la lambda (par concision), mais comme <code>operator!=</code> renvoie un <code>bool</code>, notre lambda renvoie aussi un <code>bool</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Conformément à la bonne pratique consistant à définir les choses dans la portée la plus petite et au plus près de leur première utilisation, les lambdas sont préférables aux fonctions ordinaires lorsque nous avons besoin d'une fonction triviale, à usage unique, à passer en argument à une autre fonction.</p>
+</div>
+<h2 id="type-dune-lambda">Type d'une lambda</h2>
+<p>Dans l'exemple ci-dessus, nous avons défini une lambda à l'endroit exact où elle était nécessaire. Cette utilisation d'une lambda est parfois appelée <strong>littéral de fonction</strong> (<em>function literal</em>).</p>
+<p>Toutefois, écrire une lambda sur la même ligne que son utilisation peut parfois rendre le code plus difficile à lire. De même que nous pouvons initialiser une variable avec une valeur littérale (ou un pointeur de fonction) pour l'utiliser plus tard, nous pouvons aussi initialiser une variable lambda avec une définition de lambda, puis l'utiliser ultérieurement. Une lambda nommée, accompagnée d'un bon nom de fonction, peut rendre le code plus lisible.</p>
+<p>Par exemple, dans l'extrait suivant, nous utilisons <code>std::all_of</code> pour vérifier si tous les éléments d'un tableau sont pairs :</p>
+<pre><code class="language-cpp">// Mauvais : il faut lire la lambda pour comprendre ce qui se passe.
+return std::all_of(array.begin(), array.end(), [](int i){ return ((i % 2) == 0); });
+</code></pre>
+<p>Nous pouvons améliorer la lisibilité de cette façon :</p>
+<pre><code class="language-cpp">// Bien : nous pouvons plutôt stocker la lambda dans une variable nommée et la passer à la fonction.
+auto isEven{
+  [](int i)
+  {
+    return (i % 2) == 0;
+  }
+};
+
+return std::all_of(array.begin(), array.end(), isEven);
+</code></pre>
+<p>Remarquez à quel point la dernière ligne se lit bien : « renvoyer si <em>tous</em> les éléments du <em>tableau</em> sont <em>pairs</em> ».</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Stocker une lambda dans une variable nous permet de donner à cette lambda un nom utile, ce qui peut rendre notre code plus lisible.</p>
+<p>Stocker une lambda dans une variable nous permet aussi de l'utiliser plus d'une fois.</p>
+</div>
+<p>Mais quel est le type de la lambda <code>isEven</code> ?</p>
+<p>Il s'avère que les lambdas n'ont pas de type que nous puissions utiliser explicitement. Lorsque nous écrivons une lambda, le compilateur génère un type unique, propre à cette lambda, qui ne nous est pas exposé.</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>En réalité, les lambdas ne sont pas des fonctions (ce qui explique en partie comment elles contournent la limitation du C++ qui ne permet pas d'imbriquer des fonctions). Ce sont un type particulier d'objet appelé <em>foncteur</em> (<em>functor</em>). Un foncteur est un objet qui contient un <code>operator()</code> surchargé, ce qui le rend appelable comme une fonction.</p>
+</div>
+<p>Bien que nous ne connaissions pas le type d'une lambda, il existe plusieurs façons de stocker une lambda pour l'utiliser après sa définition. Si la lambda a une clause de capture vide (rien entre les crochets []), nous pouvons utiliser un pointeur de fonction ordinaire. <code>std::function</code> ou la déduction de type via le mot-clé <code>auto</code> fonctionnent aussi (même si la lambda a une clause de capture non vide).</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+
+int main()
+{
+  // Un pointeur de fonction ordinaire. Ne fonctionne qu'avec une clause de capture vide ([]).
+  double (*addNumbers1)(double, double){
+    [](double a, double b) {
+      return a + b;
+    }
+  };
+
+  addNumbers1(1, 2);
+
+  // Utilisation de std::function. La lambda peut avoir une clause de capture non vide (abordée dans la prochaine leçon).
+  std::function addNumbers2{ // note : avant C++17, utilisez plutôt std::function&lt;double(double, double)&gt;
+    [](double a, double b) {
+      return a + b;
+    }
+  };
+
+  addNumbers2(3, 4);
+
+  // Utilisation de auto. Stocke la lambda avec son type réel.
+  auto addNumbers3{
+    [](double a, double b) {
+      return a + b;
+    }
+  };
+
+  addNumbers3(5, 6);
+
+  return 0;
+}
+</code></pre>
+<p>La seule façon d'utiliser le type réel de la lambda passe par <code>auto</code>. <code>auto</code> présente en outre l'avantage de ne rien coûter en surcharge, contrairement à <code>std::function</code>.</p>
+<p>Et si nous voulons passer une lambda à une fonction ? Il existe 4 options :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+
+// Cas 1 : utiliser un paramètre de type std::function
+void repeat1(int repetitions, const std::function&lt;void(int)&gt;&amp; fn)
+{
+    for (int i{ 0 }; i &lt; repetitions; ++i)
+        fn(i);
+}
+
+// Cas 2 : utiliser un modèle de fonction avec un paramètre de modèle de type
+template &lt;typename T&gt;
+void repeat2(int repetitions, const T&amp; fn)
+{
+    for (int i{ 0 }; i &lt; repetitions; ++i)
+        fn(i);
+}
+
+// Cas 3 : utiliser la syntaxe abrégée des modèles de fonction (C++20)
+void repeat3(int repetitions, const auto&amp; fn)
+{
+    for (int i{ 0 }; i &lt; repetitions; ++i)
+        fn(i);
+}
+
+// Cas 4 : utiliser un pointeur de fonction (uniquement pour une lambda sans capture)
+void repeat4(int repetitions, void (*fn)(int))
+{
+    for (int i{ 0 }; i &lt; repetitions; ++i)
+        fn(i);
+}
+
+int main()
+{
+    auto lambda = [](int i)
+    {
+        std::cout &lt;&lt; i &lt;&lt; '\n';
+    };
+
+    repeat1(3, lambda);
+    repeat2(3, lambda);
+    repeat3(3, lambda);
+    repeat4(3, lambda);
+
+    return 0;
+}
+</code></pre>
+<p>Dans le cas 1, le paramètre de la fonction est un <code>std::function</code>. C'est pratique, car nous voyons explicitement les paramètres et le type de retour du <code>std::function</code>. Cependant, cela oblige la lambda à être convertie implicitement à chaque appel de la fonction, ce qui ajoute une certaine surcharge. Cette méthode a également l'avantage de pouvoir être séparée en une déclaration (dans un en-tête) et une définition (dans un fichier .cpp) si on le souhaite.</p>
+<p>Dans le cas 2, nous utilisons un modèle de fonction avec le paramètre de modèle de type <code>T</code>. Lors de l'appel de la fonction, une fonction est instanciée où <code>T</code> correspond au type réel de la lambda. C'est plus efficace, mais les paramètres et le type de retour de <code>T</code> ne sont pas évidents.</p>
+<p>Dans le cas 3, nous utilisons la fonctionnalité <code>auto</code> de C++20 pour employer la syntaxe abrégée des modèles de fonction. Cela génère un modèle de fonction identique au cas 2.</p>
+<p>Dans le cas 4, le paramètre de la fonction est un pointeur de fonction. Comme une lambda sans capture se convertit implicitement en pointeur de fonction, nous pouvons passer une lambda sans capture à cette fonction.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Lorsque vous stockez une lambda dans une variable, utilisez <code>auto</code> comme type de la variable.</p>
+<p>Lorsque vous passez une lambda à une fonction :</p>
+<ul>
+<li>Si vous utilisez C++20, utilisez <code>auto</code> comme type du paramètre.</li>
+<li>Sinon, utilisez une fonction avec un paramètre de type modèle ou un paramètre <code>std::function</code> (ou un pointeur de fonction si la lambda n'a pas de capture).</li>
+</ul>
+</div>
+<h2 id="lambdas-génériques">Lambdas génériques</h2>
+<p>Pour l'essentiel, les paramètres d'une lambda fonctionnent selon les mêmes règles que ceux d'une fonction ordinaire.</p>
+<p>Une exception notable : depuis C++14, il est permis d'utiliser <code>auto</code> pour les paramètres (notez qu'en C++20, les fonctions ordinaires peuvent elles aussi utiliser <code>auto</code> pour leurs paramètres). Lorsqu'une lambda possède un ou plusieurs paramètres <code>auto</code>, le compilateur déduit les types de paramètres nécessaires à partir des appels de la lambda.</p>
+<p>Comme les lambdas avec un ou plusieurs paramètres <code>auto</code> peuvent potentiellement travailler avec une grande variété de types, on les appelle <strong>lambdas génériques</strong> (<em>generic lambdas</em>).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Dans le contexte d'une lambda, <code>auto</code> n'est qu'un raccourci pour un paramètre de modèle.</p>
+</div>
+<p>Examinons une lambda générique :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+  constexpr std::array months{ // avant C++17, utilisez std::array&lt;const char*, 12&gt;
+    &quot;January&quot;,
+    &quot;February&quot;,
+    &quot;March&quot;,
+    &quot;April&quot;,
+    &quot;May&quot;,
+    &quot;June&quot;,
+    &quot;July&quot;,
+    &quot;August&quot;,
+    &quot;September&quot;,
+    &quot;October&quot;,
+    &quot;November&quot;,
+    &quot;December&quot;
+  };
+
+  // Rechercher deux mois consécutifs qui commencent par la même lettre.
+  const auto sameLetter{ std::adjacent_find(months.begin(), months.end(),
+                                      [](const auto&amp; a, const auto&amp; b) {
+                                        return a[0] == b[0];
+                                      }) };
+
+  // Vérifier que deux mois ont bien été trouvés.
+  if (sameLetter != months.end())
+  {
+    // std::next renvoie l'itérateur suivant sameLetter
+    std::cout &lt;&lt; *sameLetter &lt;&lt; &quot; and &quot; &lt;&lt; *std::next(sameLetter)
+              &lt;&lt; &quot; start with the same letter\n&quot;;
+  }
+
+  return 0;
+}
+</code></pre>
+<p>Sortie :</p>
+<pre><code>
+June and July start with the same letter
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous utilisons des paramètres <code>auto</code> pour capturer nos chaînes par référence <code>const</code>. Comme tous les types de chaînes permettent d'accéder à leurs caractères individuels via <code>operator[]</code>, nous n'avons pas à nous soucier de savoir si l'utilisateur passe un <code>std::string</code>, une chaîne de style C ou autre chose. Cela nous permet d'écrire une lambda qui accepte chacun de ces types ; si nous changeons plus tard le type de <code>months</code>, nous n'aurons pas à réécrire la lambda.</p>
+<p>Cependant, <code>auto</code> n'est pas toujours le meilleur choix. Considérez :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+  constexpr std::array months{ // avant C++17, utilisez std::array&lt;const char*, 12&gt;
+    &quot;January&quot;,
+    &quot;February&quot;,
+    &quot;March&quot;,
+    &quot;April&quot;,
+    &quot;May&quot;,
+    &quot;June&quot;,
+    &quot;July&quot;,
+    &quot;August&quot;,
+    &quot;September&quot;,
+    &quot;October&quot;,
+    &quot;November&quot;,
+    &quot;December&quot;
+  };
+
+  // Compter combien de mois comportent 5 lettres
+  const auto fiveLetterMonths{ std::count_if(months.begin(), months.end(),
+                                       [](std::string_view str) {
+                                         return str.length() == 5;
+                                       }) };
+
+  std::cout &lt;&lt; &quot;There are &quot; &lt;&lt; fiveLetterMonths &lt;&lt; &quot; months with 5 letters\n&quot;;
+
+  return 0;
+}
+</code></pre>
+<p>Sortie :</p>
+<pre><code>
+There are 2 months with 5 letters
+</code></pre>
+<p>Dans cet exemple, utiliser <code>auto</code> aurait conduit à déduire le type <code>const char*</code>. Les chaînes de style C ne sont pas faciles à manipuler (à part avec <code>operator[]</code>). Dans ce cas, nous préférons définir explicitement le paramètre comme un <code>std::string_view</code>, ce qui nous permet de travailler beaucoup plus facilement avec les données sous-jacentes (par exemple, nous pouvons demander à la vue de chaîne sa longueur, même si l'utilisateur a passé un tableau de style C).</p>
+<h2 id="lambdas-constexpr">Lambdas constexpr</h2>
+<p>Depuis C++17, les lambdas sont implicitement <code>constexpr</code> si leur résultat satisfait les exigences d'une expression constante. Cela demande généralement deux choses :</p>
+<ul>
+<li>La lambda ne doit avoir aucune capture, ou toutes ses captures doivent être <code>constexpr</code>.</li>
+<li>Les fonctions appelées par la lambda doivent être <code>constexpr</code>. Notez que de nombreux algorithmes de la bibliothèque standard et fonctions mathématiques n'ont été rendus <code>constexpr</code> qu'en C++20 ou C++23.</li>
+</ul>
+<p>Dans l'exemple ci-dessus, notre lambda ne serait pas implicitement <code>constexpr</code> en C++17, mais elle le serait en C++20 (puisque <code>std::count_if</code> est devenue <code>constexpr</code> en C++20). Cela signifie qu'en C++20, nous pouvons rendre <code>fiveLetterMonths</code> <code>constexpr</code> :</p>
+<pre><code class="language-cpp">  constexpr auto fiveLetterMonths{ std::count_if(months.begin(), months.end(),
+                                       [](std::string_view str) {
+                                         return str.length() == 5;
+                                       }) };
+</code></pre>
+<h2 id="lambdas-génériques-et-variables-statiques">Lambdas génériques et variables statiques</h2>
+<p>Dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.7%20-%20Instanciation%20des%20fonctions%20template.html">11.7 -- Instanciation des modèles de fonctions</a>, nous avons expliqué que lorsqu'un modèle de fonction contient une variable locale statique, chaque fonction instanciée à partir de ce modèle reçoit sa propre variable locale statique indépendante. Cela peut poser problème si ce comportement n'est pas attendu.</p>
+<p>Les lambdas génériques fonctionnent de la même façon : une lambda unique est générée pour chaque type différent vers lequel <code>auto</code> se résout.</p>
+<p>L'exemple suivant montre comment une lambda générique se transforme en deux lambdas distinctes :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+  // Afficher une valeur et compter combien de fois @print a été appelée.
+  auto print{
+    [](auto value) {
+      static int callCount{ 0 };
+      std::cout &lt;&lt; callCount++ &lt;&lt; &quot;: &quot; &lt;&lt; value &lt;&lt; '\n';
+    }
+  };
+
+  print(&quot;hello&quot;); // 0: hello
+  print(&quot;world&quot;); // 1: world
+
+  print(1); // 0: 1
+  print(2); // 1: 2
+
+  print(&quot;ding dong&quot;); // 2: ding dong
+
+  return 0;
+}
+</code></pre>
+<p>Sortie :</p>
+<pre><code>
+0: hello
+1: world
+0: 1
+1: 2
+2: ding dong
+</code></pre>
+<p>Dans l'exemple ci-dessus, nous définissons une lambda puis l'appelons avec deux paramètres différents (un paramètre littéral de chaîne et un paramètre entier). Cela génère deux versions différentes de la lambda (l'une avec un paramètre littéral de chaîne, l'autre avec un paramètre entier).</p>
+<p>La plupart du temps, cela n'a pas de conséquence. Cependant, notez que si la lambda générique utilise des variables à durée de stockage statique, ces variables ne sont pas partagées entre les lambdas générées.</p>
+<p>On le voit dans l'exemple ci-dessus : chaque type (littéraux de chaînes et entiers) possède son propre compteur ! Bien que nous n'ayons écrit la lambda qu'une seule fois, deux lambdas ont été générées, et chacune possède sa propre version de <code>callCount</code>. Pour avoir un compteur partagé entre les deux lambdas générées, il faudrait définir une variable globale ou une variable locale <code>static</code> en dehors de la lambda. Comme vous le savez depuis les leçons précédentes, les variables globales comme les variables locales statiques peuvent causer des problèmes et rendre le code plus difficile à comprendre. Nous pourrons nous passer de ces variables après avoir abordé les captures de lambdas dans la prochaine leçon.</p>
+<h2 id="déduction-du-type-de-retour-et-types-de-retour-finaux">Déduction du type de retour et types de retour finaux</h2>
+<p>Si la déduction du type de retour est utilisée, le type de retour d'une lambda est déduit des instructions <code>return</code> situées à l'intérieur de la lambda, et toutes les instructions <code>return</code> de la lambda doivent renvoyer le même type (sinon le compilateur ne saura pas lequel privilégier).</p>
+<p>Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+  auto divide{ [](int x, int y, bool intDivision) { // note : aucun type de retour spécifié
+    if (intDivision)
+      return x / y; // le type de retour est int
+    else
+      return static_cast&lt;double&gt;(x) / y; // ERREUR : le type de retour ne correspond pas au type de retour précédent
+  } };
+
+  std::cout &lt;&lt; divide(3, 2, true) &lt;&lt; '\n';
+  std::cout &lt;&lt; divide(3, 2, false) &lt;&lt; '\n';
+
+  return 0;
+}
+</code></pre>
+<p>Cela produit une erreur de compilation, car le type de retour de la première instruction <code>return</code> (int) ne correspond pas à celui de la seconde (double).</p>
+<p>Lorsque nous renvoyons des types différents, nous avons deux options :</p>
+<ol>
+<li>Effectuer des conversions explicites pour que tous les types de retour correspondent, ou</li>
+<li>Spécifier explicitement un type de retour pour la lambda et laisser le compilateur effectuer les conversions implicites.</li>
+</ol>
+<p>La seconde option est généralement le meilleur choix :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+  // note : spécifier explicitement que cela renvoie un double
+  auto divide{ [](int x, int y, bool intDivision) -&gt; double {
+    if (intDivision)
+      return x / y; // effectuera une conversion implicite du résultat en double
+    else
+      return static_cast&lt;double&gt;(x) / y;
+  } };
+
+  std::cout &lt;&lt; divide(3, 2, true) &lt;&lt; '\n';
+  std::cout &lt;&lt; divide(3, 2, false) &lt;&lt; '\n';
+
+  return 0;
+}
+</code></pre>
+<p>Ainsi, si vous décidez un jour de changer le type de retour, vous n'aurez (généralement) qu'à modifier le type de retour de la lambda, sans toucher à son corps.</p>
+<h2 id="objets-fonctions-de-la-bibliothèque-standard">Objets fonctions de la bibliothèque standard</h2>
+<p>Pour les opérations courantes (par exemple l'addition, la négation ou la comparaison), vous n'avez pas besoin d'écrire vos propres lambdas, car la bibliothèque standard fournit de nombreux objets appelables de base qui peuvent être utilisés à la place. Ils sont définis dans l'en-tête <a href="https://en.cppreference.com/w/cpp/utility/functional#Operator_function_objects">&lt;functional&gt;</a>.</p>
+<p>Dans l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+
+bool greater(int a, int b)
+{
+  // Place @a avant @b si @a est supérieur à @b.
+  return a &gt; b;
+}
+
+int main()
+{
+  std::array arr{ 13, 90, 99, 5, 40, 80 };
+
+  // Passer greater à std::sort
+  std::sort(arr.begin(), arr.end(), greater);
+
+  for (int i : arr)
+  {
+    std::cout &lt;&lt; i &lt;&lt; ' ';
+  }
+
+  std::cout &lt;&lt; '\n';
+
+  return 0;
+}
+</code></pre>
+<p>Sortie :</p>
+<pre><code>
+99 90 80 40 13 5
+</code></pre>
+<p>Plutôt que de transformer notre fonction <code>greater</code> en lambda (ce qui obscurcirait un peu son sens), nous pouvons utiliser <code>std::greater</code> :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;functional&gt; // pour std::greater
+
+int main()
+{
+  std::array arr{ 13, 90, 99, 5, 40, 80 };
+
+  // Passer std::greater à std::sort
+  std::sort(arr.begin(), arr.end(), std::greater{}); // note : les accolades sont nécessaires pour instancier l'objet
+
+  for (int i : arr)
+  {
+    std::cout &lt;&lt; i &lt;&lt; ' ';
+  }
+
+  std::cout &lt;&lt; '\n';
+
+  return 0;
+}
+</code></pre>
+<p>Sortie :</p>
+<pre><code>
+99 90 80 40 13 5
+</code></pre>
+<h2 id="conclusion">Conclusion</h2>
+<p>Les lambdas et la bibliothèque d'algorithmes peuvent sembler inutilement compliquées par rapport à une solution utilisant une boucle. Pourtant, cette combinaison permet de réaliser des opérations très puissantes en quelques lignes de code, et peut être plus lisible que l'écriture de vos propres boucles. De plus, la bibliothèque d'algorithmes offre un parallélisme puissant et facile à utiliser, que les boucles ne permettent pas. Mettre à jour du code qui utilise des fonctions de la bibliothèque est aussi plus simple que mettre à jour du code qui utilise des boucles.</p>
+<p>Les lambdas sont formidables, mais elles ne remplacent pas les fonctions ordinaires dans tous les cas. Privilégiez les fonctions ordinaires pour les cas non triviaux et réutilisables.</p>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Créez une <code>struct Student</code> qui stocke le nom et les points d'un étudiant. Créez un tableau d'étudiants et utilisez <a href="https://en.cppreference.com/w/cpp/algorithm/max_element"><code>std::max_element</code></a> pour trouver l'étudiant ayant le plus de points, puis affichez son nom. <code>std::max_element</code> prend le <code>begin</code> et le <code>end</code> d'une liste, ainsi qu'une fonction qui prend 2 paramètres et renvoie <code>true</code> si le premier argument est inférieur au second.</p>
+<p>Étant donné le tableau suivant :</p>
+<pre><code class="language-cpp">std::array&lt;Student, 8&gt; arr{
+  { { &quot;Albert&quot;, 3 },
+    { &quot;Ben&quot;, 5 },
+    { &quot;Christine&quot;, 2 },
+    { &quot;Dan&quot;, 8 }, // Dan a le plus de points (8).
+    { &quot;Enchilada&quot;, 4 },
+    { &quot;Francis&quot;, 1 },
+    { &quot;Greg&quot;, 3 },
+    { &quot;Hagrid&quot;, 5 } }
+};
+</code></pre>
+<p>votre programme doit afficher :</p>
+<pre><code>
+Dan is the best student
+</code></pre>
+<details class="callout question"><summary>Indice</summary>
+<p>Indice :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+struct Student
+{
+  std::string_view name{};
+  int points{};
+};
+
+int main()
+{
+  constexpr std::array&lt;Student, 8&gt; arr{
+    { { &quot;Albert&quot;, 3 },
+      { &quot;Ben&quot;, 5 },
+      { &quot;Christine&quot;, 2 },
+      { &quot;Dan&quot;, 8 },
+      { &quot;Enchilada&quot;, 4 },
+      { &quot;Francis&quot;, 1 },
+      { &quot;Greg&quot;, 3 },
+      { &quot;Hagrid&quot;, 5 } }
+  };
+
+  const auto best{
+    std::max_element(arr.begin(), arr.end(), /* lambda */) // renvoie un itérateur
+  };
+
+  std::cout &lt;&lt; best-&gt;name &lt;&lt; &quot; is the best student\n&quot;; // il faut déréférencer l'itérateur pour obtenir l'élément
+
+  return 0;
+}
+</code></pre>
+</details>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+struct Student
+{
+  std::string_view name{};
+  int points{};
+};
+
+int main()
+{
+  constexpr std::array&lt;Student, 8&gt; arr{
+    { { &quot;Albert&quot;, 3 },
+      { &quot;Ben&quot;, 5 },
+      { &quot;Christine&quot;, 2 },
+      { &quot;Dan&quot;, 8 },
+      { &quot;Enchilada&quot;, 4 },
+      { &quot;Francis&quot;, 1 },
+      { &quot;Greg&quot;, 3 },
+      { &quot;Hagrid&quot;, 5 } }
+  };
+
+  const auto best { // renvoie un itérateur
+    std::max_element(arr.begin(), arr.end(), [](const auto&amp; a, const auto&amp; b) {
+      return a.points &lt; b.points;
+    })
+  };
+
+  std::cout &lt;&lt; best-&gt;name &lt;&lt; &quot; is the best student\n&quot;; // il faut déréférencer l'itérateur pour obtenir l'élément
+
+  return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Utilisez <code>std::sort</code> et une lambda dans le code suivant pour trier les saisons par température moyenne croissante.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+struct Season
+{
+  std::string_view name{};
+  double averageTemperature{};
+};
+
+int main()
+{
+  std::array&lt;Season, 4&gt; seasons{
+    { { &quot;Spring&quot;, 285.0 },
+      { &quot;Summer&quot;, 296.0 },
+      { &quot;Fall&quot;, 288.0 },
+      { &quot;Winter&quot;, 263.0 } }
+  };
+
+  /*
+   * Utilisez std::sort ici
+   */
+
+  for (const auto&amp; season : seasons)
+  {
+    std::cout &lt;&lt; season.name &lt;&lt; '\n';
+  }
+
+  return 0;
+}
+</code></pre>
+<p>Le programme doit afficher :</p>
+<pre><code>
+Winter
+Spring
+Fall
+Summer
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+struct Season
+{
+  std::string_view name{};
+  double averageTemperature{};
+};
+
+int main()
+{
+  std::array&lt;Season, 4&gt; seasons{
+    { { &quot;Spring&quot;, 285.0 },
+      { &quot;Summer&quot;, 296.0 },
+      { &quot;Fall&quot;, 288.0 },
+      { &quot;Winter&quot;, 263.0 } }
+  };
+
+  // Nous pouvons comparer averageTemperature des deux arguments pour
+  // trier le tableau.
+  std::sort(seasons.begin(), seasons.end(),
+            [](const auto&amp; a, const auto&amp; b) {
+              return a.averageTemperature &lt; b.averageTemperature;
+            });
+
+  for (const auto&amp; season : seasons)
+  {
+    std::cout &lt;&lt; season.name &lt;&lt; '\n';
+  }
+
+  return 0;
+}
+</code></pre>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-lambdas-anonymous-functions/">https://www.learncpp.com/cpp-tutorial/introduction-to-lambdas-anonymous-functions/</a></em></p>
+</main>
+</body>
+</html>

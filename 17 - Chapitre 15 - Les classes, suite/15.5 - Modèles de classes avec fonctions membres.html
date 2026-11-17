@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15.5 — Modèles de classes avec fonctions membres</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="155-modèles-de-classes-avec-fonctions-membres">15.5 — Modèles de classes avec fonctions membres</h1>
+<p>Dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.6%20-%20Templates%20de%20fonctions.html">11.6 -- Modèles de fonctions</a>, nous avons étudié les modèles de fonctions :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt; // this is the template parameter declaration
+T max(T x, T y) // this is the function template definition for max&lt;T&gt;
+{
+    return (x &lt; y) ? y : x;
+}
+</code></pre>
+<p>Avec un modèle de fonction, nous pouvons définir des paramètres de modèle de type (par exemple <code>typename T</code>) et les utiliser comme types des paramètres de notre fonction (<code>T x, T y</code>).</p>
+<p>Dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.13%20-%20Mod%C3%A8les%20de%20classes.html">13.13 -- Modèles de classes</a>, nous avons vu les modèles de classes, qui permettent d'utiliser des paramètres de modèle de type pour le type des membres de données de types classe (struct, classes et unions) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+struct Pair
+{
+    T first{};
+    T second{};
+};
+
+// Voici un guide de déduction pour notre Pair (requis en C++17 ou antérieur)
+// Les objets Pair initialisés avec des arguments de type T et T doivent se déduire en Pair&lt;T&gt;
+template &lt;typename T&gt;
+Pair(T, T) -&gt; Pair&lt;T&gt;;
+
+int main()
+{
+    Pair&lt;int&gt; p1{ 5, 6 };        // instancie Pair&lt;int&gt; et crée l'objet p1
+    std::cout &lt;&lt; p1.first &lt;&lt; ' ' &lt;&lt; p1.second &lt;&lt; '\n';
+
+    Pair&lt;double&gt; p2{ 1.2, 3.4 }; // instancie Pair&lt;double&gt; et crée l'objet p2
+    std::cout &lt;&lt; p2.first &lt;&lt; ' ' &lt;&lt; p2.second &lt;&lt; '\n';
+
+    Pair&lt;double&gt; p3{ 7.8, 9.0 }; // crée l'objet p3 en utilisant la définition précédente de Pair&lt;double&gt;
+    std::cout &lt;&lt; p3.first &lt;&lt; ' ' &lt;&lt; p3.second &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<div class="callout quote"><p class="callout-title">Contenu connexe</p>
+<p>Nous traitons des guides de déduction dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.14%20-%20D%C3%A9duction%20d%27argument%20de%20mod%C3%A8le%20de%20classe%20%28CTAD%29%20et%20guides%20de%20d%C3%A9duction.html#DeductionGuide">13.14 -- Déduction d'arguments de modèle de classe (CTAD) et guides de déduction</a>.</p>
+</div>
+<p>Dans cette leçon, nous allons combiner des éléments des modèles de fonctions et des modèles de classes en étudiant de plus près les modèles de classes qui possèdent des fonctions membres.</p>
+<h2 id="paramètres-de-modèle-de-type-dans-les-fonctions-membres">Paramètres de modèle de type dans les fonctions membres</h2>
+<p>Les paramètres de modèle de type définis dans la déclaration de paramètres d'un modèle de classe peuvent être utilisés à la fois comme types des membres de données et comme types des paramètres des fonctions membres.</p>
+<p>Dans l'exemple suivant, nous réécrivons le modèle de classe <code>Pair</code> ci-dessus en le convertissant d'une struct en une classe :</p>
+<pre><code class="language-cpp">#include &lt;ios&gt;       // pour std::boolalpha
+#include &lt;iostream&gt;
+
+template &lt;typename T&gt;
+class Pair
+{
+private:
+    T m_first{};
+    T m_second{};
+
+public:
+    // Lorsque nous définissons une fonction membre à l'intérieur de la définition de la classe,
+    // la déclaration de paramètres de modèle appartenant à la classe s'applique
+    Pair(const T&amp; first, const T&amp; second)
+        : m_first{ first }
+        , m_second{ second }
+    {
+    }
+
+    bool isEqual(const Pair&lt;T&gt;&amp; pair);
+};
+
+// Lorsque nous définissons une fonction membre en dehors de la définition de la classe,
+// nous devons fournir à nouveau une déclaration de paramètres de modèle
+template &lt;typename T&gt;
+bool Pair&lt;T&gt;::isEqual(const Pair&lt;T&gt;&amp; pair)
+{
+    return m_first == pair.m_first &amp;&amp; m_second == pair.m_second;
+}
+
+int main()
+{
+    Pair p1{ 5, 6 }; // utilise le CTAD pour déduire le type Pair&lt;int&gt;
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; &quot;isEqual(5, 6): &quot; &lt;&lt; p1.isEqual( Pair{5, 6} ) &lt;&lt; '\n';
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; &quot;isEqual(5, 7): &quot; &lt;&lt; p1.isEqual( Pair{5, 7} ) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Ce qui précède devrait être assez clair, mais il y a quelques points à noter.</p>
+<p>Premièrement, comme notre classe possède des membres privés, ce n'est pas un agrégat, et elle ne peut donc pas utiliser l'initialisation d'agrégat. Nous devons à la place initialiser nos objets de classe à l'aide d'un constructeur.</p>
+<p>Comme les membres de données de notre classe sont de type <code>T</code>, nous donnons aux paramètres de notre constructeur le type <code>const T&amp;</code>, afin que l'utilisateur puisse fournir des valeurs d'initialisation de ce même type. Comme <code>T</code> peut être coûteux à copier, il est plus sûr de le passer par référence constante que par valeur.</p>
+<p>Notez que lorsque nous définissons une fonction membre à l'intérieur de la définition du modèle de classe, nous n'avons pas besoin de fournir une déclaration de paramètres de modèle pour cette fonction membre. Ces fonctions membres utilisent implicitement la déclaration de paramètres de modèle de la classe.</p>
+<p>Deuxièmement, nous n'avons pas besoin de guides de déduction pour que le CTAD fonctionne avec les classes qui ne sont pas des agrégats. Un constructeur correspondant fournit au compilateur les informations dont il a besoin pour déduire les paramètres de modèle à partir des initialiseurs.</p>
+<p>Troisièmement, examinons de plus près le cas où nous définissons une fonction membre d'un modèle de classe en dehors de la définition du modèle de classe :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+bool Pair&lt;T&gt;::isEqual(const Pair&lt;T&gt;&amp; pair)
+{
+    return m_first == pair.m_first &amp;&amp; m_second == pair.m_second;
+}
+</code></pre>
+<p>Comme cette définition de fonction membre est séparée de la définition du modèle de classe, nous devons fournir à nouveau une déclaration de paramètres de modèle (<code>template &lt;typename T&gt;</code>) pour que le compilateur sache ce qu'est <code>T</code>.</p>
+<p>De plus, lorsque nous définissons une fonction membre en dehors de la classe, nous devons qualifier le nom de la fonction membre avec le nom complet paramétré du modèle de classe (<code>Pair&lt;T&gt;::isEqual</code>, et non <code>Pair::isEqual</code>).</p>
+<h2 id="noms-de-classe-injectés">Noms de classe injectés</h2>
+<p>Dans une leçon précédente, nous avons indiqué que le nom d'un constructeur doit correspondre au nom de la classe. Pourtant, dans notre modèle de classe <code>Pair&lt;T&gt;</code> ci-dessus, nous avons nommé notre constructeur <code>Pair</code>, et non <code>Pair&lt;T&gt;</code>. Cela fonctionne malgré tout, alors même que les noms ne correspondent pas.</p>
+<p>Dans la portée d'une classe, le nom non qualifié de la classe s'appelle un <strong>nom de classe injecté</strong> (<em>injected class name</em>). Dans un modèle de classe, le nom de classe injecté sert d'abréviation pour le nom complet paramétré.</p>
+<p>Comme <code>Pair</code> est le nom de classe injecté de <code>Pair&lt;T&gt;</code>, dans la portée de notre modèle de classe <code>Pair&lt;T&gt;</code>, toute utilisation de <code>Pair</code> est traitée comme si nous avions écrit <code>Pair&lt;T&gt;</code>. Ainsi, bien que nous ayons nommé le constructeur <code>Pair</code>, le compilateur le traite comme si nous avions écrit <code>Pair&lt;T&gt;</code>. Les noms correspondent maintenant !</p>
+<p>Cela signifie que nous pouvons aussi définir notre fonction membre <code>isEqual()</code> de cette manière :</p>
+<pre><code class="language-cpp">template &lt;typename T&gt;
+bool Pair&lt;T&gt;::isEqual(const Pair&amp; pair) // notez que le paramètre a le type Pair, et non Pair&lt;T&gt;
+{
+    return m_first == pair.m_first &amp;&amp; m_second == pair.m_second;
+}
+</code></pre>
+<p>Comme il s'agit de la définition d'une fonction membre de <code>Pair&lt;T&gt;</code>, nous sommes dans la portée du modèle de classe <code>Pair&lt;T&gt;</code>. Par conséquent, toute utilisation de <code>Pair</code> est une abréviation de <code>Pair&lt;T&gt;</code> !</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.14%20-%20D%C3%A9duction%20d%27argument%20de%20mod%C3%A8le%20de%20classe%20%28CTAD%29%20et%20guides%20de%20d%C3%A9duction.html">13.14 -- Déduction d'arguments de modèle de classe (CTAD) et guides de déduction</a>, nous avons noté que le CTAD ne fonctionne pas avec les paramètres de fonction (puisqu'il s'agit de déduction d'arguments et non de déduction de paramètres). Cependant, utiliser un nom de classe injecté comme paramètre de fonction est correct, car il s'agit d'une abréviation pour le nom complet paramétré, et non d'une utilisation du CTAD.</p>
+</div>
+<h2 id="où-définir-les-fonctions-membres-des-modèles-de-classes-en-dehors-de-la-classe">Où définir les fonctions membres des modèles de classes en dehors de la classe</h2>
+<p>Pour les fonctions membres des modèles de classes, le compilateur doit voir à la fois la définition de la classe (pour s'assurer que le modèle de fonction membre est déclaré comme faisant partie de la classe) et la définition du modèle de fonction membre (pour savoir comment l'instancier). Nous voulons donc généralement définir la classe et ses modèles de fonctions membres au même endroit.</p>
+<p>Lorsqu'un modèle de fonction membre est défini <em>à l'intérieur</em> de la définition de la classe, la définition du modèle de fonction membre fait partie de la définition de la classe, donc partout où la définition de la classe est visible, la définition du modèle de fonction membre l'est aussi. Cela simplifie les choses (au prix d'un alourdissement de la définition de la classe).</p>
+<p>Lorsqu'un modèle de fonction membre est défini <em>à l'extérieur</em> de la définition de la classe, il doit en général être défini immédiatement sous la définition de la classe. Ainsi, partout où la définition de la classe est visible, les définitions des modèles de fonctions membres placées immédiatement sous la définition de la classe le seront aussi.</p>
+<p>Dans le cas typique où une classe est définie dans un fichier d'en-tête, cela signifie que les modèles de fonctions membres définis en dehors de la classe doivent aussi être définis dans ce même fichier d'en-tête, sous la définition de la classe.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Dans la leçon <a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.7%20-%20Instanciation%20des%20fonctions%20template.html">11.7 -- Instanciation des modèles de fonctions</a>, nous avons noté que les fonctions instanciées implicitement à partir de modèles sont implicitement <code>inline</code>. Cela concerne aussi bien les modèles de fonctions non membres que les modèles de fonctions membres. Il n'y a donc aucun problème à inclure dans plusieurs fichiers source des modèles de fonctions membres définis dans des fichiers d'en-tête, puisque les fonctions instanciées à partir de ces modèles seront implicitement <code>inline</code> (et l'éditeur de liens (linker) élimine les doublons).</p>
+</div>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Tout modèle de fonction membre défini en dehors de la définition de la classe doit être défini juste sous la définition de la classe (dans le même fichier).</p>
+</div>
+<h2 id="quiz">Quiz</h2>
+<h4 id="question-n-1">Question n° 1</h4>
+<p>Écrivez un modèle de classe nommé <code>Triad</code> qui possède 3 membres de données privés avec des paramètres de modèle de type indépendants. La classe doit avoir un constructeur, des fonctions d'accès et une fonction membre <code>print()</code> définie en dehors de la classe.</p>
+<p>Le programme suivant doit compiler et s'exécuter :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    Triad&lt;int, int, int&gt; t1{ 1, 2, 3 };
+    t1.print();
+    std::cout &lt;&lt; '\n';
+    std::cout &lt;&lt; t1.first() &lt;&lt; '\n';
+
+    using namespace std::literals::string_literals;
+    const Triad t2{ 1, 2.3, &quot;Hello&quot;s };
+    t2.print();
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>et produire la sortie :</p>
+<pre><code>
+[1, 2, 3]
+1
+[1, 2.3, Hello]
+</code></pre>
+<details class="callout success"><summary>Solution</summary>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+template &lt;typename T, typename U, typename V&gt;
+class Triad
+{
+private:
+    T m_first{};
+    U m_second{};
+    V m_third{};
+
+public:
+    Triad(const T&amp; first, const U&amp; second, const V&amp; third)
+        : m_first{ first }
+        , m_second{ second }
+        , m_third{ third }
+    {
+    }
+
+    const T&amp; first() const { return m_first; }
+    const U&amp; second() const { return m_second; }
+    const V&amp; third() const { return m_third; }
+
+    void print() const;
+};
+
+template &lt;typename T, typename U, typename V&gt;
+void Triad&lt;T, U, V&gt;::print() const
+{
+    std::cout &lt;&lt; '[' &lt;&lt; m_first &lt;&lt; &quot;, &quot; &lt;&lt; m_second &lt;&lt; &quot;, &quot; &lt;&lt; m_third &lt;&lt; ']' ;
+}
+
+int main()
+{
+    Triad&lt;int, int, int&gt; t1{ 1, 2, 3 };
+    t1.print();
+    std::cout &lt;&lt; '\n';
+    std::cout &lt;&lt; t1.first() &lt;&lt; '\n';
+
+    using namespace std::literals::string_literals;
+    const Triad t2{ 1, 2.3, &quot;Hello&quot;s };
+    t2.print();
+    std::cout &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+</details>
+<h4 id="question-n-2">Question n° 2</h4>
+<p>Si nous retirons le <code>const</code> de la déclaration et de la définition de la fonction <code>print()</code>, le programme ne compile plus. Pourquoi ?</p>
+<details class="callout success"><summary>Solution</summary>
+<p><code>t2</code> est un objet constant, donc seules les fonctions membres constantes peuvent être appelées sur <code>t2</code>. Si nous faisons de <code>print()</code> une fonction membre non constante, alors <code>t2</code> n'est pas autorisé à l'appeler. En effet, une fonction membre non constante pourrait modifier l'objet implicite, ce qui violerait la constance de l'objet constant (ici <code>t2</code>).</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/class-templates-with-member-functions/">https://www.learncpp.com/cpp-tutorial/class-templates-with-member-functions/</a></em></p>
+</main>
+</body>
+</html>

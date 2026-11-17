@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14.17 — Agrégats constexpr et classes</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="1417-agrégats-constexpr-et-classes">14.17 — Agrégats constexpr et classes</h1>
+<p>Dans la leçon <a href="../13%20-%20Chapitre%20F%20-%20Fonctions%20constexpr/F.1%20-%20Fonctions%20constexpr.html">F.1 -- Fonctions constexpr</a>, nous avons vu les fonctions constexpr, c'est-à-dire des fonctions qui peuvent être évaluées à la compilation ou à l'exécution. Par exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+constexpr int greater(int x, int y)
+{
+    return (x &gt; y ? x : y);
+}
+
+int main()
+{
+    std::cout &lt;&lt; greater(5, 6) &lt;&lt; '\n'; // greater(5, 6) peut être évalué à la compilation ou à l'exécution
+
+    constexpr int g { greater(5, 6) };  // greater(5, 6) doit être évalué à la compilation
+    std::cout &lt;&lt; g &lt;&lt; '\n';             // affiche 6
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, <code>greater()</code> est une fonction constexpr, et <code>greater(5, 6)</code> est une expression constante, qui peut être évaluée à la compilation ou à l'exécution. Comme <code>std::cout &lt;&lt; greater(5, 6)</code> appelle <code>greater(5, 6)</code> dans un contexte non constexpr, le compilateur est libre de choisir d'évaluer <code>greater(5, 6)</code> à la compilation ou à l'exécution. Lorsque <code>greater(5, 6)</code> sert à initialiser la variable constexpr <code>g</code>, <code>greater(5, 6)</code> est appelée dans un contexte constexpr et doit être évaluée à la compilation.</p>
+<p>Considérons maintenant l'exemple similaire suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Pair
+{
+    int m_x {};
+    int m_y {};
+
+    int greater() const
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+};
+
+int main()
+{
+    Pair p { 5, 6 };                  // les entrées sont des valeurs constexpr
+    std::cout &lt;&lt; p.greater() &lt;&lt; '\n'; // p.greater() est évaluée à l'exécution
+
+    constexpr int g { p.greater() };  // erreur de compilation : greater() n'est pas constexpr
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cette version, nous avons un agrégat <code>Pair</code> de type struct, et <code>greater()</code> est désormais une fonction membre. Cependant, comme la fonction membre <code>greater()</code> n'est pas constexpr, <code>p.greater()</code> n'est pas une expression constante. Lorsque <code>std::cout &lt;&lt; p.greater()</code> appelle <code>p.greater()</code> (dans un contexte non constexpr), <code>p.greater()</code> est évaluée à l'exécution. En revanche, lorsque nous essayons d'utiliser <code>p.greater()</code> pour initialiser la variable constexpr <code>g</code>, nous obtenons une erreur de compilation, car <code>p.greater()</code> ne peut pas être évaluée à la compilation.</p>
+<p>Comme les entrées de <code>p</code> sont des valeurs constexpr (<code>5</code> et <code>6</code>), on pourrait penser que <code>p.greater()</code> devrait pouvoir être évaluée à la compilation. Mais comment faire ?</p>
+<h2 id="fonctions-membres-constexpr">Fonctions membres constexpr</h2>
+<p>Tout comme les fonctions non membres, les fonctions membres peuvent être rendues constexpr à l'aide du mot-clé <code>constexpr</code>. Les fonctions membres constexpr peuvent être évaluées à la compilation ou à l'exécution.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Pair
+{
+    int m_x {};
+    int m_y {};
+
+    constexpr int greater() const // peut être évaluée à la compilation ou à l'exécution
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+};
+
+int main()
+{
+    Pair p { 5, 6 };
+    std::cout &lt;&lt; p.greater() &lt;&lt; '\n'; // correct : p.greater() est évaluée à l'exécution
+
+    constexpr int g { p.greater() };  // erreur de compilation : p n'est pas constexpr
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Dans cet exemple, nous avons déclaré <code>greater()</code> comme fonction constexpr, de sorte que le compilateur peut l'évaluer à l'exécution ou à la compilation.</p>
+<p>Lorsque nous appelons <code>p.greater()</code> dans l'expression d'exécution <code>std::cout &lt;&lt; p.greater()</code>, elle est évaluée à l'exécution.</p>
+<p>En revanche, lorsque <code>p.greater()</code> sert à initialiser la variable constexpr <code>g</code>, nous obtenons une erreur de compilation. Bien que <code>greater()</code> soit maintenant constexpr, <code>p</code> n'est toujours pas constexpr, donc <code>p.greater()</code> n'est pas une expression constante.</p>
+<h2 id="agrégats-constexpr">Agrégats constexpr</h2>
+<p>Si nous avons besoin que <code>p</code> soit constexpr, il suffit de le déclarer ainsi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Pair // Pair est un agrégat
+{
+    int m_x {};
+    int m_y {};
+
+    constexpr int greater() const
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+};
+
+int main()
+{
+    constexpr Pair p { 5, 6 };        // désormais constexpr
+    std::cout &lt;&lt; p.greater() &lt;&lt; '\n'; // p.greater() est évaluée à l'exécution ou à la compilation
+
+    constexpr int g { p.greater() };  // p.greater() doit être évaluée à la compilation
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Comme <code>Pair</code> est un agrégat, et que les agrégats supportent implicitement constexpr, le problème est réglé. Cela fonctionne ! Comme <code>p</code> est d'un type constexpr, et que <code>greater()</code> est une fonction membre constexpr, <code>p.greater()</code> est une expression constante et peut être utilisée là où seules des expressions constantes sont autorisées.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous avons traité les agrégats dans la leçon <a href="../15%20-%20Chapitre%2013%20-%20Types%20compos%C3%A9s%20-%20%C3%A9num%C3%A9rations%20et%20structures/13.8%20-%20Initialisation%20par%20agr%C3%A9gat%20des%20structures.html">13.8 -- Initialisation d'agrégat de struct</a>.</p>
+</div>
+<h2 id="objets-de-classe-constexpr-et-constructeurs-constexpr">Objets de classe constexpr et constructeurs constexpr</h2>
+<p>Transformons maintenant notre <code>Pair</code> en non-agrégat :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Pair // Pair n'est plus un agrégat
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    Pair(int x, int y): m_x { x }, m_y { y } {}
+
+    constexpr int greater() const
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+};
+
+int main()
+{
+    constexpr Pair p { 5, 6 };       // erreur de compilation : p n'est pas un type littéral
+    std::cout &lt;&lt; p.greater() &lt;&lt; '\n';
+
+    constexpr int g { p.greater() };
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cet exemple est presque identique au précédent, sauf que <code>Pair</code> n'est plus un agrégat (à cause de ses membres de données privés et de son constructeur).</p>
+<p>Lorsque nous compilons ce programme, nous obtenons une erreur de compilation indiquant que <code>Pair</code> n'est pas un « type littéral ». Comment cela ?</p>
+<p>En C++, un <strong>type littéral</strong> (literal type) est tout type pour lequel il est possible de créer un objet dans une expression constante. Autrement dit, un objet ne peut pas être constexpr à moins que son type ne soit un type littéral. Or notre <code>Pair</code>, qui n'est pas un agrégat, ne remplit pas cette condition.</p>
+<div class="callout quote"><p class="callout-title">Terminologie</p>
+<p>Un littéral et un type littéral sont des notions distinctes (mais liées). Un littéral est une valeur constexpr insérée directement dans le code source. Un type littéral est un type pouvant servir de type à une valeur constexpr. Un littéral a toujours un type littéral. En revanche, une valeur ou un objet d'un type littéral n'est pas forcément un littéral.</p>
+</div>
+<p>La définition d'un type littéral est complexe ; un résumé se trouve sur <a href="https://en.cppreference.com/w/cpp/named_req/LiteralType">cppreference</a>. Il est cependant utile de noter que les types littéraux comprennent :</p>
+<ul>
+<li>Les types scalaires (ceux qui contiennent une seule valeur, comme les types fondamentaux et les pointeurs)</li>
+<li>Les types référence</li>
+<li>La plupart des agrégats</li>
+<li>Les classes dotées d'un constructeur constexpr</li>
+</ul>
+<p>Nous comprenons maintenant pourquoi notre <code>Pair</code> n'est pas un type littéral. Lorsqu'un objet de classe est instancié, le compilateur appelle la fonction constructeur pour l'initialiser. Or le constructeur de notre classe <code>Pair</code> n'est pas constexpr, il ne peut donc pas être invoqué à la compilation. Par conséquent, les objets <code>Pair</code> ne peuvent pas être constexpr.</p>
+<p>La solution est simple : il suffit de rendre le constructeur <code>constexpr</code> lui aussi :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Pair
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    constexpr Pair(int x, int y): m_x { x }, m_y { y } {} // désormais constexpr
+
+    constexpr int greater() const
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+};
+
+int main()
+{
+    constexpr Pair p { 5, 6 };
+    std::cout &lt;&lt; p.greater() &lt;&lt; '\n';
+
+    constexpr int g { p.greater() };
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Cela fonctionne comme prévu, tout comme la version agrégat de <code>Pair</code>.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Si vous voulez que votre classe puisse être évaluée à la compilation, rendez constexpr ses fonctions membres et son constructeur.</p>
+</div>
+<p>Les constructeurs implicitement définis sont constexpr lorsqu'ils peuvent l'être. Les constructeurs explicitement défaits par défaut (<code>= default</code>) doivent être explicitement déclarés constexpr.</p>
+<div class="callout info"><p class="callout-title">Remarque</p>
+<p>Le caractère constexpr fait partie de l'interface de la classe : le retirer plus tard casserait le code des appelants qui utilisent la fonction dans un contexte constant.</p>
+</div>
+<h2 id="les-membres-constexpr-peuvent-être-nécessaires-avec-des-objets-non-constexprnon-const">Les membres constexpr peuvent être nécessaires avec des objets non constexpr/non const</h2>
+<p>Dans l'exemple précédent, comme l'initialiseur de la variable constexpr <code>g</code> doit être une expression constante, il est clair que <code>p.greater()</code> doit être une expression constante, et donc que <code>p</code>, le constructeur de <code>Pair</code> et <code>greater()</code> doivent tous être constexpr.</p>
+<p>En revanche, si nous remplaçons <code>p.greater()</code> par une fonction constexpr, les choses deviennent un peu moins évidentes :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Pair
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    constexpr Pair(int x, int y): m_x { x }, m_y { y } {}
+
+    constexpr int greater() const
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+};
+
+constexpr int init()
+{
+    Pair p { 5, 6 };    // nécessite que le constructeur soit constexpr lorsqu'il est évalué à la compilation
+    return p.greater(); // nécessite que greater() soit constexpr lorsqu'elle est évaluée à la compilation
+}
+
+int main()
+{
+    constexpr int g { init() }; // init() évaluée dans un contexte de compilation
+    std::cout &lt;&lt; g &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>Rappelez-vous qu'une fonction constexpr peut être évaluée à l'exécution ou à la compilation. Et lorsqu'une fonction constexpr est évaluée à la compilation, elle ne peut appeler que des fonctions capables d'être évaluées à la compilation. Dans le cas d'un type classe, cela signifie des fonctions membres constexpr.</p>
+<p>Comme <code>g</code> est constexpr, <code>init()</code> doit être évaluée à la compilation. Dans la fonction <code>init()</code>, nous définissons <code>p</code> comme non constexpr/non const (parce que nous le pouvons, et non parce que nous le devrions). Même si <code>p</code> n'est pas déclaré constexpr, <code>p</code> doit tout de même être créé à la compilation, et nécessite donc un constructeur de <code>Pair</code> constexpr. De même, pour que <code>p.greater()</code> soit évaluée à la compilation, <code>greater()</code> doit être une fonction membre constexpr. Si le constructeur de <code>Pair</code> ou <code>greater()</code> n'était pas constexpr, le compilateur signalerait une erreur.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p>Lorsqu'une fonction constexpr est évaluée dans un contexte de compilation, seules les fonctions constexpr peuvent être appelées.</p>
+</div>
+<h2 id="les-fonctions-membres-constexpr-peuvent-être-const-ou-non-const-c14">Les fonctions membres constexpr peuvent être const ou non-const <em>(C++14)</em></h2>
+<p>En C++11, les fonctions membres constexpr non statiques sont implicitement const (sauf les constructeurs).</p>
+<p>En revanche, depuis C++14, les fonctions membres constexpr ne sont plus implicitement const. Cela signifie que si vous voulez qu'une fonction constexpr soit const, vous devez le indiquer explicitement.</p>
+<h2 id="les-fonctions-membres-constexpr-non-const-peuvent-modifier-les-membres-de-données-facultatif">Les fonctions membres constexpr non-const peuvent modifier les membres de données <em>(Facultatif)</em></h2>
+<p>Une fonction membre constexpr non-const peut modifier les membres de données de la classe, à condition que l'objet implicite ne soit pas const. Cela reste vrai même lorsque la fonction est évaluée à la compilation.</p>
+<p>Voici un exemple artificiel qui l'illustre :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Pair
+{
+private:
+    int m_x {};
+    int m_y {};
+
+public:
+    constexpr Pair(int x, int y): m_x { x }, m_y { y } {}
+
+    constexpr int greater() const // constexpr et const
+    {
+        return (m_x &gt; m_y  ? m_x : m_y);
+    }
+
+    constexpr void reset() // constexpr mais non-const
+    {
+        m_x = m_y = 0; // une fonction membre non-const peut modifier les membres
+    }
+
+    constexpr const int&amp; getX() const { return m_x; }
+};
+
+// Cette fonction est constexpr
+constexpr Pair zero()
+{
+    Pair p { 1, 2 }; // p est non-const
+    p.reset();       // appel autorisé d'une fonction membre non-const sur un objet non-const
+    return p;
+}
+
+int main()
+{
+    Pair p1 { 3, 4 };
+    p1.reset();                     // appel autorisé d'une fonction membre non-const sur un objet non-const
+    std::cout &lt;&lt; p1.getX() &lt;&lt; '\n'; // affiche 0
+
+    Pair p2 { zero() };             // zero() sera évaluée à l'exécution
+    p2.reset();                     // appel autorisé d'une fonction membre non-const sur un objet non-const
+    std::cout &lt;&lt; p2.getX() &lt;&lt; '\n'; // affiche 0
+
+    constexpr Pair p3 { zero() };   // zero() sera évaluée à la compilation
+//    p3.reset();                   // erreur de compilation : impossible d'appeler une fonction membre non-const sur un objet const
+    std::cout &lt;&lt; p3.getX() &lt;&lt; '\n'; // affiche 0
+
+    return 0;
+}
+</code></pre>
+<p>En parcourant cet exemple, gardez à l'esprit que :</p>
+<ul>
+<li>Une fonction membre non-const peut modifier les membres d'objets non-const.</li>
+<li>Une fonction membre constexpr peut être appelée dans un contexte d'exécution ou dans un contexte de compilation.</li>
+</ul>
+<p>Ces deux points sont indépendants.</p>
+<p>Dans le cas de <code>p1</code>, <code>p1</code> est non-const. Nous avons donc le droit d'appeler la fonction membre non-const <code>p1.reset()</code> pour modifier <code>p1</code>. Le fait que <code>reset()</code> soit constexpr n'a pas d'importance ici, car rien de ce que nous faisons n'exige une évaluation à la compilation.</p>
+<p>Le cas de <code>p2</code> est similaire. Ici, l'initialiseur de <code>p2</code> est un appel de fonction à <code>zero()</code>. Bien que <code>zero()</code> soit une fonction constexpr, elle est appelée dans un contexte d'exécution et se comporte comme une fonction ordinaire. Dans <code>zero()</code>, nous instancions <code>p</code> non-const, appelons la fonction membre non-const <code>p.reset()</code> sur cet objet, puis retournons <code>p</code>. Le <code>Pair</code> retourné sert d'initialiseur à <code>p2</code>. Le fait que <code>zero()</code> et <code>reset()</code> soient constexpr n'a pas d'importance dans ce cas, car rien de ce que nous faisons n'exige une évaluation à la compilation.</p>
+<p>Le cas de <code>p3</code> est le plus intéressant. Comme <code>p3</code> est constexpr, son initialiseur doit être une expression constante. L'appel à <code>zero()</code> doit donc être évalué à la compilation. Et comme nous évaluons dans un contexte de compilation, nous ne pouvons appeler que des fonctions constexpr. Dans <code>zero()</code>, <code>p</code> est non-const (ce qui est permis, même si nous évaluons à la compilation). Toutefois, comme nous sommes dans un contexte de compilation, le constructeur utilisé pour créer <code>p</code> doit être constexpr. De même que dans le cas de <code>p2</code>, nous avons le droit d'appeler la fonction membre non-const <code>p.reset()</code> sur l'objet non-const <code>p</code>. Mais comme nous sommes dans un contexte de compilation, la fonction membre <code>reset()</code> doit être constexpr. La fonction retourne ensuite <code>p</code>, qui sert à initialiser <code>p3</code>.</p>
+<div class="callout quote"><p class="callout-title">Note de l'auteur</p>
+<p>Oui, nous avons utilisé un objet non-const pour initialiser un objet constexpr. Si cela vous paraît déroutant, c'est probablement parce que vous n'avez pas complètement distingué const de constexpr.</p>
+<p>Rien n'impose qu'une variable constexpr soit initialisée avec une valeur const. Cela peut sembler le cas, car la plupart du temps nous initialisons les variables constexpr avec des littéraux (qui sont const) ou avec d'autres variables constexpr (qui sont implicitement const), et parce que les termes <code>const</code> et <code>constexpr</code> se ressemblent.</p>
+<p>L'exigence porte en réalité sur le fait qu'une variable constexpr soit initialisée avec une expression constante. Pour les fonctions (et les opérateurs), constexpr n'implique pas const : les fonctions (et opérateurs) constexpr peuvent utiliser des objets non-const, voire en retourner.</p>
+<p>Ce qui compte n'est pas le const, mais le fait que le compilateur puisse déterminer la valeur de l'objet à la compilation. Et, dans le cas des fonctions constexpr, cela est possible même lorsqu'elles retournent un objet non-const !</p>
+</div>
+<h2 id="fonctions-constexpr-retournant-des-références-ou-pointeurs-const-facultatif">Fonctions constexpr retournant des références (ou pointeurs) const <em>(Facultatif)</em></h2>
+<p>En général, on ne voit pas <code>constexpr</code> et <code>const</code> côte à côte, mais c'est le cas lorsqu'une fonction membre constexpr retourne une référence const (ou un pointeur vers const).</p>
+<p>Dans notre classe <code>Pair</code> ci-dessus, <code>getX()</code> est une fonction membre constexpr qui retourne une référence const :</p>
+<pre><code class="language-cpp">    constexpr const int&amp; getX() const { return m_x; }
+</code></pre>
+<p>Que de const !</p>
+<p>Le <code>constexpr</code> indique que la fonction membre peut être évaluée à la compilation. Le <code>const int&amp;</code> est le type de retour de la fonction. Le <code>const</code> le plus à droite signifie que la fonction membre elle-même est const, ce qui permet de l'appeler sur des objets const.</p>
+<div class="callout quote"><p class="callout-title">En passant…</p>
+<p>Une fonction membre retournant plutôt un pointeur const vers un objet const pourrait ressembler à ceci :</p>
+<pre><code class="language-cpp">constexpr const int* const getXPtr() const { return &amp;m_x; }
+</code></pre>
+<p>N'est-ce pas magnifique ? Non ? Très bien.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/constexpr-aggregates-and-classes/">https://www.learncpp.com/cpp-tutorial/constexpr-aggregates-and-classes/</a></em></p>
+</main>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27.10 — std::move_if_noexcept</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="2710-stdmove_if_noexcept">27.10 — std::move_if_noexcept</h1>
+<p>(Remerciements au lecteur Koe, qui a fourni la première ébauche de cette leçon !)</p>
+<p>Dans la leçon <a href="../24%20-%20Chapitre%2022%20-%20S%C3%A9mantique%20de%20d%C3%A9placement%20et%20pointeurs%20intelligents/22.4%20-%20std--move.html">22.4 -- std::move</a>, nous avons étudié <code>std::move</code>, qui convertit son argument lvalue en rvalue afin de pouvoir invoquer la sémantique de déplacement. Dans la leçon <a href="../29%20-%20Chapitre%2027%20-%20Les%20exceptions/27.9%20-%20Sp%C3%A9cifications%20d%27exception%20et%20noexcept.html">27.9 -- Spécifications d'exception et noexcept</a>, nous avons étudié le spécificateur d'exception <code>noexcept</code> et l'opérateur <code>noexcept</code>. Cette leçon s'appuie sur ces deux notions.</p>
+<p>Nous avons également vu la <code>garantie forte d'exception</code> (strong exception guarantee), qui assure que, si une fonction est interrompue par une exception, aucune mémoire n'est perdue et l'état du programme n'est pas modifié. En particulier, tous les constructeurs doivent respecter cette garantie, afin que le reste du programme ne soit pas laissé dans un état altéré si la construction d'un objet échoue.</p>
+<h2 id="le-problème-des-constructeurs-de-déplacement-face-aux-exceptions">Le problème des constructeurs de déplacement face aux exceptions</h2>
+<p>Considérons le cas où l'on copie un objet et où la copie échoue pour une raison quelconque (par exemple, si la machine manque de mémoire). Dans ce cas, l'objet copié n'est en rien endommagé, car l'objet source n'a pas besoin d'être modifié pour créer une copie. On peut écarter la copie échouée et poursuivre. La <code>garantie forte d'exception</code> est respectée.</p>
+<p>Considérons maintenant le cas où l'on déplace un objet à la place. Une opération de déplacement transfère la propriété d'une ressource donnée de l'objet source vers l'objet destination. Si l'opération de déplacement est interrompue par une exception après le transfert de propriété, l'objet source reste dans un état modifié. Ce n'est pas un problème si l'objet source est un objet temporaire, destiné de toute façon à être détruit après le déplacement. Mais pour un objet non temporaire, nous avons alors endommagé l'objet source. Pour respecter la <code>garantie forte d'exception</code>, il faudrait restituer la ressource à l'objet source, mais si le déplacement a échoué une première fois, rien ne garantit que ce déplacement inverse réussira.</p>
+<p>Comment garantir la <code>garantie forte d'exception</code> pour les constructeurs de déplacement ? Il est assez simple d'éviter de lever une exception dans le corps d'un constructeur de déplacement, mais un constructeur de déplacement peut invoquer d'autres constructeurs potentiellement lanceurs d'exceptions (<code>potentially throwing</code>). Prenons par exemple le constructeur de déplacement de <code>std::pair</code>, qui doit tenter de déplacer chaque sous-objet de la paire source dans le nouvel objet paire.</p>
+<pre><code class="language-cpp">// Exemple de définition du constructeur de déplacement de std::pair
+// Prend une paire « old » et construit par déplacement les sous-objets « first » et « second » de la nouvelle paire à partir de ceux de « old »
+template &lt;typename T1, typename T2&gt;
+pair&lt;T1,T2&gt;::pair(pair&amp;&amp; old)
+  : first(std::move(old.first)),
+    second(std::move(old.second))
+{}
+</code></pre>
+<p>Utilisons maintenant deux classes, <code>MoveClass</code> et <code>CopyClass</code>, que nous allons associer dans une <code>pair</code> pour illustrer le problème de la <code>garantie forte d'exception</code> avec les constructeurs de déplacement :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt; // Pour std::pair, std::make_pair, std::move, std::move_if_noexcept
+#include &lt;stdexcept&gt; // std::runtime_error
+
+class MoveClass
+{
+private:
+  int* m_resource{};
+
+public:
+  MoveClass() = default;
+
+  MoveClass(int resource)
+    : m_resource{ new int{ resource } }
+  {}
+
+  // Constructeur de copie
+  MoveClass(const MoveClass&amp; that)
+  {
+    // copie profonde
+    if (that.m_resource != nullptr)
+    {
+      m_resource = new int{ *that.m_resource };
+    }
+  }
+
+  // Constructeur de déplacement
+  MoveClass(MoveClass&amp;&amp; that) noexcept
+    : m_resource{ that.m_resource }
+  {
+    that.m_resource = nullptr;
+  }
+
+  ~MoveClass()
+  {
+    std::cout &lt;&lt; &quot;destroying &quot; &lt;&lt; *this &lt;&lt; '\n';
+
+    delete m_resource;
+  }
+
+  friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const MoveClass&amp; moveClass)
+  {
+    out &lt;&lt; &quot;MoveClass(&quot;;
+
+    if (moveClass.m_resource == nullptr)
+    {
+      out &lt;&lt; &quot;empty&quot;;
+    }
+    else
+    {
+      out &lt;&lt; *moveClass.m_resource;
+    }
+
+    out &lt;&lt; ')';
+
+    return out;
+  }
+};
+
+
+class CopyClass
+{
+public:
+  bool m_throw{};
+
+  CopyClass() = default;
+
+  // Le constructeur de copie lève une exception lorsqu'il copie
+  // un objet CopyClass dont m_throw vaut « true »
+  CopyClass(const CopyClass&amp; that)
+    : m_throw{ that.m_throw }
+  {
+    if (m_throw)
+    {
+      throw std::runtime_error{ &quot;abort!&quot; };
+    }
+  }
+};
+
+int main()
+{
+  // On peut créer une std::pair sans aucun problème :
+  std::pair my_pair{ MoveClass{ 13 }, CopyClass{} };
+
+  std::cout &lt;&lt; &quot;my_pair.first: &quot; &lt;&lt; my_pair.first &lt;&lt; '\n';
+
+  // Mais le problème survient lorsque nous essayons de déplacer cette paire dans une autre paire.
+  try
+  {
+    my_pair.second.m_throw = true; // Pour déclencher l'exception du constructeur de copie
+
+    // La ligne suivante lève une exception
+    std::pair moved_pair{ std::move(my_pair) }; // Nous commenterons cette ligne plus loin
+    // std::pair moved_pair{ std::move_if_noexcept(my_pair) }; // Nous la décommenterons plus tard
+
+    std::cout &lt;&lt; &quot;moved pair exists\n&quot;; // Ne s'affiche jamais
+  }
+  catch (const std::exception&amp; ex)
+  {
+      std::cerr &lt;&lt; &quot;Error found: &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+  }
+
+  std::cout &lt;&lt; &quot;my_pair.first: &quot; &lt;&lt; my_pair.first &lt;&lt; '\n';
+
+  return 0;
+}
+</code></pre>
+<p>Le programme ci-dessus affiche :</p>
+<pre><code>
+destroying MoveClass(empty)
+my_pair.first: MoveClass(13)
+destroying MoveClass(13)
+Error found: abort!
+my_pair.first: MoveClass(empty)
+destroying MoveClass(empty)
+</code></pre>
+<p>Analysons ce qui s'est passé. La première ligne affichée montre que l'objet temporaire <code>MoveClass</code> utilisé pour initialiser <code>my_pair</code> est détruit dès que l'instruction de création de <code>my_pair</code> a été exécutée. Il est <code>empty</code> car le sous-objet <code>MoveClass</code> de <code>my_pair</code> a été construit par déplacement à partir de lui, comme le montre la ligne suivante, qui indique que <code>my_pair.first</code> contient l'objet <code>MoveClass</code> de valeur <code>13</code>.</p>
+<p>La troisième ligne est plus intéressante. Nous avons créé <code>moved_pair</code> en construisant par copie son sous-objet <code>CopyClass</code> (qui n'a pas de constructeur de déplacement), mais cette construction par copie a levé une exception, puisque nous avions modifié le drapeau booléen. La construction de <code>moved_pair</code> a été interrompue par l'exception, et ses membres déjà construits ont été détruits. Dans ce cas, le membre <code>MoveClass</code> a été détruit, ce qui affiche <code>destroying MoveClass(13) variable</code>. Ensuite, nous voyons le message <code>Error found: abort!</code> affiché par <code>main()</code>.</p>
+<p>Lorsque nous essayons d'afficher de nouveau <code>my_pair.first</code>, le membre <code>MoveClass</code> apparaît vide. Comme <code>moved_pair</code> a été initialisé avec <code>std::move</code>, le membre <code>MoveClass</code> (qui possède un constructeur de déplacement) a été construit par déplacement, et <code>my_pair.first</code> a été vidé.</p>
+<p>Enfin, <code>my_pair</code> est détruit à la fin de <code>main()</code>.</p>
+<p>Pour résumer ces résultats : le constructeur de déplacement de <code>std::pair</code> a utilisé le constructeur de copie potentiellement lanceur de <code>CopyClass</code>. Ce constructeur de copie a levé une exception, ce qui a interrompu la création de <code>moved_pair</code>, et a endommagé de façon permanente <code>my_pair.first</code>. La <code>garantie forte d'exception</code> n'a pas été respectée.</p>
+<h2 id="stdmove_if_noexcept-à-la-rescousse">std::move_if_noexcept à la rescousse</h2>
+<p>Notons que le problème ci-dessus aurait pu être évité si <code>std::pair</code> avait tenté une copie au lieu d'un déplacement. Dans ce cas, la construction de <code>moved_pair</code> aurait échoué, mais <code>my_pair</code> n'aurait pas été altéré.</p>
+<p>Mais copier au lieu de déplacer a un coût en performance que nous ne voulons pas payer pour tous les objets. Idéalement, nous voulons effectuer un déplacement lorsque c'est possible sans risque, et une copie dans le cas contraire.</p>
+<p>Heureusement, C++ propose deux mécanismes qui, combinés, permettent précisément cela. Premièrement, comme les fonctions <code>noexcept</code> ne lèvent pas d'exception et ne échouent pas, elles respectent implicitement les critères de la <code>garantie forte d'exception</code>. Ainsi, un constructeur de déplacement <code>noexcept</code> est garanti de réussir.</p>
+<p>Deuxièmement, nous pouvons utiliser la fonction de la bibliothèque standard <code>std::move_if_noexcept()</code> pour déterminer s'il faut effectuer un déplacement ou une copie. <code>std::move_if_noexcept</code> est l'équivalent de <code>std::move</code> et s'utilise de la même manière.</p>
+<p>Si le compilateur peut déterminer qu'un objet passé en argument à <code>std::move_if_noexcept</code> ne lèvera pas d'exception lors de sa construction par déplacement (ou si l'objet n'est déplaçable que et ne possède pas de constructeur de copie), alors <code>std::move_if_noexcept</code> se comportera exactement comme <code>std::move()</code> (et renverra l'objet converti en rvalue). Sinon, <code>std::move_if_noexcept</code> renverra une référence lvalue ordinaire vers l'objet.</p>
+<div class="callout info"><p class="callout-title">Point clé</p>
+<p><code>std::move_if_noexcept</code> renvoie une rvalue déplaçable si l'objet possède un constructeur de déplacement <code>noexcept</code>, sinon il renvoie une lvalue copiable. Nous pouvons utiliser le spécificateur <code>noexcept</code> conjointement avec <code>std::move_if_noexcept</code> pour n'utiliser la sémantique de déplacement que lorsqu'une garantie forte d'exception existe (et utiliser la sémantique de copie dans le cas contraire).</p>
+</div>
+<p>Modifions le code de l'exemple précédent comme suit :</p>
+<pre><code class="language-cpp">//std::pair moved_pair{std::move(my_pair)}; // on commente cette ligne maintenant
+std::pair moved_pair{std::move_if_noexcept(my_pair)}; // et on décommente celle-ci
+</code></pre>
+<p>Exécutons de nouveau le programme ; il affiche :</p>
+<pre><code>
+destroying MoveClass(empty)
+my_pair.first: MoveClass(13)
+destroying MoveClass(13)
+Error found: abort!
+my_pair.first: MoveClass(13)
+destroying MoveClass(13)
+</code></pre>
+<p>Comme vous pouvez le constater, après le lancement de l'exception, le sous-objet <code>my_pair.first</code> contient toujours la valeur <code>13</code>.</p>
+<p>Le constructeur de déplacement de <code>std::pair</code> n'est pas <code>noexcept</code> (jusqu'à C++20), donc <code>std::move_if_noexcept</code> renvoie <code>my_pair</code> sous forme de référence lvalue. Cela fait que <code>moved_pair</code> est créée via le constructeur de copie (et non via le constructeur de déplacement). Le constructeur de copie peut lever une exception sans danger, car il ne modifie pas l'objet source.</p>
+<p>La bibliothèque standard utilise souvent <code>std::move_if_noexcept</code> pour optimiser les fonctions <code>noexcept</code>. Par exemple, <code>std::vector::resize</code> utilisera la sémantique de déplacement si le type des éléments possède un constructeur de déplacement <code>noexcept</code>, et la sémantique de copie dans le cas contraire. Cela signifie que <code>std::vector</code> fonctionnera généralement plus rapidement avec des objets dotés d'un constructeur de déplacement <code>noexcept</code>.</p>
+<div class="callout warning"><p class="callout-title">Attention</p>
+<p>Si un type possède à la fois une sémantique de déplacement potentiellement lanceuse d'exceptions et une sémantique de copie supprimée (le constructeur de copie et l'opérateur d'affectation par copie sont indisponibles), alors <code>std::move_if_noexcept</code> renonce à la garantie forte et invoque la sémantique de déplacement. Cette renonciation conditionnelle à la garantie forte est omniprésente dans les classes conteneurs de la bibliothèque standard, puisqu'elles utilisent fréquemment <code>std::move_if_noexcept</code>.</p>
+</div>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/stdmove_if_noexcept/">https://www.learncpp.com/cpp-tutorial/stdmove_if_noexcept/</a></em></p>
+</main>
+</body>
+</html>

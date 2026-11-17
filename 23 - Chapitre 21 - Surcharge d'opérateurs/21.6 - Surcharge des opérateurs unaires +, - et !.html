@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21.6 — Surcharge des opérateurs unaires +, - et !</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="216-surcharge-des-opérateurs-unaires-et">21.6 — Surcharge des opérateurs unaires +, - et !</h1>
+<p><strong>Surcharge des opérateurs unaires</strong></p>
+<p>Contrairement aux opérateurs vus jusqu'ici, le plus unaire (+), le moins unaire (-) et la négation logique (!) sont tous des opérateurs unaires, c'est-à-dire qu'ils n'opèrent que sur un seul opérande. Comme ils n'agissent que sur l'objet auquel ils sont appliqués, leurs surcharges sont généralement implémentées sous forme de fonctions membres. Les trois opérateurs s'implémentent de manière identique.</p>
+<p>Voyons comment implémenter <code>operator-</code> pour la classe <code>Cents</code> utilisée dans un exemple précédent :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Cents
+{
+private:
+    int m_cents {};
+
+public:
+    Cents(int cents): m_cents{cents} {}
+
+    // Surcharge de -Cents en tant que fonction membre
+    Cents operator-() const;
+
+    int getCents() const { return m_cents; }
+};
+
+// note : cette fonction est une fonction membre !
+Cents Cents::operator-() const
+{
+    return -m_cents; // comme le type de retour est Cents, ceci effectue une conversion implicite de int vers Cents grâce au constructeur Cents(int)
+}
+
+int main()
+{
+    const Cents nickle{ 5 };
+    std::cout &lt;&lt; &quot;A nickle of debt is worth &quot; &lt;&lt; (-nickle).getCents() &lt;&lt; &quot; cents\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>Cela devrait être simple. Notre opérateur moins unaire (<code>-</code>) surchargé est un opérateur unaire implémenté comme fonction membre ; il ne prend donc aucun paramètre (il opère sur l'objet <code>*this</code>). Il renvoie un objet <code>Cents</code> qui est l'opposé de la valeur originale. Comme <code>operator-</code> ne modifie pas l'objet <code>Cents</code>, nous pouvons (et devons) en faire une fonction <code>const</code> (afin qu'elle puisse être appelée sur des objets <code>Cents</code> constants).</p>
+<p>Notez qu'il n'y a pas de confusion entre l'opérateur moins unaire <code>operator-</code> et l'opérateur moins binaire <code>operator-</code>, car ils n'ont pas le même nombre de paramètres.</p>
+<p>Voici un autre exemple. L'opérateur <code>!</code> est l'opérateur de négation logique : si une expression s'évalue à « true », <code>operator!</code> renvoie <code>false</code>, et inversement. On le rencontre couramment appliqué à des variables booléennes pour tester si elles sont vraies ou non :</p>
+<pre><code class="language-cpp">if (!isHappy)
+    std::cout &lt;&lt; &quot;I am not happy!\n&quot;;
+else
+    std::cout &lt;&lt; &quot;I am so happy!\n&quot;;
+</code></pre>
+<p>Pour les entiers, 0 s'évalue à <code>false</code> et toute autre valeur à <code>true</code>. <code>operator!</code> appliqué à un entier renvoie donc <code>true</code> pour la valeur 0 et <code>false</code> sinon.</p>
+<p>En généralisant ce concept, on peut dire que <code>operator!</code> doit s'évaluer à <code>true</code> si l'état de l'objet est « faux », « zéro », ou quel que soit l'état d'initialisation par défaut.</p>
+<p>L'exemple suivant montre une surcharge à la fois de <code>operator-</code> et de <code>operator!</code> pour une classe <code>Point</code> définie par l'utilisateur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Point
+{
+private:
+    double m_x {};
+    double m_y {};
+    double m_z {};
+
+public:
+    Point(double x=0.0, double y=0.0, double z=0.0):
+        m_x{x}, m_y{y}, m_z{z}
+    {
+    }
+
+    // Convertit un Point en son équivalent opposé
+    Point operator- () const;
+
+    // Renvoie true si le point est situé à l'origine
+    bool operator! () const;
+
+    double getX() const { return m_x; }
+    double getY() const { return m_y; }
+    double getZ() const { return m_z; }
+};
+
+// Convertit un Point en son équivalent opposé
+Point Point::operator- () const
+{
+    return { -m_x, -m_y, -m_z };
+}
+
+// Renvoie true si le point est à l'origine, false sinon
+bool Point::operator! () const
+{
+    return (m_x == 0.0 &amp;&amp; m_y == 0.0 &amp;&amp; m_z == 0.0);
+}
+
+int main()
+{
+    Point point{}; // utilise le constructeur par défaut pour initialiser à (0.0, 0.0, 0.0)
+
+    if (!point)
+        std::cout &lt;&lt; &quot;point is set at the origin.\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;point is not set at the origin.\n&quot;;
+
+    return 0;
+}
+</code></pre>
+<p>L'opérateur <code>!</code> surchargé pour cette classe renvoie la valeur booléenne « true » si le <code>Point</code> est initialisé à sa valeur par défaut, aux coordonnées (0.0, 0.0, 0.0). Le code ci-dessus produit donc le résultat suivant :</p>
+<pre><code>
+point is set at the origin.
+</code></pre>
+<p><strong>Un petit quiz</strong></p>
+<ol>
+<li>Implémentez la surcharge de l'opérateur unaire <code>operator+</code> pour la classe <code>Point</code>. L'opérateur unaire <code>operator+</code> renvoie simplement son opérande (il ne rend pas positives les valeurs négatives).</li>
+</ol>
+<details class="callout success"><summary>Solution</summary>
+<p>Voici la solution évidente :</p>
+<pre><code class="language-cpp">Point Point::operator+ () const
+{
+    return { m_x, m_y, m_z };
+}
+</code></pre>
+<p>Mais comme le <code>Point</code> que nous renvoyons est exactement celui sur lequel nous opérons, la version suivante fonctionne également :</p>
+<pre><code class="language-cpp">Point Point::operator+ () const
+{
+    return *this;
+}
+</code></pre>
+<p>Notez que nous renvoyons une copie par valeur plutôt qu'une référence constante. En effet, les utilisateurs de cette fonction s'attendront probablement à pouvoir modifier l'objet renvoyé.</p>
+</details>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/overloading-unary-operators/">https://www.learncpp.com/cpp-tutorial/overloading-unary-operators/</a></em></p>
+</main>
+</body>
+</html>

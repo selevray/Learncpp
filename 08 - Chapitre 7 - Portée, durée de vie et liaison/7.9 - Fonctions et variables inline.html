@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7.9 — Fonctions et variables inline</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/composants.js" defer></script>
+</head>
+<body>
+<main>
+<h1 id="79-fonctions-et-variables-inline">7.9 — Fonctions et variables inline</h1>
+<p>Considérons le cas où vous devez écrire du code pour accomplir une tâche bien précise, comme lire une saisie de l'utilisateur, écrire quelque chose dans un fichier ou calculer une valeur particulière. Pour implémenter ce code, vous avez essentiellement deux options :</p>
+<ol>
+<li>Écrire le code dans une fonction existante (on parle alors de code écrit « in-place » ou « inline »).</li>
+<li>Créer une nouvelle fonction (et éventuellement des sous-fonctions) pour gérer la tâche.</li>
+</ol>
+<p>Placer le code dans une nouvelle fonction apporte de nombreux avantages, car les petites fonctions :</p>
+<ul>
+<li>Sont plus faciles à lire et à comprendre dans le contexte global du programme.</li>
+<li>Sont plus faciles à réutiliser, car les fonctions sont naturellement modulaires.</li>
+<li>Sont plus faciles à mettre à jour, car le code n'a besoin d'être modifié qu'à un seul endroit.</li>
+</ul>
+<p>Cependant, l'un des inconvénients d'utiliser une nouvelle fonction est que chaque appel de fonction entraîne un certain surcoût de performance. Considérons l'exemple suivant :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int min(int x, int y)
+{
+    return (x &lt; y) ? x : y;
+}
+
+int main()
+{
+    std::cout &lt;&lt; min(5, 6) &lt;&lt; '\n';
+    std::cout &lt;&lt; min(3, 2) &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Lorsqu'un appel à <code>min()</code> est rencontré, le processeur doit sauvegarder l'adresse de l'instruction qu'il est en train d'exécuter (afin de savoir où revenir plus tard) ainsi que les valeurs de différents registres du processeur (afin de pouvoir les restaurer au retour). Ensuite, les paramètres <code>x</code> et <code>y</code> doivent être instanciés puis initialisés. Le flux d'exécution doit alors sauter vers le code de la fonction <code>min()</code>. Lorsque la fonction se termine, le programme doit revenir à l'emplacement de l'appel, et la valeur de retour doit être copiée afin de pouvoir être affichée. Ce travail doit être effectué pour chaque appel de fonction.<br />
+Tout le travail supplémentaire nécessaire pour préparer, faciliter et/ou nettoyer après une tâche (dans ce cas, l'appel d'une fonction) s'appelle le <strong>surcoût</strong> (overhead).</p>
+<p>Pour les fonctions volumineuses et/ou effectuant des tâches complexes, le surcoût de l'appel est généralement négligeable par rapport au temps d'exécution de la fonction. En revanche, pour les petites fonctions (comme <code>min()</code> ci-dessus), le coût du surcoût peut être supérieur au temps nécessaire à l'exécution du code de la fonction elle-même ! Lorsqu'une petite fonction est appelée souvent, l'utiliser peut entraîner une perte de performance significative par rapport à l'écriture du même code en place.</p>
+<h2 id="lexpansion-inline">L'expansion inline</h2>
+<p>Heureusement, le compilateur C++ dispose d'une astuce pour éviter ce surcoût : <strong>l'expansion inline</strong> (inline expansion) est un processus au cours duquel un appel de fonction est remplacé par le code de la définition de la fonction appelée.</p>
+<p>Par exemple, si le compilateur expansait les appels à <code>min()</code> dans l'exemple précédent, le code résultant ressemblerait à ceci :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; ((5 &lt; 6) ? 5 : 6) &lt;&lt; '\n';
+    std::cout &lt;&lt; ((3 &lt; 2) ? 3 : 2) &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Notez que les deux appels à la fonction <code>min()</code> ont été remplacés par le code du corps de la fonction <code>min()</code> (les valeurs des arguments étant substituées aux paramètres). Cela nous permet d'éviter le surcoût de ces appels, tout en conservant les résultats du code.</p>
+<h2 id="la-performance-du-code-inline">La performance du code inline</h2>
+<p>Au-delà de la suppression du coût de l'appel de fonction, l'expansion inline permet également au compilateur d'optimiser plus efficacement le code résultant. Par exemple, comme l'expression <code>((5 &lt; 6) ? 5 : 6)</code> est désormais une expression constante, le compilateur peut optimiser davantage la première instruction de <code>main()</code> en <code>std::cout &lt;&lt; 5 &lt;&lt; '\n';</code>.</p>
+<p>Cependant, l'expansion inline a aussi son propre coût potentiel : si le corps de la fonction développée comporte plus d'instructions que l'appel de fonction remplacé, chaque expansion inline augmentera la taille de l'exécutable. Or, les exécutables plus volumineux tendent à être plus lents (car ils tiennent moins bien dans les mémoires cache).</p>
+<p>La décision de savoir si une fonction bénéficierait d'être rendue inline (car la suppression du surcoût d'appel l'emporte sur l'augmentation de la taille de l'exécutable) n'est pas simple. L'expansion inline peut améliorer les performances, les dégrader, ou ne rien changer du tout, selon le coût relatif d'un appel de fonction, la taille de la fonction et les autres optimisations pouvant être appliquées.</p>
+<p>L'expansion inline convient surtout aux fonctions simples et courtes (par exemple, pas plus de quelques instructions), en particulier lorsqu'un même appel peut être exécuté plusieurs fois (par exemple, des appels de fonction dans une boucle).</p>
+<h2 id="quand-lexpansion-inline-se-produit">Quand l'expansion inline se produit</h2>
+<p>Chaque fonction entre dans l'une des deux catégories suivantes, concernant les appels à la fonction :</p>
+<ul>
+<li>Ils peuvent être développés en ligne (la plupart des fonctions sont dans cette catégorie).</li>
+<li>Ils ne peuvent pas être développés en ligne.</li>
+</ul>
+<p>La plupart des fonctions appartiennent à la catégorie « peuvent » : leurs appels peuvent être développés en ligne si et quand cela s'avère bénéfique. Pour les fonctions de cette catégorie, un compilateur moderne évalue chaque fonction et chaque appel pour déterminer si cet appel particulier bénéficierait de l'expansion inline. Un compilateur peut décider de n'en développer aucun, certains, ou tous les appels d'une fonction donnée.</p>
+<div class="callout info"><p class="callout-title">Remarque</p>
+<p>Les compilateurs modernes optimisants décident eux-mêmes quand les fonctions doivent être développées en ligne.</p>
+</div>
+<p>Le type de fonction le plus courant qui ne peut pas être développé en ligne est celui dont la définition se trouve dans une autre unité de traduction. Comme le compilateur ne peut pas voir la définition d'une telle fonction, il ne sait pas par quoi remplacer l'appel !</p>
+<h2 id="le-mot-clé-inline-historiquement">Le mot-clé inline, historiquement</h2>
+<p>Historiquement, les compilateurs ne savaient pas toujours déterminer si l'expansion inline serait bénéfique, ou ne le faisaient pas très bien. C'est pourquoi le C++ a fourni le mot-clé <code>inline</code>, qui était à l'origine destiné à indiquer au compilateur qu'une fonction bénéficierait (probablement) d'être développée en ligne.</p>
+<p>Une fonction déclarée avec le mot-clé <code>inline</code> est appelée une <strong>fonction inline</strong>.</p>
+<p>Voici un exemple d'utilisation du mot-clé <code>inline</code> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+inline int min(int x, int y) // le mot-clé inline signifie que cette fonction est une fonction inline
+{
+    return (x &lt; y) ? x : y;
+}
+
+int main()
+{
+    std::cout &lt;&lt; min(5, 6) &lt;&lt; '\n';
+    std::cout &lt;&lt; min(3, 2) &lt;&lt; '\n';
+    return 0;
+}
+</code></pre>
+<p>Cependant, en C++ moderne, le mot-clé <code>inline</code> n'est plus utilisé pour demander l'expansion inline d'une fonction. Plusieurs raisons à cela :</p>
+<ul>
+<li>Utiliser <code>inline</code> pour demander une expansion inline relève d'une optimisation prématurée, et un mauvais usage peut même nuire aux performances.</li>
+<li>Le mot-clé <code>inline</code> n'est qu'une indication destinée à aider le compilateur à choisir où effectuer l'expansion inline. Le compilateur est totalement libre d'ignorer cette demande, et il le fait très souvent. Il est également libre d'effectuer l'expansion inline de fonctions qui n'utilisent pas le mot-clé <code>inline</code>, dans le cadre de son ensemble normal d'optimisations.</li>
+<li>Le mot-clé <code>inline</code> est défini à un mauvais niveau de granularité. Nous l'utilisons sur une définition de fonction, alors que l'expansion inline se détermine pour chaque appel de fonction. Il peut être bénéfique de développer certains appels et néfaste d'en développer d'autres, et aucune syntaxe ne permet d'influer sur ce point.</li>
+</ul>
+<p>Les compilateurs optimisants modernes savent généralement bien déterminer quels appels doivent être développés en ligne, souvent mieux que les humains. En conséquence, le compilateur ignorera probablement, ou dévaluera, toute utilisation de <code>inline</code> destinée à demander l'expansion inline de vos fonctions.</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>N'utilisez pas le mot-clé <code>inline</code> pour demander l'expansion inline de vos fonctions.</p>
+</div>
+<h2 id="le-mot-clé-inline-aujourdhui">Le mot-clé inline, aujourd'hui</h2>
+<p>Dans les chapitres précédents, nous avons indiqué qu'il ne faut pas implémenter des fonctions (à liaison externe) dans des fichiers d'en-tête, car lorsque ces en-têtes sont inclus dans plusieurs fichiers .cpp, la définition de la fonction est copiée dans plusieurs fichiers .cpp. Ces fichiers sont ensuite compilés, et l'éditeur de liens (linker) signale une erreur, car il constate que vous avez défini la même fonction plus d'une fois, ce qui viole la règle de la définition unique (ODR).</p>
+<p>En C++ moderne, le terme <code>inline</code> a évolué pour signifier « les définitions multiples sont autorisées ». Ainsi, une fonction inline est une fonction qui peut être définie dans plusieurs unités de traduction sans violer la règle ODR.</p>
+<p>Les fonctions inline ont deux exigences principales :</p>
+<ul>
+<li>Le compilateur doit pouvoir voir la définition complète d'une fonction inline dans chaque unité de traduction où la fonction est utilisée (une déclaration anticipée ne suffit pas à elle seule). Une seule telle définition peut apparaître par unité de traduction, sans quoi une erreur de compilation se produit.</li>
+<li>La définition peut apparaître après le point d'utilisation si une déclaration anticipée est également fournie. Cependant, le compilateur ne pourra probablement pas effectuer l'expansion inline avant d'avoir vu la définition (donc les utilisations situées entre la déclaration et la définition ne seront probablement pas candidates à l'expansion inline).</li>
+<li>Toutes les définitions d'une fonction inline (à liaison externe, ce qui est le cas par défaut des fonctions) doivent être identiques, sans quoi il en résulte un comportement indéfini.</li>
+</ul>
+<div class="callout example"><p class="callout-title">Règle</p>
+<p>Le compilateur doit pouvoir voir la définition complète d'une fonction inline partout où elle est utilisée, et toutes les définitions d'une fonction inline (à liaison externe) doivent être identiques (sans quoi il en résulte un comportement indéfini).</p>
+</div>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous traitons de la liaison interne dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.6%20-%20Liaison%20interne%20%28internal%20linkage%29.html">7.6 -- Internal linkage</a> et de la liaison externe dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.7%20-%20Liaison%20externe%20et%20d%C3%A9clarations%20anticip%C3%A9es%20de%20variables.html">7.7 -- External linkage and variable forward declarations</a>.</p>
+</div>
+<p>L'éditeur de liens consolide toutes les définitions de fonctions inline pour un identifiant en une seule définition (en respectant ainsi la règle de la définition unique).</p>
+<p>Voici un exemple :</p>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+double circumference(double radius); // déclaration anticipée
+
+inline double pi() { return 3.14159; }
+
+int main()
+{
+    std::cout &lt;&lt; pi() &lt;&lt; '\n';
+    std::cout &lt;&lt; circumference(2.0) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>math.cpp</p>
+<pre><code class="language-cpp">inline double pi() { return 3.14159; }
+
+double circumference(double radius)
+{
+    return 2.0 * pi() * radius;
+}
+</code></pre>
+<p>Remarquez que les deux fichiers contiennent une définition de la fonction <code>pi()</code>. Cependant, comme cette fonction est marquée <code>inline</code>, c'est acceptable, et l'éditeur de liens les fusionnera. Si vous retirez le mot-clé <code>inline</code> des deux définitions de <code>pi()</code>, vous obtiendrez une violation de la règle ODR (les définitions multiples de fonctions non inline sont interdites).</p>
+<div class="callout quote"><p class="callout-title">Lecture facultative</p>
+<p>Bien que l'usage historique de inline (pour effectuer l'expansion inline) et l'usage moderne (pour autoriser les définitions multiples) puissent sembler un peu sans rapport, ils sont très étroitement liés.</p>
+<p>Historiquement, supposons que nous ayons une fonction triviale qui se prête parfaitement à l'expansion inline, nous la marquons donc <code>inline</code>. Pour pouvoir réellement développer un appel de cette fonction en ligne, le compilateur doit voir la définition complète de cette fonction dans chaque unité de traduction où elle est utilisée, sans quoi il ne saurait pas par quoi remplacer chaque appel. Une fonction définie dans une autre unité de traduction ne peut pas être développée en ligne dans l'unité de traduction en cours de compilation.</p>
+<p>Il est courant que de petites fonctions inline triviales soient nécessaires dans plusieurs unités de traduction. Mais dès que nous copions la définition de la fonction dans chaque unité de traduction (conformément à l'exigence précédente), nous violons la règle ODR qui impose une seule définition par programme. La meilleure solution à ce problème a été de dispenser les fonctions inline de cette exigence de l'ODR.</p>
+<p>Ainsi, historiquement, nous utilisions <code>inline</code> pour demander l'expansion inline, et l'exemption vis-à-vis de l'ODR était un détail nécessaire pour que ces fonctions puissent être développées en ligne à travers plusieurs unités de traduction. Aujourd'hui, nous utilisons <code>inline</code> pour l'exemption vis-à-vis de l'ODR, et nous laissons le compilateur gérer l'expansion inline. Le fonctionnement mécanique des fonctions inline n'a pas changé, c'est notre point de vue qui a changé.</p>
+<p>Vous vous demandez peut-être pourquoi les fonctions inline ont pu être exemptées de l'ODR alors que les fonctions non inline doivent toujours respecter cette partie de la règle. Pour les fonctions non inline, on attend qu'une fonction soit définie exactement une fois (dans une seule unité de traduction). Si l'éditeur de liens rencontre plusieurs définitions d'une fonction non inline, il suppose qu'il s'agit d'un conflit de noms entre deux fonctions définies indépendamment. Et tout appel à une fonction non inline ayant plus d'une définition conduirait à une ambiguïté quant à la définition correcte à appeler. Mais avec les fonctions inline, toutes les définitions sont considérées comme étant celles de la même fonction inline, donc les appels à cette fonction dans l'unité de traduction peuvent être développés en ligne. Et si un appel n'est pas développé en ligne, il n'y a aucune ambiguïté quant à la définition à laquelle il correspond : n'importe laquelle convient !</p>
+</div>
+<p>Les fonctions inline sont généralement définies dans des fichiers d'en-tête, qui peuvent être inclus avec <code>#include</code> en tête de tout fichier de code ayant besoin de voir la définition complète de l'identifiant. Cela garantit que toutes les définitions inline d'un identifiant sont identiques.</p>
+<p>pi.h :</p>
+<pre><code class="language-cpp">#ifndef PI_H
+#define PI_H
+
+inline double pi() { return 3.14159; }
+
+#endif
+</code></pre>
+<p>main.cpp :</p>
+<pre><code class="language-cpp">#include &quot;pi.h&quot; // une copie de pi() sera incluse ici
+#include &lt;iostream&gt;
+
+double circumference(double radius); // déclaration anticipée
+
+int main()
+{
+    std::cout &lt;&lt; pi() &lt;&lt; '\n';
+    std::cout &lt;&lt; circumference(2.0) &lt;&lt; '\n';
+
+    return 0;
+}
+</code></pre>
+<p>math.cpp</p>
+<pre><code class="language-cpp">#include &quot;pi.h&quot; // une copie de pi() sera incluse ici
+
+double circumference(double radius)
+{
+    return 2.0 * pi() * radius;
+}
+</code></pre>
+<p>Ceci est particulièrement utile pour les <strong>bibliothèques en-tête seules</strong> (header-only libraries), c'est-à-dire un ou plusieurs fichiers d'en-tête implémentant une fonctionnalité (aucun fichier .cpp n'est inclus). Ces bibliothèques sont populaires, car il n'y a aucun fichier source à ajouter au projet pour les utiliser et rien à lier. Il suffit d'inclure l'en-tête avec <code>#include</code>, et vous pouvez ensuite l'utiliser.</p>
+<div class="callout quote"><p class="callout-title">Contenu associé</p>
+<p>Nous présentons un exemple pratique d'utilisation de inline dans une bibliothèque en-tête seule de génération de nombres aléatoires dans la leçon <a href="../09%20-%20Chapitre%208%20-%20Structures%20de%20contr%C3%B4le/8.15%20-%20Nombres%20al%C3%A9atoires%20globaux%20%28Random.h%29.html">8.15 -- Global random numbers (Random.h)</a>.</p>
+</div>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les fonctions suivantes sont implicitement inline :</p>
+<ul>
+<li>Les fonctions définies à l'intérieur d'une définition de classe, de structure ou d'union (<a href="../16%20-%20Chapitre%2014%20-%20Introduction%20aux%20classes/14.3%20-%20Les%20fonctions%20membres.html">14.3 -- Member functions</a>).</li>
+<li>Les fonctions constexpr / consteval (<a href="../13%20-%20Chapitre%20F%20-%20Fonctions%20constexpr/F.1%20-%20Fonctions%20constexpr.html">F.1 -- Constexpr functions</a>).</li>
+<li>Les fonctions instanciées implicitement à partir de modèles de fonctions (<a href="../12%20-%20Chapitre%2011%20-%20Surcharge%20de%20fonctions%20et%20mod%C3%A8les%20de%20fonctions/11.7%20-%20Instanciation%20des%20fonctions%20template.html">11.7 -- Function template instantiation</a>).</li>
+</ul>
+</div>
+<p>Dans la plupart des cas, vous ne devriez pas marquer vos fonctions ou variables comme inline, sauf si vous les définissez dans un fichier d'en-tête (et qu'elles ne sont pas déjà implicitement inline).</p>
+<div class="callout tip"><p class="callout-title">Bonne pratique</p>
+<p>Évitez d'utiliser le mot-clé <code>inline</code> sauf si vous avez une raison spécifique et convaincante de le faire (par exemple, si vous définissez ces fonctions ou variables dans un fichier d'en-tête).</p>
+</div>
+<h2 id="pourquoi-ne-pas-rendre-toutes-les-fonctions-inline-et-les-définir-dans-un-fichier-den-tête">Pourquoi ne pas rendre toutes les fonctions inline et les définir dans un fichier d'en-tête ?</h2>
+<p>Principalement parce que cela peut augmenter considérablement les temps de compilation.</p>
+<p>Lorsqu'un en-tête contenant une fonction inline est inclus dans un fichier source, la définition de cette fonction est compilée dans le cadre de cette unité de traduction. Une fonction inline incluse dans 6 unités de traduction verra sa définition compilée 6 fois (avant que l'éditeur de liens ne fusionne les définitions). À l'inverse, une fonction définie dans un fichier source ne verra sa définition compilée qu'une seule fois, quel que soit le nombre d'unités de traduction où sa déclaration anticipée est incluse.</p>
+<p>Ensuite, si une fonction définie dans un fichier source change, seul ce fichier source doit être recompilé. Lorsqu'une fonction inline située dans un fichier d'en-tête change, chaque fichier de code qui inclut cet en-tête (directement ou via un autre en-tête) doit être recompilé. Dans les grands projets, cela peut provoquer une cascade de recompilations et avoir un impact considérable.</p>
+<h2 id="variables-inline-c17">Variables inline <em>(C++17)</em></h2>
+<p>Dans l'exemple ci-dessus, <code>pi()</code> était écrit comme une fonction renvoyant une valeur constante. Il serait plus direct d'implémenter <code>pi</code> comme une variable (const). Cependant, avant C++17, cela présentait certains obstacles et inefficacités.</p>
+<p>C++17 introduit les <strong>variables inline</strong>, qui sont des variables autorisées à être définies dans plusieurs fichiers. Les variables inline fonctionnent de façon similaire aux fonctions inline et ont les mêmes exigences (le compilateur doit pouvoir voir une définition complète et identique partout où la variable est utilisée).</p>
+<div class="callout quote"><p class="callout-title">Pour les lecteurs avancés</p>
+<p>Les variables suivantes sont implicitement inline :</p>
+<ul>
+<li>Les membres de données statiques constexpr <a href="../17%20-%20Chapitre%2015%20-%20Les%20classes%2C%20suite/15.6%20-%20Variables%20membres%20statiques.html">15.6 -- Static member variables</a>.</li>
+</ul>
+<p>Contrairement aux fonctions constexpr, les variables constexpr ne sont pas inline par défaut (à l'exception de celles mentionnées ci-dessus) !</p>
+</div>
+<p>Nous illustrerons un usage courant des variables inline dans la leçon <a href="../08%20-%20Chapitre%207%20-%20Port%C3%A9e%2C%20dur%C3%A9e%20de%20vie%20et%20liaison/7.10%20-%20Partager%20des%20constantes%20globales%20entre%20plusieurs%20fichiers%20%28%C3%A0%20l%27aide%20de%20variables%20inline%29.html">7.10 -- Sharing global constants across multiple files (using inline variables)</a>.</p>
+<hr />
+<p><em>Source originale : <a href="https://www.learncpp.com/cpp-tutorial/inline-functions-and-variables/">https://www.learncpp.com/cpp-tutorial/inline-functions-and-variables/</a></em></p>
+</main>
+</body>
+</html>
