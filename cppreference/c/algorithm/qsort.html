@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qsort, qsort_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/algorithm.html">Algorithmes</a></nav>
+<h1 id="qsort-qsort_s">qsort, qsort_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/algorithm/qsort">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdlib.h&gt;</strong></p>
+<pre><code class="language-c">void qsort( void* ptr, size_t count, size_t size,
+            int (*comp)(const void*, const void*) );  // (1)
+
+errno_t qsort_s( void* ptr, rsize_t count, rsize_t size,
+                 int (*comp)(const void*, const void*, void*),
+                 void* context );  // (2) (depuis C11)
+</code></pre>
+<ol>
+<li>
+<p>Trie le tableau donné pointé par <code>ptr</code> par ordre croissant. Le tableau contient <code>count</code> éléments de <code>size</code> octets. La fonction pointée par <code>comp</code> est utilisée pour la comparaison des objets.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, à la différence que le paramètre de contexte supplémentaire <code>context</code> est transmis à <code>comp</code> et que les erreurs suivantes sont détectées à l'exécution, appelant la fonction <a href="../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</p>
+</li>
+</ol>
+<ul>
+<li><code>count</code> ou <code>size</code> est supérieur à <code>RSIZE_MAX</code></li>
+<li><code>ptr</code> ou <code>comp</code> est un pointeur nul (sauf si <code>count</code> vaut zéro)
+Comme pour toutes les fonctions à vérification de bornes, <code>qsort_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../program.html"><code>&lt;stdlib.h&gt;</code></a>.</li>
+</ul>
+<p>Si <code>comp</code> indique que deux éléments sont équivalents, leur ordre dans le tableau trié résultant n'est pas spécifié.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li>
+<p><code>ptr</code> — pointeur vers le tableau à trier</p>
+</li>
+<li>
+<p><code>count</code> — nombre d'éléments du tableau</p>
+</li>
+<li>
+<p><code>size</code> — taille de chaque élément du tableau en octets</p>
+</li>
+<li>
+<p><code>comp</code> — fonction de comparaison qui renvoie un entier négatif si le premier argument est <em>inférieur</em> au second, un entier positif si le premier argument est <em>supérieur</em> au second, et zéro si les arguments sont équivalents.</p>
+<p>La signature de la fonction de comparaison doit être équivalente à la suivante :</p>
+<p><code>int cmp(const void *a, const void *b);</code></p>
+<p>La fonction ne doit pas modifier les objets qui lui sont passés et doit renvoyer des résultats cohérents lorsqu'elle est appelée pour les mêmes objets, quelle que soit leur position dans le tableau.</p>
+</li>
+<li>
+<p><code>context</code> — informations supplémentaires (par exemple, séquence de collationnement), passées à <code>comp</code> comme troisième argument</p>
+</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>(aucun)</p>
+</li>
+<li>
+<p>zéro en cas de succès, non nul si une violation de contraintes à l'exécution a été détectée</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Malgré son nom, ni la norme C ni la norme POSIX n'exigent que cette fonction soit implémentée à l'aide de <a href="https://en.wikipedia.org/wiki/Quicksort">quicksort</a>, ni ne garantissent une complexité ou une stabilité particulière.</p>
+<p>Contrairement aux autres fonctions à vérification de bornes, <code>qsort_s</code> ne traite pas les tableaux de taille nulle comme une violation de contraintes à l'exécution et renvoie au contraire un succès sans modifier le tableau (l'autre fonction qui accepte les tableaux de taille nulle est <code>bsearch_s</code>).</p>
+<p>L'implémentation de <code>qsort_s</code> dans le <a href="https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/qsort-s">CRT Windows</a> est incompatible avec la norme C. La version de Microsoft est déclarée ainsi : <code>void qsort_s(void *base, size_t num, size_t width, int (*compare )(void *, const void *, const void *), void * context);</code>. Elle ne renvoie aucune valeur, et la fonction de comparaison a un ordre des paramètres inversé par rapport à la norme : le <code>context</code> est passé en premier.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;limits.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int compare_ints(const void* a, const void* b)
+{
+    int arg1 = *(const int*)a;
+    int arg2 = *(const int*)b;
+
+    if (arg1 &lt; arg2) return -1;
+    if (arg1 &gt; arg2) return 1;
+    return 0;
+
+    // return (arg1 &gt; arg2) - (arg1 &lt; arg2); // raccourci possible
+
+    // return arg1 - arg2; // raccourci erroné : comportement indéfini en cas de
+                           // dépassement de capacité entier, comme avec INT_MIN ici
+}
+
+int main(void)
+{
+    int ints[] = {-2, 99, 0, -743, 2, INT_MIN, 4};
+    int size = sizeof ints / sizeof *ints;
+
+    qsort(ints, size, sizeof(int), compare_ints);
+
+    for (int i = 0; i &lt; size; i++)
+        printf(&quot;%d &quot;, ints[i]);
+
+    printf(&quot;\n&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">-2147483648 -743 -2 0 2 4 99
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.22.5.2 La fonction qsort (p : TBD)</li>
+<li>K.3.6.3.2 La fonction qsort_s (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.22.5.2 La fonction qsort (p : 258-259)</li>
+<li>K.3.6.3.2 La fonction qsort_s (p : 442-443)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.22.5.2 La fonction qsort (p : 355-356)</li>
+<li>K.3.6.3.2 La fonction qsort_s (p : 609)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.20.5.2 La fonction qsort (p : 319)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.10.5.2 La fonction qsort</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="bsearch.html">bsearchbsearch_s</a> (C11)</strong> — recherche dans un tableau un élément de type non spécifié <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/algorithm/qsort.html">Documentation C++</a> de qsort</strong></p>
+
+</main>
+</body>
+</html>

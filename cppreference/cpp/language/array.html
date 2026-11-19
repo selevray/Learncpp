@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de tableau — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-de-tableau">Déclaration de tableau</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/array">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Déclare un objet de type tableau.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Une déclaration de tableau est toute déclaration simple dont le <a href="declarations.html">déclarateur</a> a la forme</p>
+<p>|
+| |
+| <code>noptr-declarator</code> <code>[expr</code> ﻿*(optionnel)<em><code>]</code> <code>attr</code> ﻿</em>(optionnel)* | | |
+|</p>
+<ul>
+<li><code>noptr-declarator</code> — tout <code>declarator</code> valide, mais s'il commence par <code>*</code>, <code>&amp;</code> ou <code>&amp;&amp;</code>, il doit être entouré de parenthèses (sinon tout le déclarateur est traité comme un <a href="pointer.html">déclarateur de pointeur</a> ou un <a href="reference.html">déclarateur de référence</a>).</li>
+<li><code>expr</code> — [une <a href="constant_expression.html">expression constante intégrale</a> <em>(jusqu'à C++14)</em> | une <a href="constant_expression.html">expression constante convertie</a> de type <a href="../types/size_t.html"><code>std::size_t</code></a> <em>(depuis C++14)</em>], qui s'évalue à une valeur strictement supérieure à zéro</li>
+<li><code>attr</code> — (depuis C++11) liste d'<a href="attributes.html">attributs</a></li>
+</ul>
+<p>Une déclaration de la forme <code>T a[N];</code> déclare <code>a</code> comme un <a href="objects.html">objet</a> tableau constitué de <code>N</code> objets de type <code>T</code> alloués de manière contiguë. Les éléments d'un tableau sont numérotés <code>0</code>, …, <code>N - 1</code>, et peuvent être accédés avec l'<a href="operator_member_access.html#Built-in_subscript_operator">opérateur d'indexation []</a>, comme dans <code>a[0]</code>, …, <code>a[N - 1]</code>.</p>
+<p>Les tableaux peuvent être construits à partir de tout <a href="types.html">type fondamental</a> (sauf <code>void</code>), de <a href="pointer.html">pointeurs</a>, de <a href="pointer.html">pointeurs vers membres</a>, de <a href="classes.html">classes</a>, d'<a href="enum.html">énumérations</a>, ou d'autres tableaux de borne connue (on parle alors de tableau multidimensionnel). En d'autres termes, seuls les types objets, à l'exception des types tableaux de borne inconnue, peuvent être types d'éléments de tableaux. Les types tableaux dont le type d'élément est incomplet sont également des types incomplets.</p>
+<blockquote>
+<p>Le spécificateur éventuellement <a href="constraints.html">contraint</a> <em>(depuis C++20)</em> <a href="auto.html"><code>auto</code></a> peut être utilisé comme type d'élément de tableau dans la déclaration d'un pointeur ou d'une référence vers un tableau, ce qui déduit le type d'élément à partir de l'initialiseurou de l'argument de fonction <em>(depuis C++14)</em>, par exemple <code>auto (*p)[42] = &amp;a;</code> est valide si <code>a</code> est une lvalue de type <code>int[42]</code>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Il n'existe ni tableaux de références ni tableaux de fonctions.</p>
+<p>Appliquer des <a href="cv.html">qualificateurs cv</a> à un type tableau (par typedef ou manipulation de types de modèles) applique les qualificateurs au type d'élément, mais tout type tableau dont les éléments sont de type qualifié cv est considéré comme ayant la même qualification cv.</p>
+<pre><code class="language-cpp">// a et b ont le même type qualifié const « tableau de 5 const char »
+
+typedef const char CC;
+CC a[5] = {};
+
+typedef char CA[5];
+const CA b = {};
+</code></pre>
+<p>Utilisé avec une <a href="new.html">expression new[]</a>, la taille d'un tableau peut être nulle ; un tel tableau n'a aucun élément :</p>
+<pre><code class="language-cpp">int* p = new int[0]; // accéder à p[0] ou *p est un comportement indéfini
+delete[] p; // nettoyage toujours requis
+</code></pre>
+<h3 id="Assignment">Affectation</h3>
+<p>Les objets de type tableau ne peuvent pas être modifiés dans leur ensemble : bien qu'ils soient des <a href="value_category.html#lvalue">lvalues</a> (on peut par exemple prendre l'adresse d'un tableau), ils ne peuvent pas figurer à gauche d'un opérateur d'affectation :</p>
+<pre><code class="language-cpp">int a[3] = {1, 2, 3}, b[3] = {4, 5, 6};
+int (*p)[3] = &amp;a; // correct : l'adresse de a peut être prise
+a = b;            // erreur : a est un tableau
+
+struct { int c[3]; } s1, s2 = {3, 4, 5};
+s1 = s2; // correct : opérateur d'affectation par copie implicitement défini
+         // peut affecter des membres de type tableau
+</code></pre>
+<h3 id="Array-to-pointer_decay">Conversion tableau vers pointeur</h3>
+<p>Il existe une <a href="implicit_cast.html">conversion implicite</a> des lvalues et rvalues de type tableau vers des rvalues de type pointeur : elle construit un pointeur vers le premier élément du tableau. Cette conversion s'applique chaque fois que des tableaux apparaissent dans un contexte où l'on attend des pointeurs et non des tableaux :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;numeric&gt;
+
+void g(int (&amp;a)[3])
+{
+    std::cout &lt;&lt; a[0] &lt;&lt; '\n';
+}
+
+void f(int* p)
+{
+    std::cout &lt;&lt; *p &lt;&lt; '\n';
+}
+
+int main()
+{
+    int a[3] = {1, 2, 3};
+    int* p = a;
+
+    std::cout &lt;&lt; sizeof a &lt;&lt; '\n'  // affiche la taille du tableau
+              &lt;&lt; sizeof p &lt;&lt; '\n'; // affiche la taille d'un pointeur
+
+    // là où les tableaux sont acceptés mais pas les pointeurs, seuls les tableaux peuvent être utilisés
+    g(a); // correct : la fonction prend un tableau par référence
+//  g(p); // erreur
+
+    for (int n : a)            // correct : les tableaux peuvent être utilisés dans les boucles for sur intervalle
+        std::cout &lt;&lt; n &lt;&lt; ' '; // affiche les éléments du tableau
+//  for (int n : p)            // erreur
+//      std::cout &lt;&lt; n &lt;&lt; ' ';
+
+    std::iota(std::begin(a), std::end(a), 7); // correct : begin et end acceptent les tableaux
+//  std::iota(std::begin(p), std::end(p), 7); // erreur
+
+    // là où les pointeurs sont acceptés mais pas les tableaux, les deux peuvent être utilisés :
+    f(a); // correct : la fonction prend un pointeur
+    f(p); // correct : la fonction prend un pointeur
+
+    std::cout &lt;&lt; *a &lt;&lt; '\n' // affiche le premier élément
+              &lt;&lt; *p &lt;&lt; '\n' // same
+              &lt;&lt; *(a + 1) &lt;&lt; ' ' &lt;&lt; a[1] &lt;&lt; '\n'  // affiche le second élément
+              &lt;&lt; *(p + 1) &lt;&lt; ' ' &lt;&lt; p[1] &lt;&lt; '\n'; // same
+}
+</code></pre>
+<h3 id="Multidimensional_arrays">Tableaux multidimensionnels</h3>
+<p>Lorsque le type d'élément d'un tableau est lui-même un tableau, on dit que le tableau est multidimensionnel :</p>
+<pre><code class="language-cpp">// tableau de 2 tableaux de 3 int chacun
+int a[2][3] = {{1, 2, 3},  // peut être vu comme une matrice 2 × 3
+               {4, 5, 6}}; // avec disposition par lignes (row-major)
+</code></pre>
+<p>Notez que lorsque la conversion tableau vers pointeur est appliquée, un tableau multidimensionnel est converti en pointeur vers son premier élément (par exemple un pointeur vers sa première ligne ou vers son premier plan) : la conversion tableau vers pointeur n'est appliquée qu'une seule fois.</p>
+<pre><code class="language-cpp">int a[2];            // tableau de 2 int
+int* p1 = a;         // a se convertit en pointeur vers le premier élément de a
+
+int b[2][3];         // tableau de 2 tableaux de 3 int
+// int** p2 = b;     // erreur : b ne se convertit pas en int**
+int (*p2)[3] = b;    // b se convertit en pointeur vers la première ligne de 3 éléments de b
+
+int c[2][3][4];      // tableau de 2 tableaux de 3 tableaux de 4 int
+// int*** p3 = c;    // erreur : c ne se convertit pas en int***
+int (*p3)[3][4] = c; // c se convertit en pointeur vers le premier plan de 3 × 4 éléments de c
+</code></pre>
+<h3 id="Arrays_of_unknown_bound">Tableaux de borne inconnue</h3>
+<p>Si <code>expr</code> est omis dans la déclaration d'un tableau, le type déclaré est « tableau de borne inconnue de T », qui est une sorte de <a href="incomplete_type.html">type incomplet</a>, sauf lorsqu'il est utilisé dans une déclaration avec un <a href="aggregate_initialization.html">initialiseur d'agrégat</a> :</p>
+<pre><code class="language-cpp">extern int x[];      // le type de x est « tableau de borne inconnue de int »
+int a[] = {1, 2, 3}; // le type de a est « tableau de 3 int »
+</code></pre>
+<p>Comme les éléments d'un tableau ne peuvent pas être des tableaux de borne inconnue, les tableaux multidimensionnels ne peuvent pas avoir une borne inconnue dans une dimension autre que la première :</p>
+<pre><code class="language-cpp">extern int a[][2]; // correct : tableau de borne inconnue de tableaux de 2 int
+extern int b[2][]; // erreur : le tableau a un type d'élément incomplet
+</code></pre>
+<p>S'il existe une déclaration antérieure de l'entité dans la même portée où la borne a été spécifiée, une borne de tableau omise est considérée comme identique à celle de cette déclaration antérieure, et de même pour la définition d'un membre donnée statique d'une classe :</p>
+<pre><code class="language-cpp">extern int x[10];
+struct S
+{
+    static int y[10];
+};
+
+int x[];               // OK : la borne est 10
+int S::y[];            // OK : la borne est 10
+
+void f()
+{
+    extern int x[];
+    int i = sizeof(x); // erreur : type objet incomplet
+}
+</code></pre>
+<p>Des références et des pointeurs vers des tableaux de borne inconnue peuvent être formés, [mais ne peuvent pas <em>(jusqu'à C++20)</em> | et le peuvent <em>(depuis C++20)</em>] être initialisés ou affectés à partir de tableaux et de pointeurs vers des tableaux de borne connue. Notez qu'en langage C, les pointeurs vers des tableaux de borne inconnue sont compatibles avec les pointeurs vers des tableaux de borne connue, et sont donc convertibles et affectables dans les deux sens.</p>
+<pre><code class="language-cpp">extern int a1[];
+
+int (&amp;r1)[] = a1;  // okay
+int (*p1)[] = &amp;a1; // okay
+int (*q)[2] = &amp;a1; // erreur (mais correct en C)
+
+int a2[] = {1, 2, 3};
+int (&amp;r2)[] = a2;  // correct (depuis C++20)
+int (*p2)[] = &amp;a2; // correct (depuis C++20)
+</code></pre>
+<p>Les pointeurs vers des tableaux de borne inconnue ne peuvent pas intervenir dans l'<a href="operator_arithmetic.html#Additive_operators">arithmétique des pointeurs</a> ni être utilisés à gauche de l'<a href="operator_member_access.html#Built-in_subscript_operator">opérateur d'indexation</a>, mais ils peuvent être déréférencés.</p>
+<h3 id="Array_rvalues">Rvalues de tableau</h3>
+<p>Bien que les tableaux ne puissent pas être retournés par valeur depuis des fonctions et ne puissent pas être la cible de la plupart des expressions de conversion, des <a href="value_category.html">prvalues</a> de tableaux peuvent être formées en utilisant un alias de type pour construire un tableau temporaire au moyen d'un <a href="explicit_cast.html">cast fonctionnel avec initialisation par accolades</a>.</p>
+<blockquote>
+<p>Comme les prvalues de classe, les prvalues de tableau se convertissent en xvalues par <a href="implicit_cast.html#Temporary_materialization">matérialisation temporaire</a> lorsqu'elles sont évaluées.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Des <a href="value_category.html">xvalues</a> de tableau peuvent être formées directement en accédant à un membre tableau d'une rvalue de classe, ou en utilisant <code>std::move</code> ou un autre transtypage ou appel de fonction qui renvoie une référence de rvalue.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt;
+#include &lt;utility&gt;
+
+void f(int (&amp;&amp;x)[2][3])
+{
+    std::cout &lt;&lt; sizeof x &lt;&lt; '\n';
+}
+
+struct X
+{
+    int i[2][3];
+} x;
+
+template&lt;typename T&gt;
+using identity = T;
+
+int main()
+{
+    std::cout &lt;&lt; sizeof X().i &lt;&lt; '\n';           // taille du tableau
+    f(X().i);                                    // correct : se lie à une xvalue
+//  f(x.i);                                      // erreur : impossible de se lier à une lvalue
+
+    int a[2][3];
+    f(std::move(a));                             // correct : se lie à une xvalue
+
+    using arr_t = int[2][3];
+    f(arr_t{});                                  // correct : se lie à une prvalue
+    f(identity&lt;int[][3]&gt;{{1, 2, 3}, {4, 5, 6}}); // correct : se lie à une prvalue
+
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">24
+24
+24
+24
+24
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/393.html">CWG 393</a></td>
+<td>C++98</td>
+<td>un pointeur ou une référence vers un tableau de borne inconnue ne peut pas être un paramètre de fonction</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/619.html">CWG 619</a></td>
+<td>C++98</td>
+<td>lorsqu'elle était omise, la borne d'un tableau ne pouvait pas être déduite d'une déclaration antérieure</td>
+<td>déduction autorisée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2099.html">CWG 2099</a></td>
+<td>C++98</td>
+<td>la borne d'un membre donnée statique tableau ne pouvait pas être omise même si un initialiseur était fourni</td>
+<td>omission autorisée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2397.html">CWG 2397</a></td>
+<td>C++11</td>
+<td><code>auto</code> ne pouvait pas être utilisé comme type d'élément</td>
+<td>allowed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/language/array.html">Documentation C</a> pour Déclaration de tableau</strong></p>
+
+</main>
+</body>
+</html>

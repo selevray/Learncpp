@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>guides de déduction pour std::span — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/span.html">std::span</a></nav>
+<h1 id="guides-de-déduction-pour-std-span"><code>guides de déduction pour std::span</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/span/deduction_guides">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;span&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class It, class EndOrSize &gt;
+span( It, EndOrSize ) -&gt; span&lt;std::remove_reference_t&lt;std::iter_reference_t&lt;It&gt;&gt;&gt;;  // (depuis C++20) (jusqu'à C++26)
+
+template&lt; class It, class EndOrSize &gt;
+span( It, EndOrSize ) -&gt; span&lt;std::remove_reference_t&lt;std::iter_reference_t&lt;It&gt;&gt;,
+                              /*maybe-static-ext*/&lt;EndOrSize&gt;&gt;;  // (depuis C++26)
+
+template&lt; class T, std::size_t N &gt;
+span( T (&amp;)[N] ) -&gt; span&lt;T, N&gt;;  // (2) (depuis C++20)
+
+template&lt; class T, std::size_t N &gt;
+span( std::array&lt;T, N&gt;&amp; ) -&gt; span&lt;T, N&gt;;  // (3) (depuis C++20)
+
+template&lt; class T, std::size_t N &gt;
+span( const std::array&lt;T, N&gt;&amp; ) -&gt; span&lt;const T, N&gt;;  // (4) (depuis C++20)
+
+template&lt; class R &gt;
+span( R&amp;&amp; ) -&gt; span&lt;std::remove_reference_t&lt;std::ranges::range_reference_t&lt;R&gt;&gt;&gt;;  // (5) (depuis C++20)
+</code></pre>
+<p>Les <a href="../../language/ctad.html">guides de déduction</a> suivants sont fournis pour <code>span</code>.</p>
+<ol>
+<li>Permet de déduire le type d'élément à partir de la paire itérateur-sentinelle. Il permet également de déduire l'extension statique si <code>EndOrSize</code> satisfait <a href="../../header/span.html#Concept_integral-constant-like"><code>integral-constant-like</code></a>. <em>(depuis C++26)</em>. Cette surcharge ne participe à la résolution de surcharge que si <code>It</code> satisfait <a href="../../iterator/contiguous_iterator.html"><code>contiguous_iterator</code></a>.</li>
+</ol>
+<p>2-4) Permet de déduire l'extension statique à partir des tableaux intégrés et de <a href="../array.html"><code>std::array</code></a>.</p>
+<ol start="5">
+<li>Permet de déduire le type d'élément à partir des intervalles. Cette surcharge ne participe à la résolution de surcharge que si <code>R</code> satisfait <a href="../../ranges/contiguous_range.html"><code>contiguous_range</code></a>.</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cstddef&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;span&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+void print(std::string_view rem = &quot;&quot;, std::size_t size_of = 0, std::size_t extent = 0)
+{
+    if (rem.empty())
+    {
+        std::cout &lt;&lt; &quot;name │ sizeof │ extent\n&quot;
+                     &quot;─────┼────────┼────────\n&quot;;
+        return;
+    }
+    std::cout &lt;&lt; std::setw(4) &lt;&lt; rem &lt;&lt; &quot; │ &quot; &lt;&lt; std::setw(6) &lt;&lt; size_of &lt;&lt; &quot; │ &quot;;
+    if (extent == std::dynamic_extent)
+        std::cout &lt;&lt; &quot;dynamic&quot;;
+    else
+        std::cout &lt;&lt; extent;
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    int a[]{1, 2, 3, 4, 5};
+
+    print();
+    std::span s1{std::begin(a), std::end(a)}; // guide (1)
+    print(&quot;s1&quot;, sizeof s1, s1.extent);
+
+    std::span s2{std::begin(a), 3}; // guide (1)
+    print(&quot;s2&quot;, sizeof s2, s2.extent);
+
+#if __cplusplus &gt; 202302L
+    std::span s3{std::begin(a), std::integral_constant&lt;std::size_t, 2&gt;{}}; // guide (1)
+    print(&quot;s3&quot;, sizeof s3, s3.extent);
+#endif // C++26
+
+    std::span s4{a}; // guide (2)
+    print(&quot;s4&quot;, sizeof s4, s4.extent);
+
+    std::span&lt;int&gt; s5{a}; // n'utilise pas de guide, crée un span dynamique
+    print(&quot;s5&quot;, sizeof s5, s5.extent);
+
+    std::array arr{6, 7, 8};
+    std::span s6{arr}; // guide (3)
+    print(&quot;s6&quot;, sizeof s6, s6.extent);
+    s6[0] = 42; // OK, element_type vaut 'int'
+
+    const std::array arr2{9, 10, 11};
+    std::span s7{arr2}; // guide (4)
+    print(&quot;s7&quot;, sizeof s7, s7.extent);
+    // s7[0] = 42; // Error: element_type vaut 'const int'
+
+    std::vector v{66, 69, 99};
+    std::span s8{v}; // guide (5)
+    print(&quot;s8&quot;, sizeof s8, s8.extent);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">name │ sizeof │ extent
+─────┼────────┼────────
+  s1 │     16 │ dynamic
+  s2 │     16 │ dynamic
+  s3 │      8 │ 2
+  s4 │      8 │ 5
+  s5 │     16 │ dynamic
+  s6 │      8 │ 3
+  s7 │      8 │ 3
+  s8 │     16 │ dynamic
+</code></pre>
+
+</main>
+</body>
+</html>

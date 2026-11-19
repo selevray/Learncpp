@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::canonical, std::filesystem::weakly_canonical — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-canonical-std-filesystem-weakly_canonical"><code>std::filesystem::canonical, std::filesystem::weakly_canonical</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/canonical">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">path canonical( const std::filesystem::path&amp; p );  // (1) (depuis C++17)
+
+path canonical( const std::filesystem::path&amp; p,
+                std::error_code&amp; ec );  // (2) (depuis C++17)
+
+path weakly_canonical( const std::filesystem::path&amp; p );  // (3) (depuis C++17)
+
+path weakly_canonical( const std::filesystem::path&amp; p,
+                       std::error_code&amp; ec );  // (4) (depuis C++17)
+</code></pre>
+<p>1,2) Convertit le chemin <code>p</code> en un chemin absolu canonique, c'est-à-dire un chemin absolu ne contenant aucun élément point, point-point ni lien symbolique dans sa représentation au format générique. Si <code>p</code> n'est pas un chemin absolu, la fonction se comporte comme s'il était d'abord rendu absolu par <code>std::filesystem::absolute(p)</code>. Le chemin <code>p</code> doit exister.</p>
+<p>3,4) Renvoie un chemin composé par <code>operator/=</code> à partir du résultat de l'appel de <code>canonical()</code> avec un argument de chemin composé des éléments initiaux de <code>p</code> qui existent (tels que déterminés par <code>status(p)</code> ou <code>status(p, ec)</code>), s'il y en a, suivis des éléments de <code>p</code> qui n'existent pas. Le chemin résultant est en <a href="path.html">forme normale</a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — un chemin pouvant être absolu ou relatif ; pour <code>canonical</code> il doit s'agir d'un chemin existant</li>
+<li><code>ec</code> — code d'erreur dans lequel stocker l'état d'erreur</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1,2) Un chemin absolu qui désigne le même fichier que <code>std::filesystem::absolute(p)</code>.</p>
+<p>3,4) Un chemin normal de la forme <code>canonical(x)/y</code>, où <code>x</code> est un chemin composé de la plus longue séquence initiale d'éléments de <code>p</code> qui existent, et <code>y</code> est un chemin composé des éléments finaux restants et inexistants de <code>p</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<p>1,3) Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</p>
+<p>2,4) Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+<h2 id="Notes">Notes</h2>
+<p>La fonction <code>canonical()</code> est modélisée d'après la fonction POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/realpath.html"><code>realpath</code></a>.</p>
+<p>La fonction <code>weakly_canonical()</code> a été introduite pour simplifier la sémantique opérationnelle de <a href="relative.html"><code>relative()</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;filesystem&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    /* mise en place des répertoires du bac à sable :
+     a
+     └── b
+         ├── c1
+         │   └── d &lt;== chemin courant
+         └── c2
+             └── e
+    */
+    auto old = std::filesystem::current_path();
+    auto tmp = std::filesystem::temp_directory_path();
+    std::filesystem::current_path(tmp);
+    auto d1 = tmp / &quot;a/b/c1/d&quot;;
+    auto d2 = tmp / &quot;a/b/c2/e&quot;;
+    std::filesystem::create_directories(d1);
+    std::filesystem::create_directories(d2);
+    std::filesystem::current_path(d1);
+
+    auto p1 = std::filesystem::path(&quot;../../c2/./e&quot;);
+    auto p2 = std::filesystem::path(&quot;../no-such-file&quot;);
+    std::cout &lt;&lt; &quot;Current path is &quot;
+              &lt;&lt; std::filesystem::current_path() &lt;&lt; '\n'
+              &lt;&lt; &quot;Canonical path for &quot; &lt;&lt; p1 &lt;&lt; &quot; is &quot;
+              &lt;&lt; std::filesystem::canonical(p1) &lt;&lt; '\n'
+              &lt;&lt; &quot;Weakly canonical path for &quot; &lt;&lt; p2 &lt;&lt; &quot; is &quot;
+              &lt;&lt; std::filesystem::weakly_canonical(p2) &lt;&lt; '\n';
+    try
+    {
+        [[maybe_unused]] auto x_x = std::filesystem::canonical(p2);
+        // NON ATTEINT
+    }
+    catch (const std::exception&amp; ex)
+    {
+        std::cout &lt;&lt; &quot;Canonical path for &quot; &lt;&lt; p2 &lt;&lt; &quot; threw exception:\n&quot;
+                  &lt;&lt; ex.what() &lt;&lt; '\n';
+    }
+
+    // cleanup
+    std::filesystem::current_path(old);
+    const auto count = std::filesystem::remove_all(tmp / &quot;a&quot;);
+    std::cout &lt;&lt; &quot;Deleted &quot; &lt;&lt; count &lt;&lt; &quot; files or directories.\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Current path is &quot;/tmp/a/b/c1/d&quot;
+Canonical path for &quot;../../c2/./e&quot; is &quot;/tmp/a/b/c2/e&quot;
+Weakly canonical path for &quot;../no-such-file&quot; is &quot;/tmp/a/b/c1/no-such-file&quot;
+Canonical path for &quot;../no-such-file&quot; threw exception:
+filesystem error: in canonical: No such file or directory [../no-such-file] [/tmp/a/b/c1/d]
+Deleted 6 files or directories.
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2956">LWG 2956</a></td>
+<td>C++17</td>
+<td><code>canonical</code> possède un paramètre <code>base</code> superflu</td>
+<td>removed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="path.html">path</a> (C++17)</strong> — représente un chemin <em>(classe)</em></li>
+<li><strong><a href="absolute.html">absolute</a> (C++17)</strong> — compose un chemin absolu <em>(fonction)</em></li>
+<li><strong><a href="relative.html">relativeproximate</a> (C++17)</strong> — compose un chemin relatif <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

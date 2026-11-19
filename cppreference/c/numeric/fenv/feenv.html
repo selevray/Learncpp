@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fegetenv, fesetenv — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/numeric.html">Numerics</a> › <a href="../../../c/numeric/fenv.html">Environnement à virgule flottante</a></nav>
+<h1 id="fegetenv-fesetenv">fegetenv, fesetenv</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/numeric/fenv/feenv">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;fenv.h&gt;</strong></p>
+<pre><code class="language-c">int fegetenv( fenv_t* envp );  // (1) (depuis C99)
+
+int fesetenv( const fenv_t* envp );  // (2) (depuis C99)
+</code></pre>
+<ol>
+<li>
+<p>Tente de stocker l'état de l'environnement de virgule flottante dans l'objet pointé par <code>envp</code>.</p>
+</li>
+<li>
+<p>Tente d'établir l'environnement de virgule flottante à partir de l'objet pointé par <code>envp</code>. La valeur de cet objet doit avoir été obtenue au préalable par un appel à <a href="feholdexcept.html"><code>feholdexcept</code></a> ou <code>fegetenv</code>, ou être une constante macro de virgule flottante. Si l'un des indicateurs d'état de virgule flottante est positionné dans <code>envp</code>, il est positionné dans l'environnement (et peut alors être testé avec <a href="fetestexcept.html"><code>fetestexcept</code></a>), mais les exceptions de virgule flottante correspondantes ne sont pas levées (l'exécution se poursuit sans interruption)</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>envp</code> — pointeur vers l'objet de type <code>fenv_t</code> qui contient l'état de l'environnement à virgule flottante</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>0</code> en cas de succès, valeur non nulle sinon.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;math.h&gt;
+#include &lt;fenv.h&gt;
+
+#pragma STDC FENV_ACCESS ON
+
+void show_fe_exceptions(void)
+{
+    printf(&quot;current exceptions raised: &quot;);
+    if(fetestexcept(FE_DIVBYZERO))     printf(&quot; FE_DIVBYZERO&quot;);
+    if(fetestexcept(FE_INEXACT))       printf(&quot; FE_INEXACT&quot;);
+    if(fetestexcept(FE_INVALID))       printf(&quot; FE_INVALID&quot;);
+    if(fetestexcept(FE_OVERFLOW))      printf(&quot; FE_OVERFLOW&quot;);
+    if(fetestexcept(FE_UNDERFLOW))     printf(&quot; FE_UNDERFLOW&quot;);
+    if(fetestexcept(FE_ALL_EXCEPT)==0) printf(&quot; none&quot;);
+    printf(&quot;\n&quot;);
+}
+
+void show_fe_rounding_method(void)
+{
+    printf(&quot;current rounding method:    &quot;);
+    switch (fegetround()) {
+           case FE_TONEAREST:  printf (&quot;FE_TONEAREST&quot;);  break;
+           case FE_DOWNWARD:   printf (&quot;FE_DOWNWARD&quot;);   break;
+           case FE_UPWARD:     printf (&quot;FE_UPWARD&quot;);     break;
+           case FE_TOWARDZERO: printf (&quot;FE_TOWARDZERO&quot;); break;
+           default:            printf (&quot;unknown&quot;);
+    };
+    printf(&quot;\n&quot;);
+}
+
+void show_fe_environment(void)
+{
+    show_fe_exceptions();
+    show_fe_rounding_method();
+}
+
+int main(void)
+{
+    fenv_t curr_env;
+    int rtn;
+
+    /* Affiche l'environnement par défaut. */
+    show_fe_environment();
+    printf(&quot;\n&quot;);
+
+    /* Effectue un calcul sous l'environnement par défaut. */
+    printf(&quot;+11.5 -&gt; %+4.1f\n&quot;, rint(+11.5)); /* à mi-chemin entre deux entiers */
+    printf(&quot;+12.5 -&gt; %+4.1f\n&quot;, rint(+12.5)); /* à mi-chemin entre deux entiers */
+    show_fe_environment();
+    printf(&quot;\n&quot;);
+
+    /* Sauvegarde l'environnement courant. */
+    rtn = fegetenv(&amp;curr_env);
+
+    /* Effectue un calcul avec la nouvelle méthode d'arrondi. */
+    feclearexcept(FE_ALL_EXCEPT);
+    fesetround(FE_DOWNWARD);
+    printf(&quot;1.0/0.0 = %f\n&quot;, 1.0/0.0);
+    printf(&quot;+11.5 -&gt; %+4.1f\n&quot;, rint(+11.5));
+    printf(&quot;+12.5 -&gt; %+4.1f\n&quot;, rint(+12.5));
+    show_fe_environment();
+    printf(&quot;\n&quot;);
+
+    /* Restaure l'environnement précédent. */
+    rtn = fesetenv(&amp;curr_env);
+    show_fe_environment();
+
+    return 0;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">current exceptions raised: none
+current rounding method:   FE_TONEAREST
+
++11.5 -&gt; +12.0
++12.5 -&gt; +12.0
+current exceptions raised: FE_INEXACT
+current rounding method:   FE_TONEAREST
+
+1.0/0.0 = inf
++11.5 -&gt; +11.0
++12.5 -&gt; +12.0
+current exceptions raised: FE_DIVBYZERO FE_INEXACT
+current rounding method:   FE_DOWNWARD
+
+current exceptions raised: FE_INEXACT
+current rounding method:   FE_TONEAREST
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.6.4.1 La fonction fegetenv (p : 213)</li>
+<li>7.6.4.3 La fonction fesetenv (p : 214)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.6.4.1 La fonction fegetenv (p : 194)</li>
+<li>7.6.4.3 La fonction fesetenv (p : 195)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="feholdexcept.html">feholdexcept</a> (C99)</strong> — sauvegarde l'environnement, efface tous les indicateurs d'état et ignore toutes les erreurs futures <em>(fonction)</em></li>
+<li><strong><a href="feupdateenv.html">feupdateenv</a> (C99)</strong> — restaure l'environnement en virgule flottante et lève les exceptions précédemment levées <em>(fonction)</em></li>
+<li><strong><a href="FE_DFL_ENV.html">FE_DFL_ENV</a> (C99)</strong> — environnement en virgule flottante par défaut <em>(constante macro)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/numeric/fenv/feenv.html">Documentation C++</a> pour fegetenv, fesetenv</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::flat_map&lt;Key,T,Compare,KeyContainer,MappedContainer&gt;::try_emplace — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/flat_map.html">std::flat_map</a></nav>
+<h1 id="std-flat_map-key-t-compare-keycontainer-mappedcontainer-try_emplace"><code>std::flat_map&lt;Key,T,Compare,KeyContainer,MappedContainer&gt;::try_emplace</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/flat_map/try_emplace">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class... Args &gt;
+std::pair&lt;iterator, bool&gt; try_emplace( const key_type&amp; k, Args&amp;&amp;... args );  // (1) (depuis C++23)
+
+template&lt; class... Args &gt;
+std::pair&lt;iterator, bool&gt; try_emplace( key_type&amp;&amp; k, Args&amp;&amp;... args );  // (2) (depuis C++23)
+
+template&lt; class K, class... Args &gt;
+std::pair&lt;iterator, bool&gt; try_emplace( K&amp;&amp; k, Args&amp;&amp;... args );  // (3) (depuis C++23)
+
+template&lt; class... Args &gt;
+iterator try_emplace( const_iterator hint, const key_type&amp; k, Args&amp;&amp;... args );  // (4) (depuis C++23)
+
+template&lt; class... Args &gt;
+iterator try_emplace( const_iterator hint, key_type&amp;&amp; k, Args&amp;&amp;... args );  // (5) (depuis C++23)
+
+template&lt; class K, class... Args &gt;
+iterator try_emplace( const_iterator hint, K&amp;&amp; k, Args&amp;&amp;... args );  // (6) (depuis C++23)
+</code></pre>
+<p>Si une clé équivalente à <code>k</code> existe déjà dans le conteneur, ne fait rien. Sinon, insère un nouvel élément dans les conteneurs sous-jacents <a href="../flat_map.html#Member_objects"><code>c</code></a> avec la clé <code>k</code> et la valeur construite avec <code>args</code>.</p>
+<p>1,2,4,5) Équivalent à :</p>
+<pre><code class="language-cpp">auto key_it = ranges::upper_bound(c.keys, k, compare);
+auto value_it = c.values.begin() + std::distance(c.keys.begin(), key_it);
+c.keys.insert(key_it, std::forward&lt;decltype(k)&gt;(k));
+c.values.emplace(value_it, std::forward&lt;Args&gt;(args)...);
+</code></pre>
+<p>3,6) Équivalent à :</p>
+<pre><code class="language-cpp">auto key_it = ranges::upper_bound(c.keys, k, compare);
+auto value_it = c.values.begin() + std::distance(c.keys.begin(), key_it);
+c.keys.emplace(key_it, std::forward&lt;K&gt;(k));
+c.values.emplace(value_it, std::forward&lt;Args&gt;(args)...);
+</code></pre>
+<p>La conversion de <code>k</code> en <code>key_type</code> doit construire un objet <code>u</code>, pour lequel <code>find(k) == find(u)</code> vaut <code>true</code>. Sinon, le comportement est indéfini.</p>
+<p>Ces surcharges ne participent à la résolution de surcharge que si :</p>
+<ul>
+<li>L'identifiant qualifié <code>Compare::is_transparent</code> est valide et désigne un type.</li>
+<li><code>std::is_constructible_v&lt;key_type, K&gt;</code> is <code>true</code>.</li>
+<li><code>std::is_assignable_v&lt;mapped_type&amp;, Args...&gt;</code> is <code>true</code>.</li>
+<li>Pour <code>(3)</code> uniquement, <code>std::is_convertible_v&lt;K&amp;&amp;, const_iterator&gt;</code> et <code>std::is_convertible_v&lt;K&amp;&amp;, iterator&gt;</code> sont tous deux <code>false</code>.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Les informations sur l'invalidation des itérateurs sont reprises de <a href="https://en.cppreference.com/w/Template:cpp/container/note_iterator_invalidation">ici</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>k</code> — la clé utilisée à la fois pour la recherche et pour l'insertion si elle n'est pas trouvée</li>
+<li><code>hint</code> — itérateur vers la position avant laquelle le nouvel élément sera inséré</li>
+<li><code>args</code> — arguments à transmettre au constructeur de l'élément</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1-3) Identique à <a href="emplace.html"><code>emplace</code></a>.</p>
+<p>4-6) Identique à <a href="emplace_hint.html"><code>emplace_hint</code></a>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>1-3) Identique à <a href="emplace.html"><code>emplace</code></a>.</p>
+<p>4-6) Identique à <a href="emplace_hint.html"><code>emplace_hint</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Contrairement à <a href="insert.html"><code>insert</code></a> ou <a href="emplace.html"><code>emplace</code></a>, ces fonctions ne déplacent pas les arguments rvalue si l'insertion n'a pas lieu, ce qui permet de manipuler facilement des tables dont les valeurs sont de types non copiables, tels que <code>std::flat_map&lt;std::string, std::unique_ptr&lt;foo&gt;&gt;</code>. De plus, <code>try_emplace</code> traite la clé et les arguments de <code>mapped_type</code> séparément, contrairement à <a href="emplace.html"><code>emplace</code></a>, qui exige que les arguments construisent un <code>value_type</code> (c'est-à-dire un <a href="../../utility/pair.html"><code>std::pair</code></a>).</p>
+<p>Les surcharges <code>(3,6)</code> peuvent être appelées sans construire d'objet de type <code>key_type</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;flat_map&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt;
+
+void print_node(const auto&amp; node)
+{
+    std::cout &lt;&lt; '[' &lt;&lt; node.first &lt;&lt; &quot;] = &quot; &lt;&lt; node.second &lt;&lt; '\n';
+}
+
+void print_result(auto const&amp; pair)
+{
+    std::cout &lt;&lt; (pair.second ? &quot;inserted: &quot; : &quot;ignored:  &quot;);
+    print_node(*pair.first);
+}
+
+int main()
+{
+    using namespace std::literals;
+    std::map&lt;std::string, std::string&gt; m;
+
+    print_result(m.try_emplace( &quot;a&quot;, &quot;a&quot;s));
+    print_result(m.try_emplace( &quot;b&quot;, &quot;abcd&quot;));
+    print_result(m.try_emplace( &quot;c&quot;, 10, 'c'));
+    print_result(m.try_emplace( &quot;c&quot;, &quot;Won't be inserted&quot;));
+
+    for (const auto&amp; p : m)
+        print_node(p);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">inserted: [a] = a
+inserted: [b] = abcd
+inserted: [c] = cccccccccc
+ignored:  [c] = cccccccccc
+[a] = a
+[b] = abcd
+[c] = cccccccccc
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="emplace.html">emplace</a></strong> — construit un élément sur place <em>(fonction membre publique)</em></li>
+<li><strong><a href="emplace_hint.html">emplace_hint</a></strong> — construit des éléments sur place à l'aide d'un indice <em>(fonction membre publique)</em></li>
+<li><strong><a href="insert.html">insert</a></strong> — insère des éléments <em>(fonction membre publique)</em></li>
+<li><strong><a href="insert_or_assign.html">insert_or_assign</a></strong> — insère un élément ou affecte à l'élément courant si la clé existe déjà <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::destroy — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-destroy"><code>std::destroy</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/destroy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class ForwardIt &gt;
+void destroy( ForwardIt first, ForwardIt last );  // (depuis C++17) (jusqu'à C++20)
+
+template&lt; class ForwardIt &gt;
+constexpr void destroy( ForwardIt first, ForwardIt last );  // (depuis C++20)
+
+template&lt; class ExecutionPolicy, class ForwardIt &gt;
+void destroy( ExecutionPolicy&amp;&amp; policy, ForwardIt first, ForwardIt last );  // (2) (depuis C++17)
+</code></pre>
+<ol>
+<li>Détruit les objets de l'intervalle <code>[first,last)</code>, comme si par</li>
+</ol>
+<pre><code class="language-cpp">for (; first != last; ++first)
+    std::destroy_at(std::addressof(*first));
+</code></pre>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais exécuté selon <code>policy</code>. Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</li>
+</ol>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::decay_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::remove_cvref_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments à détruire</li>
+<li><code>policy</code> — la <a href="../algorithm/execution_policy_tag_t.html">politique d'exécution</a> à utiliser</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>ForwardIt</code> doit satisfaire aux exigences de <a href="../named_req/ForwardIterator.html"><em>LegacyForwardIterator</em></a>.</li>
+<li>Aucun incrément, affectation, comparaison ou déréférencement via des instances valides de <code>ForwardIt</code> ne peut lever d'exception.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire en la distance entre <code>first</code> et <code>last</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge avec un paramètre de modèle nommé <code>ExecutionPolicy</code> signale les erreurs comme suit :</p>
+<ul>
+<li>Si l'exécution d'une fonction invoquée dans le cadre de l'algorithme lève une exception et <code>ExecutionPolicy</code> est l'une des <a href="../algorithm/execution_policy_tag_t.html">politiques standard</a>, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée. Pour toute autre <code>ExecutionPolicy</code>, le comportement est défini par l'implémentation.</li>
+<li>Si l'algorithme échoue à allouer de la mémoire, <a href="new/bad_alloc.html"><code>std::bad_alloc</code></a> est levée.</li>
+</ul>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class ForwardIt&gt;
+constexpr // depuis C++20
+void destroy(ForwardIt first, ForwardIt last)
+{
+    for (; first != last; ++first)
+        std::destroy_at(std::addressof(*first));
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant montre comment utiliser <code>destroy</code> pour détruire une séquence contiguë d'éléments.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;new&gt;
+
+struct Tracer
+{
+    int value;
+    ~Tracer() { std::cout &lt;&lt; value &lt;&lt; &quot; destructed\n&quot;; }
+};
+
+int main()
+{
+    alignas(Tracer) unsigned char buffer[sizeof(Tracer) * 8];
+
+    for (int i = 0; i &lt; 8; ++i)
+        new(buffer + sizeof(Tracer) * i) Tracer{i}; //construire manuellement des objets
+
+    auto ptr = std::launder(reinterpret_cast&lt;Tracer*&gt;(buffer));
+
+    std::destroy(ptr, ptr + 8);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">0 destructed
+1 destructed
+2 destructed
+3 destructed
+4 destructed
+5 destructed
+6 destructed
+7 destructed
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="destroy_n.html">destroy_n</a> (C++17)</strong> — détruit un certain nombre d'objets dans un intervalle <em>(modèle de fonction)</em></li>
+<li><strong><a href="destroy_at.html">destroy_at</a> (C++17)</strong> — détruit un objet à une adresse donnée <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/destroy.html">ranges::destroy</a> (C++20)</strong> — détruit un intervalle d'objets <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::tuple_element&lt;std::tuple&gt; — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/tuple.html">std::tuple</a></nav>
+<h1 id="std-tuple_element-std-tuple"><code>std::tuple_element&lt;std::tuple&gt;</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/tuple/tuple_element">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;tuple&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; std::size_t I, class... Types &gt;
+struct tuple_element&lt; I, std::tuple&lt;Types...&gt; &gt;;  // (depuis C++11)
+</code></pre>
+<p>Fournit un accès indexé à la compilation aux types des éléments du tuple.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong>type</strong> — le type du <code>I</code>e élément du tuple, où <code>I</code> est dans <code>[0,sizeof...(Types))</code></li>
+</ul>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;std::size_t I, class T&gt;
+struct tuple_element;
+
+#ifndef __cpp_pack_indexing
+// cas récursif
+template&lt;std::size_t I, class Head, class... Tail&gt;
+struct tuple_element&lt;I, std::tuple&lt;Head, Tail...&gt;&gt;
+    : std::tuple_element&lt;I - 1, std::tuple&lt;Tail...&gt;&gt;
+{ };
+
+// cas de base
+template&lt;class Head, class... Tail&gt;
+struct tuple_element&lt;0, std::tuple&lt;Head, Tail...&gt;&gt;
+{
+    using type = Head;
+};
+
+#else
+// Implémentation C++26 utilisant l'indexation de paquets
+template&lt;std::size_t I, class... Ts&gt;
+struct tuple_element&lt;I, std::tuple&lt;Ts...&gt;&gt;
+{
+    using type = Ts...[I];
+};
+#endif
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;boost/type_index.hpp&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;tuple&gt;
+#include &lt;utility&gt;
+
+template&lt;typename TupleLike, std::size_t I = 0&gt;
+void printTypes()
+{
+    if constexpr (I == 0)
+        std::cout &lt;&lt; boost::typeindex::type_id_with_cvr&lt;TupleLike&gt;() &lt;&lt; '\n';
+
+    if constexpr (I &lt; std::tuple_size_v&lt;TupleLike&gt;)
+    {
+        using SelectedType = std::tuple_element_t&lt;I, TupleLike&gt;;
+
+        std::cout &lt;&lt; &quot;  The type at index &quot; &lt;&lt; I &lt;&lt; &quot; is: &quot;
+                  &lt;&lt; boost::typeindex::type_id_with_cvr&lt;SelectedType&gt;() &lt;&lt; '\n';
+        printTypes&lt;TupleLike, I + 1&gt;();
+    }
+}
+
+struct MyStruct {};
+
+using MyTuple = std::tuple&lt;int, long&amp;, const char&amp;, bool&amp;&amp;,
+                           std::string, volatile MyStruct&gt;;
+
+using MyPair = std::pair&lt;char, bool&amp;&amp;&gt;;
+
+static_assert(std::is_same_v&lt;std::tuple_element_t&lt;0, MyPair&gt;, char&gt;);
+static_assert(std::is_same_v&lt;std::tuple_element_t&lt;1, MyPair&gt;, bool&amp;&amp;&gt;);
+
+int main()
+{
+    printTypes&lt;MyTuple&gt;();
+    printTypes&lt;MyPair&gt;();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">std::tuple&lt;int, long&amp;, char const&amp;, bool&amp;&amp;, std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, MyStruct volatile&gt;
+  The type at index 0 is: int
+  The type at index 1 is: long&amp;
+  The type at index 2 is: char const&amp;
+  The type at index 3 is: bool&amp;&amp;
+  The type at index 4 is: std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;
+  The type at index 5 is: MyStruct volatile
+std::pair&lt;char, bool&amp;&amp;&gt;
+  The type at index 0 is: char
+  The type at index 1 is: bool&amp;&amp;
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../language/structured_binding.html">Liaison structurée</a> (C++17)</strong> — lie les noms spécifiés aux sous-objets ou aux éléments de tuple de l'initialiseur</li>
+<li><strong><a href="../tuple_element.html">tuple_element</a> (C++11)</strong> — obtient les types d'éléments d'un type semblable à un tuple <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

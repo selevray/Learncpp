@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic&lt;T&gt;::operator++,++(int),--,--(int) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/atomic/atomic.html">std::atomic</a></nav>
+<h1 id="std-atomic-t-operator-int-------int"><code>std::atomic&lt;T&gt;::operator++,++(int),--,--(int)</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic/operator_arith">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>membre uniquement des spécialisations atomic&lt; Integral ﻿ &gt;</strong></p>
+<pre><code class="language-cpp">T operator++() noexcept;  // (1) (depuis C++11)
+
+T operator++() volatile noexcept;  // (2) (depuis C++11)
+
+T operator++( int ) noexcept;  // (3) (depuis C++11)
+
+T operator++( int ) volatile noexcept;  // (4) (depuis C++11)
+
+T operator--() noexcept;  // (5) (depuis C++11)
+
+T operator--() volatile noexcept;  // (6) (depuis C++11)
+
+T operator--( int ) noexcept;  // (7) (depuis C++11)
+
+T operator--( int ) volatile noexcept;  // (8) (depuis C++11)
+</code></pre>
+<p><em><em>membre uniquement de la spécialisation partielle atomic&lt;T</em>&gt;</em>*</p>
+<pre><code class="language-cpp">T* operator++() noexcept;  // (9) (depuis C++11)
+
+T* operator++() volatile noexcept;  // (10) (depuis C++11)
+
+T* operator++( int ) noexcept;  // (11) (depuis C++11)
+
+T* operator++( int ) volatile noexcept;  // (12) (depuis C++11)
+
+T* operator--() noexcept;  // (13) (depuis C++11)
+
+T* operator--() volatile noexcept;  // (14) (depuis C++11)
+
+T* operator--( int ) noexcept;  // (15) (depuis C++11)
+
+T* operator--( int ) volatile noexcept;  // (16) (depuis C++11)
+</code></pre>
+<p>Incrémente ou décrémente atomiquement la valeur courante. L'opération est une opération de type lecture-modification-écriture.</p>
+<ul>
+<li><code>operator++()</code> effectue une pré-incrémentation atomique. Équivaut à <code>return fetch_add(1) + 1;</code>.</li>
+<li><code>operator++(int)</code> effectue une post-incrémentation atomique. Équivaut à <code>return fetch_add(1);</code>.</li>
+<li><code>operator--()</code> effectue une pré-décrémentation atomique. Équivaut à <code>return fetch_sub(1) - 1;</code>.</li>
+<li><code>operator--(int)</code> effectue une post-décrémentation atomique. Équivaut à <code>return fetch_sub(1);</code>.</li>
+</ul>
+<p>1-8) Pour les types entiers signés, l'arithmétique est définie avec une représentation en complément à deux. Il n'existe aucun résultat indéfini.</p>
+<p>9-16) Le résultat peut être une adresse indéfinie, mais les opérations n'ont par ailleurs aucun comportement indéfini.</p>
+<p>Si <code>T</code> n'est pas un type objet complet, le programme est mal formé.</p>
+<blockquote>
+<p>Il est obsolète si <code>std::atomic&lt;T&gt;::is_always_lock_free</code> vaut false et qu'une surcharge <code>volatile</code> participe à la résolution de surcharge.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>operator++()</code> et <code>operator--()</code> renvoient la valeur de la variable atomique après la modification. Formellement, il s'agit du résultat de l'incrémentation/décrémentation de la valeur qui précède immédiatement les effets de cette fonction dans l'<a href="../memory_order.html#Modification_order">ordre de modification</a> de <code>*this</code>.</p>
+<p><code>operator++(int)</code> et <code>operator--(int)</code> renvoient la valeur de la variable atomique avant la modification. Formellement, il s'agit de la valeur qui précède immédiatement les effets de cette fonction dans l'<a href="../memory_order.html#Modification_order">ordre de modification</a> de <code>*this</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Contrairement à la plupart des opérateurs de pré-incrémentation et pré-décrémentation, ceux des types atomiques ne renvoient pas de référence vers l'objet modifié. Ils renvoient à la place une copie de la valeur stockée.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;chrono&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;random&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+
+std::atomic&lt;int&gt; atomic_count{0};
+
+std::mutex cout_mutex;
+int completed_writes{0};
+
+constexpr int global_max_count{72};
+constexpr int writes_per_line{8};
+constexpr int max_delay{100};
+
+template&lt;int Max&gt;
+int random_value()
+{
+    static std::uniform_int_distribution&lt;int&gt; distr{1, Max};
+    static std::random_device engine;
+    static std::mt19937 noise{engine()};
+    static std::mutex rand_mutex;
+    std::lock_guard lock{rand_mutex};
+    return distr(noise);
+}
+
+int main()
+{
+    auto work = [](const std::string id)
+    {
+        for (int count{}; (count = ++atomic_count) &lt;= global_max_count;)
+        {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(random_value&lt;max_delay&gt;()));
+
+            // affiche l'`id` du thread et la valeur de `count`
+            {
+                std::lock_guard lock{cout_mutex};
+
+                const bool new_line = ++completed_writes % writes_per_line == 0;
+
+                std::cout &lt;&lt; id &lt;&lt; std::setw(3) &lt;&lt; count &lt;&lt; &quot;  &quot;
+                          &lt;&lt; (new_line ? &quot;\n&quot; : &quot;&quot;) &lt;&lt; std::flush;
+            }
+        }
+    };
+
+    std::jthread j1(work, &quot;░&quot;), j2(work, &quot;▒&quot;), j3(work, &quot;▓&quot;), j4(work, &quot;█&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">▒  2  ░  1  ▒  5  ▒  7  █  4  ░  6  ▓  3  ▒  8
+▓ 11  █  9  ▓ 13  ░ 10  █ 14  ▒ 12  ░ 16  ░ 19
+▓ 15  ▒ 18  ▓ 21  ▒ 22  █ 17  █ 25  ▒ 24  █ 26
+░ 20  ░ 29  ▒ 27  ▓ 23  ▒ 31  ▒ 33  ▓ 32  █ 28
+░ 30  ░ 37  ▒ 34  ▓ 35  █ 36  █ 41  ▓ 40  ▒ 39
+░ 38  ▓ 43  █ 42  ▓ 46  ▓ 48  █ 47  █ 50  ░ 45
+▒ 44  ▒ 53  ▒ 54  ▓ 49  ▒ 55  █ 51  ▒ 57  █ 58
+░ 52  ▓ 56  ░ 61  ▒ 59  █ 60  ▓ 62  ▒ 64  ░ 63
+░ 68  ▓ 66  █ 65  █ 71  ▒ 67  ▓ 70  ░ 69  █ 72
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P0558R1">P0558R1</a></td>
+<td>C++11</td>
+<td>arithmétique permise sur les pointeurs vers <code>void</code> (éventuellement qualifié cv) ou sur une fonction</td>
+<td>rendu mal formé</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="fetch_add.html">fetch_add</a></strong> — ajoute atomiquement l'argument à la valeur stockée dans l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="fetch_sub.html">fetch_sub</a></strong> — soustrait atomiquement l'argument de la valeur stockée dans l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="operator_arith2.html">operator+=operator-=</a></strong> — ajoute à la valeur atomique ou en soustrait <em>(fonction membre publique)</em></li>
+<li><strong><a href="operator_arith3.html">operator&amp;=operator|=operator^=</a></strong> — effectue un ET, un OU ou un OU exclusif bit à bit avec la valeur atomique <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ios_base::register_callback — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/ios_base.html">std::ios_base</a></nav>
+<h1 id="std-ios_base-register_callback"><code>std::ios_base::register_callback</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/ios_base/register_callback">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void register_callback( event_callback function, int index );
+</code></pre>
+<p>Enregistre une fonction définie par l'utilisateur qui sera appelée par <a href="imbue.html"><code>imbue()</code></a>, <a href="../basic_ios/copyfmt.html"><code>std::basic_ios::copyfmt()</code></a> et <code>~ios_base()</code>. Chaque rappel enregistré est appelé à chaque fois : le type d'événement (une valeur de type <a href="event.html"><code>event</code></a>) est passé comme premier argument, et peut servir à distinguer les appelants.</p>
+<p>Les rappels sont appelés dans l'ordre inverse de leur enregistrement (autrement dit, <code>register_callback()</code> empile une paire de rappel sur la pile des rappels). Si <code>register_callback()</code> est appelée depuis une fonction de rappel pour ajouter un nouveau rappel, ce nouveau rappel n'est appelé qu'au prochain événement.</p>
+<p>La fonction de rappel définie par l'utilisateur ne doit pas lever d'exceptions.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>function</code> — la fonction qui sera appelée lors de l'événement, fournie sous forme de pointeur de fonction de type <a href="event_callback.html">event_callback</a></li>
+<li><code>index</code> — paramètre personnalisé qui sera passé à la fonction</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p>Une fois enregistré, un rappel ne peut pas être désenregistré : il reste une partie de l'objet de flux pour le reste de sa durée de vie. Si le comportement d'un rappel doit changer, il peut être contrôlé par <a href="iword.html"><code>iword()</code></a> ou <a href="pword.html"><code>pword()</code></a>.</p>
+<p>Si la même fonction est enregistrée plusieurs fois, elle est appelée plusieurs fois.</p>
+<p>La valeur entière stockée avec le rappel est généralement un index obtenu depuis <a href="xalloc.html"><code>xalloc()</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Démontre l'utilisation de <code>register_callback</code> pour mettre à jour des valeurs en cache dépendantes de la locale, utilisées par un opérateur de sortie personnalisé.</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+// Message en cache propre à la locale et son hachage
+typedef std::pair&lt;std::string, std::size_t&gt; cache_t;
+
+// Remplit le message en cache et son hachage à partir de la locale
+void update_cache(cache_t&amp; cache, std::locale loc)
+{
+    auto&amp; fct = std::use_facet&lt; std::messages&lt;char&gt; &gt;(loc);
+    std::messages_base::catalog cat = fct.open(&quot;sed&quot;, loc);
+    cache.first = cat &lt; 0 ? &quot;&quot; : fct.get(cat, 0, 0, &quot;Memory exhausted&quot;);
+    cache.second = std::hash&lt;std::string&gt;()(cache.first);
+}
+
+// Met à jour le cache si la locale a changé
+void true_callback(std::ios_base::event evt, std::ios_base&amp; str, int idx)
+{
+    if (evt == std::ios_base::imbue_event)
+    {
+        cache_t* ptr = static_cast&lt;cache_t*&gt;(str.pword(idx));
+        update_cache(*ptr, str.getloc());
+    }
+}
+
+// Enregistre le cache dans pword() et configure le rappel
+struct CacheSetup
+{
+    CacheSetup(std::ostream&amp; os, std::ios_base::event_callback f, cache_t* cache)
+    {
+        int index = std::ostream::xalloc();
+        os.pword(index) = cache; // Stocke le pointeur vers le cache dans le flux
+        os.register_callback(f, index); // Stocke le rappel et l'index vers le pointeur
+        update_cache(*cache, os.getloc()); // Initialise le cache
+    };
+};
+
+// Une classe personnalisée
+struct S {};
+// operator&lt;&lt; de une classe personnalisée qui a besoin d'un accès rapide au message haché
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const S&amp;)
+{
+    static cache_t cache;
+    static CacheSetup setup(os, true_callback, &amp;cache);
+    return os &lt;&lt; cache.first &lt;&lt; &quot; : &quot; &lt;&lt; cache.second;
+}
+
+int main()
+{
+    std::locale loc(&quot;en_US.utf8&quot;);
+
+    S s;
+    std::cout.imbue(loc);
+    std::cout &lt;&lt; s &lt;&lt; '\n';
+
+    std::cout.imbue(std::locale(loc, new std::messages_byname&lt;char&gt;(&quot;de_DE.utf8&quot;)));
+    std::cout &lt;&lt; s &lt;&lt; '\n';
+
+    std::cout.imbue(std::locale(loc, new std::messages_byname&lt;char&gt;(&quot;ja_JP.utf8&quot;)));
+    std::cout &lt;&lt; s &lt;&lt; '\n';
+
+    std::cout.imbue(std::locale(loc, new std::messages_byname&lt;char&gt;(&quot;ru_RU.utf8&quot;)));
+    std::cout &lt;&lt; s &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Memory exhausted : 2,295,079,096
+Speicher erschöpft : 3,139,423,551
+メモリーが足りません : 3,837,351,114
+Память исчерпана : 3,742,732,851
+</code></pre>
+
+</main>
+</body>
+</html>

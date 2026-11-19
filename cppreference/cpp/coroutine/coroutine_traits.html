@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::coroutine_traits — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/coroutine.html">Support des coroutines (C++20)</a></nav>
+<h1 id="std-coroutine_traits"><code>std::coroutine_traits</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/coroutine/coroutine_traits">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;coroutine&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class R, class... Args &gt;
+struct coroutine_traits;  // (depuis C++20)
+</code></pre>
+<p>Détermine le type de promesse à partir du type de retour et des types de paramètres d'une coroutine. L'implémentation de la bibliothèque standard fournit un type membre accessible publiquement <code>promise_type</code> identique à <code>R::promise_type</code> si le qualified-id est valide et désigne un type. Sinon, elle n'a pas de tel membre.</p>
+<p><a href="../language/type-id.html#Program-defined_type">Spécialisations définies par le programme</a> de <code>coroutine_traits</code> doivent définir un type imbriqué accessible publiquement <code>promise_type</code>, sinon le programme est mal formé.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>R</code> — type de retour de la coroutine</li>
+<li><code>Args</code> — types des paramètres de la coroutine, y compris le <a href="../language/member_functions.html#ref-qualified_member_functions">paramètre objet implicite</a> si la coroutine est une fonction membre non statique</li>
+</ul>
+<h2 id="Nested_types">Types imbriqués</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>promise_type</code></strong> — <code>R::promise_type</code> si celui-ci est valide, ou fourni par des spécialisations définies par le programme</li>
+</ul>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace detail {
+template&lt;class, class...&gt;
+struct coroutine_traits_base {};
+
+template&lt;class R, class... Args&gt;
+requires requires { typename R::promise_type; }
+struct coroutine_traits_base &lt;R, Args...&gt;
+{
+    using promise_type = R::promise_type;
+};
+}
+
+template&lt;class R, class... Args&gt;
+struct coroutine_traits : detail::coroutine_traits_base&lt;R, Args...&gt; {};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Si la coroutine est une fonction membre non statique, alors le premier type dans <code>Args...</code> est le type du paramètre objet implicite, et les suivants sont les types des paramètres de la fonction (le cas échéant).</p>
+<p>Si <code>std::coroutine_traits&lt;R, Args...&gt;::promise_type</code> n'existe pas ou n'est pas un type classe, la définition de coroutine correspondante est mal formée.</p>
+<p>Les utilisateurs peuvent définir des spécialisations explicites ou partielles de <code>coroutine_traits</code> dépendant de types définis par le programme afin d'éviter de modifier les types de retour.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;coroutine&gt;
+#include &lt;exception&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+#include &lt;type_traits&gt;
+
+// Un type défini par le programme dont dépendent les spécialisations de coroutine_traits ci-dessous
+struct as_coroutine {};
+
+// Permet d'utiliser std::future&lt;T&gt; comme type de coroutine
+// en utilisant un std::promise&lt;T&gt; comme type de promesse.
+template&lt;typename T, typename... Args&gt;
+    requires(!std::is_void_v&lt;T&gt; &amp;&amp; !std::is_reference_v&lt;T&gt;)
+struct std::coroutine_traits&lt;std::future&lt;T&gt;, as_coroutine, Args...&gt;
+{
+    struct promise_type : std::promise&lt;T&gt;
+    {
+        std::future&lt;T&gt; get_return_object() noexcept
+        {
+            return this-&gt;get_future();
+        }
+
+        std::suspend_never initial_suspend() const noexcept { return {}; }
+        std::suspend_never final_suspend() const noexcept { return {}; }
+
+        void return_value(const T&amp; value)
+            noexcept(std::is_nothrow_copy_constructible_v&lt;T&gt;)
+        {
+            this-&gt;set_value(value);
+        }
+
+        void return_value(T&amp;&amp; value) noexcept(std::is_nothrow_move_constructible_v&lt;T&gt;)
+        {
+            this-&gt;set_value(std::move(value));
+        }
+
+        void unhandled_exception() noexcept
+        {
+            this-&gt;set_exception(std::current_exception());
+        }
+    };
+};
+
+// Idem pour std::future&lt;void&gt;.
+template&lt;typename... Args&gt;
+struct std::coroutine_traits&lt;std::future&lt;void&gt;, as_coroutine, Args...&gt;
+{
+    struct promise_type : std::promise&lt;void&gt;
+    {
+        std::future&lt;void&gt; get_return_object() noexcept
+        {
+            return this-&gt;get_future();
+        }
+
+        std::suspend_never initial_suspend() const noexcept { return {}; }
+        std::suspend_never final_suspend() const noexcept { return {}; }
+
+        void return_void() noexcept
+        {
+            this-&gt;set_value();
+        }
+
+        void unhandled_exception() noexcept
+        {
+            this-&gt;set_exception(std::current_exception());
+        }
+    };
+};
+
+// Permet d'utiliser co_await sur std::future&lt;T&gt; et std::future&lt;void&gt;
+// en lançant naïvement un nouveau thread pour chaque co_await.
+template&lt;typename T&gt;
+auto operator co_await(std::future&lt;T&gt; future) noexcept
+    requires(!std::is_reference_v&lt;T&gt;)
+{
+    struct awaiter : std::future&lt;T&gt;
+    {
+        bool await_ready() const noexcept
+        {
+            using namespace std::chrono_literals;
+            return this-&gt;wait_for(0s) != std::future_status::timeout;
+        }
+
+        void await_suspend(std::coroutine_handle&lt;&gt; cont) const
+        {
+            std::thread([this, cont]
+            {
+                this-&gt;wait();
+                cont();
+            }).detach();
+        }
+
+        T await_resume() { return this-&gt;get(); }
+    };
+
+    return awaiter { std::move(future) };
+}
+
+// Utilise l'infrastructure que nous avons établie.
+std::future&lt;int&gt; compute(as_coroutine)
+{
+    int a = co_await std::async([] { return 6; });
+    int b = co_await std::async([] { return 7; });
+    co_return a * b;
+}
+
+std::future&lt;void&gt; fail(as_coroutine)
+{
+    throw std::runtime_error(&quot;bleah&quot;);
+    co_return;
+}
+
+int main()
+{
+    std::cout &lt;&lt; compute({}).get() &lt;&lt; '\n';
+
+    try
+    {
+        fail({}).get();
+    }
+    catch (const std::runtime_error&amp; e)
+    {
+        std::cout &lt;&lt; &quot;error: &quot; &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">42
+error: bleah
+</code></pre>
+
+</main>
+</body>
+</html>

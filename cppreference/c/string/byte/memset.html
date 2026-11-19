@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>memset, memset_explicit, memset_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="memset-memset_explicit-memset_s">memset, memset_explicit, memset_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/byte/memset">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;string.h&gt;</strong></p>
+<pre><code class="language-c">void *memset( void *dest, int ch, size_t count );  // (1)
+
+void *memset_explicit( void *dest, int ch, size_t count );  // (2) (depuis C23)
+
+errno_t memset_s( void *dest, rsize_t destsz, int ch, rsize_t count );  // (3) (depuis C11)
+</code></pre>
+<ol>
+<li>Copie la valeur <code>(unsigned char)ch</code> dans chacun des <code>count</code> premiers caractères de l'objet pointé par <code>dest</code>.</li>
+</ol>
+<p>Le comportement est indéfini si un accès a lieu au-delà de la fin du tableau dest. Le comportement est indéfini si <code>dest</code> est un pointeur nul.</p>
+<ol start="2">
+<li>
+<p>Identique à <code>(1)</code>, sauf qu'elle est sûre pour les informations sensibles.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, sauf que les erreurs suivantes sont détectées à l'exécution et appellent la fonction <a href="../../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée, après avoir stocké <code>ch</code> dans chaque emplacement de la plage de destination <code>[dest, dest+destsz)</code> si <code>dest</code> et <code>destsz</code> sont eux-mêmes valides :</p>
+</li>
+</ol>
+<ul>
+<li><code>dest</code> est un pointeur nul</li>
+<li><code>destsz</code> ou <code>count</code> est supérieur à <code>RSIZE_MAX</code></li>
+<li><code>count</code> est supérieur à <code>destsz</code> (un dépassement de tampon se produirait)</li>
+</ul>
+<p>Le comportement est indéfini si la taille du tableau de caractères pointé par <code>dest</code> &lt; <code>count</code> &lt;= <code>destsz</code> ; autrement dit, une valeur erronée de <code>destsz</code> n'expose pas le dépassement de tampon imminent.Comme pour toutes les fonctions à vérification de bornes, <code>memset_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../byte.html"><code>&lt;string.h&gt;</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>dest</code> — pointeur vers l'objet à remplir</li>
+<li><code>ch</code> — octet de remplissage</li>
+<li><code>count</code> — nombre d'octets à remplir</li>
+<li><code>destsz</code> — taille du tableau de destination</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1,2) Une copie de <code>dest</code></p>
+<ol start="3">
+<li>zéro en cas de succès, non nul en cas d'erreur. Également en cas d'erreur, si <code>dest</code> n'est pas un pointeur nul et que <code>destsz</code> est valide, écrit <code>destsz</code> octets de remplissage <code>ch</code> dans le tableau de destination.</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p><code>memset</code> peut être supprimé par optimisation (selon les règles <a href="../../language/as_if.html">as-if</a>) si l'objet modifié par cette fonction n'est plus accédé pendant le reste de sa durée de vie (par exemple, <a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=8537">gcc bug 8537</a>). Pour cette raison, cette fonction ne peut pas être utilisée pour effacer la mémoire (par exemple pour remplir de zéros un tableau contenant un mot de passe).</p>
+<p>Cette optimisation est interdite pour <code>memset_explicit</code> et <code>memset_s</code> : elles sont garanties d'effectuer l'écriture en mémoire.</p>
+<p>Les solutions tierces pour cela incluent FreeBSD <a href="https://www.freebsd.org/cgi/man.cgi?query=explicit_bzero"><code>explicit_bzero</code></a> ou Microsoft <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/aa366877.aspx"><code>SecureZeroMemory</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define __STDC_WANT_LIB_EXT1__ 1
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void)
+{
+    char str[] = &quot;ghghghghghghghghghghgh&quot;;
+    puts(str);
+    memset(str,'a',5);
+    puts(str);
+
+#ifdef __STDC_LIB_EXT1__
+    set_constraint_handler_s(ignore_handler_s);
+    int r = memset_s(str, sizeof str, 'b', 5);
+    printf(&quot;str = \&quot;%s\&quot;, r = %d\n&quot;, str, r);
+    r = memset_s(str, 5, 'c', 10);   // count est supérieur à destsz
+    printf(&quot;str = \&quot;%s\&quot;, r = %d\n&quot;, str, r);
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">ghghghghghghghghghghgh
+aaaaahghghghghghghghgh
+str = &quot;bbbbbhghghghghghghghgh&quot;, r = 0
+str = &quot;ccccchghghghghghghghgh&quot;, r = 22
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.24.6.1 La fonction memset (p: 270)</li>
+<li>K.3.7.4.1 La fonction memset_s (p: 451)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.24.6.1 La fonction memset (p: 371)</li>
+<li>K.3.7.4.1 La fonction memset_s (p: 621-622)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.21.6.1 La fonction memset (p: 333)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.11.6.1 La fonction memset</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="memcpy.html">memcpymemcpy_s</a> (C11)</strong> — copie un tampon dans un autre <em>(fonction)</em></li>
+<li><strong><a href="../wide/wmemset.html">wmemset</a> (C95)</strong> — copie le caractère large donné dans chaque position d'un tableau de caractères larges <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/byte/memset.html">Documentation C++</a> pour memset</strong></p>
+
+</main>
+</body>
+</html>

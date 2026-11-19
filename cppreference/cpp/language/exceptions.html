@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exceptions — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="exceptions"><code>Exceptions</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/exceptions">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>La gestion des exceptions fournit un moyen de transférer le contrôle et les informations depuis un point de l'exécution d'un programme vers un gestionnaire associé à un point précédemment traversé par l'exécution (en d'autres termes, la gestion des exceptions transfère le contrôle vers le haut de la pile d'appels).</p>
+<p>L'évaluation d'une <a href="throw.html#throw_expressions"><code>throw</code> expression</a> lève une exception. Des exceptions peuvent aussi être levées dans <a href="throw.html">d'autres contextes</a>.</p>
+<p>Pour qu'une exception soit capturée, l'expression <code>throw</code> doit se trouver dans un bloc <a href="try.html"><code>try</code></a>, et le bloc <code>try</code> doit contenir un <a href="catch.html">gestionnaire</a> correspondant au type de l'objet exception.</p>
+<p>Lors de la déclaration d'une fonction, la ou les spécifications suivantes peuvent être fournies afin de limiter les types des exceptions qu'une fonction peut lever :</p>
+<blockquote>
+<ul>
+<li><a href="except_spec.html">spécifications d'exceptions dynamiques</a></li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><a href="noexcept_spec.html">spécifications noexcept</a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Les erreurs survenant pendant la gestion des exceptions sont traitées par <a href="../error/terminate.html"><code>std::terminate</code></a>et <a href="../error/unexpected.html"><code>std::unexpected</code></a> <em>(jusqu'à C++17)</em>.</p>
+<h2 id="Usage">Utilisation</h2>
+<p>Bien que l'expression <code>throw</code> puisse servir à transférer le contrôle vers un bloc de code arbitraire situé plus haut dans la pile d'exécution, pour des raisons arbitraires (à l'instar de <a href="../utility/program/longjmp.html"><code>std::longjmp</code></a>), son usage prévu est la gestion des erreurs.</p>
+<h3 id="Error_handling">Gestion des erreurs</h3>
+<p>Lever une exception sert à signaler des erreurs de fonctions, où les « erreurs » se limitent typiquement aux cas suivants<a href="exceptions.html#cite_note-1">[1]</a><a href="exceptions.html#cite_note-2">[2]</a><a href="exceptions.html#cite_note-3">[3]</a> :</p>
+<ol>
+<li>Non-respect des postconditions, par exemple l'échec à produire un objet valeur de retour valide.</li>
+<li>Non-respect des préconditions d'une autre fonction qui doit être appelée.</li>
+<li>(pour les fonctions membres non privées) Échec à (ré)établir un invariant de classe.</li>
+</ol>
+<p>En particulier, cela implique que les échecs des constructeurs (voir aussi <a href="raii.html">RAII</a>) et de la plupart des opérateurs doivent être signalés en levant des exceptions.</p>
+<p>De plus, les fonctions dites à <em>contrat large</em> utilisent les exceptions pour indiquer des entrées inacceptables ; par exemple, <a href="../string/basic_string/at.html"><code>std::basic_string::at</code></a> n'a aucune précondition, mais lève une exception pour indiquer un indice hors de portée.</p>
+<h3 id="Exception_safety">Sécurité vis-à-vis des exceptions</h3>
+<p>Après que la condition d'erreur a été signalée par une fonction, des garanties supplémentaires peuvent être fournies concernant l'état du programme. Les quatre niveaux de garantie d'exception suivants sont généralement reconnus<a href="exceptions.html#cite_note-4">[4]</a><a href="exceptions.html#cite_note-5">[5]</a><a href="exceptions.html#cite_note-6">[6]</a>, qui sont chacun des surensembles stricts des précédents :</p>
+<ol>
+<li><em>Garantie nothrow (ou nofail)</em> — la fonction ne lève jamais d'exception. La garantie nothrow (les erreurs sont signalées autrement ou dissimulées) est attendue des <a href="destructor.html">destructeurs</a> et des autres fonctions pouvant être appelées pendant le déroulement de la pile. Les <a href="destructor.html">destructeurs</a> sont <a href="noexcept.html"><code>noexcept</code></a> par défaut. <em>(depuis C++11)</em> La garantie nofail (la fonction réussit toujours) est attendue des échanges (swap), des <a href="move_constructor.html">constructeurs de déplacement</a> et des autres fonctions utilisées par celles qui fournissent la garantie forte d'exception.</li>
+<li><em>Garantie forte d'exception</em> : si la fonction lève une exception, l'état du programme est ramené à l'état qui précédait immédiatement l'appel de la fonction (par exemple, <a href="../container/vector/push_back.html"><code>std::vector::push_back</code></a>).</li>
+<li><em>Garantie de base d'exception</em> : si la fonction lève une exception, le programme se trouve dans un état valide. Aucune ressource n'est perdue et les invariants de tous les objets sont préservés.</li>
+<li><em>Absence de garantie d'exception</em> : si la fonction lève une exception, le programme peut ne pas se trouver dans un état valide : des fuites de ressources, une corruption de la mémoire ou d'autres erreurs détruisant des invariants peuvent s'être produites.</li>
+</ol>
+<p>Les composants génériques peuvent en outre offrir une <em>garantie d'exception neutre</em> : si une exception est levée depuis un paramètre de modèle (par exemple depuis l'objet fonction <code>Compare</code> de <a href="../algorithm/sort.html"><code>std::sort</code></a> ou depuis le constructeur de <code>T</code> dans <a href="../memory/shared_ptr/make_shared.html"><code>std::make_shared</code></a>), elle est propagée, sans modification, à l'appelant.</p>
+<h2 id="Exception_objects">Objets exception</h2>
+<p>Bien que des objets de tout type complet et des pointeurs cv vers <code>void</code> puissent être levés comme objets exception, toutes les fonctions de la bibliothèque standard lèvent des objets anonymes par valeur, et les types de ces objets dérivent (directement ou indirectement) de <a href="../error/exception.html"><code>std::exception</code></a>. Les exceptions définies par l'utilisateur suivent généralement ce schéma.<a href="exceptions.html#cite_note-7">[7]</a><a href="exceptions.html#cite_note-8">[8]</a><a href="exceptions.html#cite_note-9">[9]</a></p>
+<p>Pour éviter une copie inutile de l'objet exception et le découpage d'objet, la bonne pratique pour les gestionnaires est de capturer par référence.<a href="exceptions.html#cite_note-10">[10]</a><a href="exceptions.html#cite_note-11">[11]</a><a href="exceptions.html#cite_note-12">[12]</a><a href="exceptions.html#cite_note-13">[13]</a></p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_constexpr_exceptions"><code>__cpp_constexpr_exceptions</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_constexpr_exceptions_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td>Exceptions <code>constexpr</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="External_links">Liens externes</h2>
+<ol>
+<li><a href="exceptions.html#cite_ref-1">↑</a> H. Sutter (2004) <a href="https://www.drdobbs.com/when-and-how-to-use-exceptions/184401836">&quot;When and How to Use Exceptions&quot;</a> dans Dr. Dobb's</li>
+<li><a href="exceptions.html#cite_ref-2">↑</a> H. Sutter, A. Alexandrescu (2004), «C++ Coding Standards», Item 70</li>
+<li><a href="exceptions.html#cite_ref-3">↑</a> C++ Core Guidelines <a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Ri-except">I.10 : Use exceptions to signal a failure to perform a required task</a></li>
+<li><a href="exceptions.html#cite_ref-4">↑</a> B. Stroustrup (2000), «The C++ Programming Language» <a href="https://stroustrup.com/3rd_safe.pdf">Appendix E</a></li>
+<li><a href="exceptions.html#cite_ref-5">↑</a> H. Sutter (2000) «Exceptional C++»</li>
+<li><a href="exceptions.html#cite_ref-6">↑</a> D. Abrahams (2001) <a href="https://www.boost.org/community/exception_safety.html">«Exception Safety in Generic Components»</a></li>
+<li><a href="exceptions.html#cite_ref-7">↑</a> D. Abrahams (2001) <a href="https://www.boost.org/community/error_handling.html">&quot;Error and Exception Handling&quot;</a></li>
+<li><a href="exceptions.html#cite_ref-8">↑</a> isocpp.org Super-FAQ <a href="https://isocpp.org/wiki/faq/exceptions#what-to-throw">«What should I throw?»</a></li>
+<li><a href="exceptions.html#cite_ref-9">↑</a> C++ Core Guidelines <a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Re-exception-types">E.14 : Use purpose-designed user-defined types as exceptions (not built-in types)</a></li>
+<li><a href="exceptions.html#cite_ref-10">↑</a> C++ Core Guidelines <a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Re-exception-ref">E.15 : Throw by value, catch exceptions from a hierarchy by reference</a></li>
+<li><a href="exceptions.html#cite_ref-11">↑</a> S. Meyers (1996) «More Effective C++» Item 13</li>
+<li><a href="exceptions.html#cite_ref-12">↑</a> isocpp.org Super-FAQ <a href="https://isocpp.org/wiki/faq/exceptions#what-to-catch">«What should I catch?»</a></li>
+<li><a href="exceptions.html#cite_ref-13">↑</a> H. Sutter, A. Alexandrescu (2004) «C++ Coding Standards» Item 73</li>
+</ol>
+
+</main>
+</body>
+</html>

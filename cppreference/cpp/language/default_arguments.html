@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arguments par défaut — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="arguments-par-défaut">Arguments par défaut</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/default_arguments">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet d'appeler une fonction sans fournir un ou plusieurs arguments finaux.</p>
+<p>Indiqué en utilisant la syntaxe suivante pour un paramètre dans la <code>parameter-list</code> d'une <a href="function.html">déclaration de fonction</a>.</p>
+<p>|
+| |
+| <code>attr</code> ﻿*(facultatif)* <code>decl-specifier-seq</code> <code>declarator</code> <code>=</code> <code>initializer</code> | (1) | |
+|
+| <code>attr</code> ﻿*(facultatif)* <code>decl-specifier-seq</code> <code>abstract-declarator</code> ﻿*(facultatif)* <code>=</code> <code>initializer</code> | (2) | |
+|</p>
+<p>Les arguments par défaut sont utilisés à la place des arguments finaux manquants dans un appel de fonction :</p>
+<pre><code class="language-cpp">void point(int x = 3, int y = 4);
+
+point(1, 2); // appels point(1, 2)
+point(1);    // appels point(1, 4)
+point();     // appels point(3, 4)
+</code></pre>
+<p>Dans une déclaration de fonction, après un paramètre ayant un argument par défaut, tous les paramètres suivants doivent :</p>
+<ul>
+<li>avoir un argument par défaut fourni dans cette déclaration ou une déclaration précédente de la même portée :</li>
+</ul>
+<pre><code class="language-cpp">int x(int = 1, int); // Erreur : seuls les paramètres finaux peuvent avoir des arguments par défaut
+                     // (en supposant qu'il n'existe aucune déclaration précédente de x)
+
+void f(int n, int k = 1);
+void f(int n = 0, int k); // OK : l'argument par défaut de `k` est fourni par
+                          // la déclaration précédente dans la même portée
+
+void g(int, int = 7);
+
+void h()
+{
+    void g(int = 1, int); // Erreur : pas la même portée
+}
+</code></pre>
+<blockquote>
+<ul>
+<li>...sauf si le paramètre a été développé à partir d'un pack de paramètres :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class... T&gt;
+struct C { void f(int n = 0, T...); };
+
+C&lt;int&gt; c;  // OK ; instancie la déclaration void C::f(int n = 0, int)
+</code></pre>
+<ul>
+<li>ou être un pack de paramètres de fonction :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class... T&gt;
+void h(int i = 0, T... args); // OK
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>L'ellipse n'est pas un paramètre, et peut donc suivre un paramètre ayant un argument par défaut :</p>
+<pre><code class="language-cpp">int g(int n = 0, ...); // OK
+</code></pre>
+<p>Les arguments par défaut ne sont autorisés que dans les listes de paramètres des <a href="function.html">déclarations de fonctions</a>et des <a href="lambda.html">expressions lambda</a>, <em>(depuis C++11)</em> et ne sont pas autorisés dans les déclarations de pointeurs vers des fonctions, de références à des fonctions, ni dans les déclarations <a href="typedef.html">typedef</a>. Les listes de paramètres de modèle utilisent une syntaxe similaire pour leurs <a href="template_parameters.html#Default_template_arguments">arguments de modèle par défaut</a>.</p>
+<p>Pour les fonctions non-modèles, des arguments par défaut peuvent être ajoutés à une fonction déjà déclarée si la fonction est redéclarée dans la même portée. Au point d'appel d'une fonction, les arguments par défaut sont l'union des arguments par défaut fournis dans toutes les déclarations visibles de la fonction. Une redéclaration ne peut pas introduire d'argument par défaut pour un paramètre pour lequel un argument par défaut est déjà visible (même si la valeur est la même). Une redéclaration dans une portée interne n'acquiert pas les arguments par défaut des portées externes.</p>
+<pre><code class="language-cpp">void f(int, int);     // #1
+void f(int, int = 7); // #2 OK : ajoute un argument par défaut
+
+void h()
+{
+    f(3); // #1 et #2 sont dans la portée ; effectue un appel à f(3,7)
+    void f(int = 1, int); // Erreur : l'argument par défaut du second
+                          // le paramètre n'est pas acquis depuis les portées englobantes
+}
+
+void m()
+{ // une nouvelle portée commence
+    void f(int, int); // déclaration dans la portée interne ; n'a pas d'argument par défaut.
+    f(4); // Erreur : pas assez d'arguments pour appeler f(int, int)
+    void f(int, int = 6);
+    f(4); // OK: calls f(4, 6);
+    void f(int, int = 6); // Erreur : le second paramètre possède déjà un
+                          // argument par défaut (même si les valeurs sont identiques)
+}
+
+void f(int = 1, int); // #3 OK, ajoute un argument par défaut à #2
+
+void n()
+{ // une nouvelle portée commence
+    f(); // #1, #2 et #3 sont dans la portée : appelle f(1, 7);
+}
+</code></pre>
+<p>Si une fonction <a href="inline.html">inline</a> est déclarée dans différentes unités de traduction, les ensembles cumulés d'arguments par défaut doivent être identiques à la fin de chaque unité de traduction.</p>
+<blockquote>
+<p>Si une fonction non inline est déclarée dans la même portée d'espace de noms dans différentes unités de traduction, les arguments par défaut correspondants doivent être identiques s'ils sont présents (mais certains arguments par défaut peuvent être absents dans certaines UT).</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Si une déclaration <a href="friend.html">friend</a> spécifie un argument par défaut, elle doit être une définition de fonction amie, et aucune autre déclaration de cette fonction n'est autorisée dans l'unité de traduction.</p>
+<p>Les <a href="namespace.html#Using-declarations">déclarations using</a> reprennent l'ensemble des arguments par défaut connus, et si d'autres arguments par défaut sont ajoutés plus tard à l'espace de noms de la fonction, ces arguments par défaut sont également visibles partout où la déclaration using est visible :</p>
+<pre><code class="language-cpp">namespace N
+{
+    void f(int, int = 1);
+}
+
+using N::f;
+
+void g()
+{
+    f(7); // calls f(7, 1);
+    f();  // error
+}
+
+namespace N
+{
+    void f(int = 2, int);
+}
+
+void h()
+{
+    f();  // calls f(2, 1);
+}
+</code></pre>
+<p>Les noms utilisés dans les arguments par défaut sont recherchés, vérifiés quant à leur <a href="access.html">accessibilité</a>, et liés au point de déclaration, mais sont exécutés au point d'appel de la fonction :</p>
+<pre><code class="language-cpp">int a = 1;
+
+int f(int);
+
+int g(int x = f(a)); // la recherche de f trouve ::f, la recherche de a trouve ::a
+                     // la valeur de ::a, qui vaut 1 à ce stade, n'est pas utilisée
+
+void h()
+{
+    a = 2; // changes the value of ::a
+    {
+        int a = 3;
+        g(); // appelle f(2), puis appelle g() avec le résultat
+    }
+}
+</code></pre>
+<p>Pour une <a href="member_functions.html">fonction membre</a> d'une classe non <a href="templates.html#Templated_entity">modèle</a>, les arguments par défaut sont autorisés dans la définition hors de la classe, et se combinent avec les arguments par défaut fournis par la déclaration dans le corps de la classe. Si ces arguments par défaut hors classe transformeraient une fonction membre en constructeur par défaut ou en constructeur de copie/déplacement <em>(depuis C++11)</em> ou en opérateur d'affectation (ce qui rendrait l'appel ambigu), le programme est mal formé. Pour les fonctions membres de classes modèles, tous les arguments par défaut doivent être fournis dans la déclaration initiale de la fonction membre.</p>
+<pre><code class="language-cpp">class C
+{
+    void f(int i = 3);
+    void g(int i, int j = 99);
+    C(int arg); // non-default constructor
+};
+
+void C::f(int i = 3) {}         // erreur : argument par défaut déjà
+                                // spécifié dans la portée de la classe
+
+void C::g(int i = 88, int j) {} // OK : dans cette unité de traduction,
+                                // C::g peut être appelée sans argument
+
+C::C(int arg = 1) {}            // Erreur : transforme ceci en constructeur par défaut
+</code></pre>
+<p>Les redéfinitions de fonctions <a href="virtual.html">virtual</a> n'acquièrent pas les arguments par défaut des déclarations de la classe de base, et lors de l'appel de la fonction virtuelle, les arguments par défaut sont déterminés d'après le type statique de l'objet (remarque : ceci peut être évité avec le motif d'<a href="http://www.gotw.ca/publications/mill18.htm">interface non virtuelle</a>).</p>
+<pre><code class="language-cpp">struct Base
+{
+    virtual void f(int a = 7);
+};
+
+struct Derived : Base
+{
+    void f(int a) override;
+};
+
+void m()
+{
+    Derived d;
+    Base&amp; b = d;
+    b.f(); // OK: calls Derived::f(7)
+    d.f(); // Erreur : pas d'argument par défaut
+}
+</code></pre>
+<p>Les variables locales ne sont pas autorisées dans les arguments par défaut, sauf si elles ne sont pas <a href="expressions.html#Potentially-evaluated_expressions">évaluées</a> :</p>
+<pre><code class="language-cpp">void f()
+{
+    int n = 1;
+    extern void g(int x = n); // erreur : une variable locale ne peut pas être un argument par défaut
+    extern void h(int x = sizeof n); // OK depuis CWG 2082
+}
+</code></pre>
+<p>Le pointeur <a href="this.html">this</a> n'est pas autorisé dans les arguments par défaut :</p>
+<pre><code class="language-cpp">class A
+{
+    void f(A* p = this) {} // erreur : ceci n'est pas autorisé
+};
+</code></pre>
+<p>Les membres de classe non statiques ne sont pas autorisés dans les arguments par défaut (même s'ils ne sont pas évalués), sauf lorsqu'ils sont utilisés pour former un pointeur vers membre ou dans une expression d'accès à un membre :</p>
+<pre><code class="language-cpp">int b;
+
+class X
+{
+    int a;
+    int mem1(int i = a); // erreur : un membre non statique ne peut pas être utilisé
+    int mem2(int i = b); // OK : la recherche trouve X::b, le membre statique
+    int mem3(int X::* i = &amp;X::a); // OK : un membre non statique peut être utilisé
+    int mem4(int i = x.a); // OK : dans une expression d'accès à un membre
+
+    static X x;
+    static int b;
+};
+</code></pre>
+<p>Un argument par défaut est évalué à chaque fois que la fonction est appelée sans argument pour le paramètre correspondant. Les paramètres de fonction ne sont pas autorisés dans les arguments par défaut, sauf s'ils ne sont pas <a href="expressions.html#Potentially-evaluated_expressions">évalués</a>. Notez que les paramètres qui apparaissent plus tôt dans la liste de paramètres sont dans la <a href="scope.html">portée</a> :</p>
+<pre><code class="language-cpp">int a;
+
+int f(int a, int b = a); // Erreur : le paramètre a utilisé dans un argument par défaut
+
+int g(int a, int b = sizeof a); // Erreur jusqu'à la résolution de CWG 2082
+                                // OK après résolution : l'utilisation dans un contexte non évalué est OK
+</code></pre>
+<p>Les arguments par défaut ne font pas partie du type de fonction :</p>
+<pre><code class="language-cpp">int f(int = 0);
+
+void h()
+{
+    int j = f(1);
+    int k = f(); // calls f(0);
+}
+
+int (*p1)(int) = &amp;f;
+int (*p2)()    = &amp;f; // Erreur : le type de f est int(int)
+</code></pre>
+<p>Les fonctions opérateurs ne peuvent pas avoir d'arguments par défaut, sauf l'opérateur d'appel de fonction :</p>
+<pre><code class="language-cpp">class C
+{
+    int operator[](int i = 0); // mal formé
+    int operator()(int x = 0); // OK
+};
+</code></pre>
+<blockquote>
+<p>Les <a href="member_functions.html#Explicit_object_parameter">paramètres d'objet explicite</a> ne peuvent pas avoir d'arguments par défaut :</p>
+<pre><code class="language-cpp">struct S { void f(this const S&amp; = S{}); }; // mal formé
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Note">Note</h2>
+<p>Des espaces peuvent être nécessaires pour éviter un jeton d'affectation composée si le nom du paramètre est absent.</p>
+<pre><code class="language-cpp">void f1(int*=0);         // Erreur, '*=' est inattendu ici
+void g1(const int&amp;=0);   // Erreur, '&amp;=' est inattendu ici
+void f2(int* = 0);       // OK
+void g2(const int&amp; = 0); // OK
+void h(int&amp;&amp;=0);         // OK même sans espaces, '&amp;&amp;' est un jeton ici
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/217.html">CWG 217</a></td>
+<td>C++98</td>
+<td>un argument par défaut pourrait être ajouté à une fonction membre non- modèle d'un modèle de classe</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1344.html">CWG 1344</a></td>
+<td>C++98</td>
+<td>des arguments par défaut ajoutés dans la définition hors classe d'une fonction membre pourraient la transformer en fonction membre spéciale</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1716.html">CWG 1716</a></td>
+<td>C++98</td>
+<td>les arguments par défaut étaient évalués à chaque fois que la fonction était appelée, même si l'appelant fournissait les arguments</td>
+<td>évalués uniquement si aucun argument n'est fourni pour le paramètre correspondant</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2082.html">CWG 2082</a></td>
+<td>C++98</td>
+<td>les arguments par défaut ne pouvaient pas utiliser de variables locales ni les paramètres précédents dans un contexte non évalué</td>
+<td>utilisation dans un contexte non évalué autorisée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2233.html">CWG 2233</a></td>
+<td>C++11</td>
+<td>les paramètres développés à partir de packs de paramètres ne pouvaient pas apparaître après des paramètres ayant des arguments par défaut</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2683.html">CWG 2683</a></td>
+<td>C++98</td>
+<td>les définitions hors classe des fonctions membres des classes imbriquées de classes modèles pouvaient avoir des arguments par défaut</td>
+<td>prohibited</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

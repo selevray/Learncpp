@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bloc try — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="bloc-try">bloc try</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/try">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Une <a href="exceptions.html">exception</a> levée dans un bloc <code>try</code> peut éventuellement être traitée par un gestionnaire associé.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>try</code> <code>compound-statement</code> <code>handler-seq</code> | (1) | |
+|
+| <code>try</code> <code>ctor-initializer</code> ﻿*(facultatif)* <code>compound-statement</code> <code>handler-seq</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Un <a href="try.html#Ordinary_try_block">bloc <code>try</code> ordinaire</a>.</p>
+</li>
+<li>
+<p>Un <a href="try.html#Function_try_block">bloc <code>try</code> de fonction</a>. <code>compound-statement</code> doit être la composante instruction composée du corps d'une fonction.</p>
+</li>
+</ol>
+<ul>
+<li><code>compound-statement</code> — une <a href="statements.html#Compound_statements">instruction composée</a></li>
+<li><code>handler-seq</code> — une séquence non vide de <a href="catch.html">gestionnaires</a></li>
+<li><code>ctor-initializer</code> — liste d'initialisation des membres (pour les <a href="initializer_list.html#Member_initializer_list">constructeurs</a> uniquement)</li>
+</ul>
+<h2 id="Ordinary_try_block">Bloc <code>try</code> ordinaire</h2>
+<p>Un bloc <code>try</code> ordinaire est une <a href="statements.html">instruction</a>.</p>
+<p>Si une exception est levée depuis son <code>compound-statement</code>, l'exception sera comparée aux <a href="catch.html">gestionnaires</a> de son <code>handler-seq</code> :</p>
+<pre><code class="language-cpp">void f()
+{
+    throw 1;     // NON gérée par le gestionnaire ci-dessous
+    try
+    {
+        throw 2; // gérée par le gestionnaire associé
+    }
+    catch (...)
+    {
+        // gère l'exception 2
+    }
+    throw 3;     // NON gérée par le gestionnaire ci-dessus
+}
+</code></pre>
+<h2 id="Function_try_block">Bloc <code>try</code> de fonction</h2>
+<p>Un bloc <code>try</code> de fonction est un genre particulier de <a href="function.html#Function_definition">corps de fonction</a>.</p>
+<p>Si une exception est levée depuis son <code>compound-statement</code> ou son <code>ctor-initializer</code> (s'il existe), l'exception sera comparée aux <a href="catch.html">gestionnaires</a> de son <code>handler-seq</code> ﻿ :</p>
+<pre><code class="language-cpp">int f(bool cond)
+{
+    if (cond)
+        throw 1;
+    return 0;
+}
+
+struct X
+{
+    int mem;
+
+    X() try : mem(f(true)) {}
+    catch (...)
+    {
+        // gère l'exception 1
+    }
+
+    X(int) try
+    {
+        throw 2;
+    }
+    catch (...)
+    {
+        // gère l'exception 2
+    }
+};
+</code></pre>
+<p>Les exceptions levées dans les destructeurs d'objets à <a href="storage_duration.html">durée de stockage statique</a> ou dans les constructeurs d'objets associés à des <a href="scope.html#Block_scope">variables hors bloc</a> à durée de stockage statique ne sont pas interceptées par un bloc <code>try</code> de la <a href="main_function.html">fonction <code>main</code></a>.</p>
+<blockquote>
+<p>Les exceptions levées dans les destructeurs d'objets à durée de stockage de thread ou dans les constructeurs d'objets associés à des variables hors bloc à durée de stockage de thread ne sont pas interceptées par un bloc <code>try</code> de la fonction initiale du thread.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Atteindre la fin du <code>compound-statement</code> d'un <a href="catch.html">gestionnaire</a> d'un bloc <code>try</code> de fonction équivaut à atteindre la fin du <code>compound-statement</code> de ce bloc <code>try</code> de fonction, sauf si la fonction est un constructeur ou un destructeur (voir ci-dessous).</p>
+<h3 id="Constructor_and_destructor_try_block">Bloc <code>try</code> de constructeur et de destructeur</h3>
+<p>Pour une classe <code>C</code>, si le corps de la définition de son constructeur ou destructeur est un bloc <code>try</code> de fonction, et qu'une exception est levée pendant l'initialisation ou la destruction, respectivement, des sous-objets de <code>C</code>, l'exception sera également comparée aux <a href="catch.html">gestionnaires</a> du <code>handler-seq</code> ﻿ de la fonction <code>try</code> :</p>
+<pre><code class="language-cpp">int f(bool cond = true)
+{
+    if (cond)
+        throw 1;
+    return 0;
+}
+
+struct X
+{
+    int mem = f();
+
+    ~X()
+    {
+        throw 2;
+    }
+};
+
+struct Y
+{
+    X mem;
+
+    Y() try {}
+    catch (...)
+    {
+        // gère l'exception 1
+    }
+
+    ~Y() try {}
+    catch (...)
+    {
+        // gère l'exception 2
+    }
+};
+</code></pre>
+<p>Référencer un membre non statique ou une classe de base d'un objet dans le gestionnaire d'un bloc <code>try</code> de fonction d'un constructeur ou d'un destructeur de cet objet entraîne un comportement indéfini.</p>
+<p>Si une instruction <a href="return.html"><code>return</code></a> apparaît dans un gestionnaire du bloc <code>try</code> de fonction d'un constructeur, le programme est mal formé.</p>
+<p>L'<a href="catch.html#Activating_the_handler">exception actuellement gérée</a> est relancée si le flux d'exécution atteint la fin d'un gestionnaire du bloc <code>try</code> de fonction d'un constructeur ou d'un destructeur.</p>
+<h2 id="Control_flow">Flux de contrôle</h2>
+<p>Le <code>compound-statement</code> d'un bloc <code>try</code> est une <a href="statements.html#Control-flow-limited_statements">instruction à flux de contrôle limité</a> :</p>
+<pre><code class="language-cpp">void f()
+{
+    goto label;     // error
+    try
+    {
+        goto label; // OK
+        label: ;
+    }
+    catch (...)
+    {
+        goto label; // error
+    }
+}
+</code></pre>
+<p>Une <a href="statements.html#Jump_statements">instruction de saut</a> (<a href="goto.html"><code>goto</code></a>, <a href="break.html"><code>break</code></a>, <a href="return.html"><code>return</code></a>, <a href="continue.html"><code>continue</code></a>) peut être utilisée pour transférer le contrôle hors d'un bloc <code>try</code> (y compris ses gestionnaires). Dans ce cas, chaque variable déclarée dans le bloc <code>try</code> est détruite dans le contexte qui contient directement sa déclaration :</p>
+<pre><code class="language-cpp">try
+{
+    T1 t1;
+    try
+    {
+        T2 t2;
+        goto label; // détruire t2 d'abord, puis t1
+    }
+    catch(...)
+    {
+        // exécuté si une exception est levée pendant la destruction de t2
+    }
+}
+catch(...)
+{
+    // exécuté si une exception est levée pendant la destruction de t1
+}
+label: ;
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/try.html"><code>try</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/98.html">CWG 98</a></td>
+<td>C++98</td>
+<td>une instruction <code>switch</code> peut transférer le contrôle dans le <code>compound-statement</code> d'un bloc <code>try</code></td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1167.html">CWG 1167</a></td>
+<td>C++98</td>
+<td>il n'était pas spécifié si un bloc <code>try</code> de fonction d'un destructeur intercepterait les exceptions venant d'un destructeur de base ou membre</td>
+<td>de telles exceptions sont interceptées</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="throw.html">Lancer des exceptions</a></li>
+<li><a href="catch.html">Gestion des exceptions</a></li>
+</ul>
+
+</main>
+</body>
+</html>

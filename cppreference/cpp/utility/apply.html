@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::apply — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-apply"><code>std::apply</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/apply">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;tuple&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class F, class Tuple &gt;
+constexpr decltype(auto) apply( F&amp;&amp; f, Tuple&amp;&amp; t );  // (depuis C++17) (jusqu'à C++23)
+
+template&lt; class F, tuple-like Tuple &gt;
+constexpr decltype(auto) apply( F&amp;&amp; f, Tuple&amp;&amp; t ) noexcept(/* voir ci-dessous */);  // (depuis C++23)
+</code></pre>
+<p>Invoque l'objet <a href="../named_req/Callable.html"><em>Callable</em></a> <code>f</code> avec les éléments de <code>t</code> comme arguments.</p>
+<p>Soit la fonction à usage explicatif <code>apply-impl</code> définie comme suit :</p>
+<p><code>template&lt;class F,class Tuple, std::size_t... I&gt; constexpr decltype(auto) apply-impl(F&amp;&amp; f, Tuple&amp;&amp; t, std::index_sequence&lt;I...&gt;) // exposition uniquement { return INVOKE(std::forward&lt;F&gt;(f), std::get&lt;I&gt;(std::forward&lt;Tuple&gt;(t))...); }</code></p>
+<p>L'effet est équivalent à :</p>
+<p><code>return apply-impl(std::forward&lt;F&gt;(f), std::forward&lt;Tuple&gt;(t), std::make_index_sequence&lt; std::tuple_size_v&lt;std::decay_t&lt;Tuple&gt;&gt;&gt;{});</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>f</code> — <a href="../named_req/Callable.html"><em>Callable</em></a> objet à invoquer</li>
+<li><code>t</code> — tuple dont les éléments sont utilisés comme arguments de <code>f</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur renvoyée par <code>f</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<blockquote>
+<p>(aucune)</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><a href="../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept( noexcept(std::invoke(std::forward&lt;F&gt;(f), std::get&lt;Is&gt;(std::forward&lt;Tuple&gt;(t))...)) )</code></p>
+<p>où <code>Is...</code> désigne le <a href="../language/parameter_pack.html">paquet</a> :</p>
+<ul>
+<li><code>0, 1, ..., std::tuple_size_v&lt;std::remove_reference_t&lt;Tuple&gt;&gt; - 1</code>.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<blockquote>
+<p><code>Tuple</code> n'a pas besoin d'être <a href="tuple.html"><code>std::tuple</code></a>, il peut être n'importe quoi supportant <a href="tuple/get.html"><code>std::get</code></a> et <a href="tuple_size.html"><code>std::tuple_size</code></a> ; en particulier, <a href="../container/array.html"><code>std::array</code></a> et <a href="pair.html"><code>std::pair</code></a> peuvent être utilisés.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>Tuple</code> doit être de type semblable à un tuple, c'est-à-dire que chaque type qu'il contient doit être une spécialisation de <a href="tuple.html"><code>std::tuple</code></a> ou un autre type (tel que <a href="../container/array.html"><code>std::array</code></a> et <a href="pair.html"><code>std::pair</code></a>) modélisant <a href="tuple/tuple-like.html"><code>tuple-like</code></a>.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_apply"><code>__cpp_lib_apply</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_apply_201603L"><code>201603L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><code>std::apply</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;tuple&gt;
+#include &lt;utility&gt;
+
+int add(int first, int second) { return first + second; }
+
+template&lt;typename T&gt;
+T add_generic(T first, T second) { return first + second; }
+
+auto add_lambda = [](auto first, auto second) { return first + second; };
+
+template&lt;typename... Ts&gt;
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, std::tuple&lt;Ts...&gt; const&amp; theTuple)
+{
+    std::apply
+    (
+        [&amp;os](Ts const&amp;... tupleArgs)
+        {
+            os &lt;&lt; '[';
+            std::size_t n{0};
+            ((os &lt;&lt; tupleArgs &lt;&lt; (++n != sizeof...(Ts) ? &quot;, &quot; : &quot;&quot;)), ...);
+            os &lt;&lt; ']';
+        }, theTuple
+    );
+    return os;
+}
+
+int main()
+{
+    // OK
+    std::cout &lt;&lt; std::apply(add, std::pair(1, 2)) &lt;&lt; '\n';
+
+    // Erreur : impossible de déduire le type de fonction
+    // std::cout &lt;&lt; std::apply(add_generic, std::make_pair(2.0f, 3.0f)) &lt;&lt; '\n';
+
+    // OK
+    std::cout &lt;&lt; std::apply(add_lambda, std::pair(2.0f, 3.0f)) &lt;&lt; '\n';
+
+    // exemple avancé
+    std::tuple myTuple{25, &quot;Hello&quot;, 9.31f, 'c'};
+    std::cout &lt;&lt; myTuple &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">3
+5
+[25, Hello, 9.31, c]
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="tuple/make_tuple.html">make_tuple</a> (C++11)</strong> — crée un objet <code>tuple</code> du type défini par les types d'arguments <em>(modèle de fonction)</em></li>
+<li><strong><a href="tuple/forward_as_tuple.html">forward_as_tuple</a> (C++11)</strong> — crée un <code>tuple</code> de <a href="../language/reference.html#Forwarding_references">références de transfert</a> <em>(modèle de fonction)</em></li>
+<li><strong><a href="make_from_tuple.html">make_from_tuple</a> (C++17)</strong> — construit un objet avec un tuple d'arguments <em>(modèle de fonction)</em></li>
+<li><strong><a href="functional/invoke.html">invokeinvoke_r</a> (C++17) (C++23)</strong> — invoque tout objet <a href="../named_req/Callable.html"><em>Callable</em></a> avec des arguments donnés et possibilité de spécifier le type de retour <em>(depuis C++23)</em> <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

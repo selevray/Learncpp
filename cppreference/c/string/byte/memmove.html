@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>memmove, memmove_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="memmove-memmove_s">memmove, memmove_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/byte/memmove">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;string.h&gt;</strong></p>
+<pre><code class="language-c">void* memmove( void* dest, const void* src, size_t count );  // (1)
+
+errno_t memmove_s(void* dest, rsize_t destsz, const void* src, rsize_t count);  // (2) (depuis C11)
+</code></pre>
+<ol>
+<li>Copie <code>count</code> caractères de l'objet pointé par <code>src</code> vers l'objet pointé par <code>dest</code>. Les deux objets sont interprétés comme des tableaux de <code>unsigned char</code>. Les objets peuvent se chevaucher : la copie s'effectue comme si les caractères étaient copiés dans un tableau temporaire de caractères, puis copiés depuis ce tableau vers <code>dest</code>.</li>
+</ol>
+<p>Le comportement est indéfini si un accès a lieu au-delà de la fin du tableau dest. Le comportement est indéfini si <code>dest</code> ou <code>src</code> est un pointeur invalide ou nul.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, sauf que lors de la détection des erreurs suivantes à l'exécution, elle met à zéro toute la plage de destination <code>[dest, dest + destsz)</code> (si <code>dest</code> et <code>destsz</code> sont valides) et appelle la fonction <a href="../../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</li>
+</ol>
+<ul>
+<li><code>dest</code> ou <code>src</code> est un pointeur nul</li>
+<li><code>destsz</code> ou <code>count</code> est supérieur à <code>RSIZE_MAX</code></li>
+<li><code>count</code> est supérieur à <code>destsz</code> (un dépassement de tampon se produirait)</li>
+</ul>
+<p>Le comportement est indéfini si la taille du tableau de caractères pointé par <code>dest</code> &lt; <code>count</code> &lt;= <code>destsz</code> ; autrement dit, une valeur erronée de <code>destsz</code> n'expose pas le dépassement de tampon imminent.Comme pour toutes les fonctions à vérification de bornes, <code>memmove_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../byte.html"><code>&lt;string.h&gt;</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>dest</code> — pointeur vers l'objet de destination de la copie</li>
+<li><code>destsz</code> — nombre maximal d'octets à modifier dans la destination (généralement la taille de l'objet de destination)</li>
+<li><code>src</code> — pointeur vers l'objet source de la copie</li>
+<li><code>count</code> — nombre d'octets à copier</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>Renvoie une copie de <code>dest</code></p>
+</li>
+<li>
+<p>Renvoie zéro en cas de succès et une valeur non nulle en cas d'erreur. Également en cas d'erreur, si <code>dest</code> n'est pas un pointeur nul et que <code>destsz</code> est valide, écrit <code>destsz</code> octets nuls dans le tableau de destination.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p><code>memmove</code> peut être utilisé pour définir le <a href="../../language/object.html#Effective_type">type effectif</a> d'un objet obtenu par une fonction d'allocation.</p>
+<p>Bien qu'elle soit spécifiée « comme si » un tampon temporaire était utilisé, les implémentations réelles de cette fonction n'engendrent ni surcoût, ni double copie, ni mémoire supplémentaire. Une approche courante (glibc et bsd libc) consiste à copier les octets en avant depuis le début du tampon si la destination commence avant la source, et en arrière depuis la fin sinon, avec un repli vers la plus efficace <a href="memcpy.html"><code>memcpy</code></a> lorsqu'il n'y a aucun chevauchement.</p>
+<p>Lorsque le <a href="../../language/object.html#Strict_aliasing">crénelage strict (strict aliasing)</a> interdit d'examiner la même mémoire comme valeurs de deux types différents, <code>memmove</code> peut être utilisée pour convertir les valeurs.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define __STDC_WANT_LIB_EXT1__ 1
+#include &lt;inttypes.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    char str[] = &quot;1234567890&quot;;
+    puts(str);
+    memmove(str + 4, str + 3, 3); // copie de [4,5,6] vers [5,6,7]
+    puts(str);
+
+    // définition du type effectif de la mémoire allouée comme int
+    int* p = malloc(3 * sizeof(int)); // la mémoire allouée n'a pas de type effectif
+    int arr[3] = {1, 2, 3};
+    memmove(p, arr, 3 * sizeof(int)); // la mémoire allouée a désormais un type effectif
+
+    // réinterprétation des données
+    double d = 0.1;
+    // int64_t n = *(int64_t*)(&amp;d); // violation de l'aliasing strict
+    int64_t n;
+    memmove(&amp;n, &amp;d, sizeof d); // OK
+    printf(&quot;%a is %&quot; PRIx64 &quot; as an int64_t\n&quot;, d, n);
+
+#ifdef __STDC_LIB_EXT1__
+    set_constraint_handler_s(ignore_handler_s);
+    char src[] = &quot;aaaaaaaaaa&quot;;
+    char dst[] = &quot;xyxyxyxyxy&quot;;
+    int r = memmove_s(dst, sizeof dst, src, 5);
+    printf(&quot;dst = \&quot;%s\&quot;, r = %d\n&quot;, dst, r);
+    r = memmove_s(dst, 5, src, 10); // count est supérieur à destsz
+    printf(&quot;dst = \&quot;&quot;);
+    for (size_t ndx = 0; ndx &lt; sizeof dst; ++ndx)
+    {
+        char c = dst[ndx];
+        c ? printf(&quot;%c&quot;, c) : printf(&quot;\\0&quot;);
+    }
+    printf(&quot;\&quot;, r = %d\n&quot;, r);
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1234567890
+1234456890
+0x1.999999999999ap-4 is 3fb999999999999a as an int64_t
+dst = &quot;aaaaayxyxy&quot;, r = 0
+dst = &quot;\0\0\0\0\0yxyxy&quot;, r = 22
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.24.2.2 La fonction memmove (p: TBD)</li>
+<li>K.3.7.1.2 La fonction memmove_s (p: TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.24.2.2 La fonction memmove (p: 264)</li>
+<li>K.3.7.1.2 La fonction memmove_s (p: 446)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.24.2.2 La fonction memmove (p: 363)</li>
+<li>K.3.7.1.2 La fonction memmove_s (p: 615)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.21.2.2 La fonction memmove (p: 326)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.11.2.2 La fonction memmove</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="memcpy.html">memcpymemcpy_s</a> (C11)</strong> — copie un tampon dans un autre <em>(fonction)</em></li>
+<li><strong><a href="../wide/wmemmove.html">wmemmovewmemmove_s</a> (C95) (C11)</strong> — copie un certain nombre de caractères larges entre deux tableaux, éventuellement en recouvrement <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/byte/memmove.html">Documentation C++</a> pour memmove</strong></p>
+
+</main>
+</body>
+</html>

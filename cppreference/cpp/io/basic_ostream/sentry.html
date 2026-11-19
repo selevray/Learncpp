@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_ostream&lt;CharT,Traits&gt;::sentry — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_ostream.html">std::basic_ostream</a></nav>
+<h1 id="std-basic_ostream-chart-traits-sentry"><code>std::basic_ostream&lt;CharT,Traits&gt;::sentry</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_ostream/sentry">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">class sentry;
+</code></pre>
+<p>Un objet de la classe <code>basic_ostream::sentry</code> est construit dans la portée locale au début de chaque fonction membre de <a href="../basic_ostream.html"><code>std::basic_ostream</code></a> qui effectue une sortie (formatée comme non formatée). Son constructeur prépare le flux de sortie : il vérifie si le flux est déjà dans un état d'échec, vide les flux de sortie liés par tie(), et effectue d'autres tâches définies par l'implémentation si nécessaire. Le nettoyage défini par l'implémentation, ainsi que le vidage du flux de sortie si nécessaire, est effectué dans le destructeur, de sorte qu'il est garanti de s'exécuter si des exceptions sont levées pendant la sortie.</p>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><strong>(constructeur)</strong></strong> — construit l'objet sentry. Toutes les tâches de préparation sont effectuées ici <em>(fonction membre publique)</em></li>
+<li><strong><strong>(destructeur)</strong></strong> — finalise l'objet flux après une sortie formatée ou après une exception, si nécessaire <em>(fonction membre publique)</em></li>
+<li><strong>operator=</strong> — l'opérateur d'affectation est supprimé <em>(fonction membre publique)</em></li>
+<li><strong><strong>operator bool</strong></strong> — vérifie si la préparation de l'objet flux a réussi <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="std::basic_ostream::sentry::sentry">std::basic_ostream::sentry::sentry</h2>
+<pre><code class="language-cpp">explicit sentry( std::basic_ostream&lt;CharT, Traits&gt;&amp; os );
+</code></pre>
+<p>Prépare le flux pour la sortie formatée.</p>
+<p>Si <code>os.good()</code> vaut <code>false</code>, retourne. Sinon, si <code>os.tie()</code> n'est pas un pointeur nul, appelle <code>os.tie()-&gt;flush()</code> pour synchroniser la séquence de sortie avec les flux externes. Pendant la préparation, le constructeur peut appeler <code>setstate(failbit)</code> (qui peut lever <a href="../ios_base/failure.html"><code>std::ios_base::failure</code></a>).</p>
+<p>Si, une fois la préparation terminée, <code>os.good() == true</code>, alors tout appel ultérieur à <code>operator bool</code> renverra <code>true</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>os</code> — flux de sortie à préparer</li>
+</ul>
+<h2 id="Exceptions">Exceptions</h2>
+<p><a href="../ios_base/failure.html"><code>std::ios_base::failure</code></a> si la condition de fin de fichier se produit.</p>
+<h2 id="std::basic_ostream::sentry::.7Esentry">std::basic_ostream::sentry::~sentry</h2>
+<pre><code class="language-cpp">~sentry();
+</code></pre>
+<p>Si <code>(os.flags() &amp; std::ios_base::unitbuf) &amp;&amp; !std::uncaught_exception() &amp;&amp; os.good())</code> vaut <code>true</code>, appelle <code>os.rdbuf()-&gt;pubsync()</code>. Si cette fonction renvoie <code>-1</code>, définit <code>badbit</code> dans <code>os.rdstate()</code> sans propager d'exception.</p>
+<h2 id="std::basic_ostream::sentry::operator_bool">std::basic_ostream::sentry::operator bool</h2>
+<pre><code class="language-cpp">explicit operator bool() const;
+</code></pre>
+<p>Vérifie si la préparation du flux de sortie a réussi.</p>
+<h2 id="Parameters_2">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si la préparation du flux de sortie a réussi, <code>false</code> sinon.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+
+struct Foo
+{
+    char n[6];
+};
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, Foo&amp; f)
+{
+    std::ostream::sentry s(os);
+    if (s)
+        os.write(f.n, 5);
+    return os;
+}
+
+int main()
+{
+    Foo f = {&quot;abcde&quot;};
+    std::cout &lt;&lt; f &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">abcde
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue397">LWG 397</a></td>
+<td>C++98</td>
+<td>le destructeur pourrait appeler <code>os.flush()</code>, qui peut lever des exceptions</td>
+<td>l'exception n'est pas propagée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue442">LWG 442</a></td>
+<td>C++98</td>
+<td><code>operator bool</code> n'a pas été déclaré <code>const</code> (il l'est en <code>const</code> dans le <a href="../../header/ostream.html">synopsis</a>)</td>
+<td>ajouté <code>const</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue835">LWG 835</a></td>
+<td>C++98</td>
+<td>si <code>os</code> définit <code>unitbuf</code>, le destructeur appellerait <code>os.flush()</code>, qui est une <a href="../../named_req/UnformattedOutputFunction.html"><em>UnformattedOutputFunction</em></a> et crée un autre objet sentry (dont le destructeur crée alors un autre objet sentry, et ainsi de suite)</td>
+<td>appelle <code>os.rdbuf()-&gt;pubsync()</code> dans ce cas à la place</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="operator_ltlt.html">operator&lt;&lt;</a></strong> — insère des données formatées <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::lock_guard — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-lock_guard"><code>std::lock_guard</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/lock_guard">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Mutex &gt;
+class lock_guard;  // (depuis C++11)
+</code></pre>
+<p>La classe <code>lock_guard</code> est un wrapper de mutex qui fournit un mécanisme pratique de type <a href="../language/raii.html">RAII</a> pour posséder un mutex pendant la durée d'un bloc de portée.</p>
+<p>Lorsqu'un objet <code>lock_guard</code> est créé, il tente de prendre la propriété du mutex qui lui est donné. Lorsque le contrôle quitte la portée dans laquelle l'objet <code>lock_guard</code> a été créé, le <code>lock_guard</code> est détruit et le mutex est libéré.</p>
+<p>La classe <code>lock_guard</code> n'est pas copiable.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>Mutex</code> — le type du mutex à verrouiller. Le type doit satisfaire aux exigences <a href="../named_req/BasicLockable.html"><em>BasicLockable</em></a></li>
+</ul>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li><strong><code>mutex_type</code></strong> — Mutex</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="lock_guard/lock_guard.html">(constructeur)</a></strong> — construit un <code>lock_guard</code>, en verrouillant éventuellement le mutex donné <em>(fonction membre publique)</em></li>
+<li><strong><a href="lock_guard/~lock_guard.html">(destructeur)</a></strong> — détruit l'objet <code>lock_guard</code>, déverrouille le mutex sous-jacent <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — non copiable par affectation <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Une erreur courante chez les débutants consiste à « oublier » de donner un nom à une variable <code>lock_guard</code>, par exemple <code>std::lock_guard(mtx);</code> (qui construit par défaut un objet <code>lock_guard</code> nommé <code>mtx</code>) ou <code>std::lock_guard{mtx};</code> (qui construit un objet prvalue immédiatement détruit), ce qui fait qu'aucun verrou détenant un mutex n'est réellement construit pour le reste de la portée.</p>
+<blockquote>
+<p><a href="scoped_lock.html"><code>std::scoped_lock</code></a> offre une alternative à <code>lock_guard</code> qui permet de verrouiller plusieurs mutex à l'aide d'un algorithme d'évitement d'interblocage.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Example">Exemple</h2>
+<p>Démontre des incréments sûrs et non sûrs d'une variable volatile par deux threads.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;string_view&gt;
+#include &lt;syncstream&gt;
+#include &lt;thread&gt;
+
+volatile int g_i = 0;
+std::mutex g_i_mutex;  // protège g_i
+
+void safe_increment(int iterations)
+{
+    const std::lock_guard&lt;std::mutex&gt; lock(g_i_mutex);
+    while (iterations-- &gt; 0)
+        g_i = g_i + 1;
+    std::cout &lt;&lt; &quot;thread #&quot; &lt;&lt; std::this_thread::get_id() &lt;&lt; &quot;, g_i: &quot; &lt;&lt; g_i &lt;&lt; '\n';
+
+    // g_i_mutex est automatiquement libéré lorsque lock sort de portée
+}
+
+void unsafe_increment(int iterations)
+{
+    while (iterations-- &gt; 0)
+        g_i = g_i + 1;
+    std::osyncstream(std::cout) &lt;&lt; &quot;thread #&quot; &lt;&lt; std::this_thread::get_id()
+                                &lt;&lt; &quot;, g_i: &quot; &lt;&lt; g_i &lt;&lt; '\n';
+}
+
+int main()
+{
+    auto test = [](std::string_view fun_name, auto fun)
+    {
+        g_i = 0;
+        std::cout &lt;&lt; fun_name &lt;&lt; &quot;:\nbefore, g_i: &quot; &lt;&lt; g_i &lt;&lt; '\n';
+        {
+            std::jthread t1(fun, 1'000'000);
+            std::jthread t2(fun, 1'000'000);
+        }
+        std::cout &lt;&lt; &quot;after, g_i: &quot; &lt;&lt; g_i &lt;&lt; &quot;\n\n&quot;;
+    };
+    test(&quot;safe_increment&quot;, safe_increment);
+    test(&quot;unsafe_increment&quot;, unsafe_increment);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">safe_increment:
+before, g_i: 0
+thread #140121493231360, g_i: 1000000
+thread #140121484838656, g_i: 2000000
+after, g_i: 2000000
+
+unsafe_increment:
+before, g_i: 0
+thread #140121484838656, g_i: 1028945
+thread #140121493231360, g_i: 1034337
+after, g_i: 1034337
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2981">LWG 2981</a></td>
+<td>C++17</td>
+<td>un guide de déduction redondant de <code>lock_guard&lt;Mutex&gt;</code> a été fourni</td>
+<td>removed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="unique_lock.html">unique_lock</a> (C++11)</strong> — implémente un wrapper de propriété de mutex déplaçable <em>(modèle de classe)</em></li>
+<li><strong><a href="scoped_lock.html">scoped_lock</a> (C++17)</strong> — wrapper RAII évitant les interblocages pour plusieurs mutex <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

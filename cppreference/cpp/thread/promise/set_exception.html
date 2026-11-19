@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::promise&lt;R&gt;::set_exception — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/promise.html">std::promise</a></nav>
+<h1 id="std-promise-r-set_exception"><code>std::promise&lt;R&gt;::set_exception</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/promise/set_exception">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void set_exception( std::exception_ptr p );  // (depuis C++11)
+</code></pre>
+<p>Stocke atomiquement le pointeur d'exception <code>p</code> dans l'état partagé et rend l'état prêt.</p>
+<p>L'opération se comporte comme si <a href="set_value.html"><code>set_value</code></a>, <code>set_exception</code>, <a href="set_value_at_thread_exit.html"><code>set_value_at_thread_exit</code></a> et <a href="set_exception_at_thread_exit.html"><code>set_exception_at_thread_exit</code></a> acquéraient un même mutex associé à l'objet promise lors de la mise à jour de cet objet.</p>
+<p>Une exception est levée s'il n'existe pas d'état partagé ou si l'état partagé stocke déjà une valeur ou une exception.</p>
+<p>Les appels à cette fonction n'introduisent pas de courses de données avec les appels à <a href="get_future.html"><code>get_future</code></a> (ils n'ont donc pas besoin de se synchroniser entre eux).</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur d'exception à stocker. Le comportement est indéfini si <code>p</code> est nul</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p><a href="../future_error.html"><code>std::future_error</code></a> dans les conditions suivantes :</p>
+<ul>
+<li>
+<p><code>*this</code> n'a pas d'état partagé. Le code d'erreur est défini à <a href="../future_errc.html"><code>no_state</code></a>.</p>
+</li>
+<li>
+<p>L'état partagé stocke déjà une valeur ou une exception. Le code d'erreur est défini à <a href="../future_errc.html"><code>promise_already_satisfied</code></a>.</p>
+</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+int main()
+{
+    std::promise&lt;int&gt; p;
+    std::future&lt;int&gt; f = p.get_future();
+
+    std::thread t([&amp;p]
+    {
+        try
+        {
+            // code susceptible de lever une exception
+            throw std::runtime_error(&quot;Example&quot;);
+        }
+        catch (...)
+        {
+            try
+            {
+                // stocke toute exception levée dans la promise
+                p.set_exception(std::current_exception());
+                // ou lever à la place une exception personnalisée
+                // p.set_exception(std::make_exception_ptr(MyException(&quot;mine&quot;)));
+            }
+            catch (...) {} // set_exception() peut aussi lever une exception
+        }
+    });
+
+    try
+    {
+        std::cout &lt;&lt; f.get();
+    }
+    catch (const std::exception&amp; e)
+    {
+        std::cout &lt;&lt; &quot;Exception from the thread: &quot; &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+    t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Exception from the thread: Example
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="set_exception_at_thread_exit.html">set_exception_at_thread_exit</a></strong> — définit le résultat pour indiquer une exception tout en ne livrant la notification qu'à la sortie du thread <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

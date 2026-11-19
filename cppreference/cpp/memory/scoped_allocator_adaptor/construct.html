@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::scoped_allocator_adaptor&lt;OuterAlloc,InnerAlloc...&gt;::construct — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/scoped_allocator_adaptor.html">std::scoped_allocator_adaptor</a></nav>
+<h1 id="std-scoped_allocator_adaptor-outeralloc-inneralloc-construct"><code>std::scoped_allocator_adaptor&lt;OuterAlloc,InnerAlloc...&gt;::construct</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/scoped_allocator_adaptor/construct">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;scoped_allocator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class... Args &gt;
+void construct( T* p, Args&amp;&amp;... args );  // (1)
+
+template&lt; class T1, class T2, class... Args1, class... Args2 &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, std::piecewise_construct_t,
+                std::tuple&lt;Args1...&gt; x, std::tuple&lt;Args2...&gt; y );  // (2) (jusqu'à C++20)
+
+template&lt; class T1, class T2 &gt;
+void construct( std::pair&lt;T1, T2&gt;* p );  // (3) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, U&amp;&amp; x, V&amp;&amp; y );  // (4) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, const std::pair&lt;U, V&gt;&amp; xy );  // (5) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, std::pair&lt;U, V&gt;&amp;&amp; xy );  // (6) (jusqu'à C++20)
+</code></pre>
+<p><strong>Modèles de fonctions auxiliaires</strong></p>
+<pre><code class="language-cpp">template &lt; class T, class... Args &gt;
+std::tuple&lt;/* voir ci-dessous */&gt; /*concat-args*/( std::tuple&lt;Args...&gt;&amp;&amp; tup );  // (7) ( exposition uniquement* ) (jusqu'à C++20)
+</code></pre>
+<p>Construit un objet dans le stockage alloué mais non initialisé pointé par <code>p</code> en utilisant l'allocateur externe et les arguments de constructeur fournis. Si l'objet est d'un type qui utilise lui-même des allocateurs, ou s'il s'agit de <a href="../../utility/pair.html"><code>std::pair</code></a> <em>(jusqu'à C++20)</em>, transmet l'allocateur interne à l'objet construit.</p>
+<ol>
+<li>Construit un objet de type <code>T</code> par <a href="../uses_allocator.html#Uses-allocator_construction">construction avec utilisation d'allocateur</a> à l'emplacement de mémoire non initialisé indiqué par <code>p</code> en utilisant l'allocateur le plus externe.</li>
+</ol>
+<blockquote>
+<p>Étant donné <code>std::uses_allocator&lt;T, inner_allocator_type&gt;::value</code> en tant que <code>uses_inner</code> :</p>
+<ul>
+<li>Si <code>uses_inner</code> est <code>false</code> et <code>std::is_constructible&lt;T, Args...&gt;::value</code> est <code>true</code>, appelle <code>outermost-construct ﻿(p, std::forward&lt;Args&gt;(args)...)</code>.</li>
+<li>Sinon, si <code>uses_inner</code> et <code>std::is_constructible&lt;T, std::allocator_arg_t, inner_allocator_type&amp;, Args...&gt;::value</code> sont tous deux <code>true</code>, appelle <code>outermost-construct ﻿(p, std::allocator_arg, inner_allocator(), std::forward&lt;Args&gt;(args)...)</code>.</li>
+<li>Sinon, si <code>uses_inner</code> et <code>std::is_constructible&lt;T, Args..., inner_allocator_type&amp;&gt;::value</code> sont tous deux <code>true</code>, appelle <code>outermost-construct ﻿(p, std::forward&lt;Args&gt;(args)..., inner_allocator())</code>.</li>
+<li>Sinon, le programme est mal formé.</li>
+</ul>
+<p>Cette surcharge participe à la résolution de surcharge uniquement si <code>T</code> n'est pas une spécialisation de <a href="../../utility/pair.html"><code>std::pair</code></a>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Équivalent à <code>std::apply ( [p, this](auto&amp;&amp;... newargs) { outermost-construct (p, std::forward&lt;decltype(newargs)&gt;(newargs)...); }, std::uses_allocator_construction_args (inner_allocator(), std::forward&lt;Args&gt;(args)...) );</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>2-6) Construit un objet <a href="../../utility/pair.html"><code>std::pair</code></a> par <a href="../uses_allocator.html#Uses-allocator_construction">construction avec utilisation d'allocateur</a> à l'emplacement de mémoire non initialisé indiqué par <code>p</code> en utilisant l'allocateur le plus externe.</p>
+<ol start="2">
+<li>
+<p>Soit <code>xprime</code> égal à <code>concat-args ﻿&lt;T1&gt;(std::move(x))</code>, <code>yprime</code> égal à <code>concat-args ﻿&lt;T2&gt;(std::move(y))</code>, appelle <code>outermost-construct ﻿(p, std::piecewise_construct, std::move(xprime), std::move(yprime))</code>.</p>
+</li>
+<li>
+<p>Équivalent à <code>construct(p, std::piecewise_construct, std::tuple&lt;&gt;(), std::tuple&lt;&gt;());</code>.</p>
+</li>
+</ol>
+<p>4-6) Équivalent à <code>construct(p, std::piecewise_construct, std::forward_as_tuple(xarg), std::forward_as_tuple(yarg));</code>, où <code>xarg</code> et <code>yarg</code> sont définis comme suit :</p>
+<table>
+<thead>
+<tr>
+<th>Surcharge</th>
+<th><code>xarg</code></th>
+<th><code>yarg</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>(4)</code></td>
+<td><code>std::forward&lt;U&gt;(x)</code></td>
+<td><code>std::forward&lt;V&gt;(y)</code></td>
+</tr>
+<tr>
+<td><code>(5)</code></td>
+<td><code>xy.first</code></td>
+<td><code>xy.second</code></td>
+</tr>
+<tr>
+<td><code>(6)</code></td>
+<td><code>std::forward&lt;U&gt;(xy.first)</code></td>
+<td><code>std::forward&lt;V&gt;(xy.second)</code></td>
+</tr>
+</tbody>
+</table>
+<ol start="7">
+<li>Fusionne les arguments contenus dans <code>tup</code> et les arguments supplémentaires requis par la <a href="../uses_allocator.html#Uses-allocator_construction">construction avec utilisation d'allocateur</a> d'un objet de type <code>T</code>.</li>
+</ol>
+<p>Étant donné <code>std::uses_allocator&lt;T, inner_allocator_type&gt;::value</code> en tant que <code>uses_inner</code> :</p>
+<ul>
+<li>Si <code>uses_inner</code> est <code>false</code> et <code>std::is_constructible&lt;T, Args...&gt;::value</code> est <code>true</code>, renvoie <code>std::tuple&lt;Args&amp;&amp;...&gt;(std::move(tup))</code>.</li>
+<li>Sinon, si <code>uses_inner</code> et <code>std::is_constructible&lt;T, std::allocator_arg_t, inner_allocator_type&amp;, Args...&gt;::value</code> sont tous deux <code>true</code>, renvoie <code>std::tuple_cat(std::tuple&lt;std::allocator_arg_t, inner_allocator_type&amp;&gt; (std::allocator_arg, inner_allocator()), std::tuple&lt;Args&amp;&amp;...&gt;(std::move(tup)))</code>.</li>
+<li>Sinon, si <code>uses_inner</code> et <code>std::is_constructible&lt;T, Args..., inner_allocator_type&amp;&gt;::value</code> sont tous deux <code>true</code>, renvoie <code>std::tuple_cat(std::tuple&lt;Args&amp;&amp;...&gt;(std::move(tup)), std::tuple&lt;inner_allocator_type&amp;&gt;(inner_allocator())</code>.</li>
+<li>Sinon, le programme est mal formé.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur vers un stockage alloué mais non initialisé</li>
+<li><code>args</code> — les arguments du constructeur à transmettre au constructeur de <code>T</code></li>
+<li><code>x</code> — les arguments du constructeur à transmettre au constructeur de <code>T1</code></li>
+<li><code>y</code> — les arguments du constructeur à transmettre au constructeur de <code>T2</code></li>
+<li><code>xy</code> — la paire dont les deux membres sont les arguments du constructeur pour <code>T1</code> et <code>T2</code></li>
+<li><code>tup</code> — les arguments à fusionner</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction est appelée (par l'intermédiaire de <a href="../allocator_traits.html"><code>std::allocator_traits</code></a>) par tout objet tenant compte des allocateurs, tel que <a href="../../container/vector.html"><code>std::vector</code></a>, qui a reçu un <a href="../scoped_allocator_adaptor.html"><code>std::scoped_allocator_adaptor</code></a> comme allocateur à utiliser. Comme <code>inner_allocator_type</code> est lui-même une spécialisation de <a href="../scoped_allocator_adaptor.html"><code>std::scoped_allocator_adaptor</code></a>, cette fonction sera également appelée lorsque les objets tenant compte des allocateurs construits par cette fonction commenceront à construire leurs propres membres.</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2203">LWG 2203</a></td>
+<td>C++11</td>
+<td>les allocateurs internes ont été obtenus par initialisation par valeur de un objet <code>inner_allocator_type</code></td>
+<td>obtenu en appelant <a href="inner_allocator.html"><code>inner_allocator()</code></a></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2511">LWG 2511</a> (<a href="https://wg21.link/P0475R1">P0475R1</a>)</td>
+<td>C++11</td>
+<td><code>concat-args</code> pouvait copier des éléments de <a href="../../utility/tuple.html"><code>std::tuple</code></a></td>
+<td>a supprimé toutes les opérations de copie d'éléments</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2586">LWG 2586</a></td>
+<td>C++11</td>
+<td>seules les constructions à partir de <code>inner_allocator_type</code> rvalues étaient vérifiées</td>
+<td>vérifie désormais les constructions à partir de <code>inner_allocator_type</code> lvalues non const</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2975">LWG 2975</a></td>
+<td>C++11</td>
+<td>la surcharge <code>(1)</code> n'était pas contrainte</td>
+<td>contraint à refuser <a href="../../utility/pair.html"><code>std::pair</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../allocator_traits/construct.html">construct</a> [statique]</strong> — construit un objet dans le stockage alloué <em>(modèle de fonction)</em></li>
+<li><strong><a href="../allocator/construct.html">construct</a> (until C++20)</strong> — construit un objet dans le stockage alloué <em>(fonction membre publique de <code>std::allocator&lt;T&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

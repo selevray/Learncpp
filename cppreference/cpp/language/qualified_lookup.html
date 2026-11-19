@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recherche de nom qualifié — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="recherche-de-nom-qualifié">Recherche de nom qualifié</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/qualified_lookup">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un nom <em>qualifié</em> est un nom qui apparaît à droite de l'opérateur de résolution de portée <code>::</code> (voir aussi <a href="name.html#Qualified_identifiers">identificateurs qualifiés</a>). Un nom qualifié peut désigner un</p>
+<ul>
+<li>membre de classe (y compris les fonctions statiques et non statiques, les types, les modèles, etc.),</li>
+<li>membre d'espace de noms (y compris un autre espace de noms),</li>
+<li>enumerator.</li>
+</ul>
+<p>Si rien ne se trouve à gauche de <code>::</code>, la recherche ne considère que les déclarations de <a href="qualified_lookup.html#Namespace_members">la portée de l'espace de noms global</a>. Cela permet de désigner de tels noms même s'ils sont masqués par une déclaration locale :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+namespace M {
+    const char* fail = &quot;fail\n&quot;;
+}
+
+using M::fail;
+
+namespace N {
+    const char* ok = &quot;ok\n&quot;;
+}
+
+using namespace N;
+
+int main()
+{
+    struct std {};
+
+    std::cout &lt;&lt; ::fail; // Erreur : la recherche non qualifiée de 'std' trouve la struct
+    ::std::cout &lt;&lt; ::ok; // OK : ::std trouve l'espace de noms std
+}
+</code></pre>
+<p>Avant que la recherche de nom puisse être effectuée pour le nom à droite de <code>::</code>, la recherche doit être achevée pour le nom à sa gauche (sauf si une expression <a href="decltype.html">decltype</a> est utilisée, ou s'il n'y a rien à gauche). Cette recherche, qui peut être qualifiée ou non qualifiée selon qu'il existe un autre <code>::</code> à gauche de ce nom, ne considère que les espaces de noms, les types de classe, les énumérations et les modèles dont les spécialisations sont des types. Si le nom trouvé à gauche ne désigne ni un espace de noms, ni une classe, une énumération ou un type dépendant, le programme est mal formé :</p>
+<pre><code class="language-cpp">struct A
+{
+    static int n;
+};
+
+int main()
+{
+    int A;
+    A::n = 42; // OK : la recherche non qualifiée de A à gauche de :: ignore la variable
+    A b;       // Erreur : la recherche non qualifiée de A trouve la variable A
+}
+
+template&lt;int&gt;
+struct B : A {};
+
+namespace N
+{
+    template&lt;int&gt;
+    void B();
+
+    int f()
+    {
+        return B&lt;0&gt;::n; // Erreur : N::B&lt;0&gt; n'est pas un type
+    }
+}
+</code></pre>
+<p>Lorsqu'un nom qualifié est utilisé comme <a href="declarations.html">déclarateur</a>, alors une <a href="unqualified_lookup.html">recherche de nom non qualifié</a> des noms utilisés dans le même déclarateur qui suivent ce nom qualifié, mais pas ceux qui le précèdent, est effectuée dans la portée de la classe ou de l'espace de noms du membre :</p>
+<pre><code class="language-cpp">class X {};
+
+constexpr int number = 100;
+
+struct C
+{
+    class X {};
+    static const int number = 50;
+    static X arr[number];
+};
+
+X C::arr[number], brr[number];    // Erreur : la recherche de X trouve ::X, et non C::X
+C::X C::arr[number], brr[number]; // OK : la taille de arr est 50, la taille de brr est 100
+</code></pre>
+<p>Si <code>::</code> est suivi du caractère <code>~</code>, lui-même suivi d'un identificateur (c'est-à-dire qu'il désigne un destructeur ou un pseudo-destructeur), cet identificateur est recherché dans la même portée que le nom à gauche de <code>::</code></p>
+<pre><code class="language-cpp">struct C { typedef int I; };
+
+typedef int I1, I2;
+
+extern int *p, *q;
+
+struct A { ~A(); };
+
+typedef A AB;
+
+int main()
+{
+    p-&gt;C::I::~I(); // Le nom I après ~ est recherché dans la même portée que I avant ::
+                   // (c'est-à-dire dans la portée de C, donc il trouve C::I)
+
+    q-&gt;I1::~I2();  // Le nom I2 est recherché dans la même portée que I1
+                   // (c'est-à-dire depuis la portée courante, donc il trouve ::I2)
+
+    AB x;
+    x.AB::~AB();   // Le nom AB après ~ est recherché dans la même portée que AB avant ::
+                   // (c'est-à-dire depuis la portée courante, donc il trouve ::AB)
+}
+</code></pre>
+<blockquote>
+<h4 id="Enumerators">Énumérateurs</h4>
+<p>Si la recherche du nom à gauche aboutit à une <a href="enum.html">énumération</a> (à portée ou sans portée), la recherche du membre de droite doit aboutir à un énumérateur appartenant à cette énumération, sinon le programme est mal formé.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="Class_members">Membres de classe</h3>
+<p>Si la recherche du nom à gauche aboutit à un nom de classe/struct ou d'union, le nom à droite de <code>::</code> est recherché dans la portée de cette classe (et peut donc trouver une déclaration d'un membre de cette classe ou de sa base), avec les exceptions suivantes :</p>
+<ul>
+<li>Un destructeur est recherché comme décrit ci-dessus (dans la portée du nom à gauche de ::).</li>
+<li>Un conversion-type-id dans le nom d'une fonction de <a href="cast_operator.html">conversion définie par l'utilisateur</a> est d'abord recherché dans la portée de la classe. S'il n'est pas trouvé, le nom est alors recherché dans la portée courante.</li>
+<li>Les noms utilisés dans les arguments de modèle sont recherchés dans la portée courante (et non dans la portée du nom du modèle).</li>
+<li>Les noms dans les <a href="namespace.html">déclarations using</a> prennent aussi en compte les noms de classes/énumérations masqués par le nom d'une variable, d'un membre de données, d'une fonction ou d'un énumérateur déclaré dans la même portée.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : micro-exemples pour ce qui précède</td>
+</tr>
+</tbody>
+</table>
+<p>Si le côté droit de <code>::</code> désigne la même classe que le côté gauche, le nom désigne le <a href="initializer_list.html">constructeur</a> de cette classe. Un tel nom qualifié ne peut être utilisé que dans une déclaration de constructeur et dans la <a href="using_declaration.html">déclaration using</a> d'un <a href="using_declaration.html#Inheriting_constructors">constructeur hérité</a>. Dans les recherches où les noms de fonctions sont ignorés (c'est-à-dire lors de la recherche d'un nom à gauche de <code>::</code>, lors de la recherche d'un nom dans un <a href="elaborated_type_specifier.html">spécificateur de type elaboré</a>, ou d'un <a href="derived_class.html">spécificateur de base</a>), la même syntaxe se résout en nom de classe injecté :</p>
+<pre><code class="language-cpp">struct A { A(); };
+
+struct B : A { B(); };
+
+A::A() {} // A::A désigne un constructeur, utilisé dans une déclaration
+B::B() {} // B::B désigne un constructeur, utilisé dans une déclaration
+
+B::A ba;  // B::A désigne le type A (recherché dans la portée de B)
+A::A a;   // Erreur : A::A ne désigne pas un type
+
+struct A::A a2; // OK : la recherche dans un spécificateur de type elaboré ignore les fonctions
+                // donc A::A désigne simplement la classe A telle que vue depuis la portée de A
+                // (c'est-à-dire le nom de classe injecté)
+</code></pre>
+<p>La recherche de nom qualifié peut servir à accéder à un membre de classe masqué par une déclaration imbriquée ou par une classe dérivée. Un appel à une fonction membre qualifiée n'est jamais virtuel :</p>
+<pre><code class="language-cpp">struct B { virtual void foo(); };
+
+struct D : B { void foo() override; };
+
+int main()
+{
+    D x;
+    B&amp; b = x;
+
+    b.foo();    // Appelle D::foo (distribution virtuelle)
+    b.B::foo(); // Appelle B::foo (distribution statique)
+}
+</code></pre>
+<h3 id="Namespace_members">Membres d'espace de noms</h3>
+<p>Si le nom à gauche de <code>::</code> désigne un espace de noms, ou s'il n'y a rien à gauche de <code>::</code> (auquel cas il désigne l'espace de noms global), le nom qui apparaît à droite de <code>::</code> est recherché dans la portée de cet espace de noms, sauf que</p>
+<ul>
+<li>les noms utilisés dans les arguments de modèle sont recherchés dans la portée courante :</li>
+</ul>
+<pre><code class="language-cpp">namespace N
+{
+    template&lt;typename T&gt;
+    struct foo {};
+
+    struct X {};
+}
+
+N::foo&lt;X&gt; x; // Erreur : X est recherché comme ::X, et non comme N::X
+</code></pre>
+<p>La recherche qualifiée dans la portée d'un <a href="namespace.html">espace de noms</a> <code>N</code> considère d'abord toutes les déclarations situées dans <code>N</code> et toutes les déclarations situées dans les <a href="namespace.html#Inline_namespaces">membres d'espace de noms en ligne</a> de <code>N</code> (et, transitivement, dans leurs membres d'espace de noms en ligne). S'il n'y a aucune déclaration dans cet ensemble, elle considère alors les déclarations de tous les espaces de noms désignés par des <a href="namespace.html#Using-directives">directives using</a> trouvées dans <code>N</code> et dans tous les membres d'espace de noms en ligne transitifs de <code>N</code>. Les règles s'appliquent récursivement :</p>
+<pre><code class="language-cpp">int x;
+
+namespace Y
+{
+    void f(float);
+    void h(int);
+}
+
+namespace Z
+{
+    void h(double);
+}
+
+namespace A
+{
+    using namespace Y;
+    void f(int);
+    void g(int);
+    int i;
+}
+
+namespace B
+{
+    using namespace Z;
+    void f(char);
+    int i;
+}
+
+namespace AB
+{
+    using namespace A;
+    using namespace B;
+    void g();
+}
+
+void h()
+{
+    AB::g();  // AB est parcouru, AB::g est trouvé par la recherche et est choisi : AB::g(void)
+              // (A et B ne sont pas parcourus)
+
+    AB::f(1); // D'abord, AB est parcouru. Il n'y a pas de f
+              // Ensuite, A et B sont parcourus
+              // A::f, B::f trouvés par la recherche
+              // (mais Y n'est pas parcouru, donc Y::f n'est pas pris en compte)
+              // La résolution de surcharge retient A::f(int)
+
+    AB::x++;  // D'abord, AB est parcouru. Il n'y a pas de x
+              // Ensuite A et B sont parcourus. Il n'y a pas de x
+              // Ensuite Y et Z sont parcourus. Il n'y a toujours pas de x : c'est une erreur
+
+    AB::i++;  // AB est parcouru. Il n'y a pas de i
+              // Ensuite, A et B sont recherchés. A::i et B::i trouvés par la recherche : c'est une erreur
+
+    AB::h(16.8); // Premièrement, AB est recherché. Il n'y a pas de h
+                 // Ensuite, A et B sont recherchés. Il n'y a pas de h
+                 // Ensuite, Y et Z sont recherchés
+                 // La recherche trouve Y::h et Z::h. La résolution de surcharge retient Z::h(double)
+}
+</code></pre>
+<p>Il est permis que la même déclaration soit trouvée plus d'une fois :</p>
+<pre><code class="language-cpp">namespace A { int a; }
+
+namespace B { using namespace A; }
+
+namespace D { using A::a; }
+
+namespace BD
+{
+    using namespace B;
+    using namespace D;
+}
+
+void g()
+{
+    BD::a++; // OK : trouve le même A::a via B et via D
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : le reste de N4861 6.5.3.2[namespace.qual], essayer de raccourcir leurs exemples</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/215.html">CWG 215</a></td>
+<td>C++98</td>
+<td>le nom précédant <code>::</code> doit être un nom de classe ou un nom d'espace de noms , donc les paramètres de modèle n'étaient pas autorisés à cet endroit</td>
+<td>le nom doit désigner une classe, un espace de noms ou un type dépendant</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/318.html">CWG 318</a></td>
+<td>C++98</td>
+<td>si le côté droit de <code>::</code> désigne la même classe que le côté gauche, le nom qualifié était toujours considéré comme désignant le constructeur de cette classe</td>
+<td>ne désigne le constructeur que lorsque c'est acceptable (par exemple pas dans un spécificateur de type elaboré)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="unqualified_lookup.html">Recherche de nom non qualifiée</a></li>
+<li><a href="scope.html">Portée</a></li>
+<li><a href="adl.html">Recherche dépendante des arguments</a></li>
+<li><a href="function_template.html">Déduction d'arguments de modèle</a></li>
+<li><a href="overload_resolution.html">Résolution de surcharge</a></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::stop_callback — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-stop_callback"><code>std::stop_callback</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/stop_callback">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stop_token&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Callback &gt;
+class stop_callback;  // (depuis C++20)
+</code></pre>
+<p>Le modèle de classe <code>stop_callback</code> fournit un type d'objet RAII qui enregistre une fonction de rappel pour un objet <a href="stop_token.html"><code>std::stop_token</code></a> associé, de sorte que la fonction de rappel soit invoquée lorsqu'un arrêt est demandé pour le <a href="stop_source.html"><code>std::stop_source</code></a> associé à <a href="stop_token.html"><code>std::stop_token</code></a>.</p>
+<p>Les fonctions de rappel enregistrées via le constructeur de <code>stop_callback</code> sont invoquées soit dans le même thread qui invoque avec succès <code>request_stop()</code> pour un <a href="stop_source.html"><code>std::stop_source</code></a> du <a href="stop_token.html"><code>std::stop_token</code></a> associé à <code>stop_callback</code> ; soit, si l'arrêt a déjà été demandé avant l'enregistrement du constructeur, la fonction de rappel est invoquée dans le thread qui construit le <code>stop_callback</code>.</p>
+<p>Plusieurs <code>stop_callback</code> peuvent être créés pour le même <a href="stop_token.html"><code>std::stop_token</code></a>, depuis le même thread ou depuis des threads différents, de façon concurrente. Aucune garantie n'est fournie quant à l'ordre d'exécution, mais ils seront invoqués de façon synchrone ; sauf pour les <code>stop_callback</code>(s) construits après que l'arrêt a déjà été demandé pour le <a href="stop_token.html"><code>std::stop_token</code></a>, comme décrit précédemment.</p>
+<p>Si l'invocation d'un rappel se termine par une exception, alors <a href="../error/terminate.html"><code>std::terminate</code></a> est appelé.</p>
+<p><code>std::stop_callback</code> n'est ni <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a>, ni <a href="../named_req/CopyAssignable.html"><em>CopyAssignable</em></a>, ni <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a>, ni <a href="../named_req/MoveAssignable.html"><em>MoveAssignable</em></a>.</p>
+<p>Le paramètre de modèle <code>Callback</code> doit être à la fois <a href="../concepts/invocable.html"><code>invocable</code></a> et <a href="../concepts/destructible.html"><code>destructible</code></a>. Toute valeur de retour est ignorée.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>callback_type</code></strong> — <code>Callback</code></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="stop_callback/stop_callback.html">(constructeur)</a></strong> — construit un nouvel objet <code>stop_callback</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="stop_callback/~stop_callback.html">(destructeur)</a></strong> — détruit l'objet <code>stop_callback</code> <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — <code>stop_callback</code> n'est pas affectable <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Deduction_guides"><a href="stop_callback/deduction_guides.html">Guides de déduction</a></h2>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;condition_variable&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;sstream&gt;
+#include &lt;thread&gt;
+
+using namespace std::chrono_literals;
+
+// Utiliser une classe auxiliaire pour la diffusion atomique vers std::cout.
+class Writer
+{
+    std::ostringstream buffer;
+public:
+    ~Writer()
+    {
+        std::cout &lt;&lt; buffer.str();
+    }
+    Writer&amp; operator&lt;&lt;(auto input)
+    {
+        buffer &lt;&lt; input;
+        return *this;
+    }
+};
+
+int main()
+{
+    // Un thread de travail.
+    // Il attendra jusqu'à ce qu'il soit demandé de s'arrêter.
+    std::jthread worker([] (std::stop_token stoken)
+    {
+        Writer() &lt;&lt; &quot;Worker thread's id: &quot; &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+        std::mutex mutex;
+        std::unique_lock lock(mutex);
+        std::condition_variable_any().wait(lock, stoken,
+            [&amp;stoken] { return stoken.stop_requested(); });
+    });
+
+    // Enregistrer un rappel d'arrêt sur le thread de travail.
+    std::stop_callback callback(worker.get_stop_token(), []
+    {
+        Writer() &lt;&lt; &quot;Stop callback executed by thread: &quot;
+            &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+    });
+
+    // Les objets Stop_callback peuvent être détruits prématurément pour empêcher l'exécution.
+    {
+        std::stop_callback scoped_callback(worker.get_stop_token(), []
+        {
+            // Ceci ne sera pas exécuté.
+            Writer() &lt;&lt; &quot;Scoped stop callback executed by thread: &quot;
+                &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+        });
+    }
+
+    // Démontrer quel thread exécute le stop_callback et quand.
+    // Définir une fonction stopper.
+    auto stopper_func = [&amp;worker]
+    {
+        if (worker.request_stop())
+            Writer() &lt;&lt; &quot;Stop request executed by thread: &quot;
+                &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+        else
+            Writer() &lt;&lt; &quot;Stop request not executed by thread: &quot;
+                &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+    };
+
+    // Faire concourir plusieurs threads pour arrêter le thread de travail.
+    std::jthread stopper1(stopper_func);
+    std::jthread stopper2(stopper_func);
+    stopper1.join();
+    stopper2.join();
+
+    // Une fois qu'un arrêt a déjà été demandé,
+    // un nouveau stop_callback s'exécute immédiatement.
+    Writer() &lt;&lt; &quot;Main thread: &quot; &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+    std::stop_callback callback_after_stop(worker.get_stop_token(), []
+    {
+        Writer() &lt;&lt; &quot;Stop callback executed by thread: &quot;
+            &lt;&lt; std::this_thread::get_id() &lt;&lt; '\n';
+    });
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Worker thread's id: 140460265039616
+Stop callback executed by thread: 140460256646912
+Stop request executed by thread: 140460256646912
+Stop request not executed by thread: 140460248254208
+Main thread: 140460265043776
+Stop callback executed by thread: 140460265043776
+</code></pre>
+
+</main>
+</body>
+</html>

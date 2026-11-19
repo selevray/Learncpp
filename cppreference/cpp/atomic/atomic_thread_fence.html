@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic_thread_fence — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-atomic_thread_fence"><code>std::atomic_thread_fence</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic_thread_fence">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">extern &quot;C&quot; void atomic_thread_fence( std::memory_order order ) noexcept;  // (depuis C++11)
+</code></pre>
+<p>Établit <a href="memory_order.html">un ordre de synchronisation mémoire</a> des accès non atomiques et des accès atomiques relâchés, comme indiqué par <code>order</code>, sans opération atomique associée. Notez cependant qu'au moins une opération atomique est nécessaire pour mettre en place la synchronisation, comme décrit ci-dessous.</p>
+<h3 id="Fence-atomic_synchronization">Synchronisation fence-atomic</h3>
+<p>Une barrière release F dans le thread A se synchronise avec une <a href="memory_order.html">opération acquire</a> atomique Y dans le thread B, si</p>
+<ul>
+<li>il existe un stockage atomique X (avec un ordre mémoire quelconque),</li>
+<li>Y lit la valeur écrite par X (ou la valeur qui serait écrite par la <a href="memory_order.html">séquence de release dont X est la tête</a> si X était une opération release),</li>
+<li>F est séquencée avant X dans le thread A.</li>
+</ul>
+<p>Dans ce cas, tous les stockages non atomiques et atomiques relâchés <a href="memory_order.html">séquencés avant</a> F dans le thread A <a href="memory_order.html">se produisent avant</a> tous les chargements non atomiques et atomiques relâchés des mêmes emplacements effectués dans le thread B après Y.</p>
+<h3 id="Atomic-fence_synchronization">Synchronisation atomic-fence</h3>
+<p>Une <a href="memory_order.html">opération release</a> atomique X dans le thread A se synchronise avec une barrière acquire F dans le thread B, si</p>
+<ul>
+<li>il existe une lecture atomique Y (avec un ordre mémoire quelconque),</li>
+<li>Y lit la valeur écrite par X (ou par la <a href="memory_order.html">séquence de release dont X est la tête</a>),</li>
+<li>Y est séquencée avant F dans le thread B.</li>
+</ul>
+<p>Dans ce cas, tous les stockages non atomiques et atomiques relâchés <a href="memory_order.html">séquencés avant</a> X dans le thread A <a href="memory_order.html">se produisent avant</a> tous les chargements non atomiques et atomiques relâchés des mêmes emplacements effectués dans le thread B après F.</p>
+<h3 id="Fence-fence_synchronization">Synchronisation fence-fence</h3>
+<p>Une barrière release FA dans le thread A se synchronise avec une barrière acquire FB dans le thread B, si</p>
+<ul>
+<li>il existe un objet atomique M,</li>
+<li>il existe une écriture atomique X (avec un ordre mémoire quelconque) qui modifie M dans le thread A,</li>
+<li>FA est séquencée avant X dans le thread A,</li>
+<li>il existe une lecture atomique Y (avec un ordre mémoire quelconque) dans le thread B,</li>
+<li>Y lit la valeur écrite par X (ou la valeur qui serait écrite par la <a href="memory_order.html">séquence de release dont X est la tête</a> si X était une opération release),</li>
+<li>Y est séquencée avant FB dans le thread B.</li>
+</ul>
+<p>Dans ce cas, tous les stockages non atomiques et atomiques relâchés <a href="memory_order.html">séquencés avant</a> FA dans le thread A <a href="memory_order.html">se produisent avant</a> tous les chargements non atomiques et atomiques relâchés des mêmes emplacements effectués dans le thread B après FB.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>order</code> — l'ordre mémoire exécuté par cette barrière</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p>Sur x86 (y compris x86-64), les fonctions <code>atomic_thread_fence</code> n'émettent aucune instruction CPU et n'affectent que le déplacement de code à la compilation, sauf pour <code>std::atomic_thread_fence(std::memory_order_seq_cst)</code>.</p>
+<p><code>atomic_thread_fence</code> impose des contraintes de synchronisation plus fortes qu'une opération de stockage atomique avec le même <a href="memory_order.html"><code>std::memory_order</code></a>. Alors qu'un stockage atomique release empêche toutes les lectures et écritures précédentes de dépasser le stockage release, une <code>atomic_thread_fence</code> avec l'ordre <code>std::memory_order_release</code> empêche toutes les lectures et écritures précédentes de dépasser tous les stockages suivants.</p>
+<p>La synchronisation fence-fence peut servir à ajouter de la synchronisation à une suite de plusieurs opérations atomiques relâchées, par exemple :</p>
+<pre><code class="language-cpp">// Global
+std::string computation(int);
+void print(std::string);
+
+std::atomic&lt;int&gt; arr[3] = {-1, -1, -1};
+std::string data[1000]; //données non atomiques
+
+// Thread A, calcule 3 valeurs.
+void ThreadA(int v0, int v1, int v2)
+{
+//  assert(0 &lt;= v0, v1, v2 &lt; 1000);
+    data[v0] = computation(v0);
+    data[v1] = computation(v1);
+    data[v2] = computation(v2);
+    std::atomic_thread_fence(std::memory_order_release);
+    std::atomic_store_explicit(&amp;arr[0], v0, std::memory_order_relaxed);
+    std::atomic_store_explicit(&amp;arr[1], v1, std::memory_order_relaxed);
+    std::atomic_store_explicit(&amp;arr[2], v2, std::memory_order_relaxed);
+}
+
+// Thread B, affiche entre 0 et 3 valeurs déjà calculées.
+void ThreadB()
+{
+    int v0 = std::atomic_load_explicit(&amp;arr[0], std::memory_order_relaxed);
+    int v1 = std::atomic_load_explicit(&amp;arr[1], std::memory_order_relaxed);
+    int v2 = std::atomic_load_explicit(&amp;arr[2], std::memory_order_relaxed);
+    std::atomic_thread_fence(std::memory_order_acquire);
+//  v0, v1, v2 peuvent valoir -1, certaines ou toutes.
+//  Sinon, il est sûr de lire les données non atomiques grâce aux barrières :
+    if (v0 != -1)
+        print(data[v0]);
+    if (v1 != -1)
+        print(data[v1]);
+    if (v2 != -1)
+        print(data[v2]);
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>Parcourir un tableau de boîtes aux lettres et ne traiter que celles qui nous sont destinées, sans synchronisation inutile. Cet exemple utilise la synchronisation atomic-fence.</p>
+<pre><code class="language-cpp">const int num_mailboxes = 32;
+std::atomic&lt;int&gt; mailbox_receiver[num_mailboxes];
+std::string mailbox_data[num_mailboxes];
+
+// Les threads écrivains mettent à jour les données partagées non atomiques
+// puis mettent à jour mailbox_receiver[i] comme suit :
+mailbox_data[i] = ...;
+std::atomic_store_explicit(&amp;mailbox_receiver[i], receiver_id, std::memory_order_release);
+
+// Le thread lecteur doit vérifier tous les mailbox[i], mais n'a besoin de se synchroniser qu'avec un seul.
+for (int i = 0; i &lt; num_mailboxes; ++i)
+    if (std::atomic_load_explicit(&amp;mailbox_receiver[i],
+        std::memory_order_relaxed) == my_id)
+    {
+        // se synchroniser avec un seul écrivain
+        std::atomic_thread_fence(std::memory_order_acquire);
+        // garanti d'observer tout ce qui a été fait dans le thread écrivain
+        // avant atomic_store_explicit()
+        do_work(mailbox_data[i]);
+    }
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="memory_order.html">memory_order</a> (C++11)</strong> — définit les contraintes d'ordre mémoire pour l'opération atomique donnée <em>(énumération)</em></li>
+<li><strong><a href="atomic_signal_fence.html">atomic_signal_fence</a> (C++11)</strong> — barrière entre un thread et un gestionnaire de signal exécuté dans le même thread <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../c/atomic/atomic_thread_fence.html">Documentation C</a> de atomic_thread_fence</strong></p>
+
+</main>
+</body>
+</html>

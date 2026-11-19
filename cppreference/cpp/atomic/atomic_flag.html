@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic_flag — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-atomic_flag"><code>std::atomic_flag</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic_flag">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">class atomic_flag;  // (depuis C++11)
+</code></pre>
+<p><code>std::atomic_flag</code> est un type booléen atomique. Contrairement à toutes les spécialisations de <a href="atomic.html"><code>std::atomic</code></a>, il est garanti sans verrou. Contrairement à <code>std::atomic&lt;bool&gt;</code>, <code>std::atomic_flag</code> ne fournit pas d'opérations de lecture ou d'écriture.</p>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="atomic_flag/atomic_flag.html">(constructeur)</a></strong> — construit un atomic_flag <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/operator%3D.html">operator=</a>[deleted]</strong> — l'opérateur d'affectation (supprimé) <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/clear.html">clear</a></strong> — définit atomiquement le drapeau à <code>false</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/test_and_set.html">test_and_set</a></strong> — définit atomiquement le drapeau à <code>true</code> et obtient sa valeur précédente <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/test.html">test</a> (C++20)</strong> — retourne atomiquement la valeur du drapeau <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/wait.html">wait</a> (C++20)</strong> — bloque le thread jusqu'à notification et changement de la valeur atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/notify_one.html">notify_one</a> (C++20)</strong> — notifie au moins un thread en attente sur l'objet atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic_flag/notify_all.html">notify_all</a> (C++20)</strong> — notifie tous les threads bloqués en attente sur l'objet atomique <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>Une démonstration de mutex <a href="https://en.wikipedia.org/wiki/Spinlock">spinlock</a> peut être implémentée en espace utilisateur à l'aide d'un <code>atomic_flag</code>. Notez que les mutex spinlock sont <a href="https://www.realworldtech.com/forum/?threadid=189711&amp;curpostid=189723">extrêmement douteux</a> en pratique.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+class mutex
+{
+    std::atomic_flag m_{};
+
+  public:
+    void lock() noexcept
+    {
+        while (m_.test_and_set(std::memory_order_acquire))
+#if defined(__cpp_lib_atomic_wait) &amp;&amp; __cpp_lib_atomic_wait &gt;= 201907L
+            // Depuis C++20, les verrous ne peuvent être acquis qu'après notification dans le unlock,
+            // évitant toute attente active inutile.
+            // Notez que, même si wait garantit qu'il ne retourne qu'après que la valeur a
+            // changé, le verrou est acquis après la prochaine vérification de la condition.
+            m_.wait(true, std::memory_order_relaxed)
+#endif
+                ;
+    }
+    bool try_lock() noexcept
+    {
+        return !m_.test_and_set(std::memory_order_acquire);
+    }
+    void unlock() noexcept
+    {
+        m_.clear(std::memory_order_release);
+#if defined(__cpp_lib_atomic_wait) &amp;&amp; __cpp_lib_atomic_wait &gt;= 201907L
+        m_.notify_one();
+#endif
+    }
+};
+
+static mutex m;
+
+static int out{};
+
+void f(std::size_t n)
+{
+    for (std::size_t cnt{}; cnt &lt; 40; ++cnt)
+    {
+        std::lock_guard lock{m};
+        std::cout &lt;&lt; n &lt;&lt; ((++out % 40) == 0 ? '\n' : ' ');
+    }
+}
+
+int main()
+{
+    std::vector&lt;std::thread&gt; v;
+    for (std::size_t n{}; n &lt; 10; ++n)
+        v.emplace_back(f, n);
+    for (auto &amp;t : v)
+        t.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">0 1 1 2 0 1 3 2 3 2 0 1 2 3 2 3 0 1 3 2 0 1 2 3 2 3 0 3 2 3 2 3 2 3 1 2 3 0 1 3
+2 3 2 0 1 2 3 0 1 2 3 2 0 1 2 3 0 1 2 3 2 3 2 3 2 0 1 2 3 2 3 0 1 3 2 3 0 2 1 1
+1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 3 2 0 2 3 2 3 2 3 2 3 2 3 0 3
+2 3 0 3 0 3 2 3 0 3 2 3 2 3 0 2 3 0 3 2 0 2 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4
+5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5
+6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6 6
+7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7
+8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8
+9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="atomic_flag_test_and_set.html">atomic_flag_test_and_setatomic_flag_test_and_set_explicit</a> (C++11) (C++11)</strong> — définit atomiquement le drapeau à <code>true</code> et retourne sa valeur précédente <em>(fonction)</em></li>
+<li><strong><a href="atomic_flag_clear.html">atomic_flag_clearatomic_flag_clear_explicit</a> (C++11) (C++11)</strong> — définit atomiquement la valeur du drapeau à <code>false</code> <em>(fonction)</em></li>
+<li><strong><a href="atomic_flag_wait.html">atomic_flag_waitatomic_flag_wait_explicit</a> (C++20) (C++20)</strong> — bloque le thread jusqu'à notification et changement du drapeau <em>(fonction)</em></li>
+<li><strong><a href="atomic_flag_notify_one.html">atomic_flag_notify_one</a> (C++20)</strong> — notifie un thread bloqué dans atomic_flag_wait <em>(fonction)</em></li>
+<li><strong><a href="atomic_flag_notify_all.html">atomic_flag_notify_all</a> (C++20)</strong> — notifie tous les threads bloqués dans atomic_flag_wait <em>(fonction)</em></li>
+<li><strong><a href="ATOMIC_FLAG_INIT.html">ATOMIC_FLAG_INIT</a> (C++11)</strong> — initialise un <code>std::atomic_flag</code> à <code>false</code> <em>(constante macro)</em></li>
+</ul>
+<p><strong><a href="../../c/atomic/atomic_flag.html">Documentation C</a> pour atomic_flag</strong></p>
+
+</main>
+</body>
+</html>

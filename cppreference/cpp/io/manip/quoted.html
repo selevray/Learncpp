@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::quoted — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/manip.html">Manipulateurs d&#x27;entrée/sortie</a></nav>
+<h1 id="std-quoted"><code>std::quoted</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/manip/quoted">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iomanip&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class CharT &gt;
+/*unspecified*/ quoted( const CharT* s,
+                        CharT delim = CharT('&quot;'), CharT escape = CharT('\\') );  // (1) (depuis C++14)
+
+template&lt; class CharT, class Traits, class Allocator &gt;
+/*unspecified*/ quoted( const std::basic_string&lt;CharT, Traits, Allocator&gt;&amp; s,
+                        CharT delim = CharT('&quot;'), CharT escape = CharT('\\') );  // (2) (depuis C++14)
+
+template&lt; class CharT, class Traits&gt;
+/*unspecified*/ quoted( std::basic_string_view&lt;CharT, Traits&gt; s,
+                        CharT delim = CharT('&quot;'), CharT escape = CharT('\\') );  // (3) (depuis C++17)
+
+template&lt; class CharT, class Traits, class Allocator &gt;
+/*unspecified*/ quoted( std::basic_string&lt;CharT, Traits, Allocator&gt;&amp; s,
+                        CharT delim=CharT('&quot;'), CharT escape=CharT('\\') );  // (4) (depuis C++14)
+</code></pre>
+<p>Permet l'insertion et l'extraction de chaînes entre guillemets, telles que celles présentes dans les fichiers <a href="https://en.wikipedia.org/wiki/Comma-separated_values">CSV</a> ou <a href="https://en.wikipedia.org/wiki/XML">XML</a>.</p>
+<p>1-3) Utilisé dans une expression <code>out &lt;&lt; quoted(s, delim, escape)</code>, où <code>out</code> est un flux de sortie avec <code>char_type</code> égal à <code>CharT</code> et, pour les surcharges (2,3), <code>traits_type</code> égal à <code>Traits</code>, se comporte comme un <a href="../../named_req/FormattedOutputFunction.html"><em>FormattedOutputFunction</em></a>, qui insère dans <code>out</code> une séquence de caractères <code>seq</code> construite comme suit :</p>
+<p>a) Premièrement, le caractère <code>delim</code> est ajouté à la séquence.</p>
+<p>b) Ensuite, chaque caractère de <code>s</code> est ajouté, sauf si le caractère suivant à sortir est égal à <code>delim</code> ou à <code>escape</code> (selon <code>traits_type::eq</code> du flux), auquel cas on ajoute d'abord une copie supplémentaire de <code>escape</code>.</p>
+<p>c) Enfin, <code>delim</code> est ajouté une fois de plus à <code>seq</code>.</p>
+<p>Ensuite, si <code>seq.size() &lt; out.width()</code>, ajoute <code>out.width()-seq.size()</code> copies du caractère de remplissage <code>out.fill()</code> soit à la fin de la séquence (si <code>ios_base::left</code> est activé dans <code>out.flags()</code>), soit au début de la séquence (dans tous les autres cas).Enfin, envoie chaque caractère de la séquence résultante comme si l'on appelait <code>out.rdbuf()-&gt;sputn(seq, n)</code>, où <code>n=std::max(out.width(), seq.size())</code> et <code>out.width(0)</code> annulent les effets de <a href="setw.html"><code>std::setw</code></a>, le cas échéant.</p>
+<ol start="4">
+<li>Utilisé dans une expression <code>in &gt;&gt; quoted(s, delim, escape)</code>, où <code>in</code> est un flux d'entrée avec <code>char_type</code> égal à <code>CharT</code> et <code>traits_type</code> égal à <code>Traits</code>, extrait des caractères de <code>in</code>, en utilisant <a href="../basic_istream/operator_gtgt.html"><code>std::basic_istream::operator&gt;&gt;</code></a>, selon les règles suivantes :</li>
+</ol>
+<p>a) Si le premier caractère extrait n'est pas égal à <code>delim</code> (selon <code>traits_type::eq</code> du flux), alors on effectue simplement <code>in &gt;&gt; s</code>.</p>
+<p>b) Sinon (si le premier caractère est le délimiteur) :</p>
+<ol>
+<li>
+<p>Désactive le drapeau <code>skipws</code> du flux d'entrée.</p>
+</li>
+<li>
+<p>Vide la chaîne de destination en appelant <code>s.clear()</code>.</p>
+</li>
+<li>
+<p>Extrait des caractères de <code>in</code> et les ajoute à <code>s</code>, sauf que chaque fois qu'un caractère <code>escape</code> est extrait, il est ignoré et le caractère suivant est ajouté à <code>s</code>. L'extraction s'arrête lorsque <code>!in == true</code> ou lorsqu'un caractère <code>delim</code> non échappé est rencontré.</p>
+</li>
+<li>
+<p>Écarte le caractère <code>delim</code> final (non échappé).</p>
+</li>
+<li>
+<p>Restaure le drapeau <code>skipws</code> du flux d'entrée à sa valeur d'origine.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — la chaîne à insérer ou à extraire</li>
+<li><code>delim</code> — le caractère à utiliser comme délimiteur, par défaut <code>&quot;</code></li>
+<li><code>escape</code> — le caractère à utiliser comme caractère d'échappement, par défaut <code>\</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Renvoie un objet de type non spécifié tel que le comportement décrit se produise.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Lève <a href="../ios_base/failure.html"><code>std::ios_base::failure</code></a> si <code>operator&gt;&gt;</code> ou <code>operator&lt;&lt;</code> lève une exception.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_quoted_string_io"><code>__cpp_lib_quoted_string_io</code></a></td>
+<td><a href="../../compiler_support/14.html#cpp_lib_quoted_string_io_201304L"><code>201304L</code></a></td>
+<td><em>(C++14)</em></td>
+<td><code>std::quoted</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+
+void default_delimiter()
+{
+    const std::string in = &quot;std::quoted() quotes this string and embedded \&quot;quotes\&quot; too&quot;;
+    std::stringstream ss;
+    ss &lt;&lt; std::quoted(in);
+    std::string out;
+    ss &gt;&gt; std::quoted(out);
+
+    std::cout &lt;&lt; &quot;Default delimiter case:\n&quot;
+                 &quot;read in     [&quot; &lt;&lt; in &lt;&lt; &quot;]\n&quot;
+                 &quot;stored as   [&quot; &lt;&lt; ss.str() &lt;&lt; &quot;]\n&quot;
+                 &quot;written out [&quot; &lt;&lt; out &lt;&lt; &quot;]\n\n&quot;;
+}
+
+void custom_delimiter()
+{
+    const char delim{'$'};
+    const char escape{'%'};
+
+    const std::string in = &quot;std::quoted() quotes this string and embedded $quotes$ $too&quot;;
+    std::stringstream ss;
+    ss &lt;&lt; std::quoted(in, delim, escape);
+    std::string out;
+    ss &gt;&gt; std::quoted(out, delim, escape);
+
+    std::cout &lt;&lt; &quot;Custom delimiter case:\n&quot;
+                 &quot;read in     [&quot; &lt;&lt; in &lt;&lt; &quot;]\n&quot;
+                 &quot;stored as   [&quot; &lt;&lt; ss.str() &lt;&lt; &quot;]\n&quot;
+                 &quot;written out [&quot; &lt;&lt; out &lt;&lt; &quot;]\n\n&quot;;
+}
+
+int main()
+{
+    default_delimiter();
+    custom_delimiter();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Default delimiter case:
+read in     [std::quoted() quotes this string and embedded &quot;quotes&quot; too]
+stored as   [&quot;std::quoted() quotes this string and embedded \&quot;quotes\&quot; too&quot;]
+written out [std::quoted() quotes this string and embedded &quot;quotes&quot; too]
+
+Custom delimiter case:
+read in     [std::quoted() quotes this string and embedded $quotes$ $too]
+stored as   [$std::quoted() quotes this string and embedded %$quotes%$ %$too$]
+written out [std::quoted() quotes this string and embedded $quotes$ $too]
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../utility/format/format.html">format</a> (C++20)</strong> — stocke la représentation formatée des arguments dans une nouvelle chaîne <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

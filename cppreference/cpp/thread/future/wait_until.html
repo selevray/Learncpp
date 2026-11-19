@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::future&lt;T&gt;::wait_until — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/future.html">std::future</a></nav>
+<h1 id="std-future-t-wait_until"><code>std::future&lt;T&gt;::wait_until</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/future/wait_until">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class Clock, class Duration &gt;
+std::future_status wait_until( const std::chrono::time_point&lt;Clock,Duration&gt;&amp; timeout_time ) const;  // (depuis C++11)
+</code></pre>
+<p><code>wait_until</code> attend qu'un résultat devienne disponible. Il bloque jusqu'à ce que le <code>timeout_time</code> spécifié soit atteint ou que le résultat devienne disponible, selon l'éventualité la première survenue. La valeur de retour indique la raison pour laquelle <code>wait_until</code> a retourné.</p>
+<p>Si le futur est le résultat d'un appel à <a href="../async.html"><code>async</code></a> qui utilisait une évaluation paresseuse, cette fonction retourne immédiatement sans attendre.</p>
+<p>Le comportement est indéfini si <a href="valid.html"><code>valid()</code></a> est <code>false</code> avant l'appel de cette fonction, ou si <code>Clock</code> ne satisfait pas aux exigences <a href="../../named_req/Clock.html"><em>Clock</em></a>. Le programme est mal formé si <code>std::chrono::is_clock_v&lt;Clock&gt;</code> est <code>false</code>. <em>(depuis C++20)</em></p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>timeout_time</code> — point temporel maximal jusqu'auquel bloquer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><strong>Constante Explication</strong></p>
+<ul>
+<li><strong><a href="../future_status.html"><code>future_status::deferred</code></a></strong> — L'état partagé contient une fonction différée utilisant l'évaluation paresseuse, donc le résultat ne sera calculé que lorsqu'il sera explicitement demandé</li>
+<li><strong><a href="../future_status.html"><code>future_status::ready</code></a></strong> — Le résultat est prêt</li>
+<li><strong><a href="../future_status.html"><code>future_status::timeout</code></a></strong> — Le délai d'attente a expiré</li>
+</ul>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute exception levée par clock, time_point ou duration pendant l'exécution (les horloges, points temporels et durées fournis par la bibliothèque standard ne lèvent jamais d'exception).</p>
+<h2 id="Notes">Notes</h2>
+<p>Les implémentations sont encouragées à détecter le cas où <code>valid() == false</code> avant l'appel, et à lever une <a href="../future_error.html"><code>std::future_error</code></a> avec une condition d'erreur égale à <a href="../future_errc.html"><code>future_errc::no_state</code></a>.</p>
+<p>La norme recommande d'utiliser l'horloge liée à <code>timeout_time</code> pour mesurer le temps ; cette horloge n'est pas tenue d'être monotone. Aucune garantie n'est donnée quant au comportement de cette fonction si l'horloge est ajustée de manière discontinue, mais les implémentations existantes convertissent <code>timeout_time</code> de <code>Clock</code> vers <a href="../../chrono/system_clock.html"><code>std::chrono::system_clock</code></a> et délèguent à POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_cond_timedwait.html"><code>pthread_cond_timedwait</code></a> afin que l'attente tienne compte des ajustements de l'horloge système, mais pas de ceux de <code>Clock</code> fournie par l'utilisateur. Dans tous les cas, la fonction peut aussi attendre plus longtemps que jusqu'à <code>timeout_time</code>, en raison de délais d'ordonnancement ou de contention sur les ressources.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+int main()
+{
+    std::chrono::system_clock::time_point two_seconds_passed
+        = std::chrono::system_clock::now() + std::chrono::seconds(2);
+
+    // Créer un futur qui prend 1 seconde pour se terminer
+    std::promise&lt;int&gt; p1;
+    std::future&lt;int&gt; f_completes = p1.get_future();
+    std::thread([](std::promise&lt;int&gt; p1)
+                {
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    p1.set_value_at_thread_exit(9);
+                },
+                std::move(p1)
+    ).detach();
+
+    // Créer un futur qui prend 5 secondes pour se terminer
+    std::promise&lt;int&gt; p2;
+    std::future&lt;int&gt; f_times_out = p2.get_future();
+    std::thread([](std::promise&lt;int&gt; p2)
+                {
+                    std::this_thread::sleep_for(std::chrono::seconds(5));
+                    p2.set_value_at_thread_exit(8);
+                },
+                std::move(p2)
+    ).detach();
+
+    std::cout &lt;&lt; &quot;Waiting for 2 seconds...&quot; &lt;&lt; std::endl;
+
+    if (std::future_status::ready == f_completes.wait_until(two_seconds_passed))
+        std::cout &lt;&lt; &quot;f_completes: &quot; &lt;&lt; f_completes.get() &lt;&lt; &quot;\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;f_completes did not complete!\n&quot;;
+
+    if (std::future_status::ready == f_times_out.wait_until(two_seconds_passed))
+        std::cout &lt;&lt; &quot;f_times_out: &quot; &lt;&lt; f_times_out.get() &lt;&lt; &quot;\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;f_times_out did not complete!\n&quot;;
+
+    std::cout &lt;&lt; &quot;Done!\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Waiting for 2 seconds...
+f_completes: 9
+f_times_out did not complete!
+Done!
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="wait.html">wait</a></strong> — attend que le résultat devienne disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="wait_for.html">wait_for</a></strong> — attend le résultat, retourne s'il n'est pas disponible pendant la durée de temporisation spécifiée <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

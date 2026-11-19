@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::span&lt;T,Extent&gt;::operator= — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/span.html">std::span</a></nav>
+<h1 id="std-span-t-extent-operator"><code>std::span&lt;T,Extent&gt;::operator=</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/span/operator=">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">constexpr span&amp; operator=( const span&amp; other ) noexcept = default;  // (depuis C++20)
+</code></pre>
+<p>Affecte <code>other</code> à <code>*this</code>. Cet opérateur d'affectation défini par défaut effectue une copie superficielle du pointeur de données et de la taille, c'est-à-dire qu'après un appel à cette fonction, <code>data() == other.data()</code> et <code>size() == other.size()</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — autre span à partir duquel copier</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;span&gt;
+#include &lt;string_view&gt;
+
+void print(std::string_view info = &quot;&quot;, std::span&lt;const int&gt; span = {},
+           std::size_t extent = 0, std::size_t size_of = 0)
+{
+    if (span.empty())
+    {
+        std::cout &lt;&lt; info &lt;&lt; '\n';
+        return;
+    }
+
+    std::cout &lt;&lt; info &lt;&lt; '[' &lt;&lt; span.size() &lt;&lt; &quot;] {&quot;;
+    std::ranges::for_each(span, [](const int x) { std::cout &lt;&lt; ' ' &lt;&lt; x; });
+    std::cout &lt;&lt; &quot; }&quot;;
+
+    if (extent)
+    {
+        std::cout &lt;&lt; &quot; extent = &quot;;
+        if (extent == std::dynamic_extent)
+            std::cout &lt;&lt; &quot;dynamic&quot;;
+        else
+            std::cout &lt;&lt; extent;
+    }
+
+    if (size_of)
+        std::cout &lt;&lt; &quot;, sizeof = &quot; &lt;&lt; size_of;
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::array&lt;int,6&gt; a1;
+    std::array&lt;int,6&gt; a2;
+    a1.fill(3);
+    a2.fill(4);
+
+    auto s1 = std::span(a1);
+    auto s2 = std::span(a2);
+    print(&quot;s1&quot;, s1, s1.extent, sizeof(s1));
+    print(&quot;s2&quot;, s2, s2.extent, sizeof(s2));
+
+    // Vérifie que l'affectation effectue une copie superficielle.
+    s1 = s2;
+    (s1.data() == s2.data() &amp;&amp; s1.size() == s2.size())
+        ? print(&quot;s1 = s2; is a shallow copy!&quot;)
+        : print(&quot;s1 = s2; is a deep copy!&quot;);
+    print(&quot;s1&quot;, s1);
+
+    print(&quot;Fill s1 with 5:&quot;);
+    std::ranges::fill(s1, 5);
+    // s2 est aussi « mis à jour » puisque s1 et s2 pointent vers les mêmes données
+    assert(std::ranges::equal(s1, s2));
+    print(&quot;s1&quot;, s1);
+    print(&quot;s2&quot;, s2);
+    print();
+
+    int a3[]{1, 2, 3, 4};
+    int a4[]{2, 3, 4, 5};
+    int a5[]{3, 4, 5};
+
+    std::span&lt;int, std::dynamic_extent&gt; dynamic_1{a3};
+    std::span&lt;int, std::dynamic_extent&gt; dynamic_2{a4, 3};
+    std::span&lt;int, 4&gt; static_1{a3};
+    std::span&lt;int, 4&gt; static_2{a4};
+    std::span&lt;int, 3&gt; static_3{a5};
+
+    print(&quot;dynamic_1&quot;, dynamic_1, dynamic_1.extent, sizeof(dynamic_1));
+    print(&quot;dynamic_2&quot;, dynamic_2, dynamic_2.extent, sizeof(dynamic_2));
+    print(&quot;static_1&quot;, static_1, static_1.extent, sizeof(static_1));
+    print(&quot;static_2&quot;, static_2, static_2.extent, sizeof(static_2));
+    print(&quot;static_3&quot;, static_3, static_3.extent, sizeof(static_3));
+
+    dynamic_1 = dynamic_2; // OK
+    dynamic_1 = static_1;  // OK
+//  static_1 = dynamic_1;  // ERREUR : no match for ‘operator=’
+    static_1 = static_2;   // OK : même extent = 4
+//  static_1 = static_3;   // ERROR : extents différents : 4 et 3
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">s1[6] { 3 3 3 3 3 3 } extent = 6, sizeof = 8
+s2[6] { 4 4 4 4 4 4 } extent = 6, sizeof = 8
+s1 = s2; is a shallow copy!
+s1[6] { 4 4 4 4 4 4 }
+Fill s1 with 5:
+s1[6] { 5 5 5 5 5 5 }
+s2[6] { 5 5 5 5 5 5 }
+
+dynamic_1[4] { 1 2 3 4 } extent = dynamic, sizeof = 16
+dynamic_2[3] { 2 3 4 } extent = dynamic, sizeof = 16
+static_1[4] { 1 2 3 4 } extent = 4, sizeof = 8
+static_2[4] { 2 3 4 5 } extent = 4, sizeof = 8
+static_3[3] { 3 4 5 } extent = 3, sizeof = 8
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="span.html">(constructeur)</a></strong> — construit le <code>span</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="data.html">data</a></strong> — accès direct au stockage contigu sous-jacent <em>(fonction membre publique)</em></li>
+<li><strong><a href="size.html">size</a></strong> — renvoie le nombre d'éléments <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

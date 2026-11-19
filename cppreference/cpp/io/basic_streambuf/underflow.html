@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_streambuf&lt;CharT,Traits&gt;::underflow — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_streambuf.html">std::basic_streambuf</a></nav>
+<h1 id="std-basic_streambuf-chart-traits-underflow"><code>std::basic_streambuf&lt;CharT,Traits&gt;::underflow</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_streambuf/underflow">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">protected:
+virtual int_type underflow();
+</code></pre>
+<p>Garantit qu'au moins un caractère est disponible dans la zone d'entrée en mettant à jour les pointeurs de la zone d'entrée (si nécessaire) et en lisant davantage de données depuis la séquence d'entrée (si applicable). Renvoie la valeur de ce caractère (convertie en <code>int_type</code> avec <code>Traits::to_int_type(c)</code>) en cas de succès, ou <code>Traits::eof()</code> en cas d'échec.</p>
+<p>La fonction peut mettre à jour les pointeurs <code>gptr</code>, <code>egptr</code> et <code>eback</code> pour définir l'emplacement des données nouvellement chargées (le cas échéant). En cas d'échec, la fonction garantit que soit <code>gptr() == nullptr</code>, soit <code>gptr() == egptr</code>.</p>
+<p>La version de la classe de base de la fonction ne fait rien. Les classes dérivées peuvent redéfinir cette fonction afin de permettre des mises à jour de la zone de lecture en cas d'épuisement.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur du caractère pointé par le <em>pointeur de lecture</em> après l'appel en cas de succès, ou <code>Traits::eof()</code> sinon.</p>
+<p>La version de la classe de base de la fonction renvoie <code>traits::eof()</code>.</p>
+<h2 id="Note">Note</h2>
+<p>Les fonctions publiques de <a href="../basic_streambuf.html"><code>std::streambuf</code></a> n'appellent cette fonction que si <code>gptr() == nullptr</code> ou <code>gptr() &gt;= egptr()</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+
+class null_filter_buf : public std::streambuf
+{
+    std::streambuf* src;
+    char ch; // tampon d'un seul octet
+protected:
+    int underflow()
+    {
+        traits_type::int_type i;
+        while ((i = src-&gt;sbumpc()) == '\0')
+            ; // ignorer les zéros
+        if (!traits_type::eq_int_type(i, traits_type::eof()))
+        {
+            ch = traits_type::to_char_type(i);
+            setg(&amp;ch, &amp;ch, &amp;ch+1); // rendre une position de lecture disponible
+        }
+        return i;
+    }
+public:
+    null_filter_buf(std::streambuf* buf) : src(buf)
+    {
+        setg(&amp;ch, &amp;ch + 1, &amp;ch + 1); // le tampon est initialement plein
+    }
+};
+
+void filtered_read(std::istream&amp; in)
+{
+    std::streambuf* orig = in.rdbuf();
+    null_filter_buf buf(orig);
+    in.rdbuf(&amp;buf);
+    for (char c; in.get(c);)
+        std::cout &lt;&lt; c;
+    in.rdbuf(orig);
+}
+
+int main()
+{
+    char a[] = &quot;This i\0s \0an e\0\0\0xample&quot;;
+    std::istringstream in(std::string(std::begin(a), std::end(a)));
+    filtered_read(in);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">This is an example
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="uflow.html">uflow</a> [virtuelle]</strong> — lit des caractères depuis la séquence d'entrée associée vers la zone de lecture et avance le pointeur suivant <em>(fonction membre virtuelle protégée)</em></li>
+<li><strong><a href="overflow.html">overflow</a> [virtuelle]</strong> — écrit des caractères dans la séquence de sortie associée à partir de la zone de mise <em>(fonction membre protégée virtuelle)</em></li>
+<li><strong><a href="../basic_filebuf/underflow.html">underflow</a> [virtuelle]</strong> — lit depuis le fichier associé <em>(fonction membre protégée virtuelle de <code>std::basic_filebuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../basic_stringbuf/underflow.html">underflow</a> [virtuelle]</strong> — renvoie le caractère suivant disponible dans la séquence d'entrée <em>(fonction membre protégée virtuelle de <code>std::basic_stringbuf&lt;CharT,Traits,Allocator&gt;</code>)</em></li>
+<li><strong><a href="../strstreambuf/underflow.html">underflow</a> [virtuelle]</strong> — lit un caractère de la séquence d'entrée sans avancer le pointeur next <em>(fonction membre protégée virtuelle de <code>std::strstreambuf</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

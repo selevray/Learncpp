@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de liaison structurée (depuis C++17) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-de-liaison-structurée-depuis-c-17">Déclaration de liaison structurée (depuis C++17)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/structured_binding">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Lie les noms spécifiés aux sous-objets ou éléments de l'initialiseur.</p>
+<p>Comme une référence, une liaison structurée est un alias d'un objet existant. Contrairement à une référence, une liaison structurée n'a pas besoin d'être de type référence.</p>
+<p>|
+| |
+| <code>attr</code> ﻿*(facultatif)* <code>decl-specifier-seq</code> <code>ref-qualifier</code> ﻿*(facultatif)* <code>[</code> <code>sb-identifier-list</code> <code>]</code> <code>initializer</code> ﻿<code>;</code> | | |
+|</p>
+<ul>
+<li>
+<p><code>attr</code> — suite de zéro ou plusieurs <a href="attributes.html">attributs</a></p>
+</li>
+<li>
+<p><code>decl-specifier-seq</code> — suite des spécificateurs suivants (suivant les règles de la <a href="declarations.html#Simple_declaration">déclaration simple</a>) :</p>
+<blockquote>
+<ul>
+<li><a href="constexpr.html"><code>constexpr</code></a></li>
+<li><a href="constinit.html"><code>constinit</code></a></li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<ul>
+<li><a href="../keywords/static.html"><code>static</code></a></li>
+<li><a href="../keyword/thread_local.html"><code>thread_local</code></a></li>
+<li><a href="../keyword/const.html"><code>const</code></a></li>
+<li><a href="../keyword/volatile.html"><code>volatile</code></a> (obsolète en C++20)</li>
+<li><a href="auto.html"><code>auto</code></a></li>
+</ul>
+</li>
+<li>
+<p><code>ref-qualifier</code> — soit <code>&amp;</code> soit <code>&amp;&amp;</code></p>
+</li>
+<li>
+<p><code>sb-identifier-list</code> — liste d'identificateurs séparés par des virgules introduits par cette déclaration, chaque identificateur peut être suivi d'un <a href="attributes.html">spécificateur de séquence d'attributs</a> <em>(depuis C++26)</em></p>
+</li>
+<li>
+<p><code>initializer</code> — un initialiseur (voir ci-dessous)</p>
+</li>
+</ul>
+<p><code>initializer</code> peut être l'un des suivants :</p>
+<p>|
+| |
+| <code>=</code> <code>expression</code> | (1) | |
+|
+| <code>{</code> <code>expression</code> } | (2) | |
+|
+| <code>(</code> <code>expression</code> <code>)</code> | (3) | |
+|</p>
+<ul>
+<li><code>expression</code> — toute expression (sauf les <a href="operator_other.html#Built-in_comma_operator">expressions à virgule</a> non parenthésées)</li>
+</ul>
+<p>Une déclaration de liaison structurée introduit tous les identificateurs de <code>sb-identifier-list</code> comme noms dans la portée englobante et les lie aux sous-objets ou éléments de l'objet désigné par <code>expression</code>. Les liaisons ainsi introduites sont appelées <em>liaisons structurées</em>.</p>
+<blockquote>
+<p>L'un des identificateurs de <code>sb-identifier-list</code> peut être précédé d'une ellipse. Un tel identificateur introduit un <em>pack de liaison structurée</em>.</p>
+<p>L'identificateur doit déclarer une <a href="templates.html#Templated_entity">entité templatisée</a>.</p>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Une liaison structurée est un identificateur dans <code>sb-identifier-list</code> ﻿qui n'est pas précédé d'une ellipse, ou un élément d'un pack de liaison structurée introduit dans la même liste d'identificateurs <em>(depuis C++26)</em>.</p>
+<h2 id="Binding_process">Processus de liaison</h2>
+<p>Une déclaration de liaison structurée introduit d'abord une variable au nom unique (ici notée <code>e</code>) pour contenir la valeur de l'initialiseur, comme suit :</p>
+<ul>
+<li>
+<p>Si <code>expression</code> a un type tableau <em>cv1</em> <code>A</code> et qu'aucun <code>ref-qualifier</code> n'est présent, définir <code>e</code> comme <code>attr ﻿(optional) specifiers A e;</code>, où <code>specifiers</code> est une suite des spécificateurs de <code>decl-specifier-seq</code> à l'exclusion de <code>auto</code>. Puis chaque élément de <code>e</code> est initialisé à partir de l'élément correspondant de <code>expression</code> selon la forme de <code>initializer</code> :</p>
+<ul>
+<li>Pour la syntaxe d'initialiseur <code>(1)</code>, les éléments sont <a href="copy_initialization.html">initialisés par copie</a>.</li>
+<li>Pour les syntaxes d'initialiseur <code>(2,3)</code>, les éléments sont <a href="direct_initialization.html">initialisés directement</a>.</li>
+</ul>
+</li>
+<li>
+<p>Sinon, définir <code>e</code> comme <code>attr ﻿(optional) decl-specifier-seq ref-qualifier ﻿(optional) e initializer ﻿;</code>.</p>
+</li>
+</ul>
+<p>On utilise <code>E</code> pour désigner le type de l'expression identificateur <code>e</code> (c.-à-d. <code>E</code> équivaut à <code>std::remove_reference_t&lt;decltype((e))&gt;</code>).</p>
+<p>La <em>taille de liaison structurée</em> de <code>E</code> est le nombre de liaisons structurées à introduire par la déclaration de liaison structurée.</p>
+<blockquote>
+<p>Le nombre d'identificateurs dans <code>sb-identifier-list</code> doit être égal à la taille de liaison structurée de <code>E</code>.</p>
+<p><em>(jusqu'à C++26)</em></p>
+</blockquote>
+<blockquote>
+<p>Étant donné le nombre d'identificateurs dans <code>sb-identifier-list</code> noté <code>N</code> et la taille de liaison structurée de <code>E</code> notée <code>S</code> :</p>
+<ul>
+<li>S'il n'y a pas de pack de liaison structurée, <code>N</code> doit être égal à <code>S</code>.</li>
+<li>Sinon, le nombre d'éléments hors pack (c.-à-d. <code>N - 1</code>) doit être inférieur ou égal à <code>S</code>, et le nombre d'éléments du pack de liaison structurée est <code>S - N + 1</code> (qui peut être nul).</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<pre><code class="language-cpp">struct C { int x, y, z; };
+
+template&lt;class T&gt;
+void now_i_know_my()
+{
+    auto [a, b, c] = C(); // OK : a, b, c désignent respectivement x, y, z
+    auto [d, ...e] = C(); // OK : d désigne x ; ...e désigne y et z
+    auto [...f, g] = C(); // OK : ...f désigne x et y ; g désigne z
+    auto [h, i, j, ...k] = C();    // OK : le paquet k est vide
+    auto [l, m, n, o, ...p] = C(); // error: la taille de liaison structurée est trop petite
+}
+</code></pre>
+<p>Une déclaration de liaison structurée effectue la liaison de l'une de trois manières possibles, selon <code>E</code> :</p>
+<ul>
+<li>Cas 1 : si <code>E</code> est un type tableau, alors les noms sont liés aux éléments du tableau.</li>
+<li>Cas 2 : si <code>E</code> est un type classe non union et que <code>std::tuple_size&lt;E&gt;</code> est un type complet ayant un membre nommé <code>value</code> (quels que soient le type ou l'accessibilité de ce membre), alors le protocole de liaison « de type tuple » est utilisé.</li>
+<li>Cas 3 : si <code>E</code> est un type classe non union mais que <code>std::tuple_size&lt;E&gt;</code> n'est pas un type complet, alors les noms sont liés aux membres de données accessibles de <code>E</code>.</li>
+</ul>
+<p>Chacun des trois cas est décrit plus en détail ci-dessous.</p>
+<p>Chaque liaison structurée a un <em>type référencé</em>, défini dans la description ci-dessous. Ce type est le type renvoyé par <a href="decltype.html"><code>decltype</code></a> appliqué à une liaison structurée non parenthésée.</p>
+<h3 id="Case_1:_binding_an_array">Cas 1 : liaison d'un tableau</h3>
+<p>Chaque liaison structurée dans <code>sb-identifier-list</code> devient le nom d'une lvalue qui désigne l'élément correspondant du tableau. La taille de liaison structurée de <code>E</code> est égale au nombre d'éléments du tableau.</p>
+<p>Le <em>type référencé</em> de chaque liaison structurée est le type des éléments du tableau. Notez que si le type de tableau <code>E</code> est qualifié cv, son type d'élément l'est aussi.</p>
+<pre><code class="language-cpp">int a[2] = {1, 2};
+
+auto [x, y] = a;    // crée e[2], copie a dans e,
+                    // puis x désigne e[0], y désigne e[1]
+auto&amp; [xr, yr] = a; // xr désigne a[0], yr désigne a[1]
+</code></pre>
+<h3 id="Case_2:_binding_a_type_implementing_the_tuple_operations">Cas 2 : liaison d'un type implémentant les opérations de type tuple</h3>
+<p>L'expression <code>std::tuple_size&lt;E&gt;::value</code> doit être une <a href="constant_expression.html#Integral_constant_expression">expression constante entière</a> bien formée, et la taille de liaison structurée de <code>E</code> est égale à <code>std::tuple_size&lt;E&gt;::value</code>.</p>
+<p>Pour chaque liaison structurée, une variable dont le type est « référence vers <code>std::tuple_element&lt;I, E&gt;::type</code> » est introduite : référence lvalue si son initialiseur correspondant est une lvalue, référence rvalue sinon. L'initialiseur de la <code>I</code>e variable est</p>
+<ul>
+<li><code>e.get&lt;I&gt;()</code>, si la recherche de l'identificateur <code>get</code> dans la portée de <code>E</code> par recherche d'accès membre de classe trouve au moins une déclaration qui est un modèle de fonction dont le premier paramètre de modèle est un paramètre non typé</li>
+<li>Sinon, <code>get&lt;I&gt;(e)</code>, où <code>get</code> est recherché uniquement par <a href="adl.html">recherche dépendante des arguments</a>, en ignorant la recherche non ADL.</li>
+</ul>
+<p>Dans ces expressions d'initialisation, <code>e</code> est une lvalue si le type de l'entité <code>e</code> est une référence lvalue (cela ne se produit que si <code>ref-qualifier</code> est <code>&amp;</code> ou si c'est <code>&amp;&amp;</code> et que l'expression d'initialisation est une lvalue), et une xvalue sinon (ceci effectue en pratique une sorte de transmission parfaite), <code>I</code> est une prvalue <a href="../types/size_t.html"><code>std::size_t</code></a>, et <code>&lt;I&gt;</code> est toujours interprété comme une liste de paramètres de modèle.</p>
+<p>La variable a la même <a href="storage_duration.html">durée de stockage</a> que <code>e</code>.</p>
+<p>La liaison structurée devient alors le nom d'une lvalue qui désigne l'objet lié à ladite variable.</p>
+<p>Le <em>type référencé</em> de la <code>I</code>e liaison structurée est <code>std::tuple_element&lt;I, E&gt;::type</code>.</p>
+<pre><code class="language-cpp">float x{};
+char  y{};
+int   z{};
+
+std::tuple&lt;float&amp;, char&amp;&amp;, int&gt; tpl(x, std::move(y), z);
+const auto&amp; [a, b, c] = tpl;
+// using Tpl = const std::tuple&lt;float&amp;, char&amp;&amp;, int&gt;;
+// a désigne une liaison structurée qui fait référence à x (initialisée à partir de get&lt;0&gt;(tpl))
+// decltype(a) est std::tuple_element&lt;0, Tpl&gt;::type, soit float&amp;
+// b désigne une liaison structurée qui fait référence à y (initialisée à partir de get&lt;1&gt;(tpl))
+// decltype(b) est std::tuple_element&lt;1, Tpl&gt;::type, soit char&amp;&amp;
+// c désigne une liaison structurée qui fait référence au troisième composant de tpl, get&lt;2&gt;(tpl)
+// decltype(c) est std::tuple_element&lt;2, Tpl&gt;::type, soit const int
+</code></pre>
+<h3 id="Case_3:_binding_to_data_members">Cas 3 : liaison aux membres de données</h3>
+<p>Chaque membre de données non statique de <code>E</code> doit être un membre direct de <code>E</code> ou de la même classe de base que <code>E</code>, et doit être bien formé dans le contexte de la liaison structurée lorsqu'il est nommé comme <code>e.name</code>. <code>E</code> ne peut pas avoir de membre union anonyme. La taille de liaison structurée de <code>E</code> est égale au nombre de membres de données non statiques.</p>
+<p>Chaque liaison structurée dans <code>sb-identifier-list</code> devient le nom d'une lvalue qui désigne le membre suivant de <code>e</code> dans l'ordre de déclaration (les champs de bits sont pris en charge) ; le type de la lvalue est celui de <code>e.mI</code>, où <code>mI</code> désigne le <code>I</code>e membre.</p>
+<p>Le <em>type référencé</em> de la <code>I</code>e liaison structurée est le type de <code>e.mI</code> s'il ne s'agit pas d'un type référence, ou le type déclaré de <code>mI</code> sinon.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct S
+{
+    mutable int x1 : 2;
+    volatile double y1;
+};
+
+S f() { return S{1, 2.3}; }
+
+int main()
+{
+    const auto [x, y] = f(); // x est une lvalue int identifiant le champ de bits de 2 bits
+                             // y est une lvalue const volatile double
+    std::cout &lt;&lt; x &lt;&lt; ' ' &lt;&lt; y &lt;&lt; '\n';  // 1 2.3
+    x = -2;   // OK
+//  y = -2.;  // Error: y est qualifié const
+    std::cout &lt;&lt; x &lt;&lt; ' ' &lt;&lt; y &lt;&lt; '\n';  // -2 2.3
+}
+</code></pre>
+<h3 id="Initialization_order">Ordre d'initialisation</h3>
+<p>Soit <code>valI</code> l'objet ou la référence nommé par la <code>I</code>e liaison structurée dans <code>sb-identifier-list</code> ﻿:</p>
+<ul>
+<li>L'initialisation de <code>e</code> est <a href="eval_order.html">séquencée avant</a> l'initialisation de tout <code>valI</code>.</li>
+<li>L'initialisation de chaque <code>valI</code> est séquencée avant l'initialisation de tout <code>valJ</code> où <code>I</code> est inférieur à <code>J</code>.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<blockquote>
+<p>Les liaisons structurées ne peuvent pas être <a href="constraints.html">contraintes</a> :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+concept C = true;
+
+C auto [x, y] = std::pair{1, 2}; // error: contrainte
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La recherche du membre <code>get</code> ignore l'accessibilité comme d'habitude et ignore aussi le type exact du paramètre de modèle non typé. Un membre <code>template&lt;char*&gt; void get();</code> privé provoquera l'utilisation de l'interprétation de membre, même si elle est mal formée.</p>
+<p>La partie de la déclaration qui précède <code>[</code> s'applique à la variable cachée <code>e</code>, et non aux liaisons structurées introduites :</p>
+<pre><code class="language-cpp">int a = 1, b = 2;
+const auto&amp; [x, y] = std::tie(a, b); // x et y sont de type int&amp;
+auto [z, w] = std::tie(a, b);        // z et w sont toujours de type int&amp;
+assert(&amp;z == &amp;a);                    // passes
+</code></pre>
+<p>L'interprétation de type tuple est toujours utilisée si <code>std::tuple_size&lt;E&gt;</code> est un type complet possédant un membre nommé <code>value</code>, même si cela devait rendre le programme mal formé :</p>
+<pre><code class="language-cpp">struct A { int x; };
+
+namespace std
+{
+    template&lt;&gt;
+    struct tuple_size&lt;::A&gt; { void value(); };
+}
+
+auto [x] = A{}; // error ; l'interprétation « membre de données » n'est pas prise en compte.
+</code></pre>
+<p>Les règles habituelles de liaison de référence à des temporaires (y compris l'extension de durée de vie) s'appliquent si un <code>ref-qualifier</code> est présent et que <code>expression</code> est une prvalue. Dans ces cas, la variable cachée <code>e</code> est une référence qui se lie à la variable temporaire <a href="implicit_cast.html#Temporary_materialization">matérialisée</a> à partir de l'expression prvalue, prolongeant sa durée de vie. Comme d'habitude, la liaison échouera si <code>e</code> est une référence lvalue non const :</p>
+<pre><code class="language-cpp">int a = 1;
+
+const auto&amp; [x] = std::make_tuple(a); // OK, pas de référence pendante
+auto&amp;       [y] = std::make_tuple(a); // erreur, impossible de lier auto&amp; à un std::tuple prvalue
+auto&amp;&amp;      [z] = std::make_tuple(a); // aussi OK
+</code></pre>
+<p><code>decltype(x)</code>, où <code>x</code> désigne une liaison structurée, nomme le <em>type référencé</em> de cette liaison structurée. Dans le cas de type tuple, il s'agit du type renvoyé par <code>std::tuple_element</code>, qui peut ne pas être une référence alors qu'une référence cachée est toujours introduite dans ce cas. Cela émule effectivement le comportement d'une liaison à une struct dont les membres de données non statiques ont les types renvoyés par <code>std::tuple_element</code>, la nature de référence de la liaison elle-même n'étant qu'un détail d'implémentation.</p>
+<pre><code class="language-cpp">std::tuple&lt;int, int&amp;&gt; f();
+
+auto [x, y] = f();       // decltype(x) est int
+                         // decltype(y) est int&amp;
+
+const auto [z, w] = f(); // decltype(z) est const int
+                         // decltype(w) est int&amp;
+</code></pre>
+<blockquote>
+<p>Les liaisons structurées ne peuvent pas être capturées par des <a href="lambda.html">expressions lambda</a> :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+
+int main()
+{
+    struct S { int p{6}, q{7}; };
+    const auto&amp; [b, d] = S{};
+    auto l = [b, d] { return b * d; }; // valide depuis C++20
+    assert(l() == 42);
+}
+</code></pre>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Une taille de liaison structurée peut être <code>0</code> tant que <code>sb-identifier-list</code> contient exactement un identificateur qui ne peut introduire qu'un paquet de liaison structurée vide.</p>
+<pre><code class="language-cpp">auto return_empty() -&gt; std::tuple&lt;&gt;;
+
+template &lt;class&gt;
+void test_empty()
+{
+    auto [] = return_empty(); // error
+    auto [...args] = return_empty(); // OK, args est un pack vide
+    auto [one, ...rest] = return_empty(); // erreur, la taille de la liaison structurée est trop petite
+}
+</code></pre>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p><strong>Macro de test de fonctionnalité</strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_structured_bindings"><code>__cpp_structured_bindings</code></a> | <a href="../compiler_support/17.html#cpp_structured_bindings_201606L"><code>201606L</code></a> | <em>(C++17)</em> | Liaisons structurées</p>
+<p><a href="../compiler_support/26.html#cpp_structured_bindings_202403L"><code>202403L</code></a> | <em>(C++26)</em> | Liaisons structurées avec attributs</p>
+<p><a href="../compiler_support/26.html#cpp_structured_bindings_202411L"><code>202411L</code></a> | <em>(C++26)</em> | Les liaisons structurées peuvent introduire un paquet</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/auto.html"><code>auto</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;set&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::set&lt;std::string&gt; myset{&quot;hello&quot;};
+
+    for (int i{2}; i; --i)
+    {
+        if (auto [iter, success] = myset.insert(&quot;Hello&quot;); success)
+            std::cout &lt;&lt; &quot;Insert is successful. The value is &quot;
+                      &lt;&lt; std::quoted(*iter) &lt;&lt; &quot;.\n&quot;;
+        else
+            std::cout &lt;&lt; &quot;The value &quot; &lt;&lt; std::quoted(*iter)
+                      &lt;&lt; &quot; already exists in the set.\n&quot;;
+    }
+
+    struct BitFields
+    {
+        // C++20 : initialisation par défaut d'un membre pour les champs de bits
+        int b : 4 {1}, d : 4 {2}, p : 4 {3}, q : 4 {4};
+    };
+
+    {
+        const auto [b, d, p, q] = BitFields{};
+        std::cout &lt;&lt; b &lt;&lt; ' ' &lt;&lt; d &lt;&lt; ' ' &lt;&lt; p &lt;&lt; ' ' &lt;&lt; q &lt;&lt; '\n';
+    }
+
+    {
+        const auto [b, d, p, q] = []{ return BitFields{4, 3, 2, 1}; }();
+        std::cout &lt;&lt; b &lt;&lt; ' ' &lt;&lt; d &lt;&lt; ' ' &lt;&lt; p &lt;&lt; ' ' &lt;&lt; q &lt;&lt; '\n';
+    }
+
+    {
+        BitFields s;
+
+        auto&amp; [b, d, p, q] = s;
+        std::cout &lt;&lt; b &lt;&lt; ' ' &lt;&lt; d &lt;&lt; ' ' &lt;&lt; p &lt;&lt; ' ' &lt;&lt; q &lt;&lt; '\n';
+
+        b = 4, d = 3, p = 2, q = 1;
+        std::cout &lt;&lt; s.b &lt;&lt; ' ' &lt;&lt; s.d &lt;&lt; ' ' &lt;&lt; s.p &lt;&lt; ' ' &lt;&lt; s.q &lt;&lt; '\n';
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Insert is successful. The value is &quot;Hello&quot;.
+The value &quot;Hello&quot; already exists in the set.
+1 2 3 4
+4 3 2 1
+1 2 3 4
+4 3 2 1
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2285.html">CWG 2285</a></td>
+<td>C++17</td>
+<td><code>expression</code> pouvait désigner les noms de <code>identifier-list</code></td>
+<td>la déclaration est mal formée dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2312.html">CWG 2312</a></td>
+<td>C++17</td>
+<td>la signification de <code>mutable</code> était perdue dans le cas 3</td>
+<td>sa signification est conservée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2313.html">CWG 2313</a></td>
+<td>C++17</td>
+<td>dans le cas 2, les variables de liaison structurée pouvaient être redéclarées</td>
+<td>ne peuvent pas être redéclarées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2339.html">CWG 2339</a></td>
+<td>C++17</td>
+<td>dans le cas 2, la définition de <code>I</code> manquait</td>
+<td>définition ajoutée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2341.html">CWG 2341</a> (<a href="https://wg21.link/P1091R3">P1091R3</a>)</td>
+<td>C++17</td>
+<td>les liaisons structurées ne pouvaient pas être déclarées avec une durée de stockage statique</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2386.html">CWG 2386</a></td>
+<td>C++17</td>
+<td>le protocole de liaison « de type tuple » était utilisé chaque fois que <code>std::tuple_size&lt;E&gt;</code> est un type complet</td>
+<td>utilisé uniquement lorsque <code>std::tuple_size&lt;E&gt;</code> possède un membre <code>value</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2506.html">CWG 2506</a></td>
+<td>C++17</td>
+<td>si <code>expression</code> est d'un type tableau qualifié cv, la qualification cv était reportée sur <code>E</code></td>
+<td>supprime cette qualification cv</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2635.html">CWG 2635</a></td>
+<td>C++20</td>
+<td>les liaisons structurées pouvaient être contraintes</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2867.html">CWG 2867</a></td>
+<td>C++17</td>
+<td>l'ordre d'initialisation était peu clair</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0961R1">P0961R1</a></td>
+<td>C++17</td>
+<td>dans le cas 2, le membre <code>get</code> était utilisé si la recherche trouve un <code>get</code> de quelque nature que ce soit</td>
+<td>seulement si la recherche trouve un modèle de fonction avec un paramètre non typé</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0969R0">P0969R0</a></td>
+<td>C++17</td>
+<td>dans le cas 3, les membres devaient être publics</td>
+<td>seulement tenus d'être accessibles dans le contexte de la déclaration</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>9.6 Déclarations de liaisons structurées [dcl.struct.bind] (p : 228-229)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>9.6 Déclarations de liaisons structurées [dcl.struct.bind] (p : 219-220)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>11.5 Déclarations de liaisons structurées [dcl.struct.bind] (p : 219-220)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../utility/tuple/tie.html">tie</a> (C++11)</strong> — crée un <a href="../utility/tuple.html"><code>tuple</code></a> de références lvalue ou déconstruit un tuple en objets individuels <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

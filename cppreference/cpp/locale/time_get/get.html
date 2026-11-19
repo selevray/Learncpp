@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::time_get&lt;CharT,InputIt&gt;::get, std::time_get&lt;CharT,InputIt&gt;::do_get — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/time_get.html">std::time_get</a></nav>
+<h1 id="std-time_get-chart-inputit-get-std-time_get-chart-inputit-do_get"><code>std::time_get&lt;CharT,InputIt&gt;::get, std::time_get&lt;CharT,InputIt&gt;::do_get</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/time_get/get">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+iter_type get( iter_type beg, iter_type end, std::ios_base&amp; str,
+               std::ios_base::iostate&amp; err, std::tm* t,
+               const char_type* fmtbeg, const char_type* fmtend ) const;  // (1) (depuis C++11)
+
+protected:
+virtual iter_type do_get( iter_type beg, iter_type end, std::ios_base&amp; str,
+                          std::ios_base::iostate&amp; err, std::tm *t,
+                          char format, char modifier ) const;  // (2) (depuis C++11)
+</code></pre>
+<ol>
+<li>Analyse la date et l'heure à partir de la séquence de caractères d'entrée <code>[beg, end)</code> selon le format fourni dans la séquence de caractères <code>[fmtbeg, fmtend)</code>. Le format doit suivre le format décrit ci-dessous, bien que le traitement effectif de chaque spécificateur de format puisse être personnalisé en redéfinissant <code>do_get</code>. La fonction <code>get</code> effectue les opérations suivantes : d'abord, elle efface les bits d'erreur de <code>err</code> en exécutant <code>err = std::ios_base::goodbit</code>. Puis elle entre dans une boucle, qui se termine dès qu'une des conditions suivantes devient vraie (vérifiées dans cet ordre) :</li>
+</ol>
+<p>a) Tous les caractères ont été lus depuis la chaîne de format (<code>fmtbeg == fmtend</code>).</p>
+<p>b) Une erreur d'analyse s'est produite (<code>err != std::ios_base::goodbit</code>).</p>
+<p>c) Tous les caractères ont été lus depuis la séquence d'entrée (<code>beg == end</code>. Si cette condition termine la boucle, la fonction définit à la fois <code>eofbit</code> et <code>failbit</code> dans <code>err</code>.</p>
+<p>Dans le corps de la boucle, les étapes suivantes ont lieu :</p>
+<p>a) Si le caractère suivant de la chaîne de format est <code>'%'</code>, suivi d'un ou deux caractères formant un spécificateur de conversion <a href="../../io/manip/get_time.html"><code>std::get_time</code></a> valide (voir ci-dessous), ces caractères sont utilisés dans l'appel <code>do_get(beg, end, str, err, t, format, modifier)</code>, où <code>format</code> est le caractère de spécificateur de conversion principal et <code>modifier</code> est le modificateur facultatif (qui apparaît entre <code>%</code> et le caractère de format, s'il est présent). S'il n'y a pas de modificateur, la valeur <code>'\0'</code> est utilisée. Si la chaîne de format est ambiguë ou se termine trop tôt pour déterminer le spécificateur de conversion après <code>'%'</code>, <code>eofbit</code> est défini dans <code>err</code> et la boucle se termine. Si, après l'appel à <code>do_get</code>, aucun bit d'erreur n'est défini dans <code>err</code>, la fonction incrémente <code>fmtbeg</code> pour pointer juste après le spécificateur de conversion et continue la boucle.</p>
+<p>b) Si le caractère suivant est un espace, tel qu'indiqué par la locale fournie dans le flux <code>str</code> (c.-à-d. <code>std::isspace(*fmtbeg, str.getloc()) == true</code>), la fonction continue d'incrémenter <code>fmtbeg</code> jusqu'à ce qu'il soit égal à <code>fmtend</code> ou pointe vers un caractère qui n'est pas un espace.</p>
+<p>c) Si le caractère suivant de la chaîne de format est équivalent au caractère suivant du flux d'entrée selon une comparaison insensible à la casse, la fonction avance les deux séquences d'un caractère <code>++fmtbeg, ++beg;</code> et continue la boucle. Sinon, elle définit <code>failbit</code> dans <code>err</code>.</p>
+<ol start="2">
+<li>Analyse un spécificateur de conversion à partir de la séquence d'entrée <code>[beg, end)</code> et met à jour la structure <a href="../../chrono/c/tm.html"><code>std::tm</code></a> pointée par <code>t</code> en conséquence.</li>
+</ol>
+<p>Tout d'abord, elle efface les bits d'erreur de <code>err</code> en exécutant <code>err = std::ios_base::goodbit</code>. Puis elle lit des caractères de la séquence d'entrée <code>[beg, end)</code> attendus par le spécificateur de format <a href="../time_get.html"><code>std::time_get</code></a> formé en combinant <code>'%'</code>, <code>modifier</code> (si ce n'est pas <code>'\0'</code>) et <code>format</code>. Si les caractères ne forment pas un spécificateur de conversion valide, elle définit <code>failbit</code> dans <code>err</code>. Si la fin du flux d'entrée est atteinte après la lecture d'un caractère, elle définit <code>eofbit</code> dans <code>err</code>. Si la chaîne d'entrée a été analysée avec succès, elle met à jour les champs correspondants de <code>*t</code>.Pour les spécificateurs de conversion complexes, tels que <code>'%x'</code> ou <code>'%c'</code>, ou les directives utilisant les modificateurs <code>'E'</code> et <code>'O'</code>, la fonction peut ne pas parvenir à déterminer certaines valeurs à stocker dans <code>*t</code>. Dans ce cas, elle définit <code>eofbit</code> dans <code>err</code> et laisse ces champs dans un état non spécifié.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>beg</code> — itérateur désignant le début de la séquence à analyser</li>
+<li><code>end</code> — itérateur de fin, pointant juste après la fin de la séquence à analyser</li>
+<li><code>str</code> — un objet flux que cette fonction utilise pour obtenir les facettes de locale lorsque nécessaire, par exemple <a href="../ctype.html"><code>std::ctype</code></a> pour ignorer les espaces ou <a href="../collate.html"><code>std::collate</code></a> pour comparer des chaînes</li>
+<li><code>err</code> — objet d'indicateurs d'erreur du flux, modifié par cette fonction pour signaler les erreurs</li>
+<li><code>t</code> — pointeur vers l'objet <a href="../../chrono/c/tm.html"><code>std::tm</code></a> qui contiendra le résultat de cet appel de fonction</li>
+<li><code>fmtbeg</code> — pointeur vers le premier caractère d'une séquence de <code>char_type</code> caractères spécifiant le format de conversion (voir ci-dessous)</li>
+<li><code>fmtend</code> — pointeur vers l'emplacement juste après le dernier caractère d'une séquence de <code>char_type</code> caractères spécifiant le format de conversion</li>
+<li><code>format</code> — le caractère qui désigne un spécificateur de conversion</li>
+<li><code>modifier</code> — le modificateur facultatif qui peut apparaître entre <code>%</code> et le spécificateur de conversion</li>
+</ul>
+<p>La chaîne de format est composée de zéro ou plusieurs spécificateurs de conversion, de caractères d'espacement et de caractères ordinaires (à l'exception de <code>%</code>). Chaque caractère ordinaire doit correspondre à un caractère du flux d'entrée selon une comparaison insensible à la casse. Chaque caractère d'espacement correspond à un espace arbitraire dans la chaîne d'entrée. Chaque spécification de conversion commence par <code>%</code>, suivi optionnellement de <code>E</code> ou <code>O</code> comme modificateur (ignoré si non pris en charge par la locale), suivi du caractère qui détermine le comportement du spécificateur. Les spécificateurs de format correspondent à la fonction POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/strptime.html"><code>strptime()</code></a> :</p>
+<p><strong>Conversion<br />
+spécificateur</strong> | <strong>Explication</strong> | <strong>Écrit dans les champs</strong></p>
+<p><strong><code>%</code></strong> | correspond à un <code>%</code> littéral. La spécification de conversion complète doit être <code>%%</code> | (aucune)</p>
+<p><strong><code>t</code></strong> | correspond à n'importe quel espace | (aucune)</p>
+<p><strong><code>n</code></strong> | correspond à n'importe quel espace | (aucune)</p>
+<p><strong>Année</strong></p>
+<p><strong><code>Y</code></strong> | analyse l'<strong>année</strong> complète sous forme de nombre décimal à 4 chiffres, les zéros initiaux sont autorisés mais non requis | <code>tm_year</code></p>
+<p><strong><code>EY</code></strong> | analyse l'<strong>année</strong> dans la représentation alternative, par exemple平成23年 (année Heisei 23), ce qui écrit 2011 dans tm_year en locale ja_JP | <code>tm_year</code></p>
+<p><strong><code>y</code></strong> | analyse les deux derniers chiffres de l'<strong>année</strong> comme nombre décimal. La plage <code>[69,99]</code> donne des valeurs de 1969 à 1999, la plage <code>[00,68]</code> donne 2000 à 2068 | <code>tm_year</code></p>
+<p><strong><code>Oy</code></strong> | analyse les deux derniers chiffres de l'<strong>année</strong> en utilisant le système numérique alternatif, par exemple 十一 est analysé comme 11 en locale ja_JP | <code>tm_year</code></p>
+<p><strong><code>Ey</code></strong> | analyse l'<strong>année</strong> comme décalage par rapport à la période du calendrier alternatif <code>%EC</code> de la locale | <code>tm_year</code></p>
+<p><strong><code>C</code></strong> | analyse les deux premiers chiffres de l'<strong>année</strong> comme nombre décimal (plage <code>[00,99]</code>) | <code>tm_year</code></p>
+<p><strong><code>EC</code></strong> | analyse le nom de l'année de base (période) dans la représentation alternative de la locale, par exemple 平成 (ère Heisei) en ja_JP | <code>tm_year</code></p>
+<p><strong>Mois</strong></p>
+<p><strong><code>b</code></strong> | analyse le nom du mois, complet ou abrégé, par exemple <code>Oct</code> | <code>tm_mon</code></p>
+<p><strong><code>h</code></strong> | synonyme de <code>b</code> | <code>tm_mon</code></p>
+<p><strong><code>B</code></strong> | synonyme de <code>b</code> | <code>tm_mon</code></p>
+<p><strong><code>m</code></strong> | analyse le <strong>mois</strong> comme nombre décimal (plage <code>[01,12]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_mon</code></p>
+<p><strong><code>Om</code></strong> | analyse le <strong>mois</strong> en utilisant le système numérique alternatif, par exemple 十二 est analysé comme 12 en locale ja_JP | <code>tm_mon</code></p>
+<p><strong>Semaine</strong></p>
+<p><strong><code>U</code></strong> | analyse la <strong>semaine de l'année</strong> comme nombre décimal (le dimanche est le premier jour de la semaine) (plage <code>[00,53]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_year</code>, <code>tm_wday</code>, <code>tm_yday</code></p>
+<p><strong><code>OU</code></strong> | analyse la <strong>semaine de l'année</strong>, comme par <code>%U</code>, en utilisant le système numérique alternatif, par exemple 五十二 est analysé comme 52 en locale ja_JP | <code>tm_year</code>, <code>tm_wday</code>, <code>tm_yday</code></p>
+<p><strong><code>W</code></strong> | analyse la <strong>semaine de l'année</strong> comme nombre décimal (le lundi est le premier jour de la semaine) (plage <code>[00,53]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_year</code>, <code>tm_wday</code>, <code>tm_yday</code></p>
+<p><strong><code>OW</code></strong> | analyse la <strong>semaine de l'année</strong>, comme par <code>%W</code>, en utilisant le système numérique alternatif, par exemple 五十二 est analysé comme 52 en locale ja_JP | <code>tm_year</code>, <code>tm_wday</code>, <code>tm_yday</code></p>
+<p><strong>Jour de l'année/du mois</strong></p>
+<p><strong><code>j</code></strong> | analyse le <strong>jour de l'année</strong> comme nombre décimal (plage <code>[001,366]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_yday</code></p>
+<p><strong><code>d</code></strong> | analyse le <strong>jour du mois</strong> comme nombre décimal (plage <code>[01,31]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_mday</code></p>
+<p><strong><code>Od</code></strong> | analyse le <strong>jour du mois</strong> en utilisant le système numérique alternatif, par exemple 二十七 est analysé comme 27 en locale ja_JP, les zéros initiaux sont autorisés mais non requis | <code>tm_mday</code></p>
+<p><strong><code>e</code></strong> | synonyme de <code>d</code> | <code>tm_mday</code></p>
+<p><strong><code>Oe</code></strong> | synonyme de <code>Od</code> | <code>tm_mday</code></p>
+<p><strong>Jour de la semaine</strong></p>
+<p><strong><code>a</code></strong> | analyse le nom du jour de la semaine, complet ou abrégé, par exemple <code>Fri</code> | <code>tm_wday</code></p>
+<p><strong><code>A</code></strong> | synonyme de <code>a</code> | <code>tm_wday</code></p>
+<p><strong><code>w</code></strong> | analyse le <strong>jour de la semaine</strong> comme nombre décimal, où le dimanche vaut <code>0</code> (plage <code>[0-6]</code>) | <code>tm_wday</code></p>
+<p><strong><code>Ow</code></strong> | analyse le <strong>jour de la semaine</strong> comme nombre décimal, où le dimanche vaut <code>0</code>, en utilisant le système numérique alternatif, par exemple 二 est analysé comme 2 en locale ja_JP | <code>tm_wday</code></p>
+<p><strong>Heure, minute, seconde</strong></p>
+<p><strong><code>H</code></strong> | analyse l'<strong>heure</strong> comme nombre décimal, horloge sur 24 heures (plage <code>[00-23]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_hour</code></p>
+<p><strong><code>OH</code></strong> | analyse l'<strong>heure</strong> de l'horloge sur 24 heures en utilisant le système numérique alternatif, par exemple 十八 est analysé comme 18 en locale ja_JP | <code>tm_hour</code></p>
+<p><strong><code>I</code></strong> | analyse l'<strong>heure</strong> comme nombre décimal, horloge sur 12 heures (plage <code>[01,12]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_hour</code></p>
+<p><strong><code>OI</code></strong> | analyse l'<strong>heure</strong> de l'horloge sur 12 heures en utilisant le système numérique alternatif, par exemple 六 se lit comme 06 en locale ja_JP | <code>tm_hour</code></p>
+<p><strong><code>M</code></strong> | analyse la <strong>minute</strong> comme nombre décimal (plage <code>[00,59]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_min</code></p>
+<p><strong><code>OM</code></strong> | analyse la <strong>minute</strong> en utilisant le système numérique alternatif, par exemple 二十五 est analysé comme 25 en locale ja_JP | <code>tm_min</code></p>
+<p><strong><code>S</code></strong> | analyse la <strong>seconde</strong> comme nombre décimal (plage <code>[00,60]</code>), les zéros initiaux sont autorisés mais non requis | <code>tm_sec</code></p>
+<p><strong><code>OS</code></strong> | analyse la <strong>seconde</strong> en utilisant le système numérique alternatif, par exemple 二十四 est analysé comme 24 en locale ja_JP | <code>tm_sec</code></p>
+<p><strong>Autre</strong></p>
+<p><strong><code>c</code></strong> | analyse le format standard de date et d'heure de la locale, par exemple <code>Sun Oct 17 04:41:13 2010</code> (dépend de la locale) | all</p>
+<p><strong><code>Ec</code></strong> | analyse le format alternatif de date et d'heure de la locale, par exemple en attendant 平成23年 (année Heisei 23) au lieu de 2011年 (année 2011) en locale ja_JP | all</p>
+<p><strong><code>x</code></strong> | analyse la représentation standard de la date de la locale | all</p>
+<p><strong><code>Ex</code></strong> | analyse la représentation alternative de la date de la locale, par exemple en attendant 平成23年 (année Heisei 23) au lieu de 2011年 (année 2011) en locale ja_JP | all</p>
+<p><strong><code>X</code></strong> | analyse la représentation standard de l'heure de la locale | all</p>
+<p><strong><code>EX</code></strong> | analyse la représentation alternative de l'heure de la locale | all</p>
+<p><strong><code>D</code></strong> | équivalent à <strong>&quot;%m / %d / %y &quot;</strong> | <code>tm_mon</code>, <code>tm_mday</code>, <code>tm_year</code></p>
+<p><strong><code>r</code></strong> | analyse l'heure standard sur horloge de 12 heures de la locale (en POSIX, <strong>&quot;%I : %M : %S %p&quot;</strong>) | <code>tm_hour</code>, <code>tm_min</code>, <code>tm_sec</code></p>
+<p><strong><code>R</code></strong> | équivalent à <strong>&quot;%H : %M&quot;</strong> | <code>tm_hour</code>, <code>tm_min</code></p>
+<p><strong><code>T</code></strong> | équivalent à <strong>&quot;%H : %M : %S&quot;</strong> | <code>tm_hour</code>, <code>tm_min</code>, <code>tm_sec</code></p>
+<p><strong><code>p</code></strong> | analyse l'équivalent de la locale pour <strong>a.m. ou p.m.</strong> | <code>tm_hour</code></p>
+<p>Remarque : <code>tm_isdst</code> n'est pas écrit et doit être défini explicitement pour être utilisé avec des fonctions telles que <code>mktime</code></p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Itérateur pointant juste après le dernier caractère de <code>[beg, end)</code> qui a été analysé avec succès.</p>
+<h2 id="Notes">Notes</h2>
+<p>La comparaison insensible à la casse des caractères qui ne sont ni des espaces ni <code>'%'</code> dans la chaîne de format utilise généralement, mais pas nécessairement, la facette <a href="../collate.html"><code>std::collate</code></a> de la locale fournie par <code>str</code>.</p>
+<p>En cas d'erreur d'analyse, de nombreuses implémentations de cette fonction laissent <code>*t</code> totalement intact.</p>
+<p>Il n'est pas spécifié si ces fonctions remettent à zéro les champs de <code>*t</code> qu'elles ne définissent pas directement : les programmes portables doivent initialiser chaque champ à zéro avant d'appeler <code>get()</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+#include &lt;sstream&gt;
+
+int main()
+{
+    std::istringstream ss(&quot;2026-März-12 23:45:56&quot;);
+    ss.imbue(std::locale(&quot;de_DE.utf8&quot;));
+
+    auto&amp; f = std::use_facet&lt;std::time_get&lt;char&gt;&gt;(ss.getloc());
+    std::tm t{};
+    std::string s = &quot;%Y-%b-%d %H:%M:%S&quot;;
+    std::ios_base::iostate err = std::ios_base::goodbit;
+    auto ret = f.get({ss}, {}, ss, err, &amp;t, &amp;s[0], &amp;s[0] + s.size());
+    ss.setstate(err);
+    std::istreambuf_iterator&lt;char&gt; last{};
+
+    if (ss)
+    {
+        std::cout &lt;&lt; &quot;Successfully parsed as &quot; &lt;&lt; std::put_time(&amp;t, &quot;%c&quot;) &lt;&lt; '\n';
+        if (ret != last)
+        {
+            std::cout &lt;&lt; &quot;Remaining content: &quot;;
+            std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+        }
+        else
+            std::cout &lt;&lt; &quot;The input was fully consumed.&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;Parse failed.\nUnparsed string: &quot;;
+        std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+    }
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Successfully parsed as Sun Mar 12 23:45:56 2026
+The input was fully consumed.
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../io/manip/get_time.html">get_time</a> (C++11)</strong> — analyse une valeur de date/heure au format spécifié <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

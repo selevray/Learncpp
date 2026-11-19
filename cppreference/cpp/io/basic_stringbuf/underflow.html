@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_stringbuf&lt;CharT,Traits,Allocator&gt;::underflow — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_stringbuf.html">std::basic_stringbuf</a></nav>
+<h1 id="std-basic_stringbuf-chart-traits-allocator-underflow"><code>std::basic_stringbuf&lt;CharT,Traits,Allocator&gt;::underflow</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_stringbuf/underflow">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">protected:
+virtual int_type underflow()
+</code></pre>
+<p>Lit le caractère suivant de la zone de lecture du tampon.</p>
+<p>Specifically:</p>
+<ol>
+<li>
+<p>Si la séquence d'entrée a une position de lecture disponible (<code>egptr() &gt; gptr()</code>), renvoie <code>Traits::to_int_type(*gptr())</code></p>
+</li>
+<li>
+<p>Sinon, si <code>pptr() &gt; egptr()</code> (des caractères ont été insérés dans le flux depuis la dernière fois que <a href="overflow.html"><code>overflow()</code></a> a changé <a href="../basic_streambuf/gptr.html"><code>egptr()</code></a>), étend la fin de la zone de lecture pour inclure les caractères insérés les plus récemment, en changeant <a href="../basic_streambuf/gptr.html"><code>egptr()</code></a> pour qu'il soit égal à <a href="../basic_streambuf/pptr.html"><code>pptr()</code></a>, puis renvoie <code>Traits::to_int_type(*gptr())</code></p>
+</li>
+<li>
+<p>Sinon, renvoie <code>Traits::eof()</code>.</p>
+</li>
+</ol>
+<p>Tout caractère du tampon qui a été initialisé, qu'il provienne de la chaîne passée au constructeur ou qu'il ait été ajouté par <a href="overflow.html"><code>overflow()</code></a>, est considéré comme faisant partie de la séquence d'entrée.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>Traits::to_int_type(*gptr())</code> (le prochain caractère à lire dans la zone de lecture) en cas de succès, ou <code>Traits::eof()</code> en cas d'échec.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+
+struct mybuf : std::stringbuf
+{
+    mybuf(const std::string&amp; new_str,
+          std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
+        : std::stringbuf(new_str, which) {}
+
+    int_type overflow(int_type c)
+    {
+        std::cout &lt;&lt; &quot;Before overflow():  get area size is &quot; &lt;&lt; egptr() - eback()
+                  &lt;&lt; &quot;, the put area size is &quot; &lt;&lt; epptr() - pbase() &lt;&lt; '\n';
+        int_type rc = std::stringbuf::overflow(c);
+        std::cout &lt;&lt; &quot;After overflow():   get area size is &quot; &lt;&lt; egptr() - eback()
+                  &lt;&lt; &quot;, put area size is &quot; &lt;&lt; epptr() - pbase() &lt;&lt; '\n';
+        return rc;
+    }
+
+    int_type underflow()
+    {
+        std::cout &lt;&lt; &quot;Before underflow(): get area size is &quot; &lt;&lt; egptr() - eback()
+                  &lt;&lt; &quot;, put area size is &quot; &lt;&lt; epptr() - pbase() &lt;&lt; '\n';
+        int_type ch = std::stringbuf::underflow();
+        std::cout &lt;&lt; &quot;After underflow():  get area size is &quot; &lt;&lt; egptr() - eback()
+                  &lt;&lt; &quot;, put area size is &quot; &lt;&lt; epptr() - pbase() &lt;&lt; '\n';
+
+        if (ch == EOF)
+            std::cout &lt;&lt; &quot;underflow() returns EOF\n&quot;;
+        else
+            std::cout &lt;&lt; &quot;underflow() returns '&quot; &lt;&lt; char(ch) &lt;&lt; &quot;'\n&quot;;
+        return ch;
+    }
+};
+
+int main()
+{
+    mybuf sbuf(&quot;123&quot;); // flux en lecture-écriture
+    std::iostream stream(&amp;sbuf);
+    int n;
+    stream &gt;&gt; n; // appelle sgetc() quatre fois
+                 // trois appels renvoient les caractères '1', '2', '3'
+                 // le quatrième appel, gptr() == egptr() et underflow() est appelé
+                 // underflow renvoie EOF
+    std::cout &lt;&lt; &quot;n = &quot; &lt;&lt; n &lt;&lt; '\n';
+    stream.clear(); // efface le eofbit
+
+    stream &lt;&lt; &quot;123456&quot;; // sputc() est appelé 6 fois
+                        // les trois premiers appels stockent &quot;123&quot; dans le tampon existant
+                        // le 4e appel constate que pptr() == epptr() et appelle overflow()
+                        // overflow() agrandit le tampon et définit egptr() à 4
+                        // les 5e et 6e appels stockent '5' et '6', en faisant avancer pptr()
+
+    stream &gt;&gt; n; // appelle sgetc() 4 fois
+                 // le 1er appel renvoie le '4' rendu disponible par overflow()
+                 // au 2e appel, egptr() == egptr() et underflow() est appelé
+                 // underflow fait avancer egptr() pour qu'il soit égal à pptr() (qui vaut 6)
+                 // le 3e sgetc() renvoie '6'
+                 // le 4e sgetc() constate gptr() == egptr(), appelle underflow()
+                 // underflow() renvoie EOF
+
+    std::cout &lt;&lt; &quot;n = &quot; &lt;&lt; n &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Before underflow(): get area size is 3, put area size is 15
+After underflow():  get area size is 3, put area size is 15
+underflow() returns EOF
+n = 123
+Before underflow(): get area size is 3, put area size is 15
+After underflow():  get area size is 6, put area size is 15
+underflow() returns '4'
+Before underflow(): get area size is 6, put area size is 15
+After underflow():  get area size is 6, put area size is 15
+underflow() returns EOF
+n = 456
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue432">LWG 432</a></td>
+<td>C++98</td>
+<td>il était peu clair si les caractères ajoutés par <a href="overflow.html"><code>overflow()</code></a> sont considérés comme faisant partie de la séquence d'entrée</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../basic_streambuf/underflow.html">underflow</a> [virtuelle]</strong> — lit des caractères de la séquence d'entrée associée vers la zone de lecture <em>(fonction membre protégée virtuelle de <code>std::basic_streambuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../basic_filebuf/underflow.html">underflow</a> [virtuelle]</strong> — lit depuis le fichier associé <em>(fonction membre protégée virtuelle de <code>std::basic_filebuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../strstreambuf/underflow.html">underflow</a> [virtuelle]</strong> — lit un caractère de la séquence d'entrée sans avancer le pointeur next <em>(fonction membre protégée virtuelle de <code>std::strstreambuf</code>)</em></li>
+<li><strong><a href="../basic_streambuf/sgetc.html">sgetc</a></strong> — lit un caractère de la séquence d'entrée sans avancer la séquence <em>(fonction membre publique de <code>std::basic_streambuf&lt;CharT,Traits&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

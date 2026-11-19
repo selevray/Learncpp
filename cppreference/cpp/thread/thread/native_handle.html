@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::thread::native_handle — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/thread.html">std::thread</a></nav>
+<h1 id="std-thread-native_handle"><code>std::thread::native_handle</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/thread/native_handle">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">native_handle_type native_handle();  // (depuis C++11) (pas toujours présent)
+</code></pre>
+<p>Renvoie le descripteur de fil sous-jacent défini par l'implémentation.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Type de descripteur défini par l'implémentation représentant le fil.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever des exceptions définies par l'implémentation.</p>
+<h2 id="Example">Exemple</h2>
+<p>Utilise <code>native_handle</code> pour activer l'ordonnancement temps réel des fils C++ sur un système POSIX.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;cstring&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;pthread.h&gt;
+#include &lt;thread&gt;
+
+std::mutex iomutex;
+void f(int num)
+{
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    sched_param sch;
+    int policy;
+    pthread_getschedparam(pthread_self(), &amp;policy, &amp;sch);
+    std::lock_guard&lt;std::mutex&gt; lk(iomutex);
+    std::cout &lt;&lt; &quot;Thread &quot; &lt;&lt; num &lt;&lt; &quot; is executing at priority &quot;
+              &lt;&lt; sch.sched_priority &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::thread t1(f, 1), t2(f, 2);
+
+    sched_param sch;
+    int policy;
+    pthread_getschedparam(t1.native_handle(), &amp;policy, &amp;sch);
+    sch.sched_priority = 20;
+    if (pthread_setschedparam(t1.native_handle(), SCHED_FIFO, &amp;sch))
+        std::cout &lt;&lt; &quot;Failed to setschedparam: &quot; &lt;&lt; std::strerror(errno) &lt;&lt; '\n';
+
+    t1.join(); t2.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Thread 2 is executing at priority 0
+Thread 1 is executing at priority 20
+</code></pre>
+
+</main>
+</body>
+</html>

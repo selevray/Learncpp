@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wctomb, wctomb_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="wctomb-wctomb_s">wctomb, wctomb_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/multibyte/wctomb">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdlib.h&gt;</strong></p>
+<pre><code class="language-c">int wctomb( char *s, wchar_t wc );  // (1)
+
+errno_t wctomb_s( int *restrict status, char *restrict s, rsize_t ssz, wchar_t wc );  // (2) (depuis C11)
+</code></pre>
+<ol>
+<li>Convertit un caractère large <code>wc</code> en encodage multioctet et le stocke (y compris les séquences de décalage éventuelles) dans le tableau de char dont le premier élément est pointé par <code>s</code>. Au plus <code>MB_CUR_MAX</code> caractères sont stockés. La conversion dépend de la catégorie LC_CTYPE de la locale courante.</li>
+</ol>
+<p>Si <code>wc</code> est le caractère nul, l'octet nul est écrit dans <code>s</code>, précédé des séquences de décalage nécessaires pour rétablir l'état de décalage initial.</p>
+<p>Si <code>s</code> est un pointeur nul, cette fonction réinitialise l'état de conversion global et détermine si des séquences de décalage sont utilisées.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, à ceci près que le résultat est renvoyé dans le paramètre de sortie <code>status</code> et que les erreurs suivantes sont détectées à l'exécution et appellent la fonction <a href="../../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</li>
+</ol>
+<ul>
+<li><code>ssz</code> est inférieur au nombre d'octets qui seraient écrits (sauf si <code>s</code> est nul)</li>
+<li><code>ssz</code> est supérieur à <code>RSIZE_MAX</code> (sauf si <code>s</code> est nul)</li>
+<li><code>s</code> est un pointeur nul mais <code>ssz</code> n'est pas zéro
+Comme pour toutes les fonctions à vérification de bornes, <code>wctomb_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../../program.html"><code>&lt;stdlib.h&gt;</code></a>.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Chaque appel à <code>wctomb</code> met à jour l'état de conversion global interne (un objet statique de type <a href="mbstate_t.html"><code>mbstate_t</code></a>, connu uniquement de cette fonction). Si l'encodage multioctet utilise des états de décalage, cette fonction n'est pas réentrante. Dans tous les cas, plusieurs threads ne doivent pas appeler <code>wctomb</code> sans synchronisation : <a href="wcrtomb.html"><code>wcrtomb</code></a> ou <code>wctomb_s</code> peuvent être utilisées à la place.</p>
+<p>Contrairement à la plupart des fonctions à vérification de bornes, <code>wctomb_s</code> ne termine pas sa sortie par un caractère nul, car elle est conçue pour être utilisée dans des boucles qui traitent les chaînes caractère par caractère.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers le tableau de caractères de sortie</li>
+<li><code>wc</code> — caractère large à convertir</li>
+<li><code>ssz</code> — nombre maximal d'octets à écrire dans <code>s</code> (taille du tableau <code>s</code>)</li>
+<li><code>status</code> — pointeur vers un paramètre de sortie où le résultat (longueur de la séquence multioctet ou état de la séquence de décalage) sera stocké</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>Si <code>s</code> n'est pas un pointeur nul, renvoie le nombre d'octets contenus dans la représentation multioctet de <code>wc</code>, ou <code>-1</code> si <code>wc</code> n'est pas un caractère valide.</li>
+</ol>
+<p>Si <code>s</code> est un pointeur nul, réinitialise son état de conversion interne pour représenter l'état de décalage initial et renvoie <code>0</code> si l'encodage multioctet courant ne dépend pas d'un état (n'utilise pas de séquences de décalage), ou une valeur non nulle si l'encodage multioctet courant dépend d'un état (utilise des séquences de décalage).</p>
+<ol start="2">
+<li>zéro en cas de succès, auquel cas la représentation multioctet de <code>wc</code> est stockée dans <code>s</code> et sa longueur est stockée dans <code>*status</code>, ou, si <code>s</code> est nul, l'état de la séquence de décalage est stocké dans <code>status</code>). Non nul en cas d'erreur d'encodage ou de violation de contrainte d'exécution, auquel cas <code>(size_t)-1</code> est stocké dans <code>*status</code>. La valeur stockée dans <code>*status</code> ne dépasse jamais <code>MB_CUR_MAX</code></li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;locale.h&gt;
+
+void demo(wchar_t wc)
+{
+    const char* dep = wctomb(NULL, wc) ? &quot;Yes&quot; : &quot;No&quot;;
+    printf(&quot;State-dependent encoding? %s.\n&quot;, dep);
+
+    char mb[MB_CUR_MAX];
+    int len = wctomb(mb, wc);
+    printf(&quot;wide char '%lc' -&gt; multibyte char [&quot;, wc);
+    for (int idx = 0; idx &lt; len; ++idx)
+        printf(&quot;%s%#2x&quot;, idx ? &quot; &quot; : &quot;&quot;, (unsigned char)mb[idx]);
+    printf(&quot;]\n&quot;);
+}
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    printf(&quot;MB_CUR_MAX = %zu\n&quot;, MB_CUR_MAX);
+    demo(L'A');
+    demo(L'\u00df');
+    demo(L'\U0001d10b');
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">MB_CUR_MAX = 6
+State-dependent encoding? No.
+wide char 'A' -&gt; multibyte char [0x41]
+State-dependent encoding? No.
+wide char 'ß' -&gt; multibyte char [0xc3 0x9f]
+State-dependent encoding? No.
+wide char '𝄋' -&gt; multibyte char [0xf0 0x9d 0x84 0x8b]
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.22.7.3 La fonction wctomb (p : 261)</li>
+<li>K.3.6.4.1 La fonction wctomb_s (p : 443)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.22.7.3 La fonction wctomb (p : 358-359)</li>
+<li>K.3.6.4.1 La fonction wctomb_s (p : 610-611)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.20.7.3 La fonction wctomb (p : 322-323)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.10.7.3 La fonction wctomb</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbtowc.html">mbtowc</a></strong> — convertit le prochain caractère multioctet en caractère large <em>(fonction)</em></li>
+<li><strong><a href="wcrtomb.html">wcrtombwcrtomb_s</a> (C95) (C11)</strong> — convertit un caractère large en sa représentation multioctet, étant donné l'état <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/multibyte/wctomb.html">Documentation C++</a> pour wctomb</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::throw_with_nested — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/error.html">Bibliothèque de diagnostic</a></nav>
+<h1 id="std-throw_with_nested"><code>std::throw_with_nested</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/error/throw_with_nested">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;exception&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+[[noreturn]] void throw_with_nested( T&amp;&amp; t );  // (depuis C++11) (constexpr depuis C++26)
+</code></pre>
+<p>Si <code>std::decay&lt;T&gt;::type</code> est un type de classe non final et non union qui n'est ni <a href="nested_exception.html"><code>std::nested_exception</code></a> ni dérivé de <a href="nested_exception.html"><code>std::nested_exception</code></a>, lève une exception d'un type non spécifié qui dérive publiquement à la fois de <a href="nested_exception.html"><code>std::nested_exception</code></a> et de <code>std::decay&lt;T&gt;::type</code>, et construite à partir de <code>std::forward&lt;T&gt;(t)</code>. Le constructeur par défaut de la classe de base <code>nested_exception</code> appelle <a href="current_exception.html"><code>std::current_exception</code></a>, en capturant l'objet exception actuellement traité, le cas échéant, dans un <a href="exception_ptr.html"><code>std::exception_ptr</code></a>.</p>
+<p>Sinon, lève <code>std::forward&lt;T&gt;(t)</code>.</p>
+<p>Exige que <code>std::decay&lt;T&gt;::type</code> soit <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>t</code> — l'objet exception à lever</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_constexpr_exceptions"><code>__cpp_lib_constexpr_exceptions</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_constexpr_exceptions_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> pour les types d'exception</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<p>Démontre la construction et la récursion à travers un objet d'exception imbriquée.</p>
+<pre><code class="language-cpp">#include &lt;exception&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+#include &lt;string&gt;
+
+// affiche la chaîne explicative d'une exception. Si l'exception est imbriquée,
+// effectue un appel récursif pour afficher la chaîne explicative de l'exception qu'elle contient
+void print_exception(const std::exception&amp; e, int level =  0)
+{
+    std::cerr &lt;&lt; std::string(level, ' ') &lt;&lt; &quot;exception: &quot; &lt;&lt; e.what() &lt;&lt; '\n';
+    try
+    {
+        std::rethrow_if_nested(e);
+    }
+    catch (const std::exception&amp; nestedException)
+    {
+        print_exception(nestedException, level + 1);
+    }
+    catch (...) {}
+}
+
+// fonction d'exemple qui capture une exception et l'enveloppe dans une exception imbriquée
+void open_file(const std::string&amp; s)
+{
+    try
+    {
+        std::ifstream file(s);
+        file.exceptions(std::ios_base::failbit);
+    }
+    catch (...)
+    {
+        std::throw_with_nested(std::runtime_error(&quot;Couldn't open &quot; + s));
+    }
+}
+
+// fonction d'exemple qui capture une exception et l'enveloppe dans une exception imbriquée
+void run()
+{
+    try
+    {
+        open_file(&quot;nonexistent.file&quot;);
+    }
+    catch (...)
+    {
+        std::throw_with_nested(std::runtime_error(&quot;run() failed&quot;));
+    }
+}
+
+// exécute la fonction d'exemple ci-dessus et affiche l'exception capturée
+int main()
+{
+    try
+    {
+        run();
+    }
+    catch (const std::exception&amp; e)
+    {
+        print_exception(e);
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">exception: run() failed
+ exception: Couldn't open nonexistent.file
+  exception: basic_ios::clear
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="nested_exception.html">nested_exception</a> (C++11)</strong> — un type mixin pour capturer et stocker les exceptions courantes <em>(classe)</em></li>
+<li><strong><a href="rethrow_if_nested.html">rethrow_if_nested</a> (C++11)</strong> — lève l'exception depuis un <a href="nested_exception.html"><code>std::nested_exception</code></a> <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

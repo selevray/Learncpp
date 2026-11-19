@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de struct — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="déclaration-de-struct">Déclaration de struct</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/struct">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Une struct est un type constitué d'une suite de membres dont le stockage est alloué dans un ordre séquentiel (contrairement à union, qui est un type constitué d'une suite de membres dont le stockage se chevauche).</p>
+<p>Le <a href="declarations.html">spécificateur de type</a> d'une struct est identique à celui de <a href="union.html"><code>union</code></a>, à l'exception du mot-clé utilisé :</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>struct</code> <code>attr-spec-seq</code> ﻿*(facultatif)* <code>name</code> ﻿*(facultatif)* <code>{</code> <code>struct-declaration-list</code> <code>}</code> | (1) | |
+|
+| <code>struct</code> <code>attr-spec-seq</code> ﻿*(facultatif)* <code>name</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Définition de struct : introduit le nouveau type struct <code>name</code> et définit sa signification</p>
+</li>
+<li>
+<p>Si utilisé seul sur une ligne, comme dans <code>struct</code> <code>name</code> <code>;</code>, <em>déclare</em> mais ne définit pas la struct <code>name</code> (voir déclaration anticipée ci-dessous). Dans les autres contextes, désigne la struct déjà déclarée, et <code>attr-spec-seq</code> n'est pas autorisé.</p>
+</li>
+</ol>
+<ul>
+<li><code>name</code> — le nom de la struct en cours de définition</li>
+<li><code>struct-declaration-list</code> — un nombre quelconque de déclarations de variables, de déclarations de <a href="bit_field.html">champ de bits</a> et de déclarations <a href="static_assert.html">static assert</a>. Les membres de type incomplet et les membres de type fonction ne sont pas autorisés (sauf le membre tableau flexible décrit ci-dessous)</li>
+<li><code>attr-spec-seq</code> — (C23) liste optionnelle d'<a href="attributes.html">attributs</a>, appliquée au type struct</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Dans un objet struct, les adresses de ses éléments (et les adresses des unités d'allocation des champs de bits) augmentent dans l'ordre de définition des membres. Un pointeur vers une struct peut être converti en pointeur vers son premier membre (ou, si ce membre est un champ de bits, vers son unité d'allocation). De même, un pointeur vers le premier membre d'une struct peut être converti en pointeur vers la struct englobante. Un bourrage sans nom peut être présent entre deux membres quelconques d'une struct ou après le dernier membre, mais pas avant le premier membre. La taille d'une struct est au moins égale à la somme des tailles de ses membres.</p>
+<blockquote>
+<p>Si une struct définit au moins un membre nommé, elle peut en outre déclarer son dernier membre avec un type tableau incomplet. Lorsqu'un élément du membre tableau flexible est accédé (dans une expression utilisant <code>.</code> ou <code>-&gt;</code> avec le nom du membre tableau flexible comme opérande de droite), la struct se comporte comme si le membre tableau avait la plus grande taille tenant dans la mémoire allouée à cet objet. Si aucun stockage supplémentaire n'a été alloué, elle se comporte comme un tableau d'un élément, sauf que le comportement est indéfini si cet élément est accédé ou si un pointeur sur l'élément suivant est produit. L'initialisation et l'opérateur d'affectation ignorent le membre tableau flexible. <code>sizeof</code> l'omet, mais peut avoir plus de bourrage final que ne l'impliquerait cette omission. Les structures contenant un membre tableau flexible (ou des unions ayant un membre structure récursif-possiblement contenant un membre tableau flexible) ne peuvent pas apparaître comme éléments de tableau ni comme membres d'autres structures.</p>
+<pre><code class="language-c">struct s { int n; double d[]; }; // s.d est un membre tableau flexible
+
+struct s t1 = { 0 };          // OK, d est comme double d[1], mais comportement indéfini à l'accès
+struct s t2 = { 1, { 4.2 } }; // erreur : l'initialisation ignore le tableau flexible
+
+// si sizeof (double) == 8
+struct s *s1 = malloc(sizeof (struct s) + 64); // comme si d était double d[8]
+struct s *s2 = malloc(sizeof (struct s) + 40); // comme si d était double d[5]
+
+s1 = malloc(sizeof (struct s) + 10); // maintenant comme si d était double d[1]. Deux octets en excès.
+double *dp = &amp;(s1-&gt;d[0]);    // OK
+*dp = 42;                    // OK
+s1-&gt;d[1]++;                  // Comportement indéfini. 2 octets en excès ne peuvent pas être accédés
+                             // comme double.
+
+s2 = malloc(sizeof (struct s) + 6);  // identique, mais comportement indéfini à l'accès car 2 octets sont
+                                     // manquants pour compléter 1 double
+dp = &amp;(s2-&gt;d[0]);            // OK, l'adresse peut être prise sans problème
+*dp = 42;                    // comportement indéfini
+
+*s1 = *s2; // copie uniquement s.n, pas aucun élément de s.d
+           // sauf ceux pris en compte dans sizeof (struct s)
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<blockquote>
+<p>Comme pour union, un membre sans nom d'une struct dont le type est une struct sans <code>name</code> est appelé <em>struct anonyme</em>. Chaque membre d'une struct anonyme est considéré comme un membre de la struct ou union englobante, en conservant sa disposition en mémoire. Ceci s'applique récursivement si la struct ou l'union englobante est également anonyme.</p>
+<pre><code class="language-c">struct v
+{
+   union // union anonyme
+   {
+      struct { int i, j; }; // structure anonyme
+      struct { long k, l; } w;
+   };
+   int m;
+} v1;
+
+v1.i = 2;   // valid
+v1.k = 3;   // invalide : la structure interne n'est pas anonyme
+v1.w.k = 5; // valid
+</code></pre>
+<p>Comme pour union, le comportement du programme est indéfini si une struct est définie sans aucun membre nommé (y compris ceux obtenus via des structs ou unions anonymes imbriquées).</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="Forward_declaration">Déclaration anticipée</h2>
+<p>Une déclaration de la forme suivante</p>
+<p>|
+| |
+| <code>struct</code> <code>attr-spec-seq</code> ﻿*(facultatif)* <code>name</code> <code>;</code> | | |
+|</p>
+<p>masque toute signification précédemment déclarée du nom <code>name</code> dans l'espace de noms des étiquettes et déclare <code>name</code> comme nouveau nom de struct dans la portée courante, qui sera défini plus tard. Tant que la définition n'apparaît pas, ce nom de struct a un <a href="compatible_type.html#Incomplete_types">type incomplet</a>.</p>
+<p>Cela permet aux structs de se référencer mutuellement :</p>
+<pre><code class="language-c">struct y;
+struct x { struct y *p; /* ... */ };
+struct y { struct x *q; /* ... */ };
+</code></pre>
+<p>Notez qu'un nouveau nom de struct peut aussi être introduit simplement en utilisant une étiquette de struct dans une autre déclaration, mais si une struct précédemment déclarée portant le même nom existe dans l'<a href="name_space.html">espace de noms des étiquettes</a>, l'étiquette désignera ce nom</p>
+<pre><code class="language-c">struct s* p = NULL; // une étiquette désignant une struct inconnue la déclare
+struct s { int a; }; // définition de la struct pointée par p
+void g(void)
+{
+    struct s; // déclaration anticipée d'une nouvelle struct locale s
+              // cela masque la structure globale s jusqu'à la fin de ce bloc
+    struct s *p;  // pointeur vers la structure locale s
+                  // sans la déclaration anticipée ci-dessus,
+                  // ceci pointerait vers le s de portée fichier
+    struct s { char* p; }; // définitions de la structure locale s
+}
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/struct.html"><code>struct</code></a></p>
+<h2 id="Notes">Notes</h2>
+<p>Voir <a href="struct_initialization.html">initialisation de struct</a> pour les règles concernant les initialiseurs des structs.</p>
+<p>Comme les membres de type incomplet ne sont pas autorisés, et qu'un type struct n'est complet qu'à la fin de sa définition, une struct ne peut pas avoir de membre de son propre type. Un pointeur vers son propre type est autorisé et est couramment utilisé pour implémenter les nœuds de listes chaînées ou d'arbres.</p>
+<p>Comme une déclaration de struct n'établit pas de <a href="scope.html">portée</a>, les types imbriqués, énumérations et énumérateurs introduits par des déclarations à l'intérieur de <code>struct-declaration-list</code> sont visibles dans la portée englobante où la struct est définie.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stddef.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    // Déclare le type struct.
+    struct car
+    {
+        char* make;
+        int year;
+    };
+    // Déclare et initialise un objet d'un type struct déclaré précédemment.
+    struct car c = {.year = 1923, .make = &quot;Nash&quot;};
+    printf(&quot;1) Car: %d %s\n&quot;, c.year, c.make);
+
+    // Déclare un type struct, un objet de ce type, et un pointeur vers celui-ci.
+    struct spaceship
+    {
+        char* model;
+        int max_speed;
+    } ship = {&quot;T-65 X-wing starfighter&quot;, 1050},
+    *pship = &amp;ship;
+    printf(&quot;2) Spaceship: %s. Max speed: %d km/h\n\n&quot;, ship.model, ship.max_speed);
+
+    // Les adresses augmentent dans l'ordre de définition. Un bourrage peut être inséré.
+    struct A { char a; double b; char c; };
+    printf(
+        &quot;3) Offset of char a = %zu\n&quot;
+        &quot;4) Offset of double b = %zu\n&quot;
+        &quot;5) Offset of char c = %zu\n&quot;
+        &quot;6) Size of struct A = %zu\n\n&quot;,
+        offsetof(struct A, a),
+        offsetof(struct A, b),
+        offsetof(struct A, c),
+        sizeof(struct A)
+    );
+    struct B { char a; char b; double c; };
+    printf(
+        &quot;7) Offset of char a = %zu\n&quot;
+        &quot;8) Offset of char b = %zu\n&quot;
+        &quot;9) Offset of double c = %zu\n&quot;
+        &quot;A) Size of struct B = %zu\n\n&quot;,
+        offsetof(struct B, a),
+        offsetof(struct B, b),
+        offsetof(struct B, c),
+        sizeof(struct B)
+    );
+
+    // Un pointeur vers une struct peut être converti en pointeur
+    // vers son premier membre et réciproquement.
+    char** pmodel = (char **)pship;
+    printf(&quot;B) %s\n&quot;, *pmodel);
+    pship = (struct spaceship *)pmodel;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1) Car: 1923 Nash
+2) Spaceship: T-65 X-wing starfighter. Max speed: 1050 km/h
+
+3) Offset of char a = 0
+4) Offset of double b = 8
+5) Offset of char c = 16
+6) Size of struct A = 24
+
+7) Offset of char a = 0
+8) Offset of char b = 1
+9) Offset of double c = 8
+A) Size of struct B = 16
+
+B) T-65 X-wing starfighter
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts modifiant le comportement suivants ont été appliqués rétroactivement aux normes C publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_499">DR 499</a></td>
+<td>C11</td>
+<td>les membres des structs/unions anonymes étaient considérés comme des membres de la struct/union englobante</td>
+<td>ils conservent leur disposition en mémoire</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : 81-84)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : 112-117)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : 101-104)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.5.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="operator_member_access.html">accès aux membres de struct et d'union</a></li>
+<li><a href="bit_field.html">champ de bits</a></li>
+<li><a href="struct_initialization.html">initialisation de struct</a></li>
+</ul>
+<p><strong><a href="../../cpp/language/class.html">Documentation C++</a> pour Déclaration de classe</strong></p>
+
+</main>
+</body>
+</html>

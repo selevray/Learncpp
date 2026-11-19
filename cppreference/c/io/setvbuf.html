@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>setvbuf — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/io.html">Entrées/sorties de fichiers</a></nav>
+<h1 id="setvbuf"><code>setvbuf</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/io/setvbuf">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdio.h&gt;</strong></p>
+<pre><code class="language-c">int setvbuf( FILE *         stream, char *         buffer,
+             int mode, size_t size );  // (jusqu'à C99)
+
+int setvbuf( FILE *restrict stream, char *restrict buffer,
+             int mode, size_t size );  // (depuis C99)
+
+#define _IOFBF     /*unspecified*/
+#define _IOLBF     /*unspecified*/
+#define _IONBF     /*unspecified*/
+</code></pre>
+<p>Modifie le mode de mise en tampon du flux de fichier donné <code>stream</code> selon l'argument <code>mode</code>. De plus,</p>
+<ul>
+<li>Si <code>buffer</code> est un pointeur nul, redimensionne le tampon interne à <code>size</code>.</li>
+<li>Si <code>buffer</code> n'est pas un pointeur nul, demande au flux d'utiliser le tampon fourni par l'utilisateur, de taille <code>size</code>, commençant à <code>buffer</code>. Le flux doit être fermé (avec <a href="fclose.html"><code>fclose</code></a>) avant la <a href="../language/lifetime.html">durée de vie</a> du tableau pointé par <code>buffer</code> se termine. Le contenu du tableau après un appel réussi à <code>setvbuf</code> est indéterminé, et toute tentative de l'utiliser est un comportement indéfini.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li>
+<p><code>stream</code> — le flux de fichier dont le tampon doit être défini</p>
+</li>
+<li>
+<p><code>buffer</code> — pointeur vers un tampon à utiliser par le flux, ou pointeur nul pour ne modifier que la taille et le mode</p>
+</li>
+<li>
+<p><code>mode</code> — mode de mise en tampon à utiliser. Il peut s'agir de l'une des valeurs suivantes :</p>
+<p><code>_IOFBF</code>
+| mise en tampon complète</p>
+<p><code>_IOLBF</code>
+| mise en tampon par ligne</p>
+<p><code>_IONBF</code>
+| absence de mise en tampon</p>
+</li>
+<li>
+<p><code>size</code> — taille du tampon</p>
+</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>0</code> en cas de succès, ou valeur non nulle en cas d'échec.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction ne peut être utilisée qu'après que <code>stream</code> a été associé à un fichier ouvert, mais avant toute autre opération (autre qu'un appel échoué à <a href="setbuf.html"><code>setbuf</code></a>/<code>setvbuf</code>).</p>
+<p>Tous les octets <code>size</code> ne seront pas nécessairement utilisés pour la mise en tampon : la taille effective du tampon est généralement arrondie à un multiple de 2, à un multiple de la taille de page, etc.</p>
+<p>Sur de nombreuses implémentations, la mise en tampon par ligne n'est disponible que pour les flux d'entrée des terminaux.</p>
+<p>Une erreur courante consiste à définir le tampon de stdin ou stdout comme un tableau dont la durée de vie se termine avant la fin du programme :</p>
+<pre><code class="language-c">int main(void) {
+    char buf[BUFSIZ];
+    setbuf(stdin, buf);
+} // la durée de vie de buf se termine, comportement indéfini
+</code></pre>
+<p>La taille de tampon par défaut <a href="../io.html"><code>BUFSIZ</code></a> est censée être la taille de tampon la plus efficace pour les E/S de fichiers sur l'implémentation, mais POSIX <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/fstat.html">fstat</a> fournit souvent une meilleure estimation.</p>
+<h2 id="Example">Exemple</h2>
+<p>Un cas d'utilisation de la modification de la taille du tampon est lorsqu'une meilleure taille est connue. (Cet exemple utilise une fonction POSIX, par exemple <a href="https://pubs.opengroup.org/onlinepubs/7908799/xsh/fileno.html"><code>fileno</code></a>. Voir aussi SO : <a href="https://stackoverflow.com/questions/15749184/fileno-not-available">#1</a> et <a href="https://stackoverflow.com/questions/44622827/why-am-i-getting-error-implicit-declaration-of-function-fileno-when-i-try-t">#2</a>).</p>
+<pre><code class="language-c">// Rendre visibles certaines fonctions POSIX, telles que `int fileno(FILE*)` :
+#define _POSIX_SOURCE
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;sys/stat.h&gt;
+
+int main(void)
+{
+    FILE* fp = fopen(&quot;/tmp/test.txt&quot;, &quot;w+&quot;);
+    if (fp == NULL)
+    {
+        perror(&quot;fopen&quot;);
+        return EXIT_FAILURE;
+    }
+
+    struct stat stats;
+    if (fstat(fileno(fp), &amp;stats) == -1) // POSIX uniquement
+    {
+        perror(&quot;fstat&quot;);
+        return EXIT_FAILURE;
+    }
+
+    printf(&quot;BUFSIZ is %d, but optimal block size is %ld\n&quot;, BUFSIZ, stats.st_blksize);
+    if (setvbuf(fp, NULL, _IOFBF, stats.st_blksize) != 0)
+    {
+        perror(&quot;setvbuf failed&quot;); // La version POSIX définit errno
+        return EXIT_FAILURE;
+    }
+
+    int ch;
+    while((ch=fgetc(fp)) != EOF); // lire le fichier entier : utiliser truss/strace pour
+                                  // observer les appels système read(2) utilisés
+
+    fclose(fp);
+    return EXIT_SUCCESS;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">BUFSIZ is 8192, but optimal block size is 65536
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.21.5.6 La fonction setvbuf (p : 225)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.21.5.6 La fonction setvbuf (p : 308)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.19.5.6 La fonction setvbuf (p : 273-274)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.9.5.6 La fonction setvbuf</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="setbuf.html">setbuf</a></strong> — définit le tampon d'un flux de fichier <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/io/c/setvbuf.html">Documentation C++</a> pour setvbuf</strong></p>
+
+</main>
+</body>
+</html>

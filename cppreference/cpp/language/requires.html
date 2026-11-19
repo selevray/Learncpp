@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>requires expression (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="requires-expression-depuis-c-20">requires expression (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/requires">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Produit une expression prvalue de type <code>bool</code> qui décrit les contraintes.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>requires</code> <code>{</code> <code>requirement-seq</code> <code>}</code> | (1) | |
+|
+| <code>requires</code> <code>(</code> <code>parameter-list</code> ﻿*(facultatif)* <code>)</code> <code>{</code> <code>requirement-seq</code> <code>}</code> | (2) | |
+|</p>
+<ul>
+<li><code>parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a></li>
+<li><code>requirement-seq</code> — une suite de <em>exigences</em>, chaque exigence est l'une des suivantes :
+<ul>
+<li><a href="requires.html#Simple_requirements">exigence simple</a></li>
+<li><a href="requires.html#Type_requirements">exigence de type</a></li>
+<li><a href="requires.html#Compound_requirements">exigence composée</a></li>
+<li><a href="requires.html#Nested_requirements">exigence imbriquée</a></li>
+</ul>
+</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Les exigences peuvent faire référence aux paramètres de modèle visibles dans la portée, aux paramètres de <code>parameter-list</code>, et à toute autre déclaration visible depuis le contexte englobant.</p>
+<p>La substitution d'arguments de modèle dans une expression <code>requires</code> utilisée dans une déclaration d'une <a href="templates.html#Templated_entity">entité templatisée</a> peut entraîner la formation de types ou d'expressions invalides dans ses exigences, ou la violation de contraintes sémantiques de ces exigences. Dans ces cas, l'expression <code>requires</code> s'évalue à <code>false</code> et ne rend pas le programme mal formé. La substitution et la vérification des contraintes sémantiques s'effectuent dans l'ordre lexical et s'arrêtent dès qu'une condition déterminant le résultat de l'expression <code>requires</code> est rencontrée. Si la substitution (le cas échéant) et la vérification des contraintes sémantiques réussissent, l'expression <code>requires</code> s'évalue à <code>true</code>.</p>
+<p>Si un échec de substitution se produirait dans une expression <code>requires</code> pour tout argument de modèle possible, le programme est mal formé, aucun diagnostic requis :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+concept C = requires
+{
+    new int[-(int)sizeof(T)]; // invalide pour tout T : mal formé, aucun diagnostic requis
+};
+</code></pre>
+<p>Si une expression <code>requires</code> contient des types ou expressions invalides dans ses exigences, et qu'elle n'apparaît pas dans la déclaration d'une <a href="templates.html#Templated_entity">entité templatisée</a>, alors le programme est mal formé.</p>
+<h2 id="Local_parameters">Paramètres locaux</h2>
+<p>Une expression <code>requires</code> peut introduire des paramètres locaux à l'aide d'une <a href="function.html#Parameter_list">liste de paramètres</a>. Ces paramètres n'ont ni liaison, ni stockage, ni durée de vie ; ils ne servent que de notation pour définir les exigences.</p>
+<p>Le type de chaque paramètre est déterminé de la même manière que <a href="function.html#Function_type">la détermination du type réel</a> des paramètres de fonction :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept C = requires(T p[2])
+{
+    (decltype(p))nullptr; // OK, p est de type T*
+};
+</code></pre>
+<p>Si l'une des conditions suivantes est satisfaite, le programme est mal formé :</p>
+<ul>
+<li>Un paramètre local a un <a href="default_arguments.html">argument par défaut</a>.</li>
+<li>La liste de paramètres se termine par une ellipse.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept C1 = requires(T t = 0)  // Erreur : t a un argument par défaut
+{
+    t;
+};
+
+template&lt;typename T&gt;
+concept C2 = requires(T t, ...) // Erreur : se termine par une ellipse
+{
+    t;
+};
+</code></pre>
+<h2 id="Simple_requirements">Exigences simples</h2>
+<p>|
+| |
+| <code>expression</code> <code>;</code> | | |
+|</p>
+<ul>
+<li><code>expression</code> — une expression qui ne commence pas par <code>requires</code></li>
+</ul>
+<p>Une exigence simple affirme que <code>expression</code> est valide. <code>expression</code> est un <a href="expressions.html#Potentially-evaluated_expressions">opérande non évalué</a>.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept Addable = requires (T a, T b)
+{
+    a + b; // « l'expression « a + b » est une expression valide qui compile »
+};
+
+template&lt;class T, class U = T&gt;
+concept Swappable = requires(T&amp;&amp; t, U&amp;&amp; u)
+{
+    swap(std::forward&lt;T&gt;(t), std::forward&lt;U&gt;(u));
+    swap(std::forward&lt;U&gt;(u), std::forward&lt;T&gt;(t));
+};
+</code></pre>
+<p>Une exigence qui commence par le mot-clé <code>requires</code> est toujours interprétée comme une exigence imbriquée. Ainsi, une exigence simple ne peut pas commencer par une expression <code>requires</code> sans parenthèses.</p>
+<h2 id="Type_requirements">Exigences de type</h2>
+<p>|
+| |
+| <code>typename</code> <code>identifier</code> <code>;</code> | | |
+|</p>
+<ul>
+<li><code>identifier</code> — un <a href="name.html">identifiant</a> (éventuellement qualifié) (y compris un <a href="templates.html#Template_identifiers">identifiant de modèle simple</a>)</li>
+</ul>
+<p>Une exigence de type affirme que le type désigné par <code>identifier</code> est valide : cela peut servir à vérifier qu'un certain type imbriqué nommé existe, ou qu'une spécialisation de modèle de classe ou d'alias désigne un type. Une exigence de type nommant une spécialisation de modèle de classe n'exige pas que le type soit complet.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+using Ref = T&amp;;
+
+template&lt;typename T&gt;
+concept C = requires
+{
+    typename T::inner; // nom de membre imbriqué requis
+    typename S&lt;T&gt;;     // spécialisation de modèle de classe requise
+    typename Ref&lt;T&gt;;   // substitution de modèle d'alias requise
+};
+
+template&lt;class T, class U&gt;
+using CommonType = std::common_type_t&lt;T, U&gt;;
+
+template&lt;class T, class U&gt;
+concept Common = requires (T&amp;&amp; t, U&amp;&amp; u)
+{
+    typename CommonType&lt;T, U&gt;; // CommonType&lt;T, U&gt; est valide et désigne un type
+    { CommonType&lt;T, U&gt;{std::forward&lt;T&gt;(t)} };
+    { CommonType&lt;T, U&gt;{std::forward&lt;U&gt;(u)} };
+};
+</code></pre>
+<h2 id="Compound_requirements">Exigences composées</h2>
+<p>|
+| |
+| <code>{</code> <code>expression</code> <code>};</code> | (1) | |
+|
+| <code>{</code> <code>expression</code> <code>}</code> <code>noexcept</code> <code>;</code> | (2) | |
+|
+| <code>{</code> <code>expression</code> <code>} -&gt;</code> <code>type-constraint</code> <code>;</code> | (3) | |
+|
+| <code>{</code> <code>expression</code> <code>}</code> <code>noexcept -&gt;</code> <code>type-constraint</code> <code>;</code> | (4) | |
+|</p>
+<ul>
+<li><code>expression</code> — une expression</li>
+<li><code>type-constraint</code> — une <a href="constraints.html#Constraints">contrainte</a></li>
+</ul>
+<p>Une exigence composée affirme des propriétés de <code>expression</code> ﻿. La substitution et la vérification des contraintes sémantiques s'effectuent dans l'ordre suivant :</p>
+<ol>
+<li>
+<p>Les arguments de modèle (le cas échéant) sont substitués dans <code>expression</code> ﻿.</p>
+</li>
+<li>
+<p>Si <code>noexcept</code> est présent, <code>expression</code> ne doit pas être <a href="noexcept.html">potentiellement lanceur d'exception</a>.</p>
+</li>
+<li>
+<p>Si <code>type-constraint</code> est présent, alors :</p>
+</li>
+</ol>
+<p>a) Les arguments de modèle sont substitués dans <code>type-constraint</code> ﻿.</p>
+<p>b) <code>decltype((expression</code> ﻿<code>))</code> doit satisfaire la contrainte imposée par <code>type-constraint</code> ﻿. Sinon, l'expression <code>requires</code> englobante est <code>false</code>.</p>
+<p><code>expression</code> est un <a href="expressions.html#Potentially-evaluated_expressions">opérande non évalué</a>.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept C2 = requires(T x)
+{
+    // l'expression *x doit être valide
+    // ET le type T::inner doit être valide
+    // ET le résultat de *x doit être convertible en T::inner
+    {*x} -&gt; std::convertible_to&lt;typename T::inner&gt;;
+
+    // l'expression x + 1 doit être valide
+    // ET std::same_as&lt;decltype((x + 1)), int&gt; doit être satisfait
+    // c.-à-d. (x + 1) doit être une prvalue de type int
+    {x + 1} -&gt; std::same_as&lt;int&gt;;
+
+    // l'expression x * 1 doit être valide
+    // ET son résultat doit être convertible en T
+    {x * 1} -&gt; std::convertible_to&lt;T&gt;;
+};
+</code></pre>
+<h2 id="Nested_requirements">Exigences imbriquées</h2>
+<p>|
+| |
+| <code>requires</code> <code>constraint-expression</code> <code>;</code> | | |
+|</p>
+<ul>
+<li><code>constraint-expression</code> — une expression représentant des <a href="constraints.html">contraintes</a></li>
+</ul>
+<p>Une exigence imbriquée peut être utilisée pour spécifier des contraintes supplémentaires en termes de paramètres locaux. <code>constraint-expression</code> doit être satisfaite par les arguments de modèle substitués, le cas échéant. La substitution d'arguments de modèle dans une exigence imbriquée n'entraîne une substitution dans <code>constraint-expression</code> que dans la mesure nécessaire pour déterminer si <code>constraint-expression</code> est satisfaite.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+concept Semiregular = DefaultConstructible&lt;T&gt; &amp;&amp;
+    CopyConstructible&lt;T&gt; &amp;&amp; CopyAssignable&lt;T&gt; &amp;&amp; Destructible&lt;T&gt; &amp;&amp;
+requires(T a, std::size_t n)
+{
+    requires Same&lt;T*, decltype(&amp;a)&gt;; // imbriquée : &quot;Same&lt;...&gt; s'évalue à true&quot;
+    { a.~T() } noexcept; // composée : &quot;a.~T()&quot; est une expression valide qui ne lève pas d'exception
+    requires Same&lt;T*, decltype(new T)&gt;; // imbriquée : &quot;Same&lt;...&gt; s'évalue à true&quot;
+    requires Same&lt;T*, decltype(new T[n])&gt;; // nested
+    { delete new T }; // compound
+    { delete new T[n] }; // compound
+};
+</code></pre>
+<h2 id="Note">Note</h2>
+<p>Le mot-clé <code>requires</code> sert aussi à introduire des <a href="constraints.html#Requires_clauses"><code>requires</code> clauses</a>.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept Addable = requires (T x) { x + x; }; // expression requires
+
+template&lt;typename T&gt; requires Addable&lt;T&gt; // clause requires, et non expression requires
+T add(T a, T b) { return a + b; }
+
+template&lt;typename T&gt;
+    requires requires (T x) { x + x; } // contrainte ad hoc, notez que le mot-clé est utilisé deux fois
+T add(T a, T b) { return a + b; }
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/requires.html"><code>requires</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2560.html">CWG 2560</a></td>
+<td>C++20</td>
+<td>on ne savait pas si les types de paramètres étaient ajustés dans les expressions <code>requires</code></td>
+<td>également ajustés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2911.html">CWG 2911</a></td>
+<td>C++20</td>
+<td>toutes les expressions apparaissant dans les expressions <code>requires</code> étaient des opérandes non évalués</td>
+<td>seules certaines expressions le sont</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.5.7 Expressions requires [expr.prim.req]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.5.7 Expressions requires [expr.prim.req]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="constraints.html">Contraintes et concepts</a> (C++20)</strong> — spécifie les exigences sur les arguments de modèle</li>
+</ul>
+
+</main>
+</body>
+</html>

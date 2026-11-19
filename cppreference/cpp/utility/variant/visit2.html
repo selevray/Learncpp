@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::visit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/variant.html">std::variant</a></nav>
+<h1 id="std-visit"><code>std::visit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/variant/visit2">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;variant&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Visitor, class... Variants &gt;
+constexpr /* voir ci-dessous */ visit( Visitor&amp;&amp; v, Variants&amp;&amp;... values );  // (1) (depuis C++17)
+
+template&lt; class R, class Visitor, class... Variants &gt;
+constexpr R visit( Visitor&amp;&amp; v, Variants&amp;&amp;... values );  // (2) (depuis C++20)
+
+template&lt; class... Ts &gt;
+auto&amp;&amp; as-variant( std::variant&lt;Ts...&gt;&amp; value );  // (3) ( exposition uniquement* )
+
+template&lt; class... Ts &gt;
+auto&amp;&amp; as-variant( const std::variant&lt;Ts...&gt;&amp; value );  // (4) ( exposition uniquement* )
+
+template&lt; class... Ts &gt;
+auto&amp;&amp; as-variant( std::variant&lt;Ts...&gt;&amp;&amp; value );  // (5) ( exposition uniquement* )
+
+template&lt; class... Ts &gt;
+auto&amp;&amp; as-variant( const std::variant&lt;Ts...&gt;&amp;&amp; value );  // (6) ( exposition uniquement* )
+</code></pre>
+<p>Applique le visiteur <code>v</code> (un <a href="../../named_req/Callable.html"><em>Callable</em></a> pouvant être appelé avec n'importe quelle combinaison de types issus de Variants) aux variants <code>values</code>.</p>
+<p>Étant donné <code>VariantBases</code> sous la forme <code>decltype(as-variant(std::forward&lt;Variants&gt;(values))...</code> (un paquet de <code>sizeof...(Variants)</code> types) :</p>
+<ol>
+<li>Invoque <code>v</code> comme si cela était fait par</li>
+</ol>
+<p><code>INVOKE(std::forward&lt;Visitor&gt;(v), std::get&lt;indices&gt;(std::forward&lt;VariantBases&gt;(values))...)</code>,</p>
+<p>où <code>indices</code> vaut <code>as-variant(values).index()...</code>.</p>
+<ol start="2">
+<li>Invoque <code>v</code> comme si cela était fait par</li>
+</ol>
+<p><code>INVOKE&lt;R&gt;(std::forward&lt;Visitor&gt;(v), std::get&lt;indices&gt;(std::forward&lt;VariantBases&gt;(values))...)</code>,</p>
+<p>où <code>indices</code> vaut <code>as-variant(values).index()...</code>.</p>
+<p>Ces surcharges ne participent à la résolution de surcharge que si chaque type de <code>VariantBases</code> est un type valide. Si l'expression désignée par <a href="../functional.html"><code>INVOKE</code></a>ou <a href="../functional.html"><code>INVOKE&lt;R&gt;</code></a> <em>(depuis C++20)</em> est invalide, ou si les résultats de <a href="../functional.html"><code>INVOKE</code></a>ou <a href="../functional.html"><code>INVOKE&lt;R&gt;</code></a> <em>(depuis C++20)</em> ont des types ou des catégories de valeur différents selon les <code>indices</code>, le programme est mal formé.</p>
+<p>3-6) Les modèles de fonction <code>as-variant</code> réservés à l'exposé acceptent une valeur dont le type peut être <a href="../../language/template_argument_deduction.html">déduit</a> pour <code>std::variant&lt;Ts...&gt;</code> (c'est-à-dire soit <code>std::variant&lt;Ts...&gt;</code>, soit un type dérivé de <code>std::variant&lt;Ts...&gt;</code>), et renvoient la valeur <a href="../variant.html"><code>std::variant</code></a> avec la même qualification const et la même catégorie de valeur.</p>
+<p>3,4) Renvoie <code>value</code>.</p>
+<p>5,6) Renvoie <code>std::move(value)</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>v</code> — un <a href="../../named_req/Callable.html"><em>Callable</em></a> acceptant chaque alternative possible de chaque variant de <code>Variants</code></li>
+<li><code>values</code> — liste des variants à transmettre au visiteur</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>Le résultat de l'opération <a href="../functional.html"><code>INVOKE</code></a>. Le type de retour est le type obtenu en appliquant <a href="../../language/decltype.html"><code>decltype</code></a> au résultat.</p>
+</li>
+<li>
+<p>Rien si <code>R</code> est (éventuellement qualifié cv) <code>void</code> ; sinon le résultat de l'opération <a href="../functional.html"><code>INVOKE&lt;R&gt;</code></a>.</p>
+</li>
+</ol>
+<p>3-6) Une valeur <a href="../variant.html"><code>std::variant</code></a> convertie depuis <code>value</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Lève <a href="bad_variant_access.html"><code>std::bad_variant_access</code></a> si <code>as-variant(value_i).valueless_by_exception()</code> est <code>true</code> pour un variant <code>value_i</code> quelconque de <code>values</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Lorsque le nombre de variants est égal à zéro ou un, l'invocation de l'objet appelable est implémentée en temps constant ; c'est-à-dire qu'elle ne dépend pas du nombre de types pouvant être stockés dans le variant.</p>
+<p>Si le nombre de variants est supérieur à un, l'invocation de l'objet appelable n'a aucune exigence de complexité.</p>
+<h2 id="Notes">Notes</h2>
+<p>Soit <code>n</code> égal à <code>(1 * ... * std::variant_size_v&lt;std::remove_reference_t&lt;VariantBases&gt;&gt;)</code>, les implémentations génèrent généralement une table équivalente à un tableau (éventuellement multidimensionnel) de <code>n</code> pointeurs de fonction pour chaque spécialisation de <code>std::visit</code>, ce qui est similaire à l'implémentation des <a href="../../language/virtual.html">fonctions virtuelles</a>.</p>
+<p>Les implémentations peuvent aussi générer une <a href="../../language/switch.html">instruction switch</a> comportant <code>n</code> branches pour <code>std::visit</code> (par exemple, l'implémentation de la STL de MSVC utilise une instruction switch lorsque <code>n</code> n'est pas supérieur à 256).</p>
+<p>Sur les implémentations usuelles, la complexité temporelle de l'invocation de <code>v</code> peut être considérée comme égale à celle de l'accès à un élément d'un tableau (éventuellement multidimensionnel) ou de l'exécution d'une instruction switch.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_variant"><code>__cpp_lib_variant</code></a></td>
+<td><a href="../../compiler_support/23.html#cpp_lib_variant_202102L"><code>202102L</code></a></td>
+<td><em>(C++23)</em> <em>(DR17)</em></td>
+<td><code>std::visit</code> pour les classes dérivées de <a href="../variant.html"><code>std::variant</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;type_traits&gt;
+#include &lt;variant&gt;
+#include &lt;vector&gt;
+
+// la variante à visiter
+using value_t = std::variant&lt;int, long, double, std::string&gt;;
+
+// type auxiliaire pour le visiteur #4
+template&lt;class... Ts&gt;
+struct overloaded : Ts... { using Ts::operator()...; };
+// guide de déduction explicite (non nécessaire depuis C++20)
+template&lt;class... Ts&gt;
+overloaded(Ts...) -&gt; overloaded&lt;Ts...&gt;;
+
+int main()
+{
+    std::vector&lt;value_t&gt; vec = {10, 15l, 1.5, &quot;hello&quot;};
+
+    for (auto&amp; v: vec)
+    {
+        // 1. visiteur void, appelé uniquement pour ses effets de bord (ici, pour les E/S)
+        std::visit([](auto&amp;&amp; arg){ std::cout &lt;&lt; arg; }, v);
+
+        // 2. visiteur renvoyant une valeur, illustre l'idiome consistant à renvoyer un autre variant
+        value_t w = std::visit([](auto&amp;&amp; arg) -&gt; value_t { return arg + arg; }, v);
+
+        // 3. visiteur par correspondance de types : une lambda qui traite chaque type différemment
+        std::cout &lt;&lt; &quot;. After doubling, variant holds &quot;;
+        std::visit([](auto&amp;&amp; arg)
+        {
+            using T = std::decay_t&lt;decltype(arg)&gt;;
+            if constexpr (std::is_same_v&lt;T, int&gt;)
+                std::cout &lt;&lt; &quot;int with value &quot; &lt;&lt; arg &lt;&lt; '\n';
+            else if constexpr (std::is_same_v&lt;T, long&gt;)
+                std::cout &lt;&lt; &quot;long with value &quot; &lt;&lt; arg &lt;&lt; '\n';
+            else if constexpr (std::is_same_v&lt;T, double&gt;)
+                std::cout &lt;&lt; &quot;double with value &quot; &lt;&lt; arg &lt;&lt; '\n';
+            else if constexpr (std::is_same_v&lt;T, std::string&gt;)
+                std::cout &lt;&lt; &quot;std::string with value &quot; &lt;&lt; std::quoted(arg) &lt;&lt; '\n';
+            else
+                static_assert(false, &quot;non-exhaustive visitor!&quot;);
+        }, w);
+    }
+
+    for (auto&amp; v: vec)
+    {
+        // 4. autre visiteur par correspondance de types : une classe avec 3 operator() surchargés
+        // Note : L'operator() template `(auto arg)` se liera à `int` et `long`
+        //       dans ce cas, mais en son absence, l'operator() `(double arg)`
+        //       *se liera aussi* à `int` et `long` car les deux sont implicitement
+        //       convertibles en double. Avec cette forme, il faut veiller
+        //       à ce que les conversions implicites soient gérées correctement.
+        std::visit(overloaded{
+            [](auto arg) { std::cout &lt;&lt; arg &lt;&lt; ' '; },
+            [](double arg) { std::cout &lt;&lt; std::fixed &lt;&lt; arg &lt;&lt; ' '; },
+            [](const std::string&amp; arg) { std::cout &lt;&lt; std::quoted(arg) &lt;&lt; ' '; }
+        }, v);
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">10. After doubling, variant holds int with value 20
+15. After doubling, variant holds long with value 30
+1.5. After doubling, variant holds double with value 3
+hello. After doubling, variant holds std::string with value &quot;hellohello&quot;
+10 15 1.500000 &quot;hello&quot;
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2970">LWG 2970</a></td>
+<td>C++17</td>
+<td>le type de retour de la surcharge <code>(1)</code> ne préservait pas la catégorie de valeur du résultat de l'opération <code>INVOKE</code></td>
+<td>preserves</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3052">LWG 3052</a> (<a href="https://wg21.link/P2162R2">P2162R2</a>)</td>
+<td>C++17</td>
+<td>les effets étaient non spécifiés si un type dans <code>Variants</code> n'est pas un <a href="../variant.html"><code>std::variant</code></a></td>
+<td>specified</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="visit.html">visit</a> (C++26)</strong> — appelle le foncteur fourni avec l'argument détenu par <code>variant</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="swap.html">swap</a></strong> — échange avec un autre <code>variant</code> <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

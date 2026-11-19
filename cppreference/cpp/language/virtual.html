@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>virtual spécificateur de fonction — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="virtual-spécificateur-de-fonction">virtual spécificateur de fonction</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/virtual">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Le spécificateur <code>virtual</code> indique qu'une <a href="member_functions.html">fonction membre</a> non statique est <em>virtuelle</em> et prend en charge l'envoi dynamique. Il ne peut apparaître que dans le <code>decl-specifier-seq</code> de la déclaration initiale d'une fonction membre non statique (c'est-à-dire lorsqu'elle est déclarée dans la définition de la classe).</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les fonctions virtuelles sont des fonctions membres dont le comportement peut être redéfini dans les classes dérivées. Contrairement aux fonctions non virtuelles, ce comportement redéfini est conservé même en l'absence d'information à la compilation sur le type réel de la classe. Autrement dit, si une classe dérivée est manipulée via un pointeur ou une référence vers la classe de base, un appel à une fonction virtuelle redéfinie exécute le comportement défini dans la classe dérivée. Un tel appel de fonction est appelé <em>appel de fonction virtuelle</em> ou <em>appel virtuel</em>. L'appel virtuel est supprimé si la fonction est sélectionnée par <a href="lookup.html">recherche de nom qualifiée</a> (c'est-à-dire si le nom de la fonction apparaît à droite de l'opérateur de résolution de portée <code>::</code>).</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Base
+{
+    virtual void f()
+    {
+        std::cout &lt;&lt; &quot;base\n&quot;;
+    }
+};
+
+struct Derived : Base
+{
+    void f() override // « override » est facultatif
+    {
+        std::cout &lt;&lt; &quot;derived\n&quot;;
+    }
+};
+
+int main()
+{
+    Base b;
+    Derived d;
+
+    // appel de fonction virtuelle via une référence
+    Base&amp; br = b; // le type de br est Base&amp;
+    Base&amp; dr = d; // le type de dr est aussi Base&amp;
+    br.f(); // affiche &quot;base&quot;
+    dr.f(); // affiche &quot;derived&quot;
+
+    // appel de fonction virtuelle via un pointeur
+    Base* bp = &amp;b; // le type de bp est Base*
+    Base* dp = &amp;d; // le type de dp est aussi Base*
+    bp-&gt;f(); // affiche &quot;base&quot;
+    dp-&gt;f(); // affiche &quot;derived&quot;
+
+    // appel de fonction non virtuel
+    br.Base::f(); // affiche &quot;base&quot;
+    dr.Base::f(); // affiche &quot;base&quot;
+}
+</code></pre>
+<h2 id="In_detail">En détail</h2>
+<p>Si une fonction membre <code>vf</code> est déclarée comme <code>virtual</code> dans une classe <code>Base</code>, et qu'une classe <code>Derived</code>, dérivée directement ou indirectement de <code>Base</code>, contient une déclaration de fonction membre de même</p>
+<ul>
+<li>name</li>
+<li>liste de types de paramètres (mais pas type de retour)</li>
+<li>qualificateurs cv</li>
+<li>qualificateurs ref</li>
+</ul>
+<p>Alors cette fonction de la classe <code>Derived</code> est également <em>virtuelle</em> (que le mot-clé <code>virtual</code> soit ou non utilisé dans sa déclaration) et <em>redéfinit</em> Base::vf (que le mot <code>override</code> soit ou non utilisé dans sa déclaration).</p>
+<p><code>Base::vf</code> n'a pas besoin d'être accessible ou visible pour être redéfinie. (<code>Base::vf</code> peut être déclarée private, ou <code>Base</code> peut être héritée par héritage privé. Les membres de même nom dans une classe de base de <code>Derived</code> qui hérite de <code>Base</code> n'entrent pas en compte dans la détermination de la redéfinition, même s'ils masquent <code>Base::vf</code> lors de la recherche de nom.)</p>
+<pre><code class="language-cpp">class B
+{
+    virtual void do_f(); // membre privé
+public:
+    void f() { do_f(); } // interface publique
+};
+
+struct D : public B
+{
+    void do_f() override; // redéfinit B::do_f
+};
+
+int main()
+{
+    D d;
+    B* bp = &amp;d;
+    bp-&gt;f(); // appelle en interne D::do_f();
+}
+</code></pre>
+<p>Pour chaque fonction virtuelle, il existe la <em>redéfinition finale</em>, qui est exécutée lors d'un appel de fonction virtuelle. Une fonction membre virtuelle <code>vf</code> d'une classe de base <code>Base</code> est la redéfinition finale, sauf si la classe dérivée déclare ou hérite (par héritage multiple) une autre fonction qui redéfinit <code>vf</code>.</p>
+<pre><code class="language-cpp">struct A { virtual void f(); };     // A::f est virtuelle
+struct B : A { void f(); };         // B::f redéfinit A::f dans B
+struct C : virtual B { void f(); }; // C::f redéfinit A::f dans C
+
+struct D : virtual B {}; // D n'introduit pas de redéfinition, B::f est final dans D
+
+struct E : C, D          // E n'introduit pas de redéfinition, C::f est final dans E
+{
+    using A::f; // ce n'est pas une déclaration de fonction, cela rend seulement A::f visible pour la recherche de nom
+};
+
+int main()
+{
+    E e;
+    e.f();    // l'appel virtuel appelle C::f, le redéfinisseur final dans e
+    e.E::f(); // l'appel non virtuel appelle A::f, qui est visible dans E
+}
+</code></pre>
+<p>Si une fonction possède plus d'une redéfinition finale, le programme est mal formé :</p>
+<pre><code class="language-cpp">struct A
+{
+    virtual void f();
+};
+
+struct VB1 : virtual A
+{
+    void f(); // redéfinit A::f
+};
+
+struct VB2 : virtual A
+{
+    void f(); // redéfinit A::f
+};
+
+// struct Error : VB1, VB2
+// {
+//     // Error: A::f possède deux redéfinitions finales dans Error
+// };
+
+struct Okay : VB1, VB2
+{
+    void f(); // OK: il s'agit de la redéfinition finale de A::f
+};
+
+struct VB1a : virtual A {}; // ne déclare pas de redéfinition
+
+struct Da : VB1a, VB2
+{
+    // dans Da, la redéfinition finale de A::f est VB2::f
+};
+</code></pre>
+<p>Une fonction de même nom mais de liste de paramètres différente ne redéfinit pas la fonction de base de même nom, mais la <em>masque</em> : lorsque la <a href="lookup.html">recherche de nom non qualifiée</a> examine la portée de la classe dérivée, la recherche trouve la déclaration et n'examine pas la classe de base.</p>
+<pre><code class="language-cpp">struct B
+{
+    virtual void f();
+};
+
+struct D : B
+{
+    void f(int); // D::f masque B::f (liste de paramètres incorrecte)
+};
+
+struct D2 : D
+{
+    void f(); // D2::f redéfinit B::f (peu importe qu'elle ne soit pas visible)
+};
+
+int main()
+{
+    B b;
+    B&amp; b_as_b = b;
+
+    D d;
+    B&amp; d_as_b = d;
+    D&amp; d_as_d = d;
+
+    D2 d2;
+    B&amp; d2_as_b = d2;
+    D&amp; d2_as_d = d2;
+
+    b_as_b.f();  // appelle B::f()
+    d_as_b.f();  // appelle B::f()
+    d2_as_b.f(); // appelle D2::f()
+
+    d_as_d.f();  // Error: la recherche dans D ne trouve que f(int)
+    d2_as_d.f(); // Error: la recherche dans D ne trouve que f(int)
+}
+</code></pre>
+<blockquote>
+<p>Si une fonction est déclarée avec le spécificateur <code>override</code>, mais ne redéfinit aucune fonction virtuelle, le programme est mal formé :</p>
+<pre><code class="language-cpp">struct B
+{
+    virtual void f(int);
+};
+
+struct D : B
+{
+    virtual void f(int) override;  // OK, D::f(int) redéfinit B::f(int)
+    virtual void f(long) override; // Error: f(long) ne redéfinit pas B::f(int)
+};
+</code></pre>
+<p>Si une fonction est déclarée avec le spécificateur <code>final</code>, et qu'une autre fonction tente de la redéfinir, le programme est mal formé :</p>
+<pre><code class="language-cpp">struct B
+{
+    virtual void f() const final;
+};
+
+struct D : B
+{
+    void f() const; // Error: D::f tente de redéfinir B::f final
+};
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Les fonctions non membres et les fonctions membres statiques ne peuvent pas être virtuelles.</p>
+<p>Les modèles de fonctions ne peuvent pas être déclarés <code>virtual</code>. Cela ne s'applique qu'aux fonctions qui sont elles-mêmes des modèles : une fonction membre ordinaire d'un modèle de classe peut être déclarée virtuelle.</p>
+<blockquote>
+<p>Les fonctions virtuelles (qu'elles soient déclarées virtual ou qu'elles en redéfinissent une) ne peuvent avoir aucune contrainte associée.</p>
+<pre><code class="language-cpp">struct A
+{
+    virtual void f() requires true; // Error: fonction virtuelle contrainte
+};
+</code></pre>
+<p>Une fonction virtuelle <a href="consteval.html"><code>consteval</code></a> ne doit ni redéfinir ni être redéfinie par une fonction virtuelle non <code>consteval</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Les <a href="default_arguments.html">arguments par défaut</a> des fonctions virtuelles sont substitués à la compilation.</p>
+<h3 id="Covariant_return_types">Types de retour covariants</h3>
+<p>Si la fonction <code>Derived::f</code> redéfinit une fonction <code>Base::f</code>, leurs types de retour doivent être identiques ou être <em>covariants</em>. Deux types sont covariants s'ils satisfont toutes les exigences suivantes :</p>
+<ul>
+<li>les deux types sont des pointeurs ou des références (lvalue ou rvalue) vers des classes. Les pointeurs ou références à plusieurs niveaux ne sont pas autorisés.</li>
+<li>la classe référencée/pointée dans le type de retour de <code>Base::f()</code> doit être une classe de base directe ou indirecte, non ambiguë et accessible, de la classe référencée/pointée du type de retour de <code>Derived::f()</code>.</li>
+<li>le type de retour de <code>Derived::f()</code> doit être au même niveau ou moins <a href="cv.html">qualifié cv</a> que le type de retour de <code>Base::f()</code>.</li>
+</ul>
+<p>La classe du type de retour de <code>Derived::f</code> doit être soit <code>Derived</code> elle-même, soit un <a href="incomplete_type.html">type complet</a> au point de déclaration de <code>Derived::f</code>.</p>
+<p>Lors d'un appel de fonction virtuelle, le type renvoyé par la redéfinition finale est <a href="implicit_cast.html">implicitement converti</a> vers le type de retour de la fonction redéfinie qui a été appelée :</p>
+<pre><code class="language-cpp">class B {};
+
+struct Base
+{
+    virtual void vf1();
+    virtual void vf2();
+    virtual void vf3();
+    virtual B* vf4();
+    virtual B* vf5();
+};
+
+class D : private B
+{
+    friend struct Derived; // dans Derived, B est une base accessible de D
+};
+
+class A; // la classe déclarée par anticipation est un type incomplet
+
+struct Derived : public Base
+{
+    void vf1();    // virtuelle, redéfinit Base::vf1()
+    void vf2(int); // non virtuelle, masque Base::vf2()
+//  char vf3();    // Error: redéfinit Base::vf3, mais avec un type de retour différent
+                   // et non covariant
+    D* vf4();      // redéfinit Base::vf4() et a un type de retour covariant
+//  A* vf5();      // Error: A est un type incomplet
+};
+
+int main()
+{
+    Derived d;
+    Base&amp; br = d;
+    Derived&amp; dr = d;
+
+    br.vf1(); // appelle Derived::vf1()
+    br.vf2(); // appelle Base::vf2()
+//  dr.vf2(); // Error: vf2(int) masque vf2()
+
+    B* p = br.vf4(); // appelle Derived::vf4() et convertit le résultat en B*
+    D* q = dr.vf4(); // appelle Derived::vf4() et ne convertit pas le résultat en B*
+}
+</code></pre>
+<h3 id="Virtual_destructor">Destructeur virtuel</h3>
+<p>Bien que les destructeurs ne soient pas hérités, si une classe de base déclare son destructeur <code>virtual</code>, le destructeur dérivé le redéfinit toujours. Cela permet de supprimer, par pointeur sur la base, des objets alloués dynamiquement de type polymorphe.</p>
+<pre><code class="language-cpp">class Base
+{
+public:
+    virtual ~Base() { /* libère les ressources de Base */ }
+};
+
+class Derived : public Base
+{
+    ~Derived() { /* libère les ressources de Derived */ }
+};
+
+int main()
+{
+    Base* b = new Derived;
+    delete b; // Effectue un appel de fonction virtuelle vers Base::~Base()
+              // comme elle est virtuelle, elle appelle Derived::~Derived() qui peut
+              // libérer les ressources de la classe dérivée, puis appelle
+              // Base::~Base() selon l'ordre habituel de destruction
+}
+</code></pre>
+<p>De plus, si le destructeur de la classe de base n'est pas virtuel, supprimer un objet de classe dérivée via un pointeur sur la classe de base est un <em>comportement indéfini</em>, qu'il existe ou non des ressources qui seraient fuitées si le destructeur dérivé n'est pas invoqué, sauf si la fonction de désallocation sélectionnée est un <a href="../memory/new/operator_delete.html"><code>operator delete</code></a> destroying <em>(depuis C++20)</em>.</p>
+<p>Une règle pratique utile est que le destructeur de toute classe de base doit être <a href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.html#Rc-dtor-virtual">public et virtuel ou protégé et non virtuel</a>, dès lors que des expressions delete sont impliquées, par exemple lorsqu'elles sont utilisées implicitement dans <a href="../memory/unique_ptr.html"><code>std::unique_ptr</code></a> <em>(depuis C++11)</em>.</p>
+<h2 id="During_construction_and_destruction">Pendant la construction et la destruction</h2>
+<p>Lorsqu'une fonction virtuelle est appelée directement ou indirectement depuis un constructeur ou un destructeur (y compris pendant la construction ou la destruction des membres de données non statiques de la classe, par exemple dans une <a href="initializer_list.html">liste d'initialisation</a> de membres), et que l'objet concerné par l'appel est l'objet en cours de construction ou de destruction, la fonction appelée est la redéfinition finale dans la classe du constructeur ou du destructeur, et non celle qui la redéfinit dans une classe plus dérivée. Autrement dit, pendant la construction ou la destruction, les classes plus dérivées n'existent pas.</p>
+<p>Lors de la construction d'une classe complexe à plusieurs branches, dans un constructeur appartenant à une branche, le polymorphisme est limité à cette classe et à ses bases : si elle obtient un pointeur ou une référence vers un sous-objet de base en dehors de cette sous-hiérarchie, et tente un appel de fonction virtuelle (par exemple via un accès explicite à un membre), le comportement est indéfini :</p>
+<pre><code class="language-cpp">struct V
+{
+    virtual void f();
+    virtual void g();
+};
+
+struct A : virtual V
+{
+    virtual void f(); // A::f est la redéfinition finale de V::f dans A
+};
+
+struct B : virtual V
+{
+    virtual void g(); // B::g est la redéfinition finale de V::g dans B
+    B(V*, A*);
+};
+
+struct D : A, B
+{
+    virtual void f(); // D::f est la redéfinition finale de V::f dans D
+    virtual void g(); // D::g est la redéfinition finale de V::g dans D
+
+    // note : A est initialisée avant B
+    D() : B((A*) this, this) {}
+};
+
+// le constructeur de B, appelé depuis le constructeur de D
+B::B(V* v, A* a)
+{
+    f(); // appel virtuel à V::f (bien que D possède la redéfinition finale, D n'existe pas encore)
+    g(); // appel virtuel à B::g, qui est la redéfinition finale dans B
+
+    v-&gt;g(); // le type V de v est une base de B, l'appel virtuel appelle B::g comme précédemment
+
+    a-&gt;f(); // le type A de a n'est pas une base de B. Il appartient à une autre branche de la
+            // hiérarchie. Tenter un appel virtuel par cette branche provoque
+            // un comportement indéfini, même si A était déjà entièrement construite dans ce
+            // cas (elle a été construite avant B puisqu'elle apparaît avant B dans la liste
+            // des bases de D). En pratique, l'appel virtuel à A::f sera
+            // tenté en utilisant la table des fonctions membres virtuelles de B, puisque c'est
+            // celle qui est active pendant la construction de B)
+}
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/virtual.html"><code>virtual</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/258.html">CWG 258</a></td>
+<td>C++98</td>
+<td>une fonction membre non const d'une classe dérivée pourrait devenir virtuelle à cause d'une fonction membre virtuelle const de sa base</td>
+<td>la virtualité exige également que les qualifications cv- soient identiques</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/477.html">CWG 477</a></td>
+<td>C++98</td>
+<td>une déclaration friend pourrait contenir le spécificateur <code>virtual</code></td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1516.html">CWG 1516</a></td>
+<td>C++98</td>
+<td>les définitions des termes « appel de fonction virtuelle » et « appel virtuel » n'étaient pas fournies</td>
+<td>provided</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="derived_class.html">classes dérivées et modes d'héritage</a></strong></p>
+<ul>
+<li><strong><a href="override.html">spécificateur <code>override</code></a> (depuis C++11)</strong> — déclare explicitement qu'une méthode redéfinit une autre méthode</li>
+<li><strong><a href="final.html">spécificateur <code>final</code></a> (depuis C++11)</strong> — déclare qu'une méthode ne peut pas être redéfinie</li>
+</ul>
+
+</main>
+</body>
+</html>

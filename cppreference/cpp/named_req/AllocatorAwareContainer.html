@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exigences nommées C++ : AllocatorAwareContainer (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/named_req.html">Exigences nommées</a></nav>
+<h1 id="exigences-nommées-c-allocatorawarecontainer-depuis-c-11">Exigences nommées C++ : AllocatorAwareContainer (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/named_req/AllocatorAwareContainer">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un <em><strong>AllocatorAwareContainer</strong></em> est un <a href="Container.html"><em>Container</em></a> qui détient une instance d'un <a href="Allocator.html"><em>Allocator</em></a> et utilise cette instance dans toutes ses fonctions membres pour allouer et désallouer de la mémoire et pour construire et détruire des objets dans cette mémoire (ces objets peuvent être des éléments de conteneur, des nœuds ou, pour les conteneurs non ordonnés, des tableaux de compartiments), à l'exception près que les spécialisations de <a href="../string/basic_string.html"><code>std::basic_string</code></a> n'utilisent pas les allocateurs pour la construction/destruction de leurs éléments <em>(depuis C++23)</em>.</p>
+<p>Les règles suivantes s'appliquent à la construction de conteneurs :</p>
+<ul>
+<li>Les constructeurs de copie des <em>AllocatorAwareContainer</em> obtiennent leurs instances d'allocateur en appelant <code>std::allocator_traits&lt;allocator_type&gt;::select_on_container_copy_construction</code> sur l'allocateur du conteneur copié.</li>
+<li>Les constructeurs de déplacement obtiennent leurs instances d'allocateurs en construisant par déplacement à partir de l'allocateur appartenant à l'ancien conteneur.</li>
+<li>Tous les autres constructeurs prennent un paramètre <code>const allocator_type&amp;</code>.</li>
+</ul>
+<p>La seule façon de remplacer un allocateur est l'affectation par copie, l'affectation par déplacement et l'échange :</p>
+<ul>
+<li>L'affectation par copie ne remplace l'allocateur que si <code>std::allocator_traits&lt;allocator_type&gt;::propagate_on_container_copy_assignment::value</code> est <code>true</code>.</li>
+<li>L'affectation par déplacement ne remplace l'allocateur que si <code>std::allocator_traits&lt;allocator_type&gt;::propagate_on_container_move_assignment::value</code> est <code>true</code>.</li>
+<li>L'échange ne remplace l'allocateur que si <code>std::allocator_traits&lt;allocator_type&gt;::propagate_on_container_swap::value</code> est <code>true</code>. Plus précisément, il échange les instances d'allocateur par un appel non qualifié à la fonction non membre swap, voir <a href="Swappable.html"><em>Swappable</em></a>.</li>
+</ul>
+<p>Remarque : le comportement de l'échange de deux conteneurs ayant des allocateurs inégaux si <code>propagate_on_container_swap</code> est <code>false</code> est indéfini.</p>
+<ul>
+<li>L'accesseur <code>get_allocator()</code> obtient une copie de l'allocateur qui a été utilisé pour construire le conteneur ou installé par la dernière opération de remplacement d'allocateur.</li>
+</ul>
+<h2 id="Requirements">Exigences</h2>
+<p>Un type satisfait <em>AllocatorAwareContainer</em> s'il satisfait <a href="Container.html"><em>Container</em></a> et, étant donnés les types et valeurs suivants, les exigences de sémantique et de complexité des tableaux ci-dessous sont satisfaites :</p>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>X</code></strong> — un type <em>AllocatorAwareContainer</em></li>
+<li><strong><code>T</code></strong> — le <code>value_type</code> de <code>X</code></li>
+<li><strong><code>A</code></strong> — le type d'allocateur utilisé par <code>X</code></li>
+</ul>
+<p><strong>Valeur Définition</strong></p>
+<ul>
+<li><strong><code>a</code>, <code>b</code></strong> — des lvalues non const de type <code>X</code></li>
+<li><strong><code>c</code></strong> — une lvalue de type <code>const X</code></li>
+<li><strong><code>t</code></strong> — une lvalue ou une rvalue const de type <code>X</code></li>
+<li><strong><code>rv</code></strong> — une rvalue non const de type <code>X</code></li>
+<li><strong><code>m</code></strong> — une valeur de type <code>A</code></li>
+</ul>
+<h3 id="Types">Types</h3>
+<table>
+<thead>
+<tr>
+<th>Nom</th>
+<th>Type</th>
+<th>Exigence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>typename X::allocator_type</code></td>
+<td><code>A</code></td>
+<td><code>X::allocator_type::value_type</code> et <code>X::value_type</code> sont identiques.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Statements">Instructions</h3>
+<p><strong>Instruction</strong> | <strong>Sémantique</strong> | <strong>Complexité</strong></p>
+<p><code>X u;</code><br />
+<code>X u = X();</code>
+| Précondition | <code>A</code> is <a href="DefaultConstructible.html"><em>DefaultConstructible</em></a>.
+| Constante</p>
+<p>Postcondition | <code>u.empty()</code> et <code>u.get_allocator() == A()</code> sont tous deux <code>true</code>.</p>
+<p><code>X u(m);</code>
+| Postcondition | <code>u.empty()</code> et <code>u.get_allocator() == m</code> sont tous deux <code>true</code>. | Constante</p>
+<p><code>X u(t, m);</code>
+| Précondition | <code>T</code> est <a href="CopyInsertable.html"><em>CopyInsertable</em></a> dans <code>X</code>. | Linéaire</p>
+<p>Postcondition | <code>u == t</code> et <code>u.get_allocator() == m</code> sont tous deux <code>true</code>.</p>
+<p><code>X u(rv);</code>
+| Postcondition |</p>
+<ul>
+<li><code>u</code> a les mêmes éléments que <code>rv</code> avait avant cette construction.</li>
+<li>La valeur de <code>u.get_allocator()</code> est la même que la valeur de <code>rv.get_allocator()</code> avant cette construction.</li>
+</ul>
+<p>| Constante</p>
+<p><code>X u(rv, m);</code>
+| Précondition | <code>T</code> est <a href="MoveInsertable.html"><em>MoveInsertable</em></a> dans <code>X</code>. |</p>
+<ul>
+<li>Constante si <code>m == rv.get_allocator()</code> est <code>true</code>.</li>
+<li>Sinon linéaire.</li>
+</ul>
+<p>Postcondition |</p>
+<ul>
+<li><code>u</code> a les mêmes éléments, ou des copies des éléments, que <code>rv</code> avait avant cette construction.</li>
+<li><code>u.get_allocator() == m</code> is <code>true</code>.</li>
+</ul>
+<h3 id="Expressions">Expressions</h3>
+<p><strong>Expression</strong> | <strong>Type</strong> | <strong>Sémantique</strong> | <strong>Complexité</strong></p>
+<p><code>c.get_allocator()</code>
+| <code>A</code>
+| Aucune exigence sémantique directe. | Constante</p>
+<p><code>a = t</code>
+| <code>X&amp;</code>
+| Précondition | <code>T</code> est <a href="CopyInsertable.html"><em>CopyInsertable</em></a> dans <code>X</code> et <a href="CopyAssignable.html"><em>CopyAssignable</em></a>. | Linéaire</p>
+<p>Postcondition | <code>a == t</code> is <code>true</code>.</p>
+<p><code>a = rv</code>
+| <code>X&amp;</code>
+| Précondition | Si l'allocateur ne doit <strong>pas</strong> être remplacé par l'affectation par déplacement (voir <a href="AllocatorAwareContainer.html#Replacing_allocator">ci-dessus</a>), alors <code>T</code> est <a href="MoveInsertable.html"><em>MoveInsertable</em></a> dans <code>X</code> et <a href="MoveAssignable.html"><em>MoveAssignable</em></a>. | Linéaire</p>
+<p>Effet | Tous les éléments existants de <code>a</code> sont soit affectés par déplacement, soit détruits.</p>
+<p>Postcondition | Si <code>a</code> et <code>rv</code> ne désignent pas le même objet, <code>a</code> est égal à la valeur que <code>rv</code> avait avant l'affectation.</p>
+<p><code>a.swap(b)</code>
+| <code>void</code>
+| Effet | Échange le contenu de <code>a</code> et <code>b</code>. | Constante</p>
+<h2 id="Notes">Notes</h2>
+<p><em>AllocatorAwareContainer</em>s appellent toujours <code>std::allocator_traits&lt;A&gt;::construct(m, p, args)</code> pour construire un objet de type <code>T</code> à <code>p</code> en utilisant <code>args</code>, avec <code>m == get_allocator()</code>. [Le <code>construct</code> par défaut de <a href="../memory/allocator.html"><code>std::allocator</code></a> appelle <code>::new((void*)p) T(args)</code> <em>(jusqu'à C++20)</em> | <a href="../memory/allocator.html"><code>std::allocator</code></a> n'a pas de membre <code>construct</code> et <code>std::construct_at(p, args)</code> est appelé lors de la construction des éléments <em>(depuis C++20)</em>], mais les allocateurs spécialisés peuvent choisir une définition différente.</p>
+<h2 id="Standard_library">Bibliothèque standard</h2>
+<p>Tous les types de chaînes et conteneurs de la bibliothèque standard (sauf <a href="../container/array.html"><code>std::array</code></a> et <code>std::inplace_vector</code>) sont des <em>AllocatorAwareContainer</em> :</p>
+<ul>
+<li><strong><a href="../string/basic_string.html">basic_string</a></strong> — stocke et manipule des séquences de caractères <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/deque.html">deque</a></strong> — file à double extrémité <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/forward_list.html">forward_list</a> (C++11)</strong> — liste simplement chaînée <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/list.html">list</a></strong> — liste doublement chaînée <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/vector.html">vector</a></strong> — tableau dynamique contigu <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/map.html">map</a></strong> — collection de paires clé-valeur, triées par clés, les clés étant uniques <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/multimap.html">multimap</a></strong> — collection de paires clé-valeur, triées par clés <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/set.html">set</a></strong> — collection de clés uniques, triées par clés <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/multiset.html">multiset</a></strong> — collection de clés, triées par clés <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/unordered_map.html">unordered_map</a> (C++11)</strong> — collection de paires clé-valeur, hachées par clés, les clés étant uniques <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/unordered_multimap.html">unordered_multimap</a> (C++11)</strong> — collection de paires clé-valeur, hachée par clés <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/unordered_set.html">unordered_set</a> (C++11)</strong> — collection de clés uniques, hachées par clés <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/unordered_multiset.html">unordered_multiset</a> (C++11)</strong> — collection de clés, hachées par clés <em>(modèle de classe)</em></li>
+</ul>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2839">LWG 2839</a></td>
+<td>C++11</td>
+<td>l'auto-affectation par déplacement des conteneurs standard n'était pas autorisée</td>
+<td>autorisée, mais le résultat est non spécifié</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

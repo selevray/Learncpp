@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::is_convertible, std::is_nothrow_convertible — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-is_convertible-std-is_nothrow_convertible"><code>std::is_convertible, std::is_nothrow_convertible</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/is_convertible">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class From, class To &gt;
+struct is_convertible;  // (1) (depuis C++11)
+
+template&lt; class From, class To &gt;
+struct is_nothrow_convertible;  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Si la définition de fonction imaginaire <code>To test() { return std::declval&lt;From&gt;(); }</code> est bien formée (c'est-à-dire que soit <code>std::declval&lt;From&gt;()</code> peut être converti en <code>To</code> à l'aide de <a href="../language/implicit_cast.html">conversions implicites</a>, soit <code>From</code> et <code>To</code> sont tous deux éventuellement qualifiés cv <code>void</code>), fournit la constante membre <code>value</code> égale à <code>true</code>. Sinon, <code>value</code> vaut <code>false</code>. Pour les besoins de cette vérification, l'utilisation de <a href="../utility/declval.html"><code>std::declval</code></a> dans l'instruction return n'est pas considérée comme une <a href="../language/definition.html#ODR-use">utilisation ODR</a>.</li>
+</ol>
+<blockquote>
+<p>Si <code>To</code> est un type référence et qu'un <a href="../language/reference_initialization.html#Lifetime_of_a_temporary">objet temporaire</a> serait créé lors de la liaison de <code>std::declval&lt;From&gt;()</code> à <code>To</code>, l'instruction <code>return</code> de la fonction imaginaire est considérée comme bien formée, bien que cette liaison soit mal formée dans une fonction réelle.</p>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Les <a href="../language/access.html">contrôles d'accès</a> sont effectués comme si l'on se trouvait dans un contexte sans lien avec l'un ou l'autre type. Seule la validité du contexte immédiat de l'expression dans l'instruction return (y compris les conversions vers le type de retour) est prise en compte.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais la conversion est également <code>noexcept</code>.</li>
+</ol>
+<p>Si <code>From</code> ou <code>To</code> n'est pas un type complet, (éventuellement qualifié cv) <code>void</code>, ni un tableau de borne inconnue, le comportement est indéfini.</p>
+<p>Si une instanciation d'un modèle ci-dessus dépend, directement ou indirectement, d'un type incomplet, et que cette instanciation pourrait donner un résultat différent si ce type était hypothétiquement complété, le comportement est indéfini.</p>
+<p>Si le programme ajoute des spécialisations pour l'un des modèles décrits sur cette page, le comportement est indéfini.</p>
+<h2 id="Helper_variable_template">Modèle de variable auxiliaire</h2>
+<pre><code class="language-cpp">template&lt; class From, class To &gt;
+constexpr bool is_convertible_v = is_convertible&lt;From, To&gt;::value;  // (depuis C++17)
+
+template&lt; class From, class To &gt;
+constexpr bool is_nothrow_convertible_v = is_nothrow_convertible&lt;From, To&gt;::value;  // (depuis C++20)
+</code></pre>
+<h2 id="Inherited_from_std::integral_constant">Hérité de <a href="integral_constant.html">std::integral_constant</a></h2>
+<h2 id="Member_constants">Constantes membres</h2>
+<ul>
+<li><strong>value [statique]</strong> — <code>true</code> si <code>From</code> est convertible en <code>To</code>, <code>false</code> sinon <em>(constante membre statique publique)</em></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong>operator bool</strong> — convertit l'objet en <code>bool</code>, renvoie <code>value</code> <em>(fonction membre publique)</em></li>
+<li><strong>operator() (C++14)</strong> — renvoie <code>value</code> <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>value_type</code></strong> — <code>bool</code></li>
+<li><strong><code>type</code></strong> — <code>std::integral_constant&lt;bool, value&gt;</code></li>
+</ul>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p><strong><a href="is_convertible.html#Version_1"><code>is_convertible</code> (1)</a></strong></p>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt;class T&gt;
+    auto test_returnable(int) -&gt; decltype(
+        void(static_cast&lt;T(*)()&gt;(nullptr)), std::true_type{}
+    );
+    template&lt;class&gt;
+    auto test_returnable(...) -&gt; std::false_type;
+
+    template&lt;class From, class To&gt;
+    auto test_implicitly_convertible(int) -&gt; decltype(
+        void(std::declval&lt;void(&amp;)(To)&gt;()(std::declval&lt;From&gt;())), std::true_type{}
+    );
+    template&lt;class, class&gt;
+    auto test_implicitly_convertible(...) -&gt; std::false_type;
+} // espace de noms detail
+
+template&lt;class From, class To&gt;
+struct is_convertible : std::integral_constant&lt;bool,
+    (decltype(detail::test_returnable&lt;To&gt;(0))::value &amp;&amp;
+     decltype(detail::test_implicitly_convertible&lt;From, To&gt;(0))::value) ||
+    (std::is_void&lt;From&gt;::value &amp;&amp; std::is_void&lt;To&gt;::value)
+&gt; {};
+</code></pre>
+<p><strong><a href="is_convertible.html#Version_2"><code>is_nothrow_convertible</code> (2)</a></strong></p>
+<pre><code class="language-cpp">template&lt;class From, class To&gt;
+struct is_nothrow_convertible : std::conjunction&lt;std::is_void&lt;From&gt;, std::is_void&lt;To&gt;&gt; {};
+
+template&lt;class From, class To&gt;
+    requires
+        requires
+        {
+            static_cast&lt;To(*)()&gt;(nullptr);
+            { std::declval&lt;void(&amp;)(To) noexcept&gt;()(std::declval&lt;From&gt;()) } noexcept;
+        }
+struct is_nothrow_convertible&lt;From, To&gt; : std::true_type {};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Fournit des résultats bien définis pour les types référence, les types void, les types tableau et les types fonction.</p>
+<p>La norme ne précise actuellement pas si la destruction de l'objet produit par la conversion (qu'il s'agisse d'un objet résultat ou d'un temporaire lié à une référence) fait partie de la conversion. Il s'agit de <a href="https://cplusplus.github.io/LWG/issue3400">LWG issue 3400</a>.</p>
+<p>Toutes les implémentations connues considèrent la destruction comme faisant partie de la conversion, comme proposé dans <a href="https://wg21.link/P0758R1#Appendix">P0758R1</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_is_nothrow_convertible"><code>__cpp_lib_is_nothrow_convertible</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_is_nothrow_convertible_201806L"><code>201806L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><code>std::is_nothrow_convertible</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;type_traits&gt;
+
+class E { public: template&lt;class T&gt; E(T&amp;&amp;) {} };
+
+int main()
+{
+    class A {};
+    class B : public A {};
+    class C {};
+    class D { public: operator C() { return c; } C c; };
+
+    static_assert(std::is_convertible_v&lt;B*, A*&gt;);
+    static_assert(!std::is_convertible_v&lt;A*, B*&gt;);
+    static_assert(std::is_convertible_v&lt;D, C&gt;);
+    static_assert(!std::is_convertible_v&lt;B*, C*&gt;);
+    // Notez que le constructeur à transmission parfaite fait que la classe E est
+    // &quot;convertible&quot; à partir de tout. Ainsi, A peut être remplacé par B, C, D… :
+    static_assert(std::is_convertible_v&lt;A, E&gt;);
+
+    static_assert(!std::is_convertible_v&lt;std::string_view, std::string&gt;);
+    static_assert(std::is_convertible_v&lt;std::string, std::string_view&gt;);
+
+    auto stringify = []&lt;typename T&gt;(T x)
+    {
+        if constexpr (std::is_convertible_v&lt;T, std::string&gt; or
+                      std::is_convertible_v&lt;T, std::string_view&gt;)
+            return x;
+        else
+            return std::to_string(x);
+    };
+
+    using std::operator &quot;&quot; s, std::operator &quot;&quot; sv;
+    const char* three = &quot;three&quot;;
+
+    std::cout &lt;&lt; std::quoted(stringify(&quot;one&quot;s)) &lt;&lt; ' '
+              &lt;&lt; std::quoted(stringify(&quot;two&quot;sv)) &lt;&lt; ' '
+              &lt;&lt; std::quoted(stringify(three)) &lt;&lt; ' '
+              &lt;&lt; std::quoted(stringify(42)) &lt;&lt; ' '
+              &lt;&lt; std::quoted(stringify(42.0)) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">&quot;one&quot; &quot;two&quot; &quot;three&quot; &quot;42&quot; &quot;42.000000&quot;
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="is_base_of.html">is_base_of</a> (C++11)</strong> — vérifie si un type est une base d'un autre type <em>(modèle de classe)</em></li>
+<li><strong><a href="is_pointer_interconvertible_base_of.html">is_pointer_interconvertible_base_of</a> (C++20)</strong> — vérifie si un type est une base (initiale) <em><a href="../language/static_cast.html#pointer-interconvertible">pointer-interconvertible</a></em> d'un autre type <em>(modèle de classe)</em></li>
+<li><strong><a href="is_pointer_interconvertible_with_class.html">is_pointer_interconvertible_with_class</a> (C++20)</strong> — vérifie si des objets d'un type sont <em><a href="../language/static_cast.html#pointer-interconvertible">interconvertibles par pointeur</a></em> avec le sous-objet spécifié de ce type <em>(modèle de fonction)</em></li>
+<li><strong><a href="../concepts/convertible_to.html">convertible_to</a> (C++20)</strong> — spécifie qu'un type est implicitement convertible en un autre type <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

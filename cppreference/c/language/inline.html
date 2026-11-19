@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spécificateur de fonction inline — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="spécificateur-de-fonction-inline">spécificateur de fonction inline</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/inline">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Déclare une <a href="https://en.wikipedia.org/wiki/inline_function">fonction inline</a>.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>inline</code> <code>function_declaration</code> | | (depuis C99) |
+|</p>
+<h2 id="Explanation">Explication</h2>
+<p>Le spécificateur <code>inline</code> a pour but de servir d'indication au compilateur pour effectuer des optimisations, telles que l'<a href="https://en.wikipedia.org/wiki/inline_expansion">inlining de fonction</a>, qui exigent généralement que la définition d'une fonction soit visible au site d'appel. Les compilateurs peuvent (et le font généralement) ignorer la présence ou l'absence du spécificateur <code>inline</code> à des fins d'optimisation.</p>
+<p>Si le compilateur effectue l'inlining de fonction, il remplace un appel de cette fonction par son corps, évitant le surcoût d'un appel de fonction (placement des données sur la pile et récupération du résultat), ce qui peut entraîner un exécutable plus volumineux, car le code de la fonction doit être répété plusieurs fois. Le résultat est similaire aux <a href="../preprocessor/replace.html">macros de type fonction</a>, sauf que les identifiants et les macros utilisés dans la fonction désignent les définitions visibles au point de définition, et non au point d'appel.</p>
+<p>Indépendamment du fait que l'inlining ait lieu ou non, la sémantique suivante des fonctions inline est garantie :</p>
+<p>Toute fonction à liaison interne peut être déclarée <code>static inline</code> sans autre restriction.</p>
+<p>Une fonction inline non statique ne peut pas définir un static local à la fonction non const, et ne peut pas référencer un static de portée fichier.</p>
+<pre><code class="language-c">static int x;
+
+inline void f(void)
+{
+    static int n = 1; // erreur : static non const dans une fonction inline non statique
+    int k = x; // erreur : fonction inline non statique accède à une variable statique
+}
+</code></pre>
+<p>Si une fonction non statique est déclarée <code>inline</code>, elle doit alors être définie dans la même unité de traduction. La définition inline qui n'utilise pas <code>extern</code> n'est pas visible à l'extérieur et n'empêche pas d'autres unités de traduction de définir la même fonction. Cela fait du mot-clé <code>inline</code> une alternative à <code>static</code> pour définir des fonctions à l'intérieur des en-têtes, qui peuvent être inclus dans plusieurs unités de traduction du même programme.</p>
+<p>Si une fonction est déclarée <code>inline</code> dans certaines unités de traduction, elle n'a pas besoin d'être déclarée <code>inline</code> partout : au plus une unité de traduction peut aussi fournir une fonction ordinaire, non inline et non statique, ou une fonction déclarée <code>extern inline</code>. On dit que cette unité de traduction fournit la <em>définition externe</em>. Afin d'éviter un comportement indéfini, une définition externe doit exister dans le programme si le nom de la fonction à liaison externe est utilisé dans une expression, voir <a href="extern.html#One_definition_rule">règle de la définition unique</a>.</p>
+<p>L'adresse d'une fonction inline à liaison externe est toujours celle de la définition externe, mais lorsque cette adresse est utilisée pour effectuer un appel de fonction, il n'est pas spécifié si la <em>définition inline</em> (si elle est présente dans l'unité de traduction) ou la <em>définition externe</em> est appelée. Les objets statiques définis dans une définition inline sont distincts des objets statiques définis dans la définition externe :</p>
+<pre><code class="language-c">inline const char *saddr(void) // la définition inline à utiliser dans ce fichier
+{
+    static const char name[] = &quot;saddr&quot;;
+    return name;
+}
+
+int compare_name(void)
+{
+    return saddr() == saddr(); // comportement non spécifié, un appel pourrait être externe
+}
+
+extern const char *saddr(void); // une définition externe est aussi générée
+</code></pre>
+<p>Un programme C ne doit pas dépendre de l'appel de la version inline ou de la version externe d'une fonction, sinon le comportement est non spécifié.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/inline.html"><code>inline</code></a></p>
+<h2 id="Notes">Notes</h2>
+<p>Le mot-clé <code>inline</code> a été repris de C++, mais en C++, si une fonction est déclarée <code>inline</code>, elle doit être déclarée <code>inline</code> dans chaque unité de traduction, et de plus chaque définition d'une fonction inline doit être exactement identique (en C, les définitions peuvent différer, et selon les différences cela ne produit qu'un comportement non spécifié). En revanche, C++ autorise les variables statiques locales non const, et toutes les variables statiques locales issues de différentes définitions d'une fonction inline sont identiques en C++ mais distinctes en C.</p>
+<h2 id="Example">Exemple</h2>
+<blockquote>
+<p>En-tête « test.h »</p>
+<pre><code class="language-c">#ifndef TEST_H_INCLUDED
+#define TEST_H_INCLUDED
+
+inline int sum(int a, int b)
+{
+    return a + b;
+}
+
+#endif
+</code></pre>
+<p>Fichier source « sum.c »</p>
+<pre><code class="language-c">#include &quot;test.h&quot;
+
+extern inline int sum(int a, int b); // fournit la définition externe
+</code></pre>
+<p>Fichier source « test1.c »</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &quot;test.h&quot;
+
+extern int f(void);
+
+int main(void)
+{
+    printf(&quot;%d\n&quot;, sum(1, 2) + f());
+}
+</code></pre>
+<p>Fichier source « test2.c »</p>
+<pre><code class="language-c">#include &quot;test.h&quot;
+
+int f(void)
+{
+    return sum(3, 4);
+}
+</code></pre>
+<p>Sortie</p>
+<pre><code class="language-c">10
+</code></pre>
+</blockquote>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.4 Spécificateurs de fonction (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.4 Spécificateurs de fonction (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.4 Spécificateurs de fonction (p : 125-127)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.4 Spécificateurs de fonction (p : 112-113)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/inline.html">Documentation C++</a> pour spécificateur <code>inline</code></strong></p>
+
+</main>
+</body>
+</html>

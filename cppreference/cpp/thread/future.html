@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::future — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-future"><code>std::future</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/future">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;future&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt; class future;  // (1) (depuis C++11)
+
+template&lt; class T &gt; class future&lt;T&amp;&gt;;  // (2) (depuis C++11)
+
+template&lt;&gt; class future&lt;void&gt;;  // (3) (depuis C++11)
+</code></pre>
+<p>Le modèle de classe <code>std::future</code> fournit un mécanisme pour accéder au résultat d'opérations asynchrones :</p>
+<ul>
+<li>
+<p>Une opération asynchrone (créée via <a href="async.html"><code>std::async</code></a>, <a href="packaged_task.html"><code>std::packaged_task</code></a> ou <a href="promise.html"><code>std::promise</code></a>) peut fournir un objet <code>std::future</code> au créateur de cette opération asynchrone.</p>
+</li>
+<li>
+<p>Le créateur de l'opération asynchrone peut alors utiliser diverses méthodes pour interroger, attendre ou extraire une valeur de <code>std::future</code>. Ces méthodes peuvent bloquer si l'opération asynchrone n'a pas encore fourni de valeur.</p>
+</li>
+<li>
+<p>Lorsque l'opération asynchrone est prête à envoyer un résultat au créateur, elle peut le faire en modifiant l'<em>état partagé</em> (par exemple <a href="promise/set_value.html"><code>std::promise::set_value</code></a>) lié à <code>std::future</code> du créateur.</p>
+</li>
+</ul>
+<p>Notez que <code>std::future</code> référence un état partagé qui n'est partagé avec aucun autre objet de retour asynchrone (contrairement à <a href="shared_future.html"><code>std::shared_future</code></a>).</p>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="future/future.html">(constructeur)</a></strong> — construit l'objet futur <em>(fonction membre publique)</em></li>
+<li><strong><a href="future/~future.html">(destructeur)</a></strong> — détruit l'objet futur <em>(fonction membre publique)</em></li>
+<li><strong><a href="future/operator%3D.html">operator=</a></strong> — déplace l'objet future <em>(fonction membre publique)</em></li>
+<li><strong><a href="future/share.html">share</a></strong> — transfère l'état partagé de <code>*this</code> vers un <a href="shared_future.html"><code>shared_future</code></a> et le retourne <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Obtention du résultat {#Getting_the_result}</strong></p>
+<ul>
+<li><strong><a href="future/get.html">get</a></strong> — retourne le résultat <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### État {#State}</strong></p>
+<ul>
+<li><strong><a href="future/valid.html">valid</a></strong> — vérifie si le futur possède un état partagé <em>(fonction membre publique)</em></li>
+<li><strong><a href="future/wait.html">wait</a></strong> — attend que le résultat devienne disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="future/wait_for.html">wait_for</a></strong> — attend le résultat, retourne s'il n'est pas disponible pendant la durée de temporisation spécifiée <em>(fonction membre publique)</em></li>
+<li><strong><a href="future/wait_until.html">wait_until</a></strong> — attend le résultat, retourne s'il n'est pas disponible avant que le point temporel spécifié soit atteint <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Examples">Exemples</h2>
+<pre><code class="language-cpp">#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+int main()
+{
+    // futur issu d'un packaged_task
+    std::packaged_task&lt;int()&gt; task([]{ return 7; }); // encapsule la fonction
+    std::future&lt;int&gt; f1 = task.get_future(); // obtient un futur
+    std::thread t(std::move(task)); // lance sur un thread
+
+    // futur issu d'un async()
+    std::future&lt;int&gt; f2 = std::async(std::launch::async, []{ return 8; });
+
+    // futur issu d'une promise
+    std::promise&lt;int&gt; p;
+    std::future&lt;int&gt; f3 = p.get_future();
+    std::thread([&amp;p]{ p.set_value_at_thread_exit(9); }).detach();
+
+    std::cout &lt;&lt; &quot;Waiting...&quot; &lt;&lt; std::flush;
+    f1.wait();
+    f2.wait();
+    f3.wait();
+    std::cout &lt;&lt; &quot;Done!\nResults are: &quot;
+              &lt;&lt; f1.get() &lt;&lt; ' ' &lt;&lt; f2.get() &lt;&lt; ' ' &lt;&lt; f3.get() &lt;&lt; '\n';
+    t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Waiting...Done!
+Results are: 7 8 9
+</code></pre>
+<h3 id="Example_with_exceptions">Exemple avec exceptions</h3>
+<pre><code class="language-cpp">#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+int main()
+{
+    std::promise&lt;int&gt; p;
+    std::future&lt;int&gt; f = p.get_future();
+
+    std::thread t([&amp;p]
+    {
+        try
+        {
+            // code susceptible de lever une exception
+            throw std::runtime_error(&quot;Example&quot;);
+        }
+        catch (...)
+        {
+            try
+            {
+                // stocke toute exception levée dans la promise
+                p.set_exception(std::current_exception());
+            }
+            catch (...) {} // set_exception() peut aussi lever une exception
+        }
+    });
+
+    try
+    {
+        std::cout &lt;&lt; f.get();
+    }
+    catch (const std::exception&amp; e)
+    {
+        std::cout &lt;&lt; &quot;Exception from the thread: &quot; &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+    t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Exception from the thread: Example
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="async.html">async</a> (C++11)</strong> — exécute une fonction de manière asynchrone (potentiellement dans un nouveau thread) et renvoie un <code>std::future</code> qui contiendra le résultat <em>(modèle de fonction)</em></li>
+<li><strong><a href="shared_future.html">shared_future</a> (C++11)</strong> — attend une valeur (éventuellement référencée par d'autres futurs) définie de manière asynchrone <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

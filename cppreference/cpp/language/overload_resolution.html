@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Résolution de surcharge — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="résolution-de-surcharge">Résolution de surcharge</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/overload_resolution">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Pour compiler un appel de fonction, le compilateur doit d'abord effectuer une <a href="lookup.html">recherche de nom</a>, qui, pour les fonctions, peut impliquer une <a href="adl.html">recherche dépendante des arguments</a>, et pour les modèles de fonction peut être suivie d'une <a href="template_argument_deduction.html">déduction d'arguments de modèle</a>.</p>
+<p>Si le nom désigne plus d'une entité, il est dit <em>surchargé</em>, et le compilateur doit déterminer quelle surcharge appeler. En termes simples, la surcharge dont les paramètres correspondent le plus étroitement aux arguments est celle qui est appelée.</p>
+<p>Plus précisément, la résolution de surcharge procède selon les étapes suivantes :</p>
+<ol>
+<li>Construction de l'ensemble des <a href="overload_resolution.html#Candidate_functions">fonctions candidates</a>.</li>
+<li>Réduction de l'ensemble aux seules <a href="overload_resolution.html#Viable_functions">fonctions viables</a>.</li>
+<li>Analyse de l'ensemble pour déterminer l'unique <a href="overload_resolution.html#Best_viable_function">meilleure fonction viable</a> (cela peut impliquer le <a href="overload_resolution.html#Ranking_of_implicit_conversion_sequences">classement des séquences de conversion implicites</a>).</li>
+</ol>
+<pre><code class="language-cpp">void f(long);
+void f(float);
+
+f(0L); // appelle f(long)
+f(0);  // erreur : surcharge ambiguë
+</code></pre>
+<p>Outre les appels de fonction, les noms de fonctions surchargées peuvent apparaître dans plusieurs contextes supplémentaires, où des règles différentes s'appliquent : voir <a href="overloaded_address.html">Adresse d'une fonction surchargée</a>.</p>
+<p>Si une fonction ne peut pas être sélectionnée par la résolution de surcharge, elle ne peut pas être utilisée (par ex. c'est une <a href="templates.html#Templated_entity">entité basée sur un modèle</a> dont la <a href="constraints.html">contrainte</a> n'est pas satisfaite).</p>
+<h2 id="Candidate_functions">Fonctions candidates</h2>
+<p>Avant que la résolution de surcharge ne commence, les fonctions sélectionnées par la recherche de nom et la déduction d'arguments de modèle sont combinées pour former l'ensemble des <em>fonctions candidates</em>. Les détails exacts dépendent du contexte dans lequel la résolution de surcharge aura lieu.</p>
+<h3 id="Call_to_a_named_function">Appel d'une fonction nommée</h3>
+<p>Si <code>E</code> dans une <a href="operator_other.html#Built-in_function_call_operator">expression d'appel de fonction</a> <code>E(args)</code> désigne un ensemble de fonctions surchargées et/ou de modèles de fonction (mais pas d'objets appelables), les règles suivantes s'appliquent :</p>
+<ul>
+<li>Si l'expression <code>E</code> a la forme <code>PA-&gt;B</code> ou <code>A.B</code> (où <code>A</code> a le type de classe <em>cv</em> <code>T</code>), alors <code>B</code> est <a href="lookup.html">recherché</a> comme fonction membre de <code>T</code>. Les déclarations de fonctions trouvées par cette recherche sont les fonctions candidates. La liste d'arguments, pour les besoins de la résolution de surcharge, comporte l'argument objet implicite de type <em>cv</em> <code>T</code>.</li>
+<li>Si l'expression <code>E</code> est une <a href="expressions.html#Primary_expressions">expression primaire</a>, le nom est <a href="lookup.html">recherché</a> selon les règles normales des appels de fonction (ce qui peut impliquer une <a href="adl.html">ADL</a>). Les déclarations de fonctions trouvées par cette recherche sont (en raison du fonctionnement de la recherche) soit :
+<ul>
+<li>toutes des fonctions non membres (auquel cas la liste d'arguments pour la résolution de surcharge est exactement la liste d'arguments utilisée dans l'expression d'appel de fonction)</li>
+<li>toutes des fonctions membres d'une classe <code>T</code>, auquel cas, si <code>this</code> est dans la portée et est un pointeur vers <code>T</code> ou vers une classe dérivée de <code>T</code>, <code>*this</code> est utilisé comme argument objet implicite. Sinon (si <code>this</code> n'est pas dans la portée ou ne pointe pas vers <code>T</code>), un faux objet de type <code>T</code> est utilisé comme argument objet implicite, et si la résolution de surcharge sélectionne ensuite une fonction membre non statique, le programme est mal formé.</li>
+</ul>
+</li>
+</ul>
+<h3 id="Call_to_a_class_object">Appel d'un objet de classe</h3>
+<p>Si <code>E</code> dans une <a href="operator_other.html#Built-in_function_call_operator">expression d'appel de fonction</a> <code>E(args)</code> a le type de classe <em>cv</em> <code>T</code>, alors</p>
+<ul>
+<li>Les opérateurs d'appel de fonction de <code>T</code> sont obtenus par une <a href="lookup.html">recherche</a> ordinaire du nom <code>operator()</code> dans le contexte de l'expression <code>(E).operator()</code>, et chaque déclaration trouvée est ajoutée à l'ensemble des fonctions candidates.</li>
+<li>Pour chaque <a href="cast_operator.html">fonction de conversion définie par l'utilisateur</a> non <a href="explicit.html"><code>explicit</code></a> dans <code>T</code> ou dans une base de <code>T</code> (sauf si masquée), dont les qualificateurs cv sont identiques ou plus stricts que ceux de <code>T</code>, et où la fonction de conversion convertit en :
+<ul>
+<li>pointeur vers fonction</li>
+<li>référence vers pointeur vers fonction</li>
+<li>référence vers fonctionalors une <em>fonction d'appel substitut</em> de nom unique dont le premier paramètre est le résultat de la conversion, dont les paramètres restants sont la liste de paramètres acceptée par le résultat de la conversion, et dont le type de retour est le type de retour du résultat de la conversion, est ajoutée à l'ensemble des fonctions candidates. Si cette fonction substitut est sélectionnée par la résolution de surcharge ultérieure, alors la fonction de conversion définie par l'utilisateur sera appelée, puis le résultat de la conversion sera appelé.</li>
+</ul>
+</li>
+</ul>
+<p>Dans tous les cas, la liste d'arguments pour la résolution de surcharge est la liste d'arguments de l'expression d'appel de fonction précédée de l'argument objet implicite <code>E</code> (lorsqu'on fait correspondre la fonction substitut, la conversion définie par l'utilisateur convertira automatiquement l'argument objet implicite en premier argument de la fonction substitut).</p>
+<pre><code class="language-cpp">int f1(int);
+int f2(float);
+
+struct A
+{
+    using fp1 = int(*)(int);
+    operator fp1() { return f1; } // fonction de conversion vers un pointeur sur fonction
+    using fp2 = int(*)(float);
+    operator fp2() { return f2; } // fonction de conversion vers un pointeur sur fonction
+} a;
+
+int i = a(1); // appelle f1 via le pointeur renvoyé par la fonction de conversion
+</code></pre>
+<h3 id="Call_to_an_overloaded_operator">Appel d'un opérateur surchargé</h3>
+<p>Si au moins un des arguments d'un opérateur dans une expression a un type de classe ou un type énumération, les <a href="expressions.html#Operators">opérateurs intégrés</a> et les <a href="operators.html">surcharges d'opérateurs définies par l'utilisateur</a> participent tous deux à la résolution de surcharge, l'ensemble des fonctions candidates étant sélectionné comme suit :</p>
+<p>Pour un opérateur unaire <code>@</code> dont l'argument a le type <code>T1</code> (après suppression des qualificateurs cv), ou un opérateur binaire <code>@</code> dont l'opérande gauche a le type <code>T1</code> et l'opérande droit le type <code>T2</code> (après suppression des qualificateurs cv), les ensembles suivants de fonctions candidates sont préparés :</p>
+<ol>
+<li>
+<p><em>candidats membres</em> : si <code>T1</code> est une classe complète ou une classe en cours de définition, l'ensemble des candidats membres est le résultat de la <a href="lookup.html">recherche de nom qualifiée</a> de <code>T1::operator@</code>. Dans tous les autres cas, l'ensemble des candidats membres est vide.</p>
+</li>
+<li>
+<p><em>candidats non membres</em> : pour les opérateurs dont la <a href="operators.html">surcharge d'opérateurs</a> permet une forme non membre, toutes les déclarations trouvées par <a href="lookup.html">recherche de nom non qualifiée</a> de <code>operator@</code> dans le contexte de l'expression (qui peut impliquer une <a href="adl.html">ADL</a>), à l'exception des déclarations de fonctions membres, qui sont ignorées et n'empêchent pas la recherche de se poursuivre dans la portée englobante suivante. Si les deux opérandes d'un opérateur binaire ou l'unique opérande d'un opérateur unaire ont un type énumération, les seules fonctions de l'ensemble de recherche qui deviennent des candidats non membres sont celles dont le paramètre a ce type énumération (ou une référence vers ce type énumération)</p>
+</li>
+<li>
+<p><em>candidats intégrés</em> : pour <code>operator,</code>, l'unaire <code>operator&amp;</code> et <code>operator-&gt;</code>, l'ensemble des candidats intégrés est vide. Pour les autres opérateurs, les candidats intégrés sont ceux listés dans les <a href="expressions.html#Operators">pages des opérateurs intégrés</a> tant que tous les opérandes peuvent être implicitement convertis en leurs paramètres. Si un candidat intégré a la même liste de paramètres qu'un candidat non membreou candidat non membre réécrit <em>(depuis C++20)</em> qui n'est pas une spécialisation de modèle de fonction, il n'est pas ajouté à la liste des candidats intégrés. Lorsque les opérateurs d'affectation intégrés sont considérés, les conversions de leurs premiers paramètres sont restreintes : seules les <a href="implicit_cast.html">séquences de conversion standard</a> sont considérées.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="4">
+<li><em>candidats réécrits</em> :</li>
+</ol>
+<ul>
+<li>Pour les quatre expressions d'opérateurs relationnels <code>x &lt; y</code>, <code>x &lt;= y</code>, <code>x &gt; y</code> et <code>x &gt;= y</code>, tous les <code>operator&lt;=&gt;</code> membres, non membres et intégrés trouvés sont ajoutés à l'ensemble.</li>
+<li>Pour les quatre expressions d'opérateurs relationnels <code>x &lt; y</code>, <code>x &lt;= y</code>, <code>x &gt; y</code> et <code>x &gt;= y</code>, ainsi que l'expression de comparaison à trois voies <code>x &lt;=&gt; y</code>, un candidat synthétisé avec l'ordre des deux paramètres inversé est ajouté pour chaque <code>operator&lt;=&gt;</code> membre, non membre et intégré trouvé.</li>
+<li>Pour <code>x != y</code>, tous les <code>operator==</code> membres, non membres et intégrés trouvés sont ajoutés à l'ensemble, sauf s'il existe un <code>operator!=</code> correspondant.</li>
+<li>Pour les expressions d'opérateurs d'égalité <code>x == y</code> et <code>x != y</code>, un candidat synthétisé avec l'ordre des deux paramètres inversé est ajouté pour chaque <code>operator==</code> membre, non membre et intégré trouvé, sauf s'il existe un <code>operator!=</code> correspondant.</li>
+</ul>
+<p>Dans tous les cas, les candidats réécrits ne sont pas considérés dans le contexte de l'expression réécrite. Pour tous les autres opérateurs, l'ensemble des candidats réécrits est vide.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>L'ensemble des fonctions candidates soumis à la résolution de surcharge est l'union des ensembles ci-dessus. La liste d'arguments pour la résolution de surcharge est constituée des opérandes de l'opérateur, à l'exception de <code>operator-&gt;</code>, dont le second opérande n'est pas un argument de l'appel de fonction (voir <a href="operator_member_access.html#Built-in_member_access_operators">opérateur d'accès membre</a>).</p>
+<pre><code class="language-cpp">struct A
+{
+    operator int();              // conversion définie par l'utilisateur
+};
+A operator+(const A&amp;, const A&amp;); // opérateur défini par l'utilisateur non membre
+
+void m()
+{
+    A a, b;
+    a + b; // candidats membres : aucun
+           // candidats non membres : operator+(a, b)
+           // candidats intégrés : int(a) + int(b)
+           // la résolution de surcharge choisit operator+(a, b)
+}
+</code></pre>
+<p>Si la résolution de surcharge sélectionne un candidat intégré, la <a href="implicit_cast.html">séquence de conversion définie par l'utilisateur</a> à partir d'un opérande de type classe ne doit pas avoir une seconde séquence de conversion standard : la fonction de conversion définie par l'utilisateur doit fournir directement le type d'opérande attendu :</p>
+<pre><code class="language-cpp">struct Y { operator int*(); }; // Y est convertible en int*
+int *a = Y() + 100.0;          // erreur : pas d'operator+ entre un pointeur et un double
+</code></pre>
+<p>Pour <code>operator,</code>, l'unaire <code>operator&amp;</code> et <code>operator-&gt;</code>, si l'ensemble des fonctions candidates ne contient aucune fonction viable (voir ci-dessous), l'opérateur est réinterprété comme intégré.</p>
+<blockquote>
+<p>Si un candidat <code>operator&lt;=&gt;</code> réécrit est sélectionné par la résolution de surcharge pour un opérateur <code>@</code>, <code>x @ y</code> est interprété comme l'expression réécrite : <code>0 @ (y &lt;=&gt; x)</code> si le candidat sélectionné est un candidat synthétisé avec l'ordre des paramètres inversé, ou <code>(x &lt;=&gt; y) @ 0</code> sinon, en utilisant le candidat <code>operator&lt;=&gt;</code> réécrit sélectionné.</p>
+<p>Si un candidat <code>operator==</code> réécrit est sélectionné par la résolution de surcharge pour un opérateur <code>@</code> (qui est soit <code>==</code>, soit <code>!=</code>), son type de retour doit être (éventuellement qualifié cv) <code>bool</code>, et <code>x @ y</code> est interprété comme l'expression réécrite : <code>y == x</code> ou <code>!(y == x)</code> si le candidat sélectionné est un candidat synthétisé avec l'ordre des paramètres inversé, ou <code>!(x == y)</code> sinon, en utilisant le candidat <code>operator==</code> réécrit sélectionné.</p>
+<p>La résolution de surcharge dans ce cas comporte un dernier critère de départage qui préfère les candidats non réécrits aux candidats réécrits, et préfère les candidats réécrits non synthétisés aux candidats réécrits synthétisés.</p>
+<p>Cette recherche avec l'ordre inversé des arguments permet d'écrire simplement <code>operator&lt;=&gt;(std::string, const char*)</code> et <code>operator==(std::string, const char*)</code> pour générer toutes les comparaisons entre <a href="../string/basic_string.html"><code>std::string</code></a> et <code>const char*</code>, dans les deux sens. Voir <a href="default_comparisons.html">comparaisons par défaut</a> pour plus de détails.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Initialization_by_constructor">Initialisation par constructeur</h3>
+<p>Lorsqu'un objet de type classe est <a href="direct_initialization.html">initialisé directement</a> ou <a href="default_initialization.html">initialisé par défaut</a>(y compris l'initialisation par défaut dans le contexte de <a href="list_initialization.html">l'initialisation par copie de liste</a>) <em>(depuis C++11)</em>, les fonctions candidates sont tous les constructeurs de la classe initialisée. La liste d'arguments est la liste d'expressions de l'initialiseur.</p>
+<p>Sinon, les fonctions candidates sont tous les <a href="converting_constructor.html">constructeurs convertisseurs</a> de la classe initialisée. La liste d'arguments est l'expression de l'initialiseur.</p>
+<blockquote>
+<p>Pour l'initialisation par défaut dans le contexte de l'initialisation par copie de liste, si un <a href="explicit.html"><code>explicit</code></a> constructeur est choisi, l'initialisation est mal formée.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="Copy-initialization_by_conversion">Initialisation par copie par conversion</h3>
+<p>Si l'<a href="copy_initialization.html">initialisation par copie</a> d'un objet de type classe nécessite l'appel d'une conversion définie par l'utilisateur pour convertir l'expression d'initialisation de type <em>cv</em> <code>S</code> vers le type <em>cv</em> <code>T</code> de l'objet initialisé, les fonctions suivantes sont des fonctions candidates :</p>
+<ul>
+<li>tous les <a href="converting_constructor.html">constructeurs convertisseurs</a> de <code>T</code></li>
+<li>les fonctions de conversion non <a href="explicit.html"><code>explicit</code></a> de <code>S</code> et de ses classes de base (sauf si masquées) vers <code>T</code> ou une classe dérivée de <code>T</code>, ou une référence vers celle-ci. Si cette initialisation par copie fait partie de la séquence d'initialisation directe de <em>cv</em> <code>T</code> (initialisation d'une référence devant être liée au premier paramètre d'un constructeur qui prend une référence vers <em>cv</em> <code>T</code>), alors les fonctions de conversion explicites sont également prises en compte.</li>
+</ul>
+<p>Dans les deux cas, la liste d'arguments, pour la résolution de surcharge, se compose d'un seul argument, qui est l'expression d'initialisation, laquelle sera comparée au premier argument du constructeur ou à l'argument objet implicite de la fonction de conversion.</p>
+<h3 id="Non-class_initialization_by_conversion">Initialisation non de classe par conversion</h3>
+<p>Lorsque l'initialisation d'un objet de type non classe <em>cv1</em> <code>T</code> nécessite une <a href="cast_operator.html">fonction de conversion définie par l'utilisateur</a> pour convertir depuis une expression d'initialisation de type classe <em>cv</em> <code>S</code>, les fonctions suivantes sont candidates :</p>
+<ul>
+<li>les fonctions de conversion définies par l'utilisateur non explicites de <code>S</code> et de ses classes de base (sauf si masquées) qui produisent le type <code>T</code> ou un type convertible en <code>T</code> par une <a href="implicit_cast.html">séquence de conversions standard</a>, ou une référence vers un tel type. Les qualificatifs cv du type retourné sont ignorés pour la sélection des fonctions candidates.</li>
+<li>si c'est une <a href="direct_initialization.html">initialisation directe</a>, les fonctions de conversion définies par l'utilisateur explicites de <code>S</code> et de ses classes de base (sauf si masquées) qui produisent le type <code>T</code> ou un type convertible en <code>T</code> par une <a href="implicit_cast.html#Qualification_conversion">conversion de qualification</a>, ou une référence vers un tel type, sont également prises en compte.</li>
+</ul>
+<p>Dans les deux cas, la liste d'arguments, pour la résolution de surcharge, se compose d'un seul argument, qui est l'expression d'initialisation, laquelle sera comparée à l'argument objet implicite de la fonction de conversion.</p>
+<h3 id="Reference_initialization_by_conversion">Initialisation de référence par conversion</h3>
+<p>Lors de l'<a href="reference_initialization.html">initialisation de référence</a>, où la référence vers <em>cv1</em> <code>T</code> est liée à la valeur lvalue ou rvalue résultant d'une conversion de l'expression d'initialisation de type classe <em>cv2</em> <code>S</code>, les fonctions suivantes sont retenues pour l'ensemble des candidats :</p>
+<ul>
+<li>
+<p>Les fonctions de conversion définies par l'utilisateur non explicites de <code>S</code> et de ses classes de base (sauf si masquées) vers le type</p>
+<ul>
+<li>(lors d'une conversion vers une lvalue) référence lvalue vers <em>cv2</em> <code>T2</code></li>
+<li>(lors d'une conversion vers une rvalue ou une lvalue de type fonction) <em>cv2</em> <code>T2</code> ou référence rvalue vers <em>cv2</em> <code>T2</code> où <em>cv2</em> <code>T2</code> est <a href="reference_initialization.html#Definitions">compatible en référence</a> avec <em>cv1</em> <code>T</code>.</li>
+</ul>
+</li>
+<li>
+<p>Pour l'initialisation directe, les fonctions de conversion définies par l'utilisateur explicites sont également prises en compte si <code>T2</code> est du même type que <code>T</code> ou peut être converti vers le type <code>T</code> par une conversion de qualification.</p>
+</li>
+</ul>
+<p>Dans les deux cas, la liste d'arguments, pour la résolution de surcharge, se compose d'un seul argument, qui est l'expression d'initialisation, laquelle sera comparée à l'argument objet implicite de la fonction de conversion.</p>
+<h3 id="List-initialization">Initialisation par liste</h3>
+<p>Lorsqu'un objet de type classe non agrégat <code>T</code> est <a href="list_initialization.html">initialisé par liste</a>, une résolution de surcharge en deux phases a lieu.</p>
+<ul>
+<li>à la phase 1, les fonctions candidates sont tous les constructeurs de <code>T</code> prenant une liste d'initialisation, et la liste d'arguments, pour la résolution de surcharge, se compose d'un seul argument de type liste d'initialisation</li>
+<li>si la résolution de surcharge échoue à la phase 1, la phase 2 est entamée, où les fonctions candidates sont tous les constructeurs de <code>T</code> et la liste d'arguments, pour la résolution de surcharge, se compose des éléments individuels de la liste d'initialisation.</li>
+</ul>
+<p>Si la liste d'initialisation est vide et que <code>T</code> possède un constructeur par défaut, la phase 1 est ignorée.</p>
+<p>Lors de l'initialisation par copie de liste, si la phase 2 sélectionne un constructeur explicite, l'initialisation est mal formée (contrairement à toutes les initialisations par copie où les constructeurs explicites ne sont même pas pris en compte).</p>
+<h3 id="Additional_rules_for_function_template_candidates">Règles supplémentaires pour les candidats modèles de fonction</h3>
+<p>Si la recherche de nom a trouvé un modèle de fonction, la <a href="template_argument_deduction.html">déduction d'arguments de modèle</a> et la vérification de tous les arguments de modèle explicites sont effectuées pour trouver les valeurs d'arguments de modèle (le cas échéant) pouvant être utilisées dans ce cas :</p>
+<ul>
+<li>Si les deux réussissent, les arguments de modèle sont utilisés pour synthétiser les déclarations des spécialisations de modèle de fonction correspondantes, qui sont ajoutées à l'ensemble des candidats, et ces spécialisations sont traitées comme des fonctions non modèles, sauf indication contraire dans les règles de départage ci-dessous.</li>
+<li>Si la déduction d'arguments échoue ou si la spécialisation de modèle de fonction synthétisée serait mal formée, aucune telle fonction n'est ajoutée à l'ensemble des candidats (voir <a href="sfinae.html">SFINAE</a>).</li>
+</ul>
+<p>Si un nom désigne un ou plusieurs modèles de fonction et également un ensemble de fonctions non modèles surchargées, ces fonctions ainsi que les spécialisations générées à partir des modèles sont toutes des candidates.</p>
+<p>Voir <a href="function_template.html#Function_template_overloading">surcharge de modèles de fonction</a> pour plus de détails.</p>
+<blockquote>
+<p>Si un modèle de constructeur ou un modèle de fonction de conversion possède un <a href="explicit.html">spécificateur explicite conditionnel</a> qui se trouve être <a href="dependent_name.html#Value-dependent_expressions">dépendant de la valeur</a>, après déduction, si le contexte requiert un candidat non explicite et que la spécialisation générée est explicite, elle est retirée de l'ensemble des candidats.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Additional_rules_for_constructor_candidates">Règles supplémentaires pour les candidats constructeurs</h3>
+<blockquote>
+<p>Les <a href="move_constructor.html">constructeurs de déplacement</a> et <a href="move_operator.html">opérateurs d'affectation par déplacement</a> par défaut qui sont définis comme supprimés sont exclus de l'ensemble des fonctions candidates.</p>
+<p>Un constructeur <a href="using_declaration.html#Inheriting_constructors">hérité</a> de la classe <code>C</code> qui possède un premier paramètre de type « référence vers <code>P</code> » (y compris un tel constructeur instancié à partir d'un modèle) est exclu de l'ensemble des fonctions candidates lors de la construction d'un objet de type <code>D</code> si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li>La liste d'arguments comporte exactement un argument.</li>
+<li><code>C</code> est <a href="reference_initialization.html#Definitions">lié par référence</a> à <code>P</code>.</li>
+<li><code>P</code> est lié par référence à <code>D</code>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="Additional_rules_for_member_function_candidates">Règles supplémentaires pour les candidats fonctions membres</h3>
+<p>Si une fonction candidate est une <a href="member_functions.html">fonction membre</a> (statique ou non statique)qui ne possède pas de <a href="member_functions.html#Explicit_object_parameter">paramètre objet explicite</a> <em>(depuis C++23)</em>, mais pas un constructeur, elle est traitée comme si elle possédait un paramètre supplémentaire (<em>paramètre objet implicite</em>) qui représente l'objet pour lequel elle est appelée et qui apparaît avant le premier des paramètres effectifs.</p>
+<p>De même, l'objet sur lequel une fonction membre est appelée est placé en tête de la liste d'arguments comme <em>argument objet implicite</em>.</p>
+<p>Pour les fonctions membres de la classe <code>X</code>, le type du paramètre objet implicite est affecté par les qualificatifs cv et les qualificatifs ref de la fonction membre, comme décrit dans <a href="member_functions.html">fonctions membres</a>.</p>
+<p>Les fonctions de conversion définies par l'utilisateur sont considérées comme membres de l'<em>argument objet implicite</em> pour déterminer le type du <em>paramètre objet implicite</em>.</p>
+<p>Les fonctions membres introduites dans une classe dérivée par une déclaration using sont considérées comme membres de la classe dérivée pour définir le type du paramètre objet <em>implicite</em>*.*</p>
+<blockquote>
+<p>Pour les fonctions membres statiques, le <em>paramètre objet implicite</em> est considéré comme correspondant à tout objet : son type n'est pas examiné et aucune séquence de conversion n'est tentée pour lui.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<p>Pour le reste de la résolution de surcharge, l'<em>argument objet implicite</em> est indiscernable des autres arguments, mais les règles spéciales suivantes s'appliquent au <em>paramètre objet implicite</em> :</p>
+<p>Les conversions définies par l'utilisateur 1) ne peuvent pas être appliquées au paramètre objet implicite</p>
+<p>Les rvalues 2) peuvent être liées à un paramètre objet implicite non const (sauf s'il s'agit d'une fonction membre qualifiée par ref) <em>(depuis C++11)</em> et n'affectent pas le classement des conversions implicites.</p>
+<pre><code class="language-cpp">struct B { void f(int); };
+struct A { operator B&amp;(); };
+
+A a;
+a.B::f(1); // Erreur : les conversions définies par l'utilisateur ne peuvent pas être appliquées
+           // au paramètre objet implicite
+static_cast&lt;B&amp;&gt;(a).f(1); // OK
+</code></pre>
+<h2 id="Viable_functions">Fonctions viables</h2>
+<p>Étant donné l'ensemble des fonctions candidates, construit comme décrit ci-dessus, l'étape suivante de la résolution de surcharge consiste à examiner les arguments et les paramètres pour réduire l'ensemble aux <em>fonctions viables</em></p>
+<p>Pour être incluse dans l'ensemble des fonctions viables, la fonction candidate doit satisfaire les conditions suivantes :</p>
+<ol>
+<li>
+<p>S'il y a <code>M</code> arguments, la fonction candidate qui possède exactement <code>M</code> paramètres est viable</p>
+</li>
+<li>
+<p>Si la fonction candidate possède moins de <code>M</code> paramètres, mais possède un <a href="variadic_arguments.html">paramètre ellipse</a>, elle est viable.</p>
+</li>
+<li>
+<p>Si la fonction candidate possède plus de <code>M</code> paramètres et que le <code>M+1</code>e paramètre ainsi que tous les paramètres suivants ont des arguments par défaut, elle est viable. Pour le reste de la résolution de surcharge, la liste des paramètres est tronquée à <code>M</code>.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="4">
+<li>Si la fonction possède une <a href="constraints.html">contrainte</a> associée, celle-ci doit être satisfaite</li>
+</ol>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ol start="5">
+<li>
+<p>Pour chaque argument, il doit exister au moins une séquence de conversion implicite qui le convertit vers le paramètre correspondant.</p>
+</li>
+<li>
+<p>Si un paramètre possède un type référence, la liaison de référence est prise en compte à cette étape : si un argument rvalue correspond à un paramètre de référence lvalue non const, ou un argument lvalue correspond à un paramètre de référence rvalue, la fonction n'est pas viable.</p>
+</li>
+</ol>
+<p>Les conversions définies par l'utilisateur (à la fois les constructeurs convertisseurs et les fonctions de conversion définies par l'utilisateur) sont interdites de participer à une séquence de conversion implicite lorsque cela permettrait d'appliquer plus d'une conversion définie par l'utilisateur. Plus précisément, elles ne sont pas considérées si la cible de la conversion est le premier paramètre d'un constructeur ou le paramètre objet implicite d'une fonction de conversion définie par l'utilisateur, et que ce constructeur/cette fonction de conversion est candidat(e) pour</p>
+<ul>
+<li><a href="overload_resolution.html#Copy-initialization_by_conversion">initialisation par copie d'une classe par conversion définie par l'utilisateur</a>,</li>
+<li><a href="overload_resolution.html#Non-class_initialization_by_conversion">initialisation d'un type non classe par une fonction de conversion</a>,</li>
+<li><a href="overload_resolution.html#Reference_initialization_by_conversion">initialisation par fonction de conversion pour la liaison directe de référence</a>,</li>
+<li><a href="overload_resolution.html#Initialization_by_constructor">initialisation par constructeur</a> lors de la deuxième étape (initialisation directe) de l'<a href="copy_initialization.html">initialisation par copie</a> d'une classe,</li>
+</ul>
+<blockquote>
+<ul>
+<li>initialisation par liste lorsque la liste d'initialisation comporte exactement un élément qui est lui-même une liste d'initialisation, et que la cible est le premier paramètre d'un constructeur de la classe <code>X</code>, et que la conversion se fait vers <code>X</code> ou une référence vers <code>X</code> (éventuellement qualifié cv) :</li>
+</ul>
+<pre><code class="language-cpp">struct A { A(int); };
+struct B { B(A); };
+
+B b{{0}}; // initialisation par liste de B
+
+// candidats : B(const B&amp;), B(B&amp;&amp;), B(A)
+// {0} -&gt; B&amp;&amp; non viable : il faudrait appeler B(A)
+// {0} -&gt; const B&amp; : non viable : il faudrait se lier à une valeur de droite, il faudrait appeler B(A)
+// {0} -&gt; A viable. Appelle A(int) : la conversion définie par l'utilisateur vers A n'est pas interdite
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Best_viable_function">Meilleure fonction viable</h2>
+<p>Pour chaque paire de fonctions viables <code>F1</code> et <code>F2</code>, les séquences de conversion implicites du <code>i</code>-ième argument vers le <code>i</code>-ième paramètre sont classées afin de déterminer laquelle est la meilleure (à l'exception du premier argument, l'<em>argument objet implicite</em> des fonctions membres statiques n'a aucun effet sur le classement)</p>
+<p><code>F1</code> est déterminée comme meilleure fonction que <code>F2</code> si les conversions implicites de tous les arguments de <code>F1</code> ne sont <em>pas moins bonnes</em> que les conversions implicites de tous les arguments de F2, et</p>
+<ol>
+<li>
+<p>il existe au moins un argument de <code>F1</code> dont la conversion implicite est <em>meilleure</em> que la conversion implicite correspondante pour cet argument de <code>F2</code>, ou, sinon,</p>
+</li>
+<li>
+<p>(uniquement dans le contexte d'une initialisation par conversion de type non classe), la séquence de conversion standard allant du résultat de <code>F1</code> vers le type initialisé est <em>meilleure</em> que la séquence de conversion standard allant du résultat de <code>F2</code>, ou, si ce n'est pas le cas,</p>
+</li>
+</ol>
+<blockquote>
+<ol start="3">
+<li>(uniquement dans le contexte d'une initialisation par fonction de conversion pour la liaison directe d'une référence à un type fonction), le résultat de <code>F1</code> est du même genre de référence (lvalue ou rvalue) que la référence initialisée, et le résultat de <code>F2</code> ne l'est pas, ou, si ce n'est pas le cas,</li>
+</ol>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="4">
+<li>
+<p><code>F1</code> est une fonction non template alors que <code>F2</code> est une spécialisation de modèle, ou, si ce n'est pas le cas,</p>
+</li>
+<li>
+<p><code>F1</code> et <code>F2</code> sont toutes deux des spécialisations de modèles et <code>F1</code> est plus spécialisée selon les <a href="function_template.html#Function_template_overloading">règles d'ordre partiel pour les spécialisations de modèles</a>, ou, si ce n'est pas le cas,</p>
+</li>
+</ol>
+<blockquote>
+<ol start="6">
+<li><code>F1</code> et <code>F2</code> sont des fonctions non template et <code>F1</code> est <a href="constraints.html#Partial_ordering_of_constraints">plus contrainte selon l'ordre partiel</a> que <code>F2</code> :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T = int&gt;
+struct S
+{
+    constexpr void f(); // #1
+    constexpr void f(this S&amp;) requires true; // #2
+};
+
+void test()
+{
+    S&lt;&gt; s;
+    s.f(); // calls #2
+}
+</code></pre>
+<p>, ou, si ce n'est pas le cas,</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<blockquote>
+<ol start="7">
+<li><code>F1</code> est un constructeur de la classe <code>D</code>, <code>F2</code> est un constructeur de la classe de base <code>B</code> de <code>D</code>, et pour tous les arguments les paramètres correspondants de <code>F1</code> et <code>F2</code> ont le même type :</li>
+</ol>
+<pre><code class="language-cpp">struct A
+{
+    A(int = 0);
+};
+
+struct B: A
+{
+    using A::A;
+
+    B();
+};
+
+B b; // OK, B::B()
+</code></pre>
+<p>, ou, si ce n'est pas le cas,</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ol start="8">
+<li>
+<p><code>F2</code> est un candidat réécrit et <code>F1</code> ne l'est pas, ou, si ce n'est pas le cas,</p>
+</li>
+<li>
+<p><code>F1</code> et <code>F2</code> sont tous deux des candidats réécrits, et <code>F2</code> est un candidat réécrit synthétisé avec ordre inverse des paramètres et <code>F1</code> ne l'est pas, ou, si ce n'est pas le cas,</p>
+</li>
+</ol>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<blockquote>
+<ol start="10">
+<li>
+<p><code>F1</code> est généré à partir d'un <a href="deduction_guide.html">guide de déduction défini par l'utilisateur</a> et <code>F2</code> ne l'est pas, ou, si ce n'est pas le cas,</p>
+</li>
+<li>
+<p><code>F1</code> est le <a href="deduction_guide.html">candidat de déduction par copie</a> et <code>F2</code> ne l'est pas, ou, si ce n'est pas le cas,</p>
+</li>
+<li>
+<p><code>F1</code> est généré à partir d'un constructeur non template et <code>F2</code> est généré à partir d'un modèle de constructeur :</p>
+</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    using value_type = T;
+    A(value_type);  // #1
+    A(const A&amp;);    // #2
+    A(T, T, int);   // #3
+
+    template&lt;class U&gt;
+    A(int, T, U);   // #4
+};                  // #5 est A(A), le candidat de déduction de copie
+
+A x(1, 2, 3); // utilise #3, généré à partir d'un constructeur non template
+
+template&lt;class T&gt;
+A(T) -&gt; A&lt;T&gt;;       // #6, moins spécialisé que #5
+
+A a (42); // utilise #6 pour déduire A&lt;int&gt; et #1 pour l'initialisation
+A b = a;  // utilise #5 pour déduire A&lt;int&gt; et #2 pour l'initialisation
+
+template&lt;class T&gt;
+A(A&lt;T&gt;) -&gt; A&lt;A&lt;T&gt;&gt;; // #7, aussi spécialisé que #5
+A b2 = a; // utilise #7 pour déduire A&lt;A&lt;int&gt;&gt; et #1 pour l'initialisation
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Ces comparaisons deux à deux sont appliquées à toutes les fonctions viables. Si exactement une fonction viable est meilleure que toutes les autres, la résolution de surcharge réussit et cette fonction est appelée. Sinon, la compilation échoue.</p>
+<pre><code class="language-cpp">void Fcn(const int*, short); // overload #1
+void Fcn(int*, int);         // overload #2
+
+int i;
+short s = 0;
+
+void f()
+{
+    Fcn(&amp;i, 1L);  // 1er argument : &amp;i -&gt; int* est meilleur que &amp;i -&gt; const int*
+                  // 2e argument : 1L -&gt; short et 1L -&gt; int sont équivalents
+                  // appelle Fcn(int*, int)
+
+    Fcn(&amp;i, 'c'); // 1er argument : &amp;i -&gt; int* est meilleur que &amp;i -&gt; const int*
+                  // 2e argument : 'c' -&gt; int est meilleur que 'c' -&gt; short
+                  // appelle Fcn(int*, int)
+
+    Fcn(&amp;i, s);   // 1er argument : &amp;i -&gt; int* est meilleur que &amp;i -&gt; const int*
+                  // 2e argument : s -&gt; short est meilleur que s -&gt; int
+                  // aucun vainqueur, erreur de compilation
+}
+</code></pre>
+<p>Si la meilleure fonction viable correspond à une fonction pour laquelle plusieurs déclarations ont été trouvées, et si deux de ces déclarations quelconques occupent des portées différentes et spécifient un argument par défaut qui rend la fonction viable, le programme est mal formé.</p>
+<pre><code class="language-cpp">namespace A
+{
+    extern &quot;C&quot; void f(int = 5);
+}
+
+namespace B
+{
+    extern &quot;C&quot; void f(int = 5);
+}
+
+using A::f;
+using B::f;
+
+void use()
+{
+    f(3); // OK, l'argument par défaut n'a pas été utilisé pour la viabilité
+    f();  // erreur : argument par défaut trouvé deux fois
+}
+</code></pre>
+<h2 id="Ranking_of_implicit_conversion_sequences">Classement des séquences de conversion implicites</h2>
+<p>Les séquences de conversion implicites argument-paramètre considérées par la résolution de surcharge correspondent aux <a href="implicit_cast.html">conversions implicites</a> utilisées en <a href="copy_initialization.html">initialisation par copie</a> (pour les paramètres non référence), sauf que, lors de la prise en compte de la conversion vers le paramètre objet implicite ou vers le membre gauche d'un opérateur d'affectation, les conversions créant des objets temporaires ne sont pas considérées. Lorsque le paramètre est le paramètre objet implicite d'une fonction membre statique, la séquence de conversion implicite est une séquence de conversion standard qui n'est ni meilleure ni pire que toute autre séquence de conversion standard. <em>(depuis C++23)</em></p>
+<p>Chaque <a href="implicit_cast.html">type de séquence de conversion standard</a> se voit attribuer l'un de trois rangs :</p>
+<ol>
+<li>
+<p><strong>Correspondance exacte</strong> : aucune conversion requise, conversion lvalue-to-rvalue, conversion de qualification, conversion de pointeur de fonction, <em>(depuis C++17)</em> conversion définie par l'utilisateur d'un type classe vers la même classe</p>
+</li>
+<li>
+<p><strong>Promotion</strong> : promotion entière, promotion en virgule flottante</p>
+</li>
+<li>
+<p><strong>Conversion</strong> : conversion entière, conversion en virgule flottante, conversion virgule flottante vers entier, conversion de pointeur, conversion de pointeur vers membre, conversion booléenne, conversion définie par l'utilisateur d'une classe dérivée vers sa base</p>
+</li>
+</ol>
+<p>Le rang de la séquence de conversion standard est le pire des rangs des conversions standard qu'elle contient (il peut y avoir jusqu'à <a href="implicit_cast.html">trois conversions</a>)</p>
+<p>La liaison d'un paramètre référence directement à l'expression d'argument est soit une identité, soit une conversion de dérivée vers base :</p>
+<pre><code class="language-cpp">struct Base {};
+struct Derived : Base {} d;
+
+int f(Base&amp;);    // overload #1
+int f(Derived&amp;); // overload #2
+
+int i = f(d); // d -&gt; Derived&amp; a le rang Exact Match
+              // d -&gt; Base&amp; a le rang Conversion
+              // appelle f(Derived&amp;)
+</code></pre>
+<p>Comme le classement des séquences de conversion ne porte que sur les types et les catégories de valeurs, un <a href="bit_field.html">champ de bits</a> peut se lier à un argument référence pour le classement, mais si cette fonction est sélectionnée, le programme sera mal formé.</p>
+<ol>
+<li>
+<p>Une séquence de conversion standard est toujours <em>meilleure</em> qu'une séquence de conversion définie par l'utilisateur ou qu'une séquence de conversion par ellipse.</p>
+</li>
+<li>
+<p>Une séquence de conversion définie par l'utilisateur est toujours <em>meilleure</em> qu'une séquence de <a href="variadic_arguments.html">conversion par ellipse</a>.</p>
+</li>
+<li>
+<p>Une séquence de conversion standard <code>S1</code> est <em>meilleure</em> qu'une séquence de conversion standard <code>S2</code> si</p>
+</li>
+</ol>
+<p>a) <code>S1</code> est une sous-séquence propre de <code>S2</code>, à l'exclusion des transformations lvalue ; la séquence de conversion identité est considérée comme une sous-séquence de toute conversion non identité, ou, si ce n'est pas le cas,</p>
+<p>b) le rang de <code>S1</code> est meilleur que le rang de <code>S2</code>, ou, si ce n'est pas le cas,</p>
+<p>c) <code>S1</code> et <code>S2</code> se lient toutes deux à un paramètre référence vers autre chose que le paramètre objet implicite d'une fonction membre à qualificateur ref, et <code>S1</code> lie une référence rvalue à une rvalue tandis que <code>S2</code> lie une référence lvalue à une rvalue :</p>
+<pre><code class="language-cpp">int i;
+int f1();
+
+int g(const int&amp;);  // overload #1
+int g(const int&amp;&amp;); // overload #2
+
+int j = g(i);    // lvalue int -&gt; const int&amp; est la seule conversion valide
+int k = g(f1()); // rvalue int -&gt; const int&amp;&amp; est meilleur que rvalue int -&gt; const int&amp;
+</code></pre>
+<p>ou, si ce n'est pas le cas,</p>
+<p>d) <code>S1</code> et <code>S2</code> se lient toutes deux à un paramètre référence et <code>S1</code> lie une référence lvalue à une fonction tandis que <code>S2</code> lie une référence rvalue à une fonction :</p>
+<pre><code class="language-cpp">int f(void(&amp;)());  // overload #1
+int f(void(&amp;&amp;)()); // overload #2
+
+void g();
+int i1 = f(g); // calls #1
+</code></pre>
+<p>ou, si ce n'est pas le cas,</p>
+<p>e) <code>S1</code> et <code>S2</code> ne diffèrent que par une conversion de qualification, et</p>
+<blockquote>
+<p>le qualificateur cv du résultat de <code>S1</code> est un sous-ensemble propre du qualificateur cv du résultat de <code>S2</code>, et <code>S1</code> n'est pas la <a href="string_literal.html#Notes">conversion obsolète de tableau de littéral chaîne vers pointeur</a> <em>(jusqu'à C++11)</em>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>le résultat de <code>S1</code> peut être converti en le résultat de <code>S2</code> par une conversion de qualification.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<pre><code class="language-cpp">int f(const int*);
+int f(int*);
+
+int i;
+int j = f(&amp;i); // &amp;i -&gt; int* est meilleur que &amp;i -&gt; const int*, appelle f(int*)
+</code></pre>
+<p>ou, si ce n'est pas le cas,</p>
+<p>f) <code>S1</code> et <code>S2</code> se lient toutes deux à des paramètres référence ne différant que par le qualificateur cv de premier niveau, et le type de <code>S1</code> est <em>moins</em> qualifié cv que celui de <code>S2</code> :</p>
+<pre><code class="language-cpp">int f(const int &amp;); // overload #1
+int f(int &amp;);       // surcharge #2 (deux références)
+
+int g(const int &amp;); // overload #1
+int g(int);         // overload #2
+
+int i;
+int j = f(i); // lvalue i -&gt; int&amp; est meilleur que lvalue int -&gt; const int&amp;
+              // appelle f(int&amp;)
+int k = g(i); // lvalue i -&gt; const int&amp; a le rang Exact Match
+              // lvalue i -&gt; rvalue int a le rang Exact Match
+              // surcharge ambiguë : erreur de compilation
+</code></pre>
+<p>ou, si ce n'est pas le cas,</p>
+<p>g) <code>S1</code> et <code>S2</code> lient le même type de référence « référence vers <code>T</code> » et ont pour types source <code>V1</code> et <code>V2</code>, respectivement, où la séquence de conversion standard de <code>V1*</code> vers <code>T*</code> est meilleure que la séquence de conversion standard de <code>V2*</code> vers <code>T*</code> :</p>
+<pre><code class="language-cpp">struct Z {};
+
+struct A
+{
+    operator Z&amp;();
+    operator const Z&amp;();  // overload #1
+};
+
+struct B
+{
+    operator Z();
+    operator const Z&amp;&amp;(); // overload #2
+};
+
+const Z&amp; r1 = A();        // OK, utilise #1
+const Z&amp;&amp; r2 = B();       // OK, utilise #2
+</code></pre>
+<ol start="4">
+<li>Une séquence de conversion définie par l'utilisateur <code>U1</code> est <em>meilleure</em> qu'une séquence de conversion définie par l'utilisateur <code>U2</code> si elles appellent le même constructeur ou la même fonction de conversion définie par l'utilisateur, ou initialisent la même classe par initialisation agrégée, et dans les deux cas la seconde séquence de conversion standard de <code>U1</code> est meilleure que la seconde séquence de conversion standard de <code>U2</code></li>
+</ol>
+<pre><code class="language-cpp">struct A
+{
+    operator short(); // fonction de conversion définie par l'utilisateur
+} a;
+
+int f(int);   // overload #1
+int f(float); // overload #2
+
+int i = f(a); // A -&gt; short, suivi de short -&gt; int (rang Promotion)
+              // A -&gt; short, suivi de short -&gt; float (rang Conversion)
+              // appelle f(int)
+</code></pre>
+<ol start="5">
+<li>Une séquence d'initialisation par liste <code>L1</code> est <em>meilleure</em> que la séquence d'initialisation par liste <code>L2</code> si <code>L1</code> initialise un paramètre <a href="../utility/initializer_list.html"><code>std::initializer_list</code></a>, alors que <code>L2</code> ne le fait pas.</li>
+</ol>
+<pre><code class="language-cpp">void f1(int);                                 // #1
+void f1(std::initializer_list&lt;long&gt;);         // #2
+void g1() { f1({42}); }                       // chooses #2
+
+void f2(std::pair&lt;const char*, const char*&gt;); // #3
+void f2(std::initializer_list&lt;std::string&gt;);  // #4
+void g2() { f2({&quot;foo&quot;, &quot;bar&quot;}); }             // chooses #4
+</code></pre>
+<blockquote>
+<ol start="6">
+<li>Une séquence d'initialisation par liste <code>L1</code> est <em>meilleure</em> que la séquence d'initialisation par liste <code>L2</code> si les paramètres correspondants sont des références à des tableaux, et L1 se convertit en type « tableau de N1 T », L2 se convertit en type « tableau de N2 T », et N1 est plus petit que N2.</li>
+</ol>
+<p><em>(depuis C++11) (jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<ol start="6">
+<li>Une séquence d'initialisation par liste <code>L1</code> est <em>meilleure</em> que la séquence d'initialisation par liste <code>L2</code> si les paramètres correspondants sont des références à des tableaux, et L1 et L2 se convertissent en tableaux de même type d'élément, et soit</li>
+</ol>
+<ul>
+<li>le nombre d'éléments N1 initialisés par L1 est inférieur au nombre d'éléments N2 initialisés par L2, soit</li>
+<li>N1 est égal à N2 et L2 se convertit en tableau de borne inconnue et L1 ne le fait pas.</li>
+</ul>
+<pre><code class="language-cpp">void f(int    (&amp;&amp;)[] ); // overload #1
+void f(double (&amp;&amp;)[] ); // overload #2
+void f(int    (&amp;&amp;)[2]); // overload #3
+
+f({1});        // #1 : meilleur que #2 grâce à la conversion, meilleur que #3 grâce aux bornes
+f({1.0});      // #2 : double -&gt; double est meilleur que double -&gt; int
+f({1.0, 2.0}); // #2 : double -&gt; double est meilleur que double -&gt; int
+f({1, 2});     // #3 : -&gt; int[2] est meilleur que -&gt; int[],
+               //     et int -&gt; int est meilleur que int -&gt; double
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Si deux séquences de conversion sont indistinguables parce qu'elles ont le même rang, les règles supplémentaires suivantes s'appliquent :</p>
+<ol>
+<li>Une conversion qui ne concerne ni un pointeur vers <code>bool</code> ni un pointeur vers membre vers <code>bool</code> est meilleure que celle qui le fait.</li>
+</ol>
+<blockquote>
+<ol start="2">
+<li>Une conversion qui promeut une <a href="enum.html">énumération</a> dont le type sous-jacent est fixe vers son type sous-jacent est meilleure que celle qui promeut vers le type sous-jacent promu, si les deux types sont différents.</li>
+</ol>
+<pre><code class="language-cpp">enum num : char { one = '0' };
+std::cout &lt;&lt; num::one; // '0', not 48
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ol start="3">
+<li>Une conversion, dans l'un ou l'autre sens, entre le type virgule flottante <code>FP1</code> et le type virgule flottante <code>FP2</code> est meilleure qu'une conversion dans le même sens entre <code>FP1</code> et le type arithmétique <code>T3</code> si</li>
+</ol>
+<ul>
+<li>le <a href="usual_arithmetic_conversions.html#Floating-point_conversion_rank">rang de conversion en virgule flottante</a> de <code>FP1</code> est égal au rang de <code>FP2</code>, et</li>
+<li><code>T3</code> n'est pas un type virgule flottante, ou</li>
+<li><code>T3</code> est un type virgule flottante dont le rang n'est pas égal au rang de <code>FP1</code>, ou</li>
+<li>le <a href="usual_arithmetic_conversions.html#Floating-point_conversion_subrank">sous-rang de conversion en virgule flottante</a> de <code>FP2</code> est supérieur au sous-rang de <code>T3</code>.</li>
+</ul>
+<pre><code class="language-cpp">int f(std::float32_t);
+int f(std::float64_t);
+int f(long long);
+
+float x;
+std::float16_t y;
+
+int i = f(x); // appelle f(std::float32_t) sur les implémentations où
+              // float et std::float32_t ont des rangs de conversion égaux
+int j = f(y); // erreur : ambiguë, aucun rang de conversion égal
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<ol start="4">
+<li>
+<p>Une conversion de pointeur vers dérivé en pointeur vers base est meilleure que la conversion de pointeur vers dérivé en pointeur vers <code>void</code>, et la conversion de pointeur vers base en <code>void</code> est meilleure que celle de pointeur vers dérivé en <code>void</code>.</p>
+</li>
+<li>
+<p>Si <code>Mid</code> dérive (directement ou indirectement) de <code>Base</code>, et <code>Derived</code> dérive (directement ou indirectement) de <code>Mid</code></p>
+</li>
+</ol>
+<p>a) <code>Derived*</code> vers <code>Mid*</code> est meilleure que <code>Derived*</code> vers <code>Base*</code></p>
+<p>b) <code>Derived</code> vers <code>Mid&amp;</code> ou <code>Mid&amp;&amp;</code> est meilleure que <code>Derived</code> vers <code>Base&amp;</code> ou <code>Base&amp;&amp;</code></p>
+<p>c) <code>Base::*</code> vers <code>Mid::*</code> est meilleure que <code>Base::*</code> vers <code>Derived::*</code></p>
+<p>d) <code>Derived</code> vers <code>Mid</code> est meilleure que <code>Derived</code> vers <code>Base</code></p>
+<p>e) <code>Mid*</code> vers <code>Base*</code> est meilleure que <code>Derived*</code> vers <code>Base*</code></p>
+<p>f) <code>Mid</code> vers <code>Base&amp;</code> ou <code>Base&amp;&amp;</code> est meilleure que <code>Derived</code> vers <code>Base&amp;</code> ou <code>Base&amp;&amp;</code></p>
+<p>g) <code>Mid::*</code> vers <code>Derived::*</code> est meilleure que <code>Base::*</code> vers <code>Derived::*</code></p>
+<p>h) <code>Mid</code> vers <code>Base</code> est meilleure que <code>Derived</code> vers <code>Base</code></p>
+<p>Les séquences de conversion ambiguës sont classées comme des séquences de conversion définies par l'utilisateur, car plusieurs séquences de conversion pour un argument ne peuvent exister que si elles impliquent différentes conversions définies par l'utilisateur :</p>
+<pre><code class="language-cpp">class B;
+
+class A { A (B&amp;);};         // constructeur de conversion
+class B { operator A (); }; // fonction de conversion définie par l'utilisateur
+class C { C (B&amp;); };        // constructeur de conversion
+
+void f(A) {} // overload #1
+void f(C) {} // overload #2
+
+B b;
+f(b); // B -&gt; A via constructeur ou B -&gt; A via fonction (conversion ambiguë)
+      // b -&gt; C via constructeur (conversion définie par l'utilisateur)
+      // les conversions pour la surcharge #1 et pour la surcharge #2
+      // sont indiscernables ; la compilation échoue
+</code></pre>
+<h2 id="Implicit_conversion_sequence_in_list-initialization">Séquence de conversion implicite en initialisation par liste</h2>
+<p>En <a href="list_initialization.html">initialisation par liste</a>, l'argument est un <code>braced-init-list</code>, qui n'est pas une expression ; la séquence de conversion implicite vers le type du paramètre, pour la résolution de surcharge, est donc déterminée par les règles spéciales suivantes :</p>
+<ul>
+<li>Si le type du paramètre est un agrégat <code>X</code> et que la liste d'initialisation se compose exactement d'un élément de la même classe ou d'une classe dérivée (éventuellement qualifiée cv), la séquence de conversion implicite est celle nécessaire pour convertir cet élément vers le type du paramètre.</li>
+<li>Sinon, si le type du paramètre est une référence à un tableau de caractères et que la liste d'initialisation a un seul élément qui est un littéral chaîne de type approprié, la séquence de conversion implicite est la conversion identité.</li>
+<li>Sinon, si le type du paramètre est <code>std::initializer_list&lt;X&gt;</code>, et qu'il existe une conversion implicite non restrictive de chaque élément de la liste d'initialisation vers <code>X</code>, la séquence de conversion implicite pour la résolution de surcharge est la pire conversion nécessaire. Si la liste d'initialisation entre accolades est vide, la séquence de conversion est la conversion identité.</li>
+</ul>
+<pre><code class="language-cpp">struct A
+{
+    A(std::initializer_list&lt;double&gt;);          // #1
+    A(std::initializer_list&lt;complex&lt;double&gt;&gt;); // #2
+    A(std::initializer_list&lt;std::string&gt;);     // #3
+};
+A a{1.0, 2.0};     // sélectionne #1 (double valeur de droite -&gt; double : conversion d'identité)
+
+void g(A);
+g({&quot;foo&quot;, &quot;bar&quot;}); // sélectionne #3 (lvalue const char[4] -&gt; std::string : conv. définie par l'utilisateur)
+</code></pre>
+<ul>
+<li>Sinon, si le type du paramètre est « tableau de N T » (ce cas ne se produit que pour les références à des tableaux), la liste d'initialisation doit comporter au plus N éléments, et la pire conversion implicite nécessaire pour convertir chaque élément de la liste (ou la paire d'accolades vide <code>{}</code> si la liste est plus courte que N) vers <code>T</code> est celle utilisée.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Sinon, si le type du paramètre est « tableau de borne inconnue de T » (ce cas ne se produit que pour les références à des tableaux), la pire conversion implicite nécessaire pour convertir chaque élément de la liste vers <code>T</code> est celle utilisée.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<pre><code class="language-cpp">typedef int IA[3];
+
+void h(const IA&amp;);
+void g(int (&amp;&amp;)[]);
+
+h({1, 2, 3}); // conversion d'identité int -&gt; int
+g({1, 2, 3}); // identique à ci-dessus depuis C++20
+</code></pre>
+<ul>
+<li>Sinon, si le type du paramètre est un type classe non agrégat <code>X</code>, la résolution de surcharge choisit le constructeur C de X pour initialiser à partir de la liste d'initialisation en argument
+<ul>
+<li>Si C n'est pas un constructeur à liste d'initialisation et que la liste d'initialisation a un seul élément de type X éventuellement qualifié cv, la séquence de conversion implicite a le rang Correspondance exacte. Si la liste d'initialisation a un seul élément de type éventuellement qualifié cv dérivé de X, la séquence de conversion implicite a le rang Conversion. (note : la différence avec les agrégats est que les agrégats s'initialisent directement à partir d'une liste à un seul élément avant de considérer l'<a href="aggregate_initialization.html">initialisation agrégée</a>, alors que les non-agrégats considèrent d'abord les constructeurs initializer_list avant les autres constructeurs)</li>
+<li>sinon, la séquence de conversion implicite est une séquence de conversion définie par l'utilisateur dont la seconde séquence de conversion standard est une conversion identité.</li>
+</ul>
+</li>
+</ul>
+<p>Si plusieurs constructeurs sont viables mais qu'aucun n'est meilleur que les autres, la séquence de conversion implicite est la séquence de conversion ambiguë.</p>
+<pre><code class="language-cpp">struct A { A(std::initializer_list&lt;int&gt;); };
+void f(A);
+
+struct B { B(int, double); };
+void g(B);
+
+g({'a', 'b'});    // appelle g(B(int, double)), conversion définie par l'utilisateur
+// g({1.0, 1,0}); // erreur : double -&gt; int est un rétrécissement, non autorisé dans l'initialisation par liste
+
+void f(B);
+// f({'a', 'b'}); // f(A) et f(B) sont toutes deux des conversions définies par l'utilisateur
+</code></pre>
+<ul>
+<li>Sinon, si le type du paramètre est un agrégat pouvant être initialisé à partir de la liste d'initialisation selon l'<a href="aggregate_initialization.html">initialisation agrégée</a>, la séquence de conversion implicite est une séquence de conversion définie par l'utilisateur dont la seconde séquence de conversion standard est une conversion identité.</li>
+</ul>
+<pre><code class="language-cpp">struct A { int m1; double m2; };
+
+void f(A);
+f({'a', 'b'}); // appelle f(A(int, double)), conversion définie par l'utilisateur
+</code></pre>
+<ul>
+<li>Sinon, si le paramètre est une référence, les règles d'initialisation des références s'appliquent</li>
+</ul>
+<pre><code class="language-cpp">struct A { int m1; double m2; };
+
+void f(const A&amp;);
+f({'a', 'b'}); // un temporaire est créé, f(A(int, double)) est appelée. Conversion définie par l'utilisateur
+</code></pre>
+<ul>
+<li>Sinon, si le type du paramètre n'est pas une classe et que la liste d'initialisation a un seul élément, la séquence de conversion implicite est celle nécessaire pour convertir cet élément vers le type du paramètre</li>
+<li>Sinon, si le type du paramètre n'est pas un type classe et si la liste d'initialisation ne contient aucun élément, la séquence de conversion implicite est la conversion identité.</li>
+</ul>
+<blockquote>
+<p>Si l'argument est une liste d'initialisation désignée et que le paramètre n'est pas une référence, une conversion n'est possible que si le paramètre a un type agrégat pouvant être initialisé à partir de cette liste d'initialisation selon les règles de l'<a href="aggregate_initialization.html">initialisation d'agrégat</a>, auquel cas la séquence de conversion implicite est une séquence de conversion définie par l'utilisateur dont la seconde séquence de conversion standard est une conversion identité.</p>
+<p>Si, après la résolution de surcharge, l'ordre de déclaration des membres de l'agrégat ne correspond pas pour la surcharge sélectionnée, l'initialisation du paramètre sera mal formée.</p>
+<pre><code class="language-cpp">struct A { int x, y; };
+struct B { int y, x; };
+
+void f(A a, int); // #1
+void f(B b, ...); // #2
+void g(A a);      // #3
+void g(B b);      // #4
+
+void h()
+{
+    f({.x = 1, .y = 2}, 0); // OK ; appelle #1
+    f({.y = 2, .x = 1}, 0); // erreur : sélectionne #1, l'initialisation de a échoue
+                            // en raison d'un ordre des membres non concordant
+    g({.x = 1, .y = 2});    // erreur : ambiguë entre #3 et #4
+}
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1.html">CWG 1</a></td>
+<td>C++98</td>
+<td>le comportement était non spécifié lorsque la même fonction, avec éventuellement des arguments par défaut différents (provenant de portées différentes), est sélectionnée</td>
+<td>le programme est mal formé dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/83.html">CWG 83</a></td>
+<td>C++98</td>
+<td>la séquence de conversion d'un littéral de chaîne vers <code>char*</code> était meilleure que celle vers <code>const char*</code> , bien que la première soit obsolète</td>
+<td>le rang de la conversion obsolète est abaissé (elle a été supprimée en C++11)</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/162.html">CWG 162</a></td>
+<td>C++98</td>
+<td>elle était invalide si l'ensemble de surcharges désigné par <code>F</code> contient une fonction membre non statique dans le cas de <code>&amp;F(args)</code></td>
+<td>invalide uniquement si la résolution de surcharge sélectionne une fonction membre non statique dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/233.html">CWG 233</a></td>
+<td>C++98</td>
+<td>les références et les pointeurs étaient traités de manière incohérente dans la résolution de surcharge avec des conversions définies par l'utilisateur</td>
+<td>ils sont traités de manière cohérente</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/280.html">CWG 280</a></td>
+<td>C++98</td>
+<td>les fonctions d'appel substituts n'étaient pas ajoutées à l'ensemble des fonctions candidates pour les fonctions de conversion déclarées dans des classes de base inaccessibles</td>
+<td>en supprimant la contrainte d'accessibilité , le programme est mal formé si une fonction d'appel substitut est sélectionnée et que la fonction de conversion correspondante ne peut pas être appelée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/415.html">CWG 415</a></td>
+<td>C++98</td>
+<td>lorsqu'un modèle de fonction est sélectionné comme candidat, ses spécialisations étaient instanciées par déduction d'arguments de modèle</td>
+<td>aucune instanciation n'aura lieu dans ce cas, leurs déclarations seront synthétisées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/495.html">CWG 495</a></td>
+<td>C++98</td>
+<td>lorsque les conversions implicites pour les arguments sont aussi bonnes, une fonction de conversion non modèle était toujours meilleure qu'un modèle de fonction de conversion, même si ce dernier peut avoir une meilleure séquence de conversion standard</td>
+<td>les séquences de conversion standard sont comparées avant les niveaux de spécialisation</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1307.html">CWG 1307</a></td>
+<td>C++11</td>
+<td>la résolution de surcharge fondée sur la taille des tableaux n'était pas spécifiée</td>
+<td>un tableau plus court est meilleur lorsque c'est possible</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1328.html">CWG 1328</a></td>
+<td>C++11</td>
+<td>la détermination des fonctions candidates lors de la liaison d'une référence au résultat d'une conversion n'était pas claire</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1374.html">CWG 1374</a></td>
+<td>C++98</td>
+<td>la conversion de qualification était vérifiée avant la liaison de référence lors de la comparaison des séquences de conversion standard</td>
+<td>reversed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1385.html">CWG 1385</a></td>
+<td>C++11</td>
+<td>une fonction de conversion définie par l'utilisateur, non explicite, déclarée avec un qualificateur ref n'avait pas de fonction substitut correspondante</td>
+<td>elle a une fonction substitut correspondante</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1467.html">CWG 1467</a></td>
+<td>C++11</td>
+<td>l'initialisation par liste du même type des agrégats et des tableaux était omise</td>
+<td>initialisation définie</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1601.html">CWG 1601</a></td>
+<td>C++11</td>
+<td>la conversion d'une énumération vers son type sous-jacent ne privilégiait pas le type sous-jacent fixe</td>
+<td>le type fixe est préféré à celui vers lequel il est promu</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1608.html">CWG 1608</a></td>
+<td>C++98</td>
+<td>l'ensemble des candidats membres d'un opérateur unaire <code>@</code> dont l'argument a le type <code>T1</code> était vide lorsque <code>T1</code> est une classe en cours de définition</td>
+<td>cet ensemble est le résultat de la recherche de nom qualifié de <code>T1::operator@</code> dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1687.html">CWG 1687</a></td>
+<td>C++98</td>
+<td>lorsqu'un candidat intégré est sélectionné par la résolution de surcharge, les opérandes subissaient une conversion sans restriction</td>
+<td>ne convertir que les opérandes de type classe, et désactivé la seconde séquence de conversion standard</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2052.html">CWG 2052</a></td>
+<td>C++98</td>
+<td>des spécialisations de modèles de fonctions synthétisées mal formées pouvaient être ajoutées à l'ensemble des candidats, rendant le programme mal formé</td>
+<td>elles ne sont pas ajoutées à l'ensemble des candidats</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2076.html">CWG 2076</a></td>
+<td>C++11</td>
+<td>la conversion définie par l'utilisateur est appliquée à l'unique initialisateur dans une liste d'initialisation imbriquée lors de l'initialisation par liste en raison de la résolution du <a href="https://cplusplus.github.io/CWG/issues/1467.html">problème CWG 1467</a></td>
+<td>non appliqué</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2137.html">CWG 2137</a></td>
+<td>C++11</td>
+<td>les constructeurs de liste d'initialisation perdaient face aux constructeurs de copie lors de l'initialisation par liste de<code>X</code> à partir de<code>{X}</code></td>
+<td>les non-agrégats considèrent d'abord les listes d'initialisation</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2273.html">CWG 2273</a></td>
+<td>C++11</td>
+<td>il n'existait aucun critère de départage entre les constructeurs hérités et non hérités</td>
+<td>le constructeur non hérité l'emporte</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2673.html">CWG 2673</a></td>
+<td>C++20</td>
+<td>les candidats intégrés ayant la même liste de paramètres qu'un candidat non membre réécrit étaient ajoutés à la liste des candidats intégrés</td>
+<td>non ajoutés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2712.html">CWG 2712</a></td>
+<td>C++98</td>
+<td>lorsqu'un opérateur d'affectation intégré est considéré, le premier paramètre ne pouvait pas être lié à un temporaire, ce qui était déjà impossible<a href="overload_resolution.html#cite_note-1">[1]</a></td>
+<td>suppression de l'exigence redondante</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2713.html">CWG 2713</a></td>
+<td>C++20</td>
+<td>la restriction de conversion concernant les listes d'initialisation désignées s'appliquait même si le paramètre est une référence</td>
+<td>pas restreinte dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2789.html">CWG 2789</a></td>
+<td>C++23</td>
+<td>le paramètre objet explicite était inclus lors de la comparaison des listes de types de paramètres</td>
+<td>excluded</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2856.html">CWG 2856</a></td>
+<td>C++11</td>
+<td>la résolution de surcharge pour l'initialisation par défaut dans le contexte de l'initialisation par copie-liste ne considérait que les constructeurs de conversion</td>
+<td>considère tous les constructeurs</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2919.html">CWG 2919</a></td>
+<td>C++98</td>
+<td>l'ensemble des candidats de l'initialisation de référence par conversion dépendait du type cible de l'initialisation</td>
+<td>dépend du type cible de la conversion</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2468R2">P2468R2</a></td>
+<td>C++20</td>
+<td>les candidats réécrits fondés sur <code>operator==</code> sont ajoutés pour <code>a != b</code> même si un <code>operator!=</code> correspondant existe</td>
+<td>non ajoutés</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><a href="overload_resolution.html#cite_ref-1">↑</a> Le type du premier paramètre d'un opérateur d'affectation intégré est « référence lvalue vers <code>T</code> éventuellement qualifié volatile ». Les références de ce type ne peuvent pas être liées à un temporaire.</li>
+</ol>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>12.2 Résolution de surcharge [over.match]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>12.4 Résolution de surcharge [over.match]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>16.3 Résolution de surcharge [over.match]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>13.3 Résolution de surcharge [over.match]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>13.3 Résolution de surcharge [over.match]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>13.3 Résolution de surcharge [over.match]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="lookup.html">Recherche de noms</a></li>
+<li><a href="adl.html">Recherche dépendante des arguments</a></li>
+<li><a href="template_argument_deduction.html">Déduction d'arguments de modèle</a></li>
+<li><a href="sfinae.html">SFINAE</a></li>
+</ul>
+
+</main>
+</body>
+</html>

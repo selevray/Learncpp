@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::kill_dependency — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-kill_dependency"><code>std::kill_dependency</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/kill_dependency">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+T kill_dependency( T y ) noexcept;  // (depuis C++11)
+</code></pre>
+<p>Indique au compilateur que l'arbre de dépendances initié par une opération de chargement atomique <a href="memory_order.html"><code>std::memory_order_consume</code></a> ne s'étend pas au-delà de la valeur de retour de <code>std::kill_dependency</code> ; autrement dit, l'argument ne transporte pas de dépendance vers la valeur de retour.</p>
+<p>Ceci peut servir à éviter des barrières <a href="memory_order.html"><code>std::memory_order_acquire</code></a> inutiles lorsque la chaîne de dépendances quitte la portée de la fonction (et que la fonction n'a pas l'attribut <code>[[carries_dependency]]</code>).</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>y</code> — l'expression dont la valeur de retour doit être retirée d'un arbre de dépendances</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Retourne <code>y</code>, qui ne fait plus partie d'un arbre de dépendances.</p>
+<h2 id="Examples">Exemples</h2>
+<h4 id="file1.cpp:">file1.cpp:</h4>
+<pre><code class="language-cpp">struct Foo
+{
+    int* a;
+    int* b;
+};
+
+std::atomic&lt;Foo*&gt; foo_head[10];
+int foo_array[10][10];
+
+// l'opération consume démarre une chaîne de dépendances qui s'échappe de cette fonction
+[[carries_dependency]] Foo* f(int i)
+{
+    return foo_head[i].load(memory_order_consume);
+}
+
+// la chaîne de dépendances entre dans cette fonction par le paramètre de droite et est
+// interrompue avant la fin de la fonction (donc aucune opération acquire supplémentaire n'a lieu)
+int g(int* x, int* y [[carries_dependency]])
+{
+    return std::kill_dependency(foo_array[*x][*y]);
+}
+</code></pre>
+<h4 id="file2.cpp:">file2.cpp:</h4>
+<pre><code class="language-cpp">[[carries_dependency]] struct Foo* f(int i);
+int g(int* x, int* y [[carries_dependency]]);
+
+int c = 3;
+void h(int i)
+{
+    Foo* p;
+    p = f(i); // la chaîne de dépendances démarrée dans f se poursuit dans p sans acquire inutile
+    do_something_with(g(&amp;c, p-&gt;a)); // p-&gt;b n'est pas chargé depuis le cache
+    do_something_with(g(p-&gt;a, &amp;c)); // l'argument de gauche n'a pas l'attribut carries_dependency
+                                    // attribut : une barrière acquire mémoire peut être émise
+                                    // p-&gt;b devient visible avant l'appel à g()
+}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="memory_order.html">memory_order</a> (C++11)</strong> — définit les contraintes d'ordre mémoire pour l'opération atomique donnée <em>(énumération)</em></li>
+</ul>
+<p><strong><a href="../../c/atomic/kill_dependency.html">Documentation C</a> de kill_dependency</strong></p>
+
+</main>
+</body>
+</html>

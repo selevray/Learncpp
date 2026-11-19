@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>strcpy, strcpy_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="strcpy-strcpy_s">strcpy, strcpy_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/byte/strcpy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;string.h&gt;</strong></p>
+<pre><code class="language-c">char *strcpy( char *dest, const char *src );  // (jusqu'à C99)
+
+char *strcpy( char *restrict dest, const char *restrict src );  // (depuis C99)
+
+errno_t strcpy_s( char *restrict dest, rsize_t destsz, const char *restrict src );  // (2) (depuis C11)
+</code></pre>
+<ol>
+<li>Copie la chaîne d'octets terminée par un caractère nul pointée par <code>src</code>, y compris le caractère nul de fin, dans le tableau de caractères dont le premier élément est pointé par <code>dest</code>.</li>
+</ol>
+<p>Le comportement est indéfini si le tableau <code>dest</code> n'est pas assez grand. Le comportement est indéfini si les chaînes se chevauchent. Le comportement est indéfini si l'un des <code>dest</code> n'est pas un pointeur vers un tableau de caractères ou si <code>src</code> n'est pas un pointeur vers une chaîne d'octets terminée par un caractère nul.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, à ceci près qu'elle peut écraser le reste du tableau de destination avec des valeurs non spécifiées et que les erreurs suivantes sont détectées à l'exécution et appellent la fonction <a href="../../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</li>
+</ol>
+<ul>
+<li><code>src</code> ou <code>dest</code> est un pointeur nul</li>
+<li><code>destsz</code> vaut zéro ou est supérieur à <code>RSIZE_MAX</code></li>
+<li><code>destsz</code> est inférieur ou égal à <code>strnlen_s(src, destsz)</code> ; en d'autres termes, une troncature se produirait</li>
+<li>un chevauchement se produirait entre la chaîne source et la chaîne de destination</li>
+</ul>
+<p>Le comportement est indéfini si la taille du tableau de caractères pointé par <code>dest</code> &lt;= <code>strnlen_s(src, destsz)</code> &lt; <code>destsz</code> ; en d'autres termes, une valeur erronée de <code>destsz</code> n'expose pas le dépassement de tampon imminent.Comme pour toutes les fonctions à vérification de bornes, <code>strcpy_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../byte.html"><code>&lt;string.h&gt;</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>dest</code> — pointeur vers le tableau de caractères dans lequel écrire</li>
+<li><code>src</code> — pointeur vers la chaîne d'octets terminée par un caractère nul à copier</li>
+<li><code>destsz</code> — nombre maximal de caractères à écrire, généralement la taille du tampon de destination</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>renvoie une copie de <code>dest</code></p>
+</li>
+<li>
+<p>renvoie zéro en cas de succès, une valeur non nulle en cas d'erreur. De plus, en cas d'erreur, écrit zéro dans <code>dest[0]</code> (sauf si <code>dest</code> est un pointeur nul ou si <code>destsz</code> vaut zéro ou est supérieur à <code>RSIZE_MAX</code>).</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p><code>strcpy_s</code> est autorisé à écraser le tableau de destination à partir du dernier caractère écrit jusqu'à <code>destsz</code> afin d'améliorer l'efficacité : il peut copier par blocs multi-octets puis vérifier la présence d'octets nuls.</p>
+<p>La fonction <code>strcpy_s</code> est similaire à la fonction BSD <code>strlcpy</code>, à ceci près que</p>
+<ul>
+<li><code>strlcpy</code> tronque la chaîne source pour qu'elle tienne dans la destination (ce qui représente un risque pour la sécurité)</li>
+<li><code>strlcpy</code> n'effectue pas toutes les vérifications à l'exécution que <code>strcpy_s</code> effectue</li>
+<li><code>strlcpy</code> ne rend pas les échecs évidents en définissant la destination comme chaîne nulle ou en appelant un gestionnaire si l'appel échoue.</li>
+</ul>
+<p>Bien que <code>strcpy_s</code> interdise la troncature en raison de risques de sécurité potentiels, il est possible de tronquer une chaîne à l'aide de <a href="strncpy.html"><code>strncpy_s</code></a>, qui vérifie les bornes.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define __STDC_WANT_LIB_EXT1__ 1
+#include &lt;string.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void)
+{
+    const char *src = &quot;Take the test.&quot;;
+//  src[0] = 'M' ; // ceci serait un comportement indéfini
+    char dst[strlen(src) + 1]; // +1 pour tenir compte du caractère nul de fin
+    strcpy(dst, src);
+    dst[0] = 'M'; // OK
+    printf(&quot;src = %s\ndst = %s\n&quot;, src, dst);
+
+#ifdef __STDC_LIB_EXT1__
+    set_constraint_handler_s(ignore_handler_s);
+    int r = strcpy_s(dst, sizeof dst, src);
+    printf(&quot;dst = \&quot;%s\&quot;, r = %d\n&quot;, dst, r);
+    r = strcpy_s(dst, sizeof dst, &quot;Take even more tests.&quot;);
+    printf(&quot;dst = \&quot;%s\&quot;, r = %d\n&quot;, dst, r);
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">src = Take the test.
+dst = Make the test.
+dst = &quot;Take the test.&quot;, r = 0
+dst = &quot;&quot;, r = 22
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.24.2.3 La fonction strcpy (p: 264-265)</li>
+<li>K.3.7.1.3 La fonction strcpy_s (p: 447)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.24.2.3 La fonction strcpy (p: 363)</li>
+<li>K.3.7.1.3 La fonction strcpy_s (p: 615-616)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.21.2.3 La fonction strcpy (p: 326)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.11.2.3 La fonction strcpy</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="strncpy.html">strncpystrncpy_s</a> (C11)</strong> — copie un certain nombre de caractères d'une chaîne dans une autre <em>(fonction)</em></li>
+<li><strong><a href="memcpy.html">memcpymemcpy_s</a> (C11)</strong> — copie un tampon dans un autre <em>(fonction)</em></li>
+<li><strong><a href="../wide/wcscpy.html">wcscpywcscpy_s</a> (C95) (C11)</strong> — copie une chaîne de caractères larges dans une autre <em>(fonction)</em></li>
+<li><strong><a href="../../experimental/dynamic/strdup.html">strdup</a> (dynamic memory TR)</strong> — alloue une copie d'une chaîne <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/byte/strcpy.html">Documentation C++</a> pour strcpy</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>longjmp — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/program.html">Utilitaires de support du programme</a></nav>
+<h1 id="longjmp"><code>longjmp</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/program/longjmp">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;setjmp.h&gt;</strong></p>
+<pre><code class="language-c">void longjmp( jmp_buf env, int status );  // (jusqu'à C11)
+
+_Noreturn void longjmp( jmp_buf env, int status );  // (depuis C11) (jusqu'à C23)
+
+[[noreturn]] void longjmp( jmp_buf env, int status );  // (depuis C23)
+</code></pre>
+<p>Charge le contexte d'exécution <code>env</code> sauvegardé par un appel précédent à <a href="setjmp.html"><code>setjmp</code></a>. Cette fonction ne retourne pas. Le contrôle est transféré au site d'appel de la macro <a href="setjmp.html"><code>setjmp</code></a> qui a initialisé <code>env</code>. Cette <a href="setjmp.html"><code>setjmp</code></a> renvoie alors la valeur passée comme <code>status</code>.</p>
+<p>Si la fonction qui a appelé <a href="setjmp.html"><code>setjmp</code></a> s'est terminée (que ce soit par return ou par un autre <code>longjmp</code> plus haut dans la pile), le comportement est indéfini. Autrement dit, seuls les sauts longs vers le haut de la pile d'appels sont autorisés.</p>
+<blockquote>
+<p>Un saut entre threads (si la fonction qui a appelé <code>setjmp</code> a été exécutée par un autre thread) est également un comportement indéfini.</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<blockquote>
+<p>Si, au moment de l'appel à <a href="setjmp.html"><code>setjmp</code></a>, une <a href="../language/array.html">VLA</a> ou une autre variable de <a href="../language/declarations.html">type à modification variable</a> était dans la portée et que le contrôle a quitté cette portée, <code>longjmp</code> vers ce <code>setjmp</code> provoque un comportement indéfini, même si le contrôle est resté dans la fonction.</p>
+<p>En remontant la pile, <code>longjmp</code> ne désalloue aucune VLA ; des fuites mémoire peuvent se produire si leur durée de vie se termine de cette façon :</p>
+<pre><code class="language-c">void g(int n)
+{
+    int a[n]; // a peut rester alloué
+    h(n); // ne retourne pas
+}
+void h(int n)
+{
+    int b[n]; // b peut rester alloué
+    longjmp(buf, 2); // peut provoquer une fuite mémoire pour b de h et a de g
+}
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>env</code> — variable désignant l'état d'exécution du programme sauvegardé par <a href="setjmp.html"><code>setjmp</code></a></li>
+<li><code>status</code> — la valeur à renvoyer par <a href="setjmp.html"><code>setjmp</code></a>. Si elle est égale à <code>0</code>, <code>1</code> est utilisée à la place</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p><code>longjmp</code> est destiné à gérer des conditions d'erreur inattendues où la fonction ne peut pas retourner de manière significative. Cela ressemble à la gestion des exceptions dans d'autres langages de programmation.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;setjmp.h&gt;
+#include &lt;stdnoreturn.h&gt;
+
+jmp_buf my_jump_buffer;
+
+noreturn void foo(int status)
+{
+    printf(&quot;foo(%d) called\n&quot;, status);
+    longjmp(my_jump_buffer, status + 1); // retournera status+1 depuis setjmp
+}
+
+int main(void)
+{
+    volatile int count = 0; // les variables locales modifiées dans la portée de setjmp doivent être volatile
+    if (setjmp(my_jump_buffer) != 5) // comparer à une constante dans un if
+        foo(++count);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">foo(1) called
+foo(2) called
+foo(3) called
+foo(4) called
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.13.2.1 La macro longjmp (p: 191-192)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.13.2.1 La macro longjmp (p: 263-264)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.13.2.1 La macro longjmp (p: 244-245)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.6.2.1 La fonction longjmp</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="setjmp.html">setjmp</a></strong> — sauvegarde le contexte <em>(macro de fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/utility/program/longjmp.html">Documentation C++</a> pour longjmp</strong></p>
+
+</main>
+</body>
+</html>

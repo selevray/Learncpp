@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::exchange — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-exchange"><code>std::exchange</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/exchange">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;utility&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class U = T &gt;
+T exchange( T&amp; obj, U&amp;&amp; new_value );  // (depuis C++14) (constexpr depuis C++20) (noexcept conditionnel depuis C++23)
+</code></pre>
+<p>Remplace la valeur de <code>obj</code> par <code>new_value</code> et renvoie l'ancienne valeur de <code>obj</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>obj</code> — objet dont la valeur doit être remplacée</li>
+<li><code>new_value</code> — la valeur à affecter à <code>obj</code></li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>T</code> doit satisfaire les exigences de <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a>. De plus, il doit être possible d'affecter par déplacement des objets de type <code>U</code> à des objets de type <code>T</code>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>L'ancienne valeur de <code>obj</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<blockquote>
+<p>(aucune)</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><a href="../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept( std::is_nothrow_move_constructible_v&lt;T&gt; &amp;&amp; std::is_nothrow_assignable_v&lt;T&amp;, U&gt; )</code></p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class T, class U = T&gt;
+constexpr // Depuis C++20
+T exchange(T&amp; obj, U&amp;&amp; new_value)
+    noexcept( // Depuis C++23
+        std::is_nothrow_move_constructible&lt;T&gt;::value &amp;&amp;
+        std::is_nothrow_assignable&lt;T&amp;, U&gt;::value
+    )
+{
+    T old_value = std::move(obj);
+    obj = std::forward&lt;U&gt;(new_value);
+    return old_value;
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><code>std::exchange</code> peut être utilisée lors de l'implémentation des <a href="../language/move_operator.html">opérateurs d'affectation par déplacement</a> et des <a href="../language/move_constructor.html">constructeurs de déplacement</a> :</p>
+<pre><code class="language-cpp">struct S
+{
+    int n;
+
+    S(S&amp;&amp; other) noexcept : n{std::exchange(other.n, 0)} {}
+
+    S&amp; operator=(S&amp;&amp; other) noexcept
+    {
+        n = std::exchange(other.n, 0); // Déplace n, tout en laissant zéro dans other.n
+                                       // (note : lors d'une auto-affectation par déplacement, n est inchangé)
+        return *this;
+    }
+};
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_exchange_function"><code>__cpp_lib_exchange_function</code></a></td>
+<td><a href="../compiler_support/14.html#cpp_lib_exchange_function_201304L"><code>201304L</code></a></td>
+<td><em>(C++14)</em></td>
+<td><a href="exchange.html#Top"><code>std::exchange</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+class stream
+{
+public:
+    using flags_type = int;
+
+public:
+    flags_type flags() const { return flags_; }
+
+    // Remplace flags_ par newf, et renvoie l'ancienne valeur.
+    flags_type flags(flags_type newf) { return std::exchange(flags_, newf); }
+
+private:
+    flags_type flags_ = 0;
+};
+
+void f() { std::cout &lt;&lt; &quot;f()&quot;; }
+
+int main()
+{
+    stream s;
+
+    std::cout &lt;&lt; s.flags() &lt;&lt; '\n';
+    std::cout &lt;&lt; s.flags(12) &lt;&lt; '\n';
+    std::cout &lt;&lt; s.flags() &lt;&lt; &quot;\n\n&quot;;
+
+    std::vector&lt;int&gt; v;
+
+    // Comme le second paramètre de modèle a une valeur par défaut, il est possible
+    // d'utiliser une liste d'initialisation entre accolades comme second argument. L'expression ci-dessous
+    // est équivalente à std::exchange(v, std::vector&lt;int&gt;{1, 2, 3, 4});
+
+    std::exchange(v, {1, 2, 3, 4});
+
+    std::copy(begin(v), end(v), std::ostream_iterator&lt;int&gt;(std::cout, &quot;, &quot;));
+
+    std::cout &lt;&lt; &quot;\n\n&quot;;
+
+    void (*fun)();
+
+    // La valeur par défaut du paramètre de modèle permet aussi d'utiliser une
+    // fonction normale comme second argument. L'expression ci-dessous est équivalente à
+    // std::exchange(fun, static_cast&lt;void(*)()&gt;(f))
+    std::exchange(fun, f);
+    fun();
+
+    std::cout &lt;&lt; &quot;\n\nFibonacci sequence: &quot;;
+    for (int a{0}, b{1}; a &lt; 100; a = std::exchange(b, a + b))
+        std::cout &lt;&lt; a &lt;&lt; &quot;, &quot;;
+    std::cout &lt;&lt; &quot;...\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">0
+0
+12
+
+1, 2, 3, 4,
+
+f()
+
+Fibonacci sequence: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ...
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="swap.html">swap</a></strong> — échange les valeurs de deux objets <em>(modèle de fonction)</em></li>
+<li><strong><a href="../atomic/atomic_exchange.html">atomic_exchangeatomic_exchange_explicit</a> (C++11) (C++11)</strong> — remplace atomiquement la valeur de l'objet atomique par un argument non atomique et renvoie l'ancienne valeur de l'atomique <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

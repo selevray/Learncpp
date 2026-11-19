@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversions implicites — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="conversions-implicites">Conversions implicites</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/implicit_cast">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les conversions implicites sont effectuées chaque fois qu'une expression d'un type <code>T1</code> est utilisée dans un contexte qui n'accepte pas ce type, mais accepte un autre type <code>T2</code> ; en particulier :</p>
+<ul>
+<li>lorsque l'expression est utilisée comme argument lors de l'appel d'une fonction déclarée avec <code>T2</code> comme paramètre ;</li>
+<li>lorsque l'expression est utilisée comme opérande d'un opérateur qui attend <code>T2</code> ;</li>
+<li>lors de l'initialisation d'un nouvel objet de type <code>T2</code>, y compris <code>return</code> instruction dans une fonction retournant <code>T2</code> ;</li>
+<li>lorsque l'expression est utilisée dans une instruction <code>switch</code> (<code>T2</code> est de type entier) ;</li>
+<li>lorsque l'expression est utilisée dans une instruction <code>if</code> ou une boucle (<code>T2</code> est <code>bool</code>).</li>
+</ul>
+<p>Le programme est bien formé (compile) seulement s'il existe une unique <em>séquence de conversion implicite</em> de <code>T1</code> vers <code>T2</code>.</p>
+<p>Si la fonction ou l'opérateur appelé a plusieurs surcharges, après que la séquence de conversion implicite a été construite de <code>T1</code> vers chaque <code>T2</code> disponible, les règles de <a href="overload_resolution.html">résolution de surcharge</a> décident quelle surcharge est compilée.</p>
+<p>Remarque : dans les expressions arithmétiques, le type de destination des conversions implicites sur les opérandes des opérateurs binaires est déterminé par un ensemble distinct de règles : <a href="usual_arithmetic_conversions.html">conversions arithmétiques usuelles</a>.</p>
+<h2 id="Order_of_the_conversions">Ordre des conversions</h2>
+<p>Une séquence de conversion implicite se compose de ce qui suit, dans cet ordre :</p>
+<ol>
+<li>
+<p>zéro ou une <em>séquence de conversion standard</em> ;</p>
+</li>
+<li>
+<p>zéro ou une <em>conversion définie par l'utilisateur</em> ;</p>
+</li>
+<li>
+<p>zéro ou une <em>séquence de conversion standard</em> (uniquement si une conversion définie par l'utilisateur est utilisée).</p>
+</li>
+</ol>
+<p>Lorsqu'on considère l'argument d'un constructeur ou d'une fonction de conversion définie par l'utilisateur, une seule séquence de conversion standard est autorisée (sinon les conversions définies par l'utilisateur pourraient être enchaînées de fait). Lors de la conversion d'un type non classe vers un autre type non classe, seule une séquence de conversion standard est autorisée.</p>
+<p>Une séquence de conversion standard se compose de ce qui suit, dans cet ordre :</p>
+<ol>
+<li>zéro ou une conversion parmi l'ensemble suivant :</li>
+</ol>
+<ul>
+<li><em>conversion lvalue-to-rvalue</em>,</li>
+<li><em>conversion array-to-pointer</em>, et</li>
+<li><em>conversion function-to-pointer</em> ;</li>
+</ul>
+<ol start="2">
+<li>zéro ou une <em>promotion numérique</em> ou une <em>conversion numérique</em> ;</li>
+</ol>
+<blockquote>
+<ol start="3">
+<li>zéro ou une <em>conversion de pointeur de fonction</em> ;</li>
+</ol>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ol start="4">
+<li>zéro ou une <em>conversion de qualification</em>.</li>
+</ol>
+<p>Une conversion définie par l'utilisateur consiste en zéro ou un <a href="converting_constructor.html">constructeur de conversion</a> non explicite à un seul argument, ou en un appel à une <a href="cast_operator.html">fonction de conversion</a> non explicite.</p>
+<p>Une expression <code>e</code> est dite <em>implicitement convertible en <code>T2</code></em> si et seulement si <code>T2</code> peut être <a href="copy_initialization.html">initialisé par copie</a> à partir de <code>e</code>, c'est-à-dire si la déclaration <code>T2 t = e;</code> est bien formée (peut être compilée), pour un certain temporaire fictif <code>t</code>. Notez que ceci diffère de l'<a href="direct_initialization.html">initialisation directe</a> (<code>T2 t(e)</code>), où les constructeurs explicites et les fonctions de conversion seraient en outre pris en compte.</p>
+<h3 id="Contextual_conversions">Conversions contextuelles</h3>
+<blockquote>
+<p>Dans les contextes suivants, le type <code>bool</code> est attendu et la conversion implicite est effectuée si la déclaration <code>bool t(e);</code> est bien formée (c'est-à-dire qu'une fonction de conversion explicite telle que <code>explicit T::operator bool() const;</code> est prise en compte). Une telle expression <code>e</code> est dite <em>convertie contextuellement en <code>bool</code></em>.</p>
+<ul>
+<li>l'expression de contrôle de <code>if</code>, <code>while</code>, <code>for</code> ;</li>
+<li>les opérandes des opérateurs logiques intégrés <code>!</code>, <code>&amp;&amp;</code> et <code>||</code> ;</li>
+<li>le premier opérande de l'opérateur conditionnel <code>?:</code> ;</li>
+<li>le prédicat d'une déclaration <a href="static_assert.html"><code>static_assert</code></a> ;</li>
+<li>l'expression d'un spécificateur <a href="noexcept_spec.html"><code>noexcept</code></a> ;</li>
+</ul>
+<blockquote>
+<ul>
+<li>l'expression d'un spécificateur <a href="explicit.html"><code>explicit</code></a> ;</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Dans les contextes suivants, un type spécifique au contexte <code>T</code> est attendu, et l'expression <code>e</code> de type classe <code>E</code> n'est autorisée que si</p>
+<blockquote>
+<ul>
+<li><code>E</code> possède une unique fonction de conversion définie par l'utilisateur <em>(depuis C++11)</em> <a href="cast_operator.html">non explicite</a> vers un type autorisé.</li>
+</ul>
+<p><em>(jusqu'à C++14)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>il existe exactement un type <code>T</code> parmi les types autorisés tel que <code>E</code> possède des fonctions de conversion non explicites dont les types de retour sont (éventuellement qualifiés cv) <code>T</code> ou une référence vers (éventuellement qualifié cv) <code>T</code>, et</li>
+<li><code>e</code> est implicitement convertible en <code>T</code>.</li>
+</ul>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<p>Une telle expression <code>e</code> est dite <em>implicitement convertie contextuellement</em> vers le type spécifié <code>T</code>. Notez que les fonctions de conversion explicites ne sont pas prises en compte, bien qu'elles le soient dans les conversions contextuelles vers <code>bool</code>. <em>(depuis C++11)</em></p>
+<ul>
+<li>l'argument de l'<a href="delete.html">expression delete</a> (<code>T</code> est un type quelconque de pointeur vers objet) ;</li>
+<li><a href="constant_expression.html#Integral_constant_expression">expression constante intégrale</a>, lorsqu'un type littéral de classe est utilisé (<code>T</code> est un type entier quelconque ou une énumération non scopée, la fonction de conversion définie par l'utilisateur sélectionnée doit être <a href="constexpr.html">constexpr</a>) ;</li>
+<li>l'expression de contrôle de l'instruction <a href="switch.html"><code>switch</code></a> (<code>T</code> est un type entier quelconque ou un type énumération).</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+
+template&lt;typename T&gt;
+class zero_init
+{
+    T val;
+public:
+    zero_init() : val(static_cast&lt;T&gt;(0)) {}
+    zero_init(T val) : val(val) {}
+    operator T&amp;() { return val; }
+    operator T() const { return val; }
+};
+
+int main()
+{
+    zero_init&lt;int&gt; i;
+    assert(i == 0);
+
+    i = 7;
+    assert(i == 7);
+
+    switch (i) {}     // erreur jusqu'à C++14 (plus d'une fonction de conversion)
+                      // OK depuis C++14 (les deux fonctions convertissent vers le même type int)
+    switch (i + 0) {} // toujours correct (conversion implicite)
+}
+</code></pre>
+<h2 id="Value_transformations">Transformations de valeur</h2>
+<p>Les transformations de valeur sont des conversions qui modifient la <a href="value_category.html">catégorie de valeur</a> d'une expression. Elles ont lieu chaque fois qu'une expression apparaît comme opérande d'un opérateur qui attend une expression d'une autre catégorie de valeur :</p>
+<ul>
+<li>Chaque fois qu'une glvalue apparaît comme opérande d'un opérateur qui exige une prvalue pour cet opérande, les conversions standard <em>conversion lvalue-vers-rvalue</em>, <em>conversion tableau-vers-pointeur</em> ou <em>conversion fonction-vers-pointeur</em> sont appliquées pour convertir l'expression en prvalue.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Sauf indication contraire, chaque fois qu'une prvalue apparaît comme opérande d'un opérateur qui attend une glvalue pour cet opérande, la <em>matérialisation temporaire</em> est appliquée pour convertir l'expression en xvalue.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h3 id="Lvalue-to-rvalue_conversion">Conversion lvalue-vers-rvalue</h3>
+<p>[Une <a href="value_category.html#lvalue">lvalue</a> <em>(jusqu'à C++11)</em> | Une <a href="value_category.html#glvalue">glvalue</a> <em>(depuis C++11)</em>] de tout type non fonction et non tableau <code>T</code> peut être implicitement convertie en [une <a href="value_category.html#rvalue">rvalue</a> <em>(jusqu'à C++11)</em> | une <a href="value_category.html#prvalue">prvalue</a> <em>(depuis C++11)</em>] :</p>
+<ul>
+<li>Si <code>T</code> n'est pas un type classe, le type de la [rvalue <em>(jusqu'à C++11)</em> | prvalue <em>(depuis C++11)</em>] est la version non qualifiée cv de <code>T</code>.</li>
+<li>Sinon, le type de la [rvalue <em>(jusqu'à C++11)</em> | prvalue <em>(depuis C++11)</em>] est <code>T</code>.</li>
+</ul>
+<p>Si une conversion lvalue-vers-rvalue à partir d'un <a href="type-id.html#Incomplete_type">type incomplet</a> est requise par un programme, ce programme est mal formé.</p>
+<p>Étant donné l'objet auquel la [lvalue <em>(jusqu'à C++11)</em> | glvalue <em>(depuis C++11)</em>] fait référence, noté <code>obj</code> :</p>
+<blockquote>
+<ul>
+<li>
+<p>Lorsqu'une conversion lvalue-vers-rvalue intervient dans l'opérande de <a href="sizeof.html"><code>sizeof</code></a>, la valeur contenue dans <code>obj</code> n'est pas accédée, puisque cet opérateur <a href="expressions.html#Potentially-evaluated_expressions">n'évalue pas</a> son opérande.</p>
+</li>
+<li>
+<p>Le résultat de la conversion est la valeur contenue dans <code>obj</code>. Si l'un parmi <code>T</code> et le type de <code>obj</code> est un type entier signé, et l'autre le type entier non signé correspondant, le résultat est la valeur de type <code>T</code> ayant la même représentation de valeur que <code>obj</code>.</p>
+</li>
+</ul>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>
+<p>Lorsqu'une conversion lvalue-vers-rvalue est appliquée à une expression <code>E</code>, la valeur contenue dans <code>obj</code> n'est pas accédée si :</p>
+</li>
+<li>
+<p><code>E</code> n'est pas <a href="expressions.html#Potentially-evaluated_expressions">potentiellement évaluée</a>, ou</p>
+</li>
+<li>
+<p>l'évaluation de <code>E</code> entraîne l'évaluation d'un membre <code>Ex</code> de l'ensemble des <a href="definition.html#ODR-use">résultats potentiels</a> de <code>E</code>, et <code>Ex</code> désigne une variable <code>x</code> qui n'est pas <a href="definition.html#ODR-use">utilisée par odr</a> dans <code>Ex</code>.</p>
+</li>
+<li>
+<p>Le résultat de la conversion est déterminé comme suit :</p>
+</li>
+<li>
+<p>Si <code>T</code> est (éventuellement qualifié cv) <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a>, le résultat est une <a href="pointer.html#Null_pointers">constante de pointeur nul</a>. <code>obj</code> n'est pas accédé par la conversion, il n'y a donc aucun effet de bord même si <code>T</code> est qualifié volatile, et la glvalue peut désigner un membre inactif d'une union.</p>
+</li>
+<li>
+<p>Sinon, si <code>T</code> est un type classe :</p>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>La conversion <a href="copy_initialization.html">initialise par copie</a> un <a href="lifetime.html#Temporary_object_lifetime">temporaire</a> de type <code>T</code> à partir de la glvalue, et le résultat de la conversion est une prvalue pour ce temporaire.</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>La conversion <a href="copy_initialization.html">initialise par copie</a> l'<a href="implicit_cast.html#Temporary_materialization">objet résultat</a> à partir de la glvalue.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>Sinon, si <code>obj</code> contient une valeur de pointeur invalide, le comportement est défini par l'implémentation.</li>
+<li>Sinon, si les bits de la <a href="objects.html#Object_representation_and_value_representation">représentation de valeur</a> de <code>obj</code> ne sont pas valides pour le type de <code>obj</code>, le comportement est indéfini.</li>
+<li>Sinon, <code>obj</code> est lu, et <em>(depuis C++20)</em> le résultat est la valeur contenue dans <code>obj</code>. Si l'un parmi <code>T</code> et le type de <code>obj</code> est un type entier signé, et l'autre le type entier non signé correspondant, le résultat est la valeur de type <code>T</code> ayant la même représentation de valeur que <code>obj</code>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Cette conversion modélise l'action de lire une valeur depuis un emplacement mémoire vers un registre du processeur.</p>
+<h3 id="Array-to-pointer_conversion">Conversion tableau-vers-pointeur</h3>
+<p>Une <a href="value_category.html#lvalue">lvalue</a> ou une <a href="value_category.html#rvalue">rvalue</a> de type « tableau de <code>N</code> <code>T</code> » ou « tableau de borne inconnue de <code>T</code> » peut être implicitement convertie en une <a href="value_category.html#prvalue">prvalue</a> de type « pointeur vers <code>T</code> ». Si le tableau est une prvalue, une <a href="implicit_cast.html#Temporary_materialization">matérialisation temporaire</a> a lieu. <em>(depuis C++17)</em> Le pointeur obtenu désigne le premier élément du tableau (voir <a href="array.html#Array-to-pointer_decay">désintégration tableau-vers-pointeur</a> pour les détails).</p>
+<h3 id="Function-to-pointer_conversion">Conversion fonction-vers-pointeur</h3>
+<p>Une <a href="value_category.html#lvalue">lvalue</a> de type fonction peut être implicitement convertie en une <a href="value_category.html#prvalue">prvalue</a> de type <a href="pointer.html#Pointers_to_functions">pointeur vers cette fonction</a>. Ceci ne s'applique pas aux fonctions membres non statiques, car les lvalues désignant des fonctions membres non statiques n'existent pas.</p>
+<blockquote>
+<h4 id="Temporary_materialization">Matérialisation temporaire</h4>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> de tout type complet <code>T</code> peut être convertie en une xvalue du même type <code>T</code>. Cette conversion initialise un <a href="lifetime.html#Temporary_object_lifetime">objet temporaire</a> de type T à partir de la prvalue, en évaluant la prvalue avec l'objet temporaire comme objet résultat, et produit une xvalue désignant l'objet temporaire.</p>
+<p>Si <code>T</code> est une classe ou un tableau de type classe, il doit posséder un destructeur accessible et non supprimé.</p>
+<pre><code class="language-cpp">struct S { int m; };
+int i = S().m; // l'accès à un membre attend une glvalue à partir de C++17 ;
+               // La prvalue S() est convertie en xvalue
+</code></pre>
+<p>La matérialisation temporaire a lieu dans les situations suivantes :</p>
+<ul>
+<li>lors de la <a href="reference_initialization.html">liaison d'une référence</a> à une prvalue ;</li>
+<li>lors de l'<a href="operator_member_access.html">accès</a> à un <a href="data_members.html">membre donnée</a> non statique d'une prvalue de classe ;</li>
+<li>lors de l'<a href="operator_other.html#Built-in_function_call_operator">invocation</a> d'une <a href="member_functions.html">fonction membre à objet implicite</a> d'une prvalue de classe ;</li>
+<li>lors de l'exécution d'une conversion tableau-vers-pointeur (voir ci-dessus) ou d'un <a href="operator_member_access.html#Built-in_subscript_operator">indexage</a> sur une prvalue de tableau ;</li>
+<li>lors de l'initialisation d'un objet de type <code>std::initializer_list&lt;T&gt;</code> à partir d'une <a href="initialization.html">liste d'initialisation entre accolades</a> ;</li>
+<li>lorsqu'une prvalue apparaît comme une <a href="expressions.html#Discarded-value_expressions">expression de valeur ignorée</a>.</li>
+</ul>
+<p>Notez que la matérialisation temporaire <strong>n'a pas</strong> lieu lors de l'initialisation d'un objet à partir d'une prvalue du même type (par <a href="direct_initialization.html">initialisation directe</a> ou <a href="copy_initialization.html">initialisation par copie</a>) : un tel objet est initialisé directement à partir de l'initialiseur. Ceci garantit l'« élision de copie garantie ».</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Integral_promotion">Promotion entière</h2>
+<p>Les <a href="value_category.html#prvalue">prvalues</a> de petits types entiers (tels que <code>char</code>) et les types énumération non scopés peuvent être converties en prvalues de types entiers plus grands (tels que <code>int</code>). En particulier, les <a href="operator_arithmetic.html">opérateurs arithmétiques</a> n'acceptent pas comme arguments de types plus petits que <code>int</code>, et les promotions entières sont appliquées automatiquement après la conversion lvalue-vers-rvalue, le cas échéant. Cette conversion préserve toujours la valeur.</p>
+<p>Les conversions implicites suivantes de cette section sont classées comme <em>promotions entières</em>.</p>
+<p>Notez que, pour un type source donné, le type de destination de la promotion entière est unique, et que toutes les autres conversions ne sont pas des promotions. Par exemple, la <a href="overload_resolution.html">résolution de surcharge</a> choisit <code>char</code> -&gt; <code>int</code> (promotion) plutôt que <code>char</code> -&gt; <code>short</code> (conversion).</p>
+<h3 id="Promotion_from_integral_types">Promotion à partir des types entiers</h3>
+<p>Une prvalue de type <code>bool</code> peut être convertie en une prvalue de type <code>int</code>, <code>false</code> devenant <code>0</code> et <code>true</code> devenant <code>1</code>.</p>
+<p>Pour une prvalue <code>val</code> d'un type entier <code>T</code> sauf <code>bool</code> :</p>
+<ol>
+<li>Si <code>val</code> est le résultat d'une conversion lvalue-vers-rvalue appliquée à un <a href="bit_field.html">champ de bits</a>,</li>
+</ol>
+<ul>
+<li><code>val</code> peut être converti en une prvalue de type <code>int</code> si <code>int</code> peut représenter toutes les valeurs du champ de bits ;</li>
+<li>sinon, <code>val</code> peut être converti en <code>unsigned int</code> si <code>unsigned int</code> peut représenter toutes les valeurs du champ de bits ;</li>
+<li>sinon, <code>val</code> peut être converti selon les règles spécifiées au point (3).</li>
+</ul>
+<ol start="2">
+<li>Sinon (<code>val</code> n'est pas converti à partir d'un champ de bits),</li>
+</ol>
+<ul>
+<li>si <code>T</code> est [<code>char8_t</code>, <em>(depuis C++20)</em> | <code>char16_t</code>, <code>char32_t</code> ou <em>(depuis C++11)</em>]<code>wchar_t</code>, <code>val</code> peut être converti selon les règles spécifiées au point (3) ;</li>
+<li>sinon, si le <a href="usual_arithmetic_conversions.html#Integer_conversion_rank">rang de conversion entière</a> de <code>T</code> est inférieur au rang de <code>int</code> :
+<ul>
+<li><code>val</code> peut être converti en une prvalue de type <code>int</code> si <code>int</code> peut représenter toutes les valeurs de <code>T</code> ;</li>
+<li>sinon, <code>val</code> peut être converti en une prvalue de type <code>unsigned int</code>.</li>
+</ul>
+</li>
+</ul>
+<ol start="3">
+<li>Dans les cas spécifiés par le point (1) (un champ de bits converti ne rentrant pas dans <code>unsigned int</code>) ou le point (2) (<code>T</code> est l'un des types caractère donnés), <code>val</code> peut être converti en une prvalue du premier des types suivants pouvant représenter toutes les valeurs de son type sous-jacent :</li>
+</ol>
+<ul>
+<li><code>int</code></li>
+<li><code>unsigned int</code></li>
+<li><code>long</code></li>
+<li><code>unsigned long</code></li>
+</ul>
+<blockquote>
+<ul>
+<li><code>long long</code></li>
+<li><code>unsigned long long</code></li>
+<li>le type sous-jacent de <code>T</code></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="Promotion_from_enumeration_types">Promotion à partir des types énumération</h3>
+<p>Une prvalue d'une <a href="enum.html">énumération</a> non scopée dont le type sous-jacent n'est pas fixé peut être convertie en une prvalue du premier type de la liste suivante capable de contenir toute son étendue de valeurs :</p>
+<ul>
+<li><code>int</code></li>
+<li><code>unsigned int</code></li>
+<li><code>long</code></li>
+<li><code>unsigned long</code></li>
+</ul>
+<blockquote>
+<ul>
+<li><code>long long</code></li>
+<li><code>unsigned long long</code></li>
+<li>le <a href="types.html#Extended_integer_types">type d'entier étendu</a> tel que</li>
+<li>son <a href="usual_arithmetic_conversions.html#Integer_conversion_rank">rang de conversion entier</a> est supérieur au rang de <code>long long</code>,</li>
+<li>son rang de conversion entier est le plus bas parmi tous les types d'entiers étendus, et</li>
+<li>il est signé s'il existe deux types ayant le rang de conversion entier le plus bas parmi tous les types d'entiers étendus.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Une prvalue d'un type énumération non scopé dont le type sous-jacent est fixe peut être convertie en son type sous-jacent. De plus, si le type sous-jacent est aussi soumis à la promotion intégrale, en le type sous-jacent promu. La conversion vers le type sous-jacent non promu est préférable pour les besoins de la <a href="overload_resolution.html">résolution de surcharge</a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Floating-point_promotion">Promotion flottante</h2>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> de type <code>float</code> peut être convertie en une prvalue de type <code>double</code>. La valeur ne change pas.</p>
+<p>Cette conversion est appelée <em>promotion flottante</em>.</p>
+<h2 id="Numeric_conversions">Conversions numériques</h2>
+<p>Contrairement aux promotions, les conversions numériques peuvent modifier les valeurs, avec une perte de précision potentielle.</p>
+<h3 id="Integral_conversions">Conversions entières</h3>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> d'un type entier ou d'un type énumération non scopé peut être convertie en tout autre type entier. Si la conversion figure parmi les promotions intégrales, il s'agit d'une promotion et non d'une conversion.</p>
+<ul>
+<li>
+<p>Si le type de destination est non signé, la valeur résultante est la plus petite valeur non signée égale à la valeur source <a href="https://en.wikipedia.org/wiki/Modular_arithmetic">modulo</a> 2n<br />
+, où n est le nombre de bits utilisés pour représenter le type de destination.</p>
+<ul>
+<li>Autrement dit, selon que le type de destination est plus large ou plus étroit, les entiers signés sont étendus par extension de signe<a href="implicit_cast.html#cite_note-1">[1]</a> ou tronqués, et les entiers non signés sont étendus par des zéros ou tronqués, respectivement.</li>
+</ul>
+</li>
+<li>
+<p>Si le type de destination est signé, la valeur ne change pas si l'entier source peut être représenté dans le type de destination. Sinon le résultat est [défini par l'implémentation <em>(jusqu'à C++20)</em> | la valeur unique du type de destination égale à la valeur source modulo 2n<br />
+, où n est le nombre de bits utilisés pour représenter le type de destination <em>(depuis C++20)</em>] (notez que ceci diffère du <a href="operator_arithmetic.html#Overflows">dépassement de capacité arithmétique d'un entier signé</a>, qui est un comportement indéfini).</p>
+</li>
+<li>
+<p>Si le type source est <code>bool</code>, la valeur <code>false</code> est convertie en zéro et la valeur <code>true</code> est convertie en la valeur un du type de destination (notez que si le type de destination est <code>int</code>, il s'agit d'une promotion entière et non d'une conversion entière).</p>
+</li>
+<li>
+<p>Si le type de destination est <code>bool</code>, il s'agit d'une <a href="implicit_cast.html#Boolean_conversions">conversion booléenne</a> (voir ci-dessous).</p>
+</li>
+</ul>
+<ol>
+<li><a href="implicit_cast.html#cite_ref-1">↑</a> Ceci ne s'applique que si l'arithmétique est en complément à deux, ce qui n'est requis que pour les <a href="../types/integer.html">types entiers de largeur exacte</a>. Notez toutefois qu'actuellement, toutes les plateformes disposant d'un compilateur C++ utilisent l'arithmétique en complément à deux.</li>
+</ol>
+<h3 id="Floating-point_conversions">Conversions flottantes</h3>
+<blockquote>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> d'un type flottant peut être convertie en une prvalue de tout autre type flottant.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> d'un type flottant peut être convertie en une prvalue de tout autre type flottant ayant un <a href="usual_arithmetic_conversions.html#Floating-point_conversion_rank">rang de conversion flottante</a> supérieur ou égal.</p>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> d'un type flottant standard peut être convertie en une prvalue de tout autre type flottant standard.</p>
+<p><a href="static_cast.html"><code>static_cast</code></a> peut être utilisé pour convertir explicitement une prvalue de type flottant en tout autre type flottant.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Si la conversion figure parmi les promotions flottantes, il s'agit d'une promotion et non d'une conversion.</p>
+<ul>
+<li>Si la valeur source peut être représentée exactement dans le type de destination, elle ne change pas.</li>
+<li>Si la valeur source est comprise entre deux valeurs représentables du type de destination, le résultat est l'une de ces deux valeurs (lequel est défini par l'implémentation, bien que si l'arithmétique IEEE est supportée, l'arrondi se fasse par défaut <a href="../numeric/fenv/FE_round.html">au plus proche</a>).</li>
+<li>Dans le cas contraire, le comportement est indéfini.</li>
+</ul>
+<h3 id="Floating.E2.80.93integral_conversions">Conversions flottant–entier</h3>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> de type flottant peut être convertie en une prvalue de tout type entier. La partie fractionnaire est tronquée, c'est-à-dire qu'elle est supprimée.</p>
+<ul>
+<li>Si la valeur tronquée ne peut pas tenir dans le type de destination, le comportement est indéfini (même lorsque le type de destination est non signé, l'arithmétique modulo ne s'applique pas).</li>
+<li>Si le type de destination est <code>bool</code>, il s'agit d'une conversion booléenne (voir <a href="implicit_cast.html#Boolean_conversions">ci-dessous</a>).</li>
+</ul>
+<p>Une prvalue de type entier ou énumération non scopé peut être convertie en une prvalue de tout type flottant. Le résultat est exact si possible.</p>
+<ul>
+<li>Si la valeur peut tenir dans le type de destination mais ne peut pas être représentée exactement, il est défini par l'implémentation de savoir si la valeur représentable immédiatement supérieure ou immédiatement inférieure sera choisie, bien que si l'arithmétique IEEE est supportée, l'arrondi se fasse par défaut <a href="../numeric/fenv/FE_round.html">au plus proche</a>.</li>
+<li>Si la valeur ne peut pas tenir dans le type de destination, le comportement est indéfini.</li>
+<li>Si le type source est <code>bool</code>, la valeur <code>false</code> est convertie en zéro, et la valeur <code>true</code> est convertie en un.</li>
+</ul>
+<h3 id="Pointer_conversions">Conversions de pointeurs</h3>
+<p>Une <a href="pointer.html#Null_pointers">constante de pointeur nul</a> peut être convertie en tout type pointeur, et le résultat est la valeur de pointeur nul de ce type. Cette conversion (connue sous le nom de <em>conversion de pointeur nul</em>) peut convertir vers un type qualifié cv en une seule conversion, c'est-à-dire qu'elle n'est pas considérée comme une combinaison de conversions numériques et de qualification.</p>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> pointeur vers tout type objet (éventuellement qualifié cv) <code>T</code> peut être convertie en une prvalue pointeur vers <code>void</code> (identiquement qualifié cv). Le pointeur résultant représente le même emplacement mémoire que la valeur de pointeur d'origine.</p>
+<ul>
+<li>Si le pointeur d'origine est une valeur de pointeur nul, le résultat est une valeur de pointeur nul du type de destination.</li>
+</ul>
+<p>Une prvalue <code>ptr</code> de type « pointeur vers <code>Derived</code> (éventuellement qualifié cv) » peut être convertie en une prvalue de type « pointeur vers <code>Base</code> (éventuellement qualifié cv) », où <code>Base</code> est une <a href="derived_class.html">classe de base</a> de <code>Derived</code>, et <code>Derived</code> est un type de classe <a href="type-id.html#Incomplete_types">complet</a>. Si le <code>Base</code> est inaccessible ou ambigu, le programme est mal formé.</p>
+<ul>
+<li>Si <code>ptr</code> est une valeur de pointeur nul, le résultat est également une valeur de pointeur nul.</li>
+<li>Sinon, si <code>Base</code> est une <a href="derived_class.html#Virtual_base_classes">classe de base virtuelle</a> de <code>Derived</code> et que <code>ptr</code> ne pointe pas vers un objet dont le type est <a href="implicit_cast.html#Similar_types">similaire</a> à <code>Derived</code> et qui est dans sa <a href="lifetime.html">durée de vie</a> ou dans sa période de construction ou de destruction, le comportement est indéfini.</li>
+<li>Sinon, le résultat est un pointeur vers le sous-objet de classe de base de l'objet de la classe dérivée.</li>
+</ul>
+<h3 id="Pointer-to-member_conversions">Conversions de pointeurs vers membre</h3>
+<p>Une <a href="pointer.html#Null_pointers">constante de pointeur nul</a> peut être convertie en tout type pointeur vers membre, et le résultat est la valeur de pointeur vers membre nul de ce type. Cette conversion (connue sous le nom de <em>conversion de pointeur vers membre nul</em>) peut convertir vers un type qualifié cv en une seule conversion, c'est-à-dire qu'elle n'est pas considérée comme une combinaison de conversions numériques et de qualification.</p>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> de type « pointeur vers membre de <code>Base</code> de type (éventuellement qualifié cv) <code>T</code> » peut être convertie en une prvalue de type « pointeur vers membre de <code>Derived</code> de type (identiquement qualifié cv) <code>T</code> », où <code>Base</code> est une classe de base de <code>Derived</code>, et <code>Derived</code> est un type de classe complet. Si <code>Base</code> est inaccessible, ambigu, ou une base virtuelle de <code>Derived</code>, ou est une base d'une base virtuelle intermédiaire de <code>Derived</code>, le programme est mal formé.</p>
+<ul>
+<li>Si <code>Derived</code> ne contient pas le membre d'origine et n'est pas une classe de base de la classe contenant le membre d'origine, le comportement est indéfini.</li>
+<li>Sinon, le pointeur résultant peut être déréférencé avec un objet <code>Derived</code>, et il accédera au membre à l'intérieur du sous-objet de base <code>Base</code> de cet objet <code>Derived</code>.</li>
+</ul>
+<h3 id="Boolean_conversions">Conversions booléennes</h3>
+<p>Une <a href="value_category.html#prvalue">prvalue</a> de types entier, flottant, énumération non scopée, pointeur et pointeur vers membre peut être convertie en une prvalue de type <code>bool</code>.</p>
+<p>La valeur zéro (pour les types entier, flottant et énumération non scopée), ainsi que la valeur de pointeur nul et la valeur de pointeur vers membre nul, deviennent <code>false</code>. Toutes les autres valeurs deviennent <code>true</code>.</p>
+<blockquote>
+<p>Dans le contexte d'une <a href="direct_initialization.html">initialisation directe</a>, un objet <code>bool</code> peut être initialisé à partir d'une prvalue de type <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a>, y compris <code>nullptr</code>. La valeur résultante est <code>false</code>. Cependant, ceci n'est pas considéré comme une conversion implicite.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Qualification_conversions">Conversions de qualification</h2>
+<p>De manière générale :</p>
+<ul>
+<li>Une <a href="value_category.html#prvalue">prvalue</a> de type pointeur vers un type <a href="cv.html">qualifié cv</a> <code>T</code> peut être convertie en une prvalue pointeur vers le même type plus qualifié cv <code>T</code> (autrement dit, la constance et la volatilité peuvent être ajoutées).</li>
+<li>Une prvalue de type pointeur vers membre de type qualifié cv <code>T</code> dans la classe <code>X</code> peut être convertie en une prvalue pointeur vers membre de type <a href="cv.html#Conversions">plus qualifié cv</a> <code>T</code> dans la classe <code>X</code>.</li>
+</ul>
+<p>La définition formelle de « conversion de qualification » est donnée <a href="implicit_cast.html#Combining_cv-qualifications">ci-dessous</a>.</p>
+<h3 id="Similar_types">Types similaires</h3>
+<p>Informellement, deux types sont <em>similaires</em> si, en ignorant la qualification cv de premier niveau :</p>
+<ul>
+<li>ils sont le même type ; ou</li>
+<li>ils sont tous deux des pointeurs, et les types pointés sont similaires ; ou</li>
+<li>ils sont tous deux des pointeurs vers membre de la même classe, et les types des membres pointés sont similaires ; ou</li>
+<li>ils sont tous deux des tableaux et les types des éléments de tableau sont similaires.</li>
+</ul>
+<p>Par exemple :</p>
+<ul>
+<li><code>const int* const *</code> et <code>int**</code> sont similaires ;</li>
+<li><code>int (*)(int*)</code> et <code>int (*)(const int*)</code> ne sont pas similaires ;</li>
+<li><code>const int (*)(int*)</code> et <code>int (*)(int*)</code> ne sont pas similaires ;</li>
+<li><code>int (*)(int* const)</code> et <code>int (*)(int*)</code> sont similaires (ce sont le même type) ;</li>
+<li><code>std::pair&lt;int, int&gt;</code> et <code>std::pair&lt;const int, int&gt;</code> ne sont pas similaires.</li>
+</ul>
+<p>Formellement, la similarité de types est définie en termes de décomposition de qualification.</p>
+<p>Une <em>décomposition de qualification</em> d'un type <code>T</code> est une suite de composants <code>cv_i</code> et <code>P_i</code> telle que <code>T</code> est « <code>cv_0 P_0 cv_1 P_1 ... cv_n−1 P_n−1 cv_n U</code> » pour des <code>n</code> non négatifs, où</p>
+<ul>
+<li>chaque <code>cv_i</code> est un ensemble de <code>const</code> et de <code>volatile</code>, et</li>
+<li>chaque <code>P_i</code> est
+<ul>
+<li>« pointeur vers »,</li>
+<li>« pointeur vers membre de la classe <code>C_i</code> de type »,</li>
+<li>« tableau de <code>N_i</code> », ou</li>
+<li>« tableau de borne inconnue de ».</li>
+</ul>
+</li>
+</ul>
+<p>Si <code>P_i</code> désigne un tableau, les qualificateurs cv <code>cv_i+1</code> sur le type d'élément sont également pris comme qualificateurs cv <code>cv_i</code> du tableau.</p>
+<pre><code class="language-cpp">// T est « pointeur vers pointeur vers const int », elle possède 3 décompositions de qualification :
+// n = 0 -&gt; cv_0 est vide, U est « pointeur vers pointeur vers const int »
+// n = 1 -&gt; cv_0 est vide, P_0 est « pointeur vers »,
+//          cv_1 est vide, U est « pointeur vers const int »
+// n = 2 -&gt; cv_0 est vide, P_0 est « pointeur vers »,
+//          cv_1 est vide, P_1 est « pointeur vers »,
+//          cv_2 est « const », U est « int »
+using T = const int**;
+
+// remplacer U par l'un des types suivants donne l'une des décompositions :
+// U = U0 -&gt; la décomposition avec n = 0 : U0
+// U = U1 -&gt; la décomposition avec n = 1 : pointeur vers [U1]
+// U = U2 -&gt; la décomposition avec n = 2 : pointeur vers [pointeur vers [const U2]]
+using U2 = int;
+using U1 = const U2*;
+using U0 = U1*;
+</code></pre>
+<p>Deux types <code>T1</code> et <code>T2</code> sont <em>similaires</em> s'il existe une décomposition de qualification pour chacun d'eux, où toutes les conditions suivantes sont satisfaites pour les deux décompositions de qualification :</p>
+<ul>
+<li>Elles ont les mêmes <code>n</code>.</li>
+<li>Les types désignés par <code>U</code> sont les mêmes.</li>
+<li>Les composants <code>P_i</code> correspondants sont identiques ou l'un est « tableau de <code>N_i</code> » et l'autre est « tableau de borne inconnue de » <em>(depuis C++20)</em> pour tout <code>i</code>.</li>
+</ul>
+<pre><code class="language-cpp">// la décomposition de qualification avec n = 2 :
+// pointeur vers [pointeur volatile vers [const int]]
+using T1 = const int* volatile *;
+
+// la décomposition de qualification avec n = 2 :
+// pointeur const vers [pointeur vers [int]]
+using T2 = int** const;
+
+// Pour les deux décompositions de qualification ci-dessus
+// bien que cv_0, cv_1 et cv_2 soient tous différents,
+// elles ont le même n, U, P_0 et P_1,
+// donc les types T1 et T2 sont semblables.
+</code></pre>
+<h3 id="Combining_cv-qualifications">Combinaison des qualifications cv</h3>
+<p>Dans la description ci-dessous, la décomposition de qualification la plus longue du type <code>Tn</code> est notée <code>Dn</code>, et ses composants sont notés <code>cvn_i</code> et <code>Pn_i</code>.</p>
+<blockquote>
+<p>Une expression prvalue de type <code>T1</code> peut être convertie en type <code>T2</code> si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li><code>T1</code> et <code>T2</code> sont similaires.</li>
+<li>Pour tout <code>i</code> non nul, si <code>const</code> est dans <code>cv1_i</code>, alors <code>const</code> est aussi dans <code>cv2_i</code>, et de même pour <code>volatile</code>.</li>
+<li>Pour tout <code>i</code> non nul, si <code>cv1_i</code> et <code>cv2_i</code> sont différents, alors <code>const</code> est dans <code>cv2_k</code> pour chaque <code>k</code> dans <code>[1,i)</code>.</li>
+</ul>
+<p>Le <em>type combiné de qualification</em> de deux types <code>T1</code> et <code>T2</code> est un type <code>T3</code> similaire à <code>T1</code> tel que</p>
+<ul>
+<li><code>cv3_0</code> est vide,</li>
+<li>pour tout <code>i</code> non nul, <code>cv3_i</code> est l'union de <code>cv1_i</code> et <code>cv2_i</code>, et</li>
+<li>si <code>cv3_i</code> est différent de <code>cv1_i</code> ou <code>c2_i</code>, alors <code>const</code> est ajouté à <code>cv3_k</code> pour chaque <code>k</code> dans <code>[1,i)</code>.</li>
+</ul>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Le <em>type combiné de qualification</em> de deux types <code>T1</code> et <code>T2</code> est un type <code>T3</code> similaire à <code>T1</code>, où <code>D3</code> satisfait toutes les conditions suivantes :</p>
+<ul>
+<li><code>cv3_0</code> est vide.</li>
+<li>Pour tout <code>i</code> non nul, <code>cv3_i</code> est l'union de <code>cv1_i</code> et <code>cv2_i</code>.</li>
+<li>Si <code>P1_i</code> ou <code>P2_i</code> est « tableau de borne inconnue de », <code>P3_i</code> est « tableau de borne inconnue de », sinon il vaut <code>P1_i</code>.</li>
+<li>Si <code>cv3_i</code> est différent de <code>cv1_i</code> ou <code>cv2_i</code>, ou si <code>P3_i</code> est différent de <code>P1_i</code> ou <code>P2_i</code>, alors <code>const</code> est ajouté à <code>cv3_k</code> pour chaque <code>k</code> dans <code>[1,i)</code>.</li>
+</ul>
+<p>Une prvalue de type <code>T1</code> peut être convertie en type <code>T2</code> si le type combiné de qualification de <code>T1</code> et <code>T2</code> est <code>T2</code> non qualifié cv.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<pre><code class="language-cpp">// décomposition de qualification la plus longue de T1 (n = 2) :
+// pointeur vers [pointeur vers [char]]
+using T1 = char**;
+
+// décomposition de qualification la plus longue de T2 (n = 2) :
+// pointeur vers [pointeur vers [const char]]
+using T2 = const char**;
+
+// Détermination des composantes cv3_i et T_i de D3 (n = 2) :
+// cv3_1 = vide (union de cv1_1 vide et cv2_1 vide)
+// cv3_2 = « const » (union de cv1_2 vide et cv2_2 « const »)
+// P3_0 = « pointeur vers » (pas de tableau de borne inconnue, utiliser P1_0)
+// P3_1 = « pointeur vers » (pas de tableau de borne inconnue, utiliser P1_1)
+// Toutes les composantes sauf cv_2 sont identiques, cv3_2 est différent de cv1_2,
+// donc on ajoute « const » à cv3_k pour chaque k dans [1, 2) : cv3_1 devient « const ».
+// T3 est « pointeur vers const pointeur vers const char », c'est-à-dire const char* const *.
+using T3 = /* le type combiné de qualification de T1 et T2 */;
+
+int main()
+{
+    const char c = 'c';
+    char* pc;
+    T1 ppc = &amp;pc;
+    T2 pcc = ppc; // Erreur : T3 n'est pas identique à T2 sans qualification cv,
+                  //        aucune conversion implicite.
+
+    *pcc = &amp;c;
+    *pc = 'C';    // Si l'affectation erronée ci-dessus était autorisée,
+                  // l'objet const « c » pourrait être modifié.
+}
+</code></pre>
+<p>Notez qu'en langage C, <code>const</code>/<code>volatile</code> ne peut être ajouté qu'au premier niveau :</p>
+<pre><code class="language-cpp">char** p = 0;
+char * const* p1 = p;       // OK en C et en C++
+const char* const * p2 = p; // erreur en C, OK en C++
+</code></pre>
+<blockquote>
+<h3 id="Function_pointer_conversions">Conversions de pointeurs de fonction</h3>
+<ul>
+<li>Une <a href="value_category.html#prvalue">prvalue</a> de type pointeur vers fonction non lançante peut être convertie en prvalue de pointeur vers fonction potentiellement lançante.</li>
+<li>Une prvalue de type pointeur vers fonction membre non lançante peut être convertie en prvalue de pointeur vers fonction membre potentiellement lançante.</li>
+</ul>
+<pre><code class="language-cpp">void (*p)();
+void (**pp)() noexcept = &amp;p; // erreur : impossible de convertir en pointeur vers fonction noexcept
+
+struct S
+{
+    typedef void (*p)();
+    operator p();
+};
+void (*q)() noexcept = S(); // erreur : impossible de convertir en pointeur vers fonction noexcept
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="The_safe_bool_problem">Le problème du safe bool</h2>
+<p>Jusqu'à C++11, concevoir une classe devant être utilisable dans des contextes booléens (par ex. <code>if (obj) { ... }</code>) posait un problème : étant donnée une fonction de conversion définie par l'utilisateur, telle que <code>T::operator bool() const;</code>, la séquence de conversion implicite autorisait une conversion standard supplémentaire après cet appel de fonction, ce qui signifie que le <code>bool</code> résultant pouvait être converti en <code>int</code>, permettant du code tel que <code>obj &lt;&lt; 1;</code> ou <code>int i = obj;</code>.</p>
+<p>Une des premières solutions se trouve dans <a href="../io/basic_ios.html"><code>std::basic_ios</code></a>, qui définit initialement <code>operator void*</code>, de sorte que du code tel que <code>if (std::cin) {...}</code> compile parce que <code>void*</code> est convertible en <code>bool</code>, mais <code>int n = std::cout;</code> ne compile pas parce que <code>void*</code> n'est pas convertible en <code>int</code>. Cela permet encore à du code absurde tel que <code>delete std::cout;</code> de compiler.</p>
+<p>De nombreuses bibliothèques tierces antérieures à C++11 ont été conçues avec une solution plus élaborée, connue sous le nom d'<a href="https://en.wikibooks.org/wiki/More_C++_Idioms/Safe_bool">idiome Safe Bool</a>. <a href="../io/basic_ios.html"><code>std::basic_ios</code></a> autorisait aussi cet idiome via <a href="https://cplusplus.github.io/LWG/issue468">LWG issue 468</a>, et <code>operator void*</code> a été remplacé (voir <a href="../io/basic_ios/operator_bool.html#Notes">notes</a>).</p>
+<p>Depuis C++11, la <a href="explicit.html">conversion explicite en bool</a> peut aussi être utilisée pour résoudre le problème du safe bool.</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/170.html">CWG 170</a></td>
+<td>C++98</td>
+<td>le comportement des conversions de pointeur vers membre était peu clair si la classe dérivée n'a pas le membre d'origine</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/172.html">CWG 172</a></td>
+<td>C++98</td>
+<td>le type énumération était promu en fonction de son type sous-jacent</td>
+<td>en fonction de son intervalle de valeurs à la place</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/330.html">CWG 330</a> (<a href="https://wg21.link/N4261">N4261</a>)</td>
+<td>C++98</td>
+<td>la conversion de <code>double* const (*p)[3]</code> en <code>double const * const (*p)[3]</code> était invalide</td>
+<td>rendue valide</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/519.html">CWG 519</a></td>
+<td>C++98</td>
+<td>les valeurs de pointeur nul n'étaient pas garanties d'être préservées lors de la conversion vers un autre type de pointeur</td>
+<td>toujours préservées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/616.html">CWG 616</a></td>
+<td>C++98</td>
+<td>le comportement de la conversion lvalue-vers-rvalue de tout objet non initialisé et des objets pointeurs de valeurs invalides était toujours indéfini</td>
+<td>une valeur <code>unsigned char</code> indéterminée est autorisée ; l'utilisation de pointeurs invalides est défini par l'implémentation</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/685.html">CWG 685</a></td>
+<td>C++98</td>
+<td>le type sous-jacent d'un type énumération n'était pas prioritaire dans la promotion intégrale s'il est fixe</td>
+<td>prioritized</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/707.html">CWG 707</a></td>
+<td>C++98</td>
+<td>la conversion d'entier en virgule flottante avait un comportement défini dans tous les cas</td>
+<td>le comportement est indéfini si la valeur convertie est hors de l'intervalle de destination</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1423.html">CWG 1423</a></td>
+<td>C++11</td>
+<td><a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a> était convertible en <code>bool</code> dans l'initialisation directe et par copie</td>
+<td>initialisation directe uniquement</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1773.html">CWG 1773</a></td>
+<td>C++11</td>
+<td>une expression de nom apparaissant dans une expression potentiellement évaluée telle que l'objet nommé n'est pas odr-utilisé pourrait tout de même être évaluée lors d'une conversion lvalue-vers-rvalue</td>
+<td>non évaluée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1781.html">CWG 1781</a></td>
+<td>C++11</td>
+<td><a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a> vers <code>bool</code> était considérée comme une conversion implicite alors qu'elle n'est valide que pour l'initialisation directe</td>
+<td>n'est plus considérée comme une conversion implicite</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1787.html">CWG 1787</a></td>
+<td>C++98</td>
+<td>le comportement de la lecture d'un <code>unsigned char</code> indéterminé mis en cache dans un registre était indéfini</td>
+<td>rendue bien définie</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1981.html">CWG 1981</a></td>
+<td>C++11</td>
+<td>les conversions contextuelles considéraient les fonctions de conversion explicites</td>
+<td>non prise en compte</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2140.html">CWG 2140</a></td>
+<td>C++11</td>
+<td>il était peu clair si les conversions lvalue-vers-rvalue à partir de <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a> lvalues récupèrent ces lvalues en mémoire</td>
+<td>non récupérées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2310.html">CWG 2310</a></td>
+<td>C++98</td>
+<td>pour les conversions de pointeur dérivé vers base et les conversions de pointeur vers membre base vers dérivé, le type de classe dérivée pouvait être incomplet</td>
+<td>doit être complet</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2484.html">CWG 2484</a></td>
+<td>C++20</td>
+<td><code>char8_t</code> et <code>char16_t</code> avaient des stratégies de promotion intégrale différentes, mais peuvent les satisfaire toutes les deux</td>
+<td><code>char8_t</code> doit être promu de la même manière que <code>char16_t</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2485.html">CWG 2485</a></td>
+<td>C++98</td>
+<td>les promotions intégrales impliquant des champs de bits n'étaient pas bien spécifiées</td>
+<td>la spécification a été améliorée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2813.html">CWG 2813</a></td>
+<td>C++23</td>
+<td>une matérialisation temporaire se produisait lorsqu'une fonction membre explicite d'un objet de classe prvalue était invoquée</td>
+<td>ne se produira pas dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2861.html">CWG 2861</a></td>
+<td>C++98</td>
+<td>un pointeur vers un objet de type inaccessible pouvait être converti en pointeur vers un sous-objet de classe de base</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2879.html">CWG 2879</a></td>
+<td>C++17</td>
+<td>la conversion de matérialisation temporaire était appliquée à une prvalue en tant qu'opérande d'un opérateur attendant une glvalue</td>
+<td>non appliquée dans certains cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2899.html">CWG 2899</a></td>
+<td>C++98</td>
+<td>des conversions lvalue-vers-rvalue pouvaient être appliquées à des lvalues désignant des objets ayant des représentations de valeur invalides</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2901.html">CWG 2901</a></td>
+<td>C++98</td>
+<td>le résultat de la conversion lvalue-vers-rvalue d'une <code>unsigned int</code> lvalue référençant un objet <code>int</code> de valeur <code>-1</code> était peu clair</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="const_cast.html"><code>const_cast</code></a></li>
+<li><a href="static_cast.html"><code>static_cast</code></a></li>
+<li><a href="dynamic_cast.html"><code>dynamic_cast</code></a></li>
+<li><a href="reinterpret_cast.html"><code>reinterpret_cast</code></a></li>
+<li><a href="explicit_cast.html">transtypage explicite</a></li>
+<li><a href="cast_operator.html">conversion définie par l'utilisateur</a></li>
+</ul>
+<p><strong><a href="../../c/language/conversion.html">Documentation C</a> pour Conversions implicites</strong></p>
+
+</main>
+</body>
+</html>

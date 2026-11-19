@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extensions pour la réflexion — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a></nav>
+<h1 id="extensions-pour-la-réflexion">Extensions pour la réflexion</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/reflect">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les extensions C++ pour la réflexion, ISO/IEC TS 23619:2021, spécifient des modifications du langage de base et définissent de nouveaux composants pour la bibliothèque standard C++ listés sur cette page.</p>
+<p>Le TS de réflexion est basé sur la norme C++20 (sauf que la définition des concepts est spécifiée dans le style du <a href="constraints.html">Concepts TS</a>).</p>
+<h2 id="Core_language_changes">Modifications du langage de base</h2>
+<h3 id="reflexpr-specifier">reflexpr-specifier</h3>
+<p>Un <code>reflexpr-specifier</code> a la forme <code>reflexpr</code> <code>(</code> <code>reflexpr-operand</code> <code>)</code> et désigne un type d'objet méta (voir ci-dessous).</p>
+<p><code>reflexpr-operand</code> peut être l'une des formes suivantes :</p>
+<p>|
+| |
+| <code>::</code> | (1) | |
+|
+| <code>type-id</code> | (2) | |
+|
+| <code>nested-name-specifier</code><em>(optionnel)</em> <code>namespace-name</code> | (3) | |
+|
+| <code>id-expression</code> | (4) | |
+|
+| <code>(</code> <code>expression</code> <code>)</code> | (5) | |
+|
+| <code>function-call-expression</code> | (6) | |
+|
+| <code>functional-type-conv-expression</code> | (7) | |
+|</p>
+<p>où <code>function-call-expression</code> est</p>
+<p>|
+| |
+| <code>postfix-expression</code> <code>(</code> <code>expression-list</code><em>(optionnel)</em> <code>)</code> | | |
+|</p>
+<p>et <code>functional-type-conv-expression</code> sont les sortes d'expressions suivantes qui effectuent une <a href="../language/explicit_cast.html">conversion explicite</a> :</p>
+<p>|
+| |
+| <code>simple-type-specifier</code> <code>(</code> <code>expression-list</code><em>(optionnel)</em> <code>)</code> | (1) | |
+|
+| <code>typename-specifier</code> <code>(</code> <code>expression-list</code><em>(optionnel)</em> <code>)</code> | (2) | |
+|
+| <code>simple-type-specifier</code> <code>braced-init-list</code> | (3) | |
+|
+| <code>typename-specifier</code> <code>braced-init-list</code> | (4) | |
+|</p>
+<p>L'opérande de <code>reflexpr-specifier</code> doit être un <a href="../language/type-id.html">type</a>, un <a href="../language/namespace.html">espace de noms</a>, un <a href="../language/enum.html">énumérateur</a>, une variable, un <a href="../language/data_members.html">membre de données</a>, un <a href="../language/function.html">paramètre de fonction</a>, une <a href="../language/lambda.html">entité capturée</a>, <code>function-call-expression</code> ou <code>functional-type-conv-expression</code>, ou une expression entre parenthèses. <code>reflexpr(::)</code> représente l'espace de noms global.</p>
+<p>Pour un <code>reflexpr-operand</code> de la forme <code>(</code> <code>expression</code> <code>)</code>, le <code>expression</code> doit être un <code>function-call-expression</code> (éventuellement entre plusieurs parenthèses) ou <code>functional-type-conv-expression</code>.</p>
+<p>Si un opérande non entre parenthèses peut être traité soit comme un <code>type-id</code>, soit comme un <code>functional-type-conv-expression</code>, il est traité comme un <code>type-id</code>. Les parenthèses peuvent servir à lever l'ambiguïté entre une conversion de style fonctionnel et un <code>type-id</code>. Par exemple, étant donné un type de classe <code>X</code> avec constructeur par défaut, <code>reflexpr(X())</code> représente le type de fonction <code>X()</code>, et <code>reflexpr((X()))</code> représente l'expression <code>X()</code>.</p>
+<p>Si l'opérande désigne à la fois un alias et un nom de classe, le type représenté par le reflexpr-specifier reflète l'alias et satisfait <code>reflect::Alias</code>.</p>
+<p>Si l'opérande désigne un nom dont la déclaration est contenue dans une portée de bloc et que l'entité nommée n'est ni capturée ni un paramètre de fonction, le programme est mal formé.</p>
+<h3 id="Meta-object_types">Types d'objets méta</h3>
+<p>Un <em>type d'objet méta</em> est un type de classe sans nom, incomplet, de portée d'espace de noms. Un type satisfait le concept <code>reflect::Object</code> si et seulement s'il est un type d'objet méta. Les types d'objets méta peuvent satisfaire d'autres concepts, selon l'opérande de <code>reflexpr</code>.</p>
+<p>Il n'est pas spécifié si l'application répétée de <code>reflexpr</code> au même opérande donne le même type ou un type différent. Si un type d'objet méta reflète un type de classe incomplet, certaines transformations de type ne peuvent pas être appliquées.</p>
+<p>Un type d'objet méta permet d'inspecter certaines propriétés de l'opérande de <code>reflexpr</code> au moyen de traits de type ou de transformations de type appliqués à celui-ci.</p>
+<h3 id="Overload_resolution">Résolution de surcharge</h3>
+<p>Si le <code>postfix-expression</code> de <code>function-call-expression</code> est de type classe, c'est-à-dire si <code>e</code> dans <code>function-call-expression</code> <code>e(args)</code> est de type classe, alors la <a href="../language/cast_operator.html">fonction de conversion définie par l'utilisateur</a> du type de <code>postfix-expression</code> (<code>e</code>) ne doit pas être utilisée.</p>
+<p>Si <code>postfix-expression</code> n'est pas de type classe, il doit désigner une fonction qui est le résultat unique de la résolution de surcharge.</p>
+<pre><code class="language-cpp">struct Functor
+{
+    void operator()(int) const;
+
+    using fptr_t = void(*)(std::nullptr_t);
+    operator fptr_t() const;
+};
+
+using Meta0 = reflexpr(Functor{}(0));          // OK
+// using Meta1 = reflexpr(Functor{}(nullptr)); // erreur : fonction de conversion utilisée
+</code></pre>
+<h3 id="Reflection-related">Liées à la réflexion</h3>
+<p>Un <em>alias</em> est un nom introduit par une déclaration <a href="../language/typedef.html"><code>typedef</code></a>, une <a href="../language/type_alias.html">déclaration d'alias</a>, ou une <a href="../language/using_declaration.html">déclaration using</a>.</p>
+<p>Une entité ou un alias <code>B</code> est <em>lié par réflexion</em> à une entité ou un alias <code>A</code> si</p>
+<ol>
+<li><code>A</code> et <code>B</code> sont la même entité ou le même alias,</li>
+<li><code>A</code> est une variable ou un énumérateur et <code>B</code> est le type de <code>A</code>,</li>
+<li><code>A</code> est une énumération et <code>B</code> est le type sous-jacent de <code>A</code>,</li>
+<li><code>A</code> est une classe et <code>B</code> est un membre ou une classe de base de <code>A</code>,</li>
+<li><code>A</code> est un alias qui ne désigne pas un modèle et qui désigne l'entité <code>B</code>,</li>
+<li><code>A</code> n'est pas l'espace de noms global et <code>B</code> est une classe ou un espace de noms englobant de <code>A</code>,</li>
+<li><code>A</code> est l'expression entre parenthèses ( <code>B</code> ),</li>
+<li><code>A</code> est une capture de lambda du type de fermeture <code>B</code>,</li>
+<li><code>A</code> est le type de fermeture de la capture de lambda <code>B</code>,</li>
+<li><code>B</code> est le type spécifié par le <code>functional-type-conv-expression</code> <code>A</code>,</li>
+<li><code>B</code> est la fonction sélectionnée par la résolution de surcharge pour un <code>function-call-expression</code> <code>A</code>,</li>
+<li><code>B</code> est le type de retour, un type de paramètre, ou le type de fonction de la fonction <code>A</code>, ou</li>
+<li><code>B</code> est lié par réflexion à une entité ou un alias <code>X</code> et <code>X</code> est lié par réflexion à <code>A</code>.</li>
+</ol>
+<p>La relation de liaison par réflexion est réflexive et transitive, mais non symétrique.</p>
+<p>De façon informelle, le cas où <code>B</code> est lié par réflexion à <code>A</code> signifie que <code>B</code> participe à la déclaration ou à la définition de <code>A</code>.</p>
+<p>Zéro ou plusieurs applications successives de transformations de type produisant des types d'objets méta, appliquées au type désigné par un <code>reflexpr-specifier</code>, permettent d'inspecter les entités et alias liés par réflexion à l'opérande ; un tel type d'objet méta est dit refléter l'entité ou l'alias lié par réflexion correspondant.</p>
+<pre><code class="language-cpp">struct X;
+struct B
+{
+    using X = ::X;
+    typedef X Y;
+};
+struct D : B
+{
+    using B::Y;
+};
+// ::X, mais ni B::X ni B::Y ne sont liés par réflexion à D::Y
+</code></pre>
+<h3 id="Miscellaneous">Divers</h3>
+<ul>
+<li>Une expression utilisée comme <code>reflexpr-operand</code> est une <a href="../language/expressions.html#Unevaluated_expression">expression non évaluée</a> et <a href="../language/constant_expression.html">potentiellement évaluée à la compilation</a>.</li>
+<li>Pour la détermination des variables <a href="../language/lambda.html#Lambda_capture">capturées dans une expression lambda</a> par un capture-default, un opérande <code>reflexpr</code> n'est pas considéré comme un opérande non évalué.</li>
+<li>Une fonction ou variable de <a href="../language/storage_duration.html">durée de stockage</a> statique reflétée par le type d'objet méta <code>T</code> est <a href="../language/definition.html">utilisée au sens ODR</a> par la spécialisation <code>std::experimental::reflect::get_pointer&lt;T&gt;</code>, comme si l'on prenait l'adresse d'une id-expression désignant la fonction ou la variable.</li>
+<li>Il peut y avoir plus d'une définition d'un type d'objet méta, tant que toutes les opérations sur ce type donnent les mêmes résultats d'expressions constantes.</li>
+<li>Un type est <a href="../language/dependent_name.html#Dependent_types">dépendant</a> s'il est désigné par un reflexpr-specifier et que l'opérande
+<ul>
+<li>est une <a href="../language/dependent_name.html#Type-dependent_expressions">expression dépendante du type</a> ou une expression entre parenthèses (éventuellement) <code>functional-type-conv-expression</code> ayant au moins une sous-expression immédiate dépendante du type, ou</li>
+<li>désigne un type dépendant ou un membre d'une <a href="../language/dependent_name.html#Unknown_specializations">spécialisation inconnue</a> ou une <a href="../language/dependent_name.html#Value-dependent_expressions">expression constante dépendante de la valeur</a>.</li>
+</ul>
+</li>
+</ul>
+<h3 id="Keywords">Mots-clés</h3>
+<p><a href="../keyword/reflexpr.html"><code>reflexpr</code></a></p>
+<h3 id="Predefined_feature_testing_macros">Macros de test de fonctionnalités prédéfinies</h3>
+<ul>
+<li><strong>__cpp_reflection (reflection TS)</strong> — une valeur d'au moins <code>201902</code> indique que le Reflection TS est pris en charge <em>(constante macro)</em></li>
+</ul>
+<h2 id="Library_support">Prise en charge par la bibliothèque</h2>
+<h3 id="Concepts">Concepts</h3>
+<p><strong>Défini dans l'en-tête <code>&lt;experimental/reflect&gt;</code></strong></p>
+<p><strong>Défini dans l'espace de noms <code>std::experimental::reflect</code></strong></p>
+<p><strong>Défini dans l'espace de noms en ligne <code>std::experimental::reflect::v1</code></strong></p>
+<ul>
+<li><strong><a href="reflect/Object.html">Object</a> (reflection TS)</strong> — spécifie qu'un type est un type d'objet méta <em>(concept)</em></li>
+<li><strong><a href="reflect/ObjectSequence.html">ObjectSequence</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta est un type de séquence d'objets méta <em>(concept)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/TemplateParameterScope&amp;action=edit&amp;redlink=1">TemplateParameterScope</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une portée de paramètre de modèle <em>(concept)</em></li>
+<li><strong><a href="reflect/Named.html">Named</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une entité ou un alias ayant un nom associé (éventuellement vide) <em>(concept)</em></li>
+<li><strong><a href="reflect/Alias.html">Alias</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un alias de type, un alias d'espace de noms, ou un alias introduit par une déclaration using <em>(concept)</em></li>
+<li><strong><a href="reflect/RecordMember.html">RecordMember</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un <code>member-declaration</code> d'une classe <em>(concept)</em></li>
+<li><strong><a href="reflect/Enumerator.html">Enumerator</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un énumérateur <em>(concept)</em></li>
+<li><strong><a href="reflect/Variable.html">Variable</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une variable ou un membre de données <em>(concept)</em></li>
+<li><strong><a href="reflect/ScopeMember.html">ScopeMember</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta satisfait <code>RecordMember</code>, <code>Enumerator</code> ou <code>Variable</code>, ou reflète un espace de noms autre que l'espace de noms global <em>(concept)</em></li>
+<li><strong><a href="reflect/Typed.html">Typed</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une entité ayant un type <em>(concept)</em></li>
+<li><strong><a href="reflect/Namespace.html">Namespace</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un espace de noms <em>(concept)</em></li>
+<li><strong><a href="reflect/GlobalScope.html">GlobalScope</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète l'espace de noms global <em>(concept)</em></li>
+<li><strong><a href="reflect/Class.html">Class</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un type de classe non union <em>(concept)</em></li>
+<li><strong><a href="reflect/Enum.html">Enum</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un type énumération <em>(concept)</em></li>
+<li><strong><a href="reflect/Record.html">Record</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un type de classe <em>(concept)</em></li>
+<li><strong><a href="reflect/Scope.html">Scope</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un espace de noms, une classe, une énumération, une fonction, un type de fermeture, une portée de paramètre de modèle <em>(concept)</em></li>
+<li><strong><a href="reflect/Type.html">Type</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un type <em>(concept)</em></li>
+<li><strong><a href="reflect/Constant.html">Constant</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un énumérateur ou une variable constexpr <em>(concept)</em></li>
+<li><strong><a href="reflect/Base.html">Base</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une classe de base directe obtenue à partir de <code>get_base_classes</code> <em>(concept)</em></li>
+<li><strong><a href="reflect/FunctionParameter.html">FunctionParameter</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un paramètre de fonction <em>(concept)</em></li>
+<li><strong><a href="reflect/Callable.html">Callable</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une fonction (y compris les constructeurs et destructeurs) <em>(concept)</em></li>
+<li><strong><a href="reflect/Expression.html">Expression</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une expression <em>(concept)</em></li>
+<li><strong><a href="reflect/ParenthesizedExpression.html">ParenthesizedExpression</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une expression entre parenthèses <em>(concept)</em></li>
+<li><strong><a href="reflect/FunctionCallExpression.html">FunctionCallExpression</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un <code>function-call-expression</code> <em>(concept)</em></li>
+<li><strong><a href="reflect/FunctionalTypeConversion.html">FunctionalTypeConversion</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un <code>functional-type-conv-expression</code> <em>(concept)</em></li>
+<li><strong><a href="reflect/Function.html">Function</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une fonction (à l'exclusion des constructeurs et destructeurs) <em>(concept)</em></li>
+<li><strong><a href="reflect/MemberFunction.html">MemberFunction</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une fonction membre (à l'exclusion des constructeurs et destructeurs) <em>(concept)</em></li>
+<li><strong><a href="reflect/SpecialMemberFunction.html">SpecialMemberFunction</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une fonction membre spéciale <em>(concept)</em></li>
+<li><strong><a href="reflect/Constructor.html">Constructor</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un constructeur <em>(concept)</em></li>
+<li><strong><a href="reflect/Destructor.html">Destructor</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète un destructeur <em>(concept)</em></li>
+<li><strong><a href="reflect/Operator.html">Operator</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une fonction opérateur ou une fonction de conversion <em>(concept)</em></li>
+<li><strong><a href="reflect/ConversionOperator.html">ConversionOperator</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une fonction de conversion <em>(concept)</em></li>
+<li><strong><a href="reflect/Lambda.html">Lambda</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète le type de fermeture d'une expression lambda non générique <em>(concept)</em></li>
+<li><strong><a href="reflect/LambdaCapture.html">LambdaCapture</a> (reflection TS)</strong> — spécifie qu'un type d'objet méta reflète une capture de lambda <em>(concept)</em></li>
+</ul>
+<h3 id="Meta-object_operations">Opérations sur les méta-objets</h3>
+<p><strong>Défini dans l'en-tête <code>&lt;experimental/reflect&gt;</code></strong></p>
+<p><strong>Défini dans l'espace de noms <code>std::experimental::reflect</code></strong></p>
+<p><strong>Défini dans l'espace de noms en ligne <code>std::experimental::reflect::v1</code></strong></p>
+<p><strong>##### <code>Object</code> opérations {#Object_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/reflects_same&amp;action=edit&amp;redlink=1">reflects_same</a> (reflection TS)</strong> — vérifie si deux types de méta-objets reflètent la même entité ou le même alias <em>(modèle de classe)</em></li>
+<li><strong><a href="reflect/get_source_line.html">get_source_line</a> (reflection TS)</strong> — obtient le numéro de ligne présumé de la déclaration de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+<li><strong><a href="reflect/get_source_column.html">get_source_column</a> (reflection TS)</strong> — obtient le numéro de colonne défini par l'implémentation de la déclaration de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_source_file_name&amp;action=edit&amp;redlink=1">get_source_file_name</a> (reflection TS)</strong> — obtient le nom de fichier présumé de la déclaration de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>ObjectSequence</code> opérations {#ObjectSequence_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_size&amp;action=edit&amp;redlink=1">get_size</a> (reflection TS)</strong> — obtient la taille d'une séquence de méta-objets <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_element&amp;action=edit&amp;redlink=1">get_element</a> (reflection TS)</strong> — obtient le type de méta-objet d'indice donné dans une séquence <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/unpack_sequence&amp;action=edit&amp;redlink=1">unpack_sequence</a> (reflection TS)</strong> — applique un modèle à la séquence de méta-objets <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Named</code> opérations {#Named_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_unnamed&amp;action=edit&amp;redlink=1">is_unnamed</a> (reflection TS)</strong> — vérifie si l'entité ou l'alias reflété est sans nom <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_name&amp;action=edit&amp;redlink=1">get_name</a> (reflection TS)</strong> — obtient le nom non qualifié de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_display_name&amp;action=edit&amp;redlink=1">get_display_name</a> (reflection TS)</strong> — obtient le nom d'affichage défini par l'implémentation de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Alias</code> opérations {#Alias_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_alias&amp;action=edit&amp;redlink=1">get_alias</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant l'entité associée à l'alias reflété <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Type</code> opérations {#Type_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_type&amp;action=edit&amp;redlink=1">get_type</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant le type de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_reflected_type&amp;action=edit&amp;redlink=1">get_reflected_type</a> (reflection TS)</strong> — obtient le type de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_enum&amp;action=edit&amp;redlink=1">is_enum</a> (reflection TS)</strong> — vérifie si le type de méta-objet reflète un type énumération <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_union&amp;action=edit&amp;redlink=1">is_union</a> (reflection TS)</strong> — vérifie si le type de méta-objet reflète un type union <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/uses_key&amp;action=edit&amp;redlink=1">uses_class_keyuses_struct_key</a> (reflection TS)</strong> — vérifie si le type de méta-objet reflète un type classe non union dont la déclaration utilise <code>class</code> ou <code>struct</code> respectivement <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>ScopeMember</code> opérations {#ScopeMember_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_scope&amp;action=edit&amp;redlink=1">get_scope</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant la portée de l'entité ou de l'alias reflété <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Base</code> opérations {#Base_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_class&amp;action=edit&amp;redlink=1">get_class</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant la classe de base dans la relation de classe de base donnée <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>RecordMember</code> et <code>Base</code> {#RecordMember_and_Base_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_public&amp;action=edit&amp;redlink=1">is_public</a> (reflection TS)</strong> — vérifie si le membre ou la classe de base reflété est public <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_protected&amp;action=edit&amp;redlink=1">is_protected</a> (reflection TS)</strong> — vérifie si le membre ou la classe de base reflété est protégé <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_private&amp;action=edit&amp;redlink=1">is_private</a> (reflection TS)</strong> — vérifie si le membre ou la classe de base reflété est privé <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Record</code> opérations {#Record_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_data_members&amp;action=edit&amp;redlink=1">get_public_data_membersget_accessible_data_membersget_data_members</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les membres de données publics, accessibles ou tous les membres de données de la classe reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_member_functions&amp;action=edit&amp;redlink=1">get_public_member_functionsget_accessible_member_functionsget_member_functions</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les fonctions membres publiques, accessibles ou toutes les fonctions membres de la classe reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_constructors&amp;action=edit&amp;redlink=1">get_constructors</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent tous les constructeurs de la classe reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_operators&amp;action=edit&amp;redlink=1">get_operators</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent toutes les fonctions opérateurs et toutes les fonctions de conversion déclarées dans la classe reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_destructor&amp;action=edit&amp;redlink=1">get_destructor</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant le destructeur de la classe reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_member_types&amp;action=edit&amp;redlink=1">get_public_member_typesget_accessible_member_typesget_member_types</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les types membres imbriqués ou les typedef membres publics, accessibles ou tous ceux de la classe reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_base_classes&amp;action=edit&amp;redlink=1">get_public_base_classesget_accessible_base_classesget_base_classes</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les classes de base publiques, accessibles ou toutes les classes de base de la classe reflétée <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Enum</code> opérations {#Enum_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_scoped_enum&amp;action=edit&amp;redlink=1">is_scoped_enum</a> (reflection TS)</strong> — vérifie si l'énumération reflétée est à portée limitée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_enumerators&amp;action=edit&amp;redlink=1">get_enumerators</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les énumérateurs de l'énumération reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_underlying_type&amp;action=edit&amp;redlink=1">get_underlying_type</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant le type sous-jacent de l'énumération reflétée <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Variable</code> opérations {#Variable_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_constant&amp;action=edit&amp;redlink=1">get_constant</a> (reflection TS)</strong> — obtient la valeur de la variable reflétée qui est une expression constante <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_thread_local&amp;action=edit&amp;redlink=1">is_thread_local</a> (reflection TS)</strong> — vérifie si la variable est déclarée avec <code>thread_local</code> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>FunctionParameter</code> opérations {#FunctionParameter_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/has_default_argument&amp;action=edit&amp;redlink=1">has_default_argument</a> (reflection TS)</strong> — vérifie si le paramètre reflété possède un argument par défaut <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Callable</code> opérations {#Callable_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_parameters&amp;action=edit&amp;redlink=1">get_parameters</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les paramètres de la fonction reflétée <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_vararg&amp;action=edit&amp;redlink=1">is_vararg</a> (reflection TS)</strong> — vérifie si la liste des paramètres de la fonction reflétée contient un paramètre ellipse <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_noexcept&amp;action=edit&amp;redlink=1">is_noexcept</a> (reflection TS)</strong> — vérifie si la fonction reflétée est non lançante <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_deleted&amp;action=edit&amp;redlink=1">is_deleted</a> (reflection TS)</strong> — vérifie si la fonction reflétée est supprimée <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>Variable</code> et <code>Callable</code> {#Variable_and_Callable_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_constexpr&amp;action=edit&amp;redlink=1">is_constexpr</a> (reflection TS)</strong> — vérifie si la variable ou la fonction reflétée est constexpr <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>Namespace</code> et <code>Callable</code> {#Namespace_and_Callable_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_inline&amp;action=edit&amp;redlink=1">is_inline</a> (reflection TS)</strong> — vérifie si l'espace de noms ou la fonction reflété est inline <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>ParenthesizedExpression</code> opérations {#ParenthesizedExpression_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_subexpression&amp;action=edit&amp;redlink=1">get_subexpression</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant l'expression sans parenthèses de l'expression entre parenthèses reflétée <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>FunctionCallExpression</code> opérations {#FunctionCallExpression_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_callable&amp;action=edit&amp;redlink=1">get_callable</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant la fonction dans le <code>function-call-expression</code> <em>(modèle de classe)</em> réfléchi</li>
+</ul>
+<p><strong>##### <code>FunctionalTypeConversion</code> opérations {#FunctionalTypeConversion_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_constructor&amp;action=edit&amp;redlink=1">get_constructor</a> (reflection TS)</strong> — obtient le type de méta-objet reflétant le constructeur dans <code>functional-type-conv-expression</code> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>Variable</code> et <code>Function</code> {#Variable_and_Function_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_pointer&amp;action=edit&amp;redlink=1">get_pointer</a> (reflection TS)</strong> — obtient l'adresse de la variable ou de la fonction reflétée, ou la valeur de pointeur vers membre du membre non statique reflété <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>MemberFunction</code> opérations {#MemberFunction_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_qualified&amp;action=edit&amp;redlink=1">is_constis_volatilehas_lvalueref_qualifierhas_rvalueref_qualifier</a> (reflection TS)</strong> — vérifie si la fonction membre reflétée est déclarée avec le qualificateur <code>const</code>, <code>volatile</code>, <code>&amp;</code> ou <code>&amp;&amp;</code> respectivement <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_override&amp;action=edit&amp;redlink=1">is_override</a> (reflection TS)</strong> — vérifie si la fonction membre reflétée redéfinit une fonction membre de la classe de base <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>Record</code> et <code>MemberFunction</code> {#Record_and_MemberFunction_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_final&amp;action=edit&amp;redlink=1">is_final</a> (reflection TS)</strong> — vérifie si la classe ou la fonction membre reflétée est marquée avec <code>final</code> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>Variable</code> et <code>MemberFunction</code> {#Variable_and_MemberFunction_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_static&amp;action=edit&amp;redlink=1">is_static</a> (reflection TS)</strong> — vérifie si la variable reflétée a une durée de stockage statique, ou si la fonction membre reflétée est statique <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>SpecialMemberFunction</code> opérations {#SpecialMemberFunction_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_implicitly_declared&amp;action=edit&amp;redlink=1">is_implicitly_declared</a> (reflection TS)</strong> — vérifie si la fonction membre spéciale reflétée est déclarée implicitement <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_defaulted&amp;action=edit&amp;redlink=1">is_defaulted</a> (reflection TS)</strong> — vérifie si la fonction membre spéciale reflétée est défaillie (defaulted) dans sa première déclaration <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>Constructor</code> et <code>ConversionOperator</code> {#Constructor_and_ConversionOperator_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_explicit&amp;action=edit&amp;redlink=1">is_explicit</a> (reflection TS)</strong> — vérifie si le constructeur ou la fonction de conversion reflété est déclaré avec <code>explicit</code> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Opérations <code>MemberFunction</code> et <code>Destructor</code> {#MemberFunction_and_Destructor_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_virtual&amp;action=edit&amp;redlink=1">is_virtual</a> (reflection TS)</strong> — vérifie si la fonction membre reflétée est virtuelle <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_pure_virtual&amp;action=edit&amp;redlink=1">is_pure_virtual</a> (reflection TS)</strong> — vérifie si la fonction membre reflétée est virtuelle pure <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>Lambda</code> opérations {#Lambda_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/get_captures&amp;action=edit&amp;redlink=1">get_captures</a> (reflection TS)</strong> — obtient un type de séquence de méta-objets dont les éléments reflètent les captures du type fermeture reflété <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/uses_default_capture&amp;action=edit&amp;redlink=1">uses_default_copy_captureuses_default_reference_capture</a> (reflection TS)</strong> — vérifie si la capture par défaut de l'expression lambda du type fermeture reflété est <code>=</code> ou <code>&amp;</code> respectivement <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_call_operator_const&amp;action=edit&amp;redlink=1">is_call_operator_const</a> (reflection TS)</strong> — vérifie si le <code>operator()</code> du type fermeture reflété est déclaré avec <code>const</code> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### <code>LambdaCapture</code> opérations {#LambdaCapture_operations}</strong></p>
+<ul>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_explictly_captured&amp;action=edit&amp;redlink=1">is_explictly_captured</a> (reflection TS)</strong> — vérifie si la capture lambda reflétée est capturée explicitement <em>(modèle de classe)</em></li>
+<li><strong><a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/reflect/is_init_capture&amp;action=edit&amp;redlink=1">is_init_capture</a> (reflection TS)</strong> — vérifie si la capture lambda reflétée est une capture d'initialisation (init-capture) <em>(modèle de classe)</em></li>
+</ul>
+<h3 id="Library_feature_testing_macros">Macros de test de fonctionnalités de la bibliothèque</h3>
+<p><strong>Défini dans l'en-tête <code>&lt;experimental/reflect&gt;</code></strong></p>
+<ul>
+<li><strong>__cpp_lib_reflection (reflection TS)</strong> — une valeur d'au moins <code>201902</code> indique que la bibliothèque de support du TS Reflection est prise en charge <em>(constante macro)</em></li>
+</ul>
+<h3 id="Satisfaction_of_concepts">Satisfaction des concepts</h3>
+<p>Le tableau suivant indique si un type de méta-objet reflétant un opérande satisfait les concepts introduits par le TS Reflection.</p>
+<p><strong>Catégorie</strong> | <strong>opérandes <code>reflexpr</code></strong> | <strong>Concepts satisfaits</strong></p>
+<p>Type | <code>class-name</code> désignant un <a href="../language/union.html">union</a> | <code>reflect::Union</code></p>
+<p><code>class-name</code> désignant un <a href="../language/lambda.html">type fermeture</a> | <code>reflect::Lambda</code></p>
+<p><code>class-name</code> désignant une classe non union | <code>reflect::Record</code></p>
+<p><a href="../language/enum.html"><code>enum-name</code></a>
+| <code>reflect::Enum</code></p>
+<p><a href="../language/template_parameters.html#Type_template_parameter">modèle <code>type-parameter</code></a> | <code>reflect::Type</code>, <code>reflect::Alias</code></p>
+<p><a href="../language/decltype.html"><code>decltype-specifier</code></a>
+| <code>reflect::Type</code>, <code>reflect::Alias</code></p>
+<p><code>type-name</code> introduit par une <a href="../language/namespace.html#Using-declarations">using-declaration</a> | <code>reflect::Type</code>, <code>reflect::Alias</code>, <code>reflect::ScopedMember</code></p>
+<p>tout autre <code>typedef-name</code> | <code>reflect::Type</code>, <code>reflect::Alias</code></p>
+<p>tout autre <code>type-id</code> | <code>reflect::Type</code></p>
+<p>Espace de noms | <a href="../language/namespace_alias.html"><code>namespace-alias</code></a>
+| <code>reflect::Namespace</code>, <code>reflect::Alias</code></p>
+<p>l'espace de noms global | <code>reflect::GlobalScope</code></p>
+<p>tout autre <a href="../language/namespace.html">espace de noms</a> | <code>reflect::Namespace</code></p>
+<p>Expression | le nom d'un membre de données | <code>reflect::Variable</code></p>
+<p>le nom d'une variable | <code>reflect::Variable</code></p>
+<p>le nom d'un énumérateur | <code>reflect::Enumerator</code></p>
+<p>le nom d'un paramètre de fonction | <code>reflect::FunctionParameter</code></p>
+<p>le nom d'une <a href="../language/lambda.html#Lambda_capture">entité capturée</a> | <code>reflect::LambdaCapture</code></p>
+<p>expression entre parenthèses | <code>reflect::ParenthesizedExpression</code></p>
+<p><code>function-call-expression</code>
+| <code>reflect::FunctionCallExpression</code></p>
+<p><code>functional-type-conv-expression</code>
+| <code>reflect::FunctionalTypeConversion</code></p>
+<p>Si l'opérande de la forme id-expression est une expression constante, le type spécifié par le reflexpr-specifier satisfait également <code>reflect::Constant</code>.</p>
+<p>Si le reflexpr-operand désigne un membre de classe, le type représenté par le reflexpr-specifier satisfait également <code>reflect::RecordMember</code>.</p>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../types/type_info.html">type_info</a></strong> — contient des informations sur un type, la classe renvoyée par l'opérateur typeid <em>(classe)</em></li>
+<li><strong><a href="../header/type_traits.html">&lt;type_traits&gt;</a> (C++11)</strong> — <a href="../types.html">Utilitaires d'informations de type à la compilation</a></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversions implicites — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="conversions-implicites">Conversions implicites</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/conversion">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Lorsqu'une expression est utilisée dans un contexte où une valeur d'un autre type est attendue, une <em>conversion</em> peut avoir lieu :</p>
+<pre><code class="language-c">int n = 1L; // l'expression 1L est de type long, int est attendu
+n = 2.1; // l'expression 2.1 est de type double, int est attendu
+char *p = malloc(10); // l'expression malloc(10) est de type void*, char* est attendu
+</code></pre>
+<p>Les conversions ont lieu dans les situations suivantes :</p>
+<h2 id="Conversion_as_if_by_assignment">Conversion comme par affectation</h2>
+<ul>
+<li>Dans l'opérateur <a href="operator_assignment.html">d'affectation</a>, la valeur de l'opérande de droite est convertie vers le type non qualifié de l'opérande de gauche.</li>
+<li>Dans l'<a href="scalar_initialization.html">initialisation scalaire</a>, la valeur de l'expression d'initialisation est convertie vers le type non qualifié de l'objet initialisé</li>
+<li>Dans une <a href="operator_other.html">expression d'appel de fonction</a>, vers une fonction possédant un prototype, la valeur de chaque expression d'argument est convertie vers le type non qualifié du paramètre correspondant déclaré</li>
+<li>Dans une <a href="return.html">instruction return</a>, la valeur de l'opérande de <code>return</code> est convertie en un objet ayant le type de retour de la fonction</li>
+</ul>
+<p>Notez que l'affectation effective, en plus de la conversion, supprime aussi l'intervalle et la précision supplémentaires des types à virgule flottante et interdit les chevauchements ; ces caractéristiques ne s'appliquent pas à la conversion comme par affectation.</p>
+<h2 id="Default_argument_promotions">Promotions d'arguments par défaut</h2>
+<p>Dans une <a href="operator_other.html#Function_call">expression d'appel de fonction</a> lorsque l'appel est effectué vers</p>
+<ol>
+<li>
+<p>une <a href="function_declaration.html">fonction sans prototype</a> (jusqu'à C23)</p>
+</li>
+<li>
+<p>une <a href="variadic.html">fonction variadique</a>, où l'expression d'argument est l'un des arguments finaux correspondant au paramètre de points de suspension</p>
+</li>
+</ol>
+<p>Chaque argument de type entier subit une <em>promotion entière</em> (voir ci-dessous), et chaque argument de type <code>float</code> est implicitement converti en type <code>double</code></p>
+<pre><code class="language-c">int add_nums(int count, ...);
+int sum = add_nums(2, 'c', true); // add_nums est appelée avec trois int : (2, 99, 1)
+</code></pre>
+<blockquote>
+<p>Notez que <code>float complex</code> et <code>float imaginary</code> ne sont pas promus en <code>double complex</code> et <code>double imaginary</code> dans ce contexte.</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h2 id="Usual_arithmetic_conversions">Conversions arithmétiques usuelles</h2>
+<p>Les arguments des opérateurs arithmétiques suivants subissent des conversions implicites afin d'obtenir le <em>type réel commun</em>, c'est-à-dire le type dans lequel le calcul est effectué :</p>
+<ul>
+<li><a href="operator_arithmetic.html">arithmétique binaire</a> <code>*</code>, <code>/</code>, <code>%</code>, <code>+</code>, <code>-</code></li>
+<li><a href="operator_comparison.html">opérateurs relationnels</a> <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>, <code>==</code>, <code>!=</code></li>
+<li><a href="operator_arithmetic.html">arithmétique binaire bit à bit</a> <code>&amp;</code>, <code>^</code>, <code>|</code>,</li>
+<li>l'<a href="operator_other.html">opérateur conditionnel</a> <code>?:</code></li>
+</ul>
+<blockquote>
+<ol>
+<li>Si un opérande a un type à virgule flottante décimale, l'autre opérande ne doit pas avoir de type à virgule flottante standard,</li>
+</ol>
+<p>complexe ou imaginaire.</p>
+<ul>
+<li>Premièrement, si le type de l'un des opérandes est _Decimal128, l'autre opérande est converti en _Decimal128.</li>
+<li>Sinon, si le type de l'un des opérandes est _Decimal64, l'autre opérande est converti en _Decimal64.</li>
+<li>Sinon, si le type de l'un des opérandes est _Decimal32, l'autre opérande est converti en _Decimal32.</li>
+</ul>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<ol start="2">
+<li>Sinon, si un opérande est <code>long double</code>, <code>long double complex</code>, ou <code>long double imaginary</code> <em>(depuis C99)</em>, l'autre opérande est implicitement converti comme suit :</li>
+</ol>
+<ul>
+<li>entier ou type à virgule flottante réel vers <code>long double</code></li>
+</ul>
+<blockquote>
+<ul>
+<li>type complexe vers <code>long double complex</code></li>
+<li>type imaginaire vers <code>long double imaginary</code></li>
+</ul>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<ol start="3">
+<li>Sinon, si un opérande est <code>double</code>, <code>double complex</code>, ou <code>double imaginary</code> <em>(depuis C99)</em>, l'autre opérande est implicitement converti comme suit :</li>
+</ol>
+<ul>
+<li>entier ou type à virgule flottante réel vers <code>double</code></li>
+</ul>
+<blockquote>
+<ul>
+<li>type complexe vers <code>double complex</code></li>
+<li>type imaginaire vers <code>double imaginary</code></li>
+</ul>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<ol start="4">
+<li>Sinon, si un opérande est <code>float</code>, <code>float complex</code>, ou <code>float imaginary</code> <em>(depuis C99)</em>, l'autre opérande est implicitement converti comme suit :</li>
+</ol>
+<ul>
+<li>type entier vers <code>float</code> (le seul type réel possible est float, qui reste inchangé)</li>
+</ul>
+<blockquote>
+<ul>
+<li>le type complexe reste <code>float complex</code></li>
+<li>le type imaginaire reste <code>float imaginary</code></li>
+</ul>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<ol start="5">
+<li>Sinon, les deux opérandes sont des entiers. Les deux opérandes subissent des <em>promotions entières</em> (voir ci-dessous) ; ensuite, après promotion entière, l'un des cas suivants s'applique :</li>
+</ol>
+<ul>
+<li>Si les types sont identiques, ce type est le type commun.</li>
+<li>Sinon, les types sont différents :
+<ul>
+<li>Si les types ont la même signature (tous deux signés ou tous deux non signés), l'opérande dont le type a le <em>rang de conversion</em> le plus faible1 est implicitement converti2 vers l'autre type.</li>
+<li>Sinon, les opérandes ont des signatures différentes :
+<ul>
+<li>Si le type non signé a un <em>rang de conversion</em> supérieur ou égal au rang du type signé, alors l'opérande de type signé est implicitement converti vers le type non signé.</li>
+<li>Sinon, le type non signé a un <em>rang de conversion</em> inférieur à celui du type signé :
+<ul>
+<li>Si le type signé peut représenter toutes les valeurs du type non signé, alors l'opérande de type non signé est implicitement converti vers le type signé.</li>
+<li>Sinon, les deux opérandes subissent une conversion implicite vers le type non signé correspondant au type de l'opérande signé.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<hr />
+<ol>
+<li>Voir « promotions entières » ci-dessous pour les règles de classement.2. Voir « conversions entières » sous « sémantique de conversion implicite » ci-dessous.</li>
+</ol>
+<pre><code class="language-c">1.f + 20000001; // int est converti en float, donnant 20000000.00
+                // l'addition puis l'arrondi en float donnent 20000000.00
+
+(char)'a' + 1L; // d'abord, le char 'a', qui vaut 97, est promu en int
+                // types différents : int et long
+                // même signe : les deux sont signés
+                // rang différent : long a un rang supérieur à int
+                // par conséquent, l'int 97 est converti en long 97
+                // le résultat est 97 + 1 = 98 de type long signé
+
+2u - 10; // types différents : unsigned int et signed int
+         // signes différents
+         // même rang
+         // par conséquent, l'int signé 10 est converti en unsigned int 10
+         // puisque l'opération arithmétique est effectuée sur des entiers non signés
+         // (voir la rubrique « Opérateurs arithmétiques »), le calcul effectué est (2 - 10)
+         // modulo (2 puissance n), où n est le nombre de bits de valeur de unsigned int
+         // si unsigned int fait 32 bits et qu'il n'y a aucun bit de bourrage dans sa représentation d'objet
+         // alors le résultat est (-8) modulo (2 puissance 32) = 4294967288
+         // de type unsigned int
+
+5UL - 2ULL; // types différents : unsigned long et unsigned long long
+            // même signe
+            // rang différent : le rang de unsigned long long est supérieur
+            // par conséquent, l'unsigned long 5 est converti en unsigned long long 5
+            // puisque l'opération arithmétique est effectuée sur des entiers non signés
+            // (voir la rubrique « Opérateurs arithmétiques »),
+            // si unsigned long long fait 64 bits, alors
+            // le résultat est (5 - 2) modulo (2 puissance 64) = 3 de type
+            // unsigned long long
+
+0UL - 1LL; // types différents : unsigned long et signed long long
+           // signes différents
+           // rang différent : le rang de signed long long est supérieur.
+           // si ULONG_MAX &gt; LLONG_MAX, alors signed long long ne peut pas représenter toutes
+           // les valeurs de unsigned long ; c'est donc le dernier cas : les deux opérandes sont convertis
+           // en unsigned long long : unsigned long 0 est converti en unsigned long long 0
+           // long long 1 est converti en unsigned long long 1, puisque l'opération arithmétique
+           // est effectuée sur des entiers non signés
+           // (voir la rubrique « Opérateurs arithmétiques »),
+           // si unsigned long long fait 64 bits, alors
+           // le calcul est (0 - 1) modulo (2 puissance 64)
+           // ainsi, le résultat est 18446744073709551615 (ULLONG_MAX) de type
+           // unsigned long long
+</code></pre>
+<blockquote>
+<p>Le type du résultat est déterminé comme suit :</p>
+<ul>
+<li>si les deux opérandes sont complexes, le type du résultat est complexe</li>
+<li>si les deux opérandes sont imaginaires, le type du résultat est imaginaire</li>
+<li>si les deux opérandes sont réels, le type du résultat est réel</li>
+<li>si les deux opérandes à virgule flottante ont des domaines de type différents (complexe et réel, complexe et imaginaire, ou imaginaire et réel), le type du résultat est complexe</li>
+</ul>
+<pre><code class="language-c">double complex z = 1 + 2*I;
+double f = 3.0;
+z + f; // z reste inchangé, f est converti en double, le résultat est de type complexe double
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Comme toujours, le résultat d'un opérateur à virgule flottante peut avoir une plage et une précision supérieures à celles indiquées par son type (voir <a href="../types/limits/FLT_EVAL_METHOD.html"><code>FLT_EVAL_METHOD</code></a>).</p>
+<blockquote>
+<p>Remarque : les opérandes réels et imaginaires ne sont pas implicitement convertis en complexes, car cela nécessiterait des calculs supplémentaires et produirait des résultats indésirables dans certains cas impliquant des infinis, des NaN et des zéros signés. Par exemple, si les réels étaient convertis en complexes, 2.0×(3.0+i∞) serait évalué comme (2.0+i0.0)×(3.0+i∞) ⇒ (2.0×3.0–0.0×∞) + i(2.0×∞+0.0×3.0) ⇒ NaN+i∞ au lieu de la valeur correcte 6.0+i∞. Si les imaginaires étaient convertis en complexes, i2.0×(∞+i3.0) serait évalué comme (0.0+i2.0) × (∞+i3.0) ⇒ (0.0×∞ – 2.0×3.0) + i(0.0×3.0 + 2.0×∞) ⇒ NaN + i∞ au lieu de –6.0 + i∞.</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Remarque : indépendamment des conversions arithmétiques usuelles, le calcul peut toujours être effectué dans un type plus étroit que celui spécifié par ces règles, selon la <a href="as_if.html">règle as-if</a></p>
+<h2 id="Value_transformations">Transformations de valeur</h2>
+<h3 id="Lvalue_conversion">Conversion lvalue</h3>
+<p>Toute <a href="value_category.html">expression lvalue</a> de tout type non tableau, lorsqu'elle est utilisée dans un contexte autre que</p>
+<ul>
+<li>en tant qu'opérande de l'<a href="operator_member_access.html">opérateur d'adresse</a> (si autorisé)</li>
+<li>en tant qu'opérande des <a href="operator_incdec.html">opérateurs d'incrémentation et de décrémentation</a> préfixes et postfixes.</li>
+<li>en tant qu'opérande gauche de l'<a href="operator_member_access.html">opérateur d'accès membre</a> (point).</li>
+<li>en tant qu'opérande gauche des <a href="operator_assignment.html">opérateurs d'affectation et d'affectation composée</a>.</li>
+<li>en tant qu'opérande de <a href="sizeof.html">sizeof</a></li>
+</ul>
+<p>subit une <em>conversion lvalue</em> : le type reste le même, mais perd les qualificateurs <a href="const.html">const</a>/<a href="volatile.html">volatile</a>/<a href="restrict.html">restrict</a> et les propriétés <a href="atomic.html">atomic</a>, le cas échéant. La valeur reste la même, mais perd ses propriétés de lvalue (l'adresse ne peut plus être prise).</p>
+<p>Si la lvalue a un type incomplet, le comportement est indéfini.</p>
+<p>Si la lvalue désigne un objet à durée de stockage automatique dont l'adresse n'a jamais été prise, et si cet objet n'était pas initialisé (non déclaré avec un initialiseur et aucune affectation ne lui a été faite avant utilisation), le comportement est indéfini.</p>
+<p>Cette conversion modélise le chargement en mémoire de la valeur de l'objet depuis son emplacement.</p>
+<pre><code class="language-c">volatile int n = 1;
+int x = n;            // la conversion lvalue sur n lit la valeur de n
+volatile int* p = &amp;n; // pas de conversion lvalue : la valeur de n n'est pas lue
+</code></pre>
+<h3 id="Array_to_pointer_conversion">Conversion tableau vers pointeur</h3>
+<p>Toute <a href="value_category.html">expression lvalue</a> de <a href="array.html">type tableau</a>, lorsqu'elle est utilisée dans un contexte autre que</p>
+<ul>
+<li>comme opérande de l'<a href="operator_member_access.html">opérateur d'adresse</a></li>
+<li>en tant qu'opérande de <a href="sizeof.html">sizeof</a></li>
+<li>en tant qu'opérande de <a href="typeof_unqual.html">typeof</a> et <a href="typeof_unqual.html">typeof_unqual</a> (depuis C23)</li>
+<li>comme littéral de chaîne utilisé pour l'<a href="array_initialization.html">initialisation de tableau</a></li>
+</ul>
+<p>subit une conversion en pointeur non lvalue vers son premier élément.</p>
+<p>Si le tableau a été déclaré <a href="storage_duration.html">register</a>, le comportement est indéfini.</p>
+<pre><code class="language-c">int a[3], b[3][4];
+int* p = a;      // conversion en &amp;a[0]
+int (*q)[4] = b; // conversion en &amp;b[0]
+</code></pre>
+<h3 id="Function_to_pointer_conversion">Conversion fonction vers pointeur</h3>
+<p>Toute expression désignant une fonction, lorsqu'elle est utilisée dans un contexte autre que</p>
+<ul>
+<li>comme opérande de l'<a href="operator_member_access.html">opérateur d'adresse</a></li>
+<li>en tant qu'opérande de <a href="sizeof.html">sizeof</a></li>
+<li>en tant qu'opérande de <a href="typeof_unqual.html">typeof</a> et <a href="typeof_unqual.html">typeof_unqual</a> (depuis C23)</li>
+</ul>
+<p>subit une conversion en pointeur non lvalue vers la fonction désignée par l'expression.</p>
+<pre><code class="language-c">int f(int);
+int (*p)(int) = f; // conversion en &amp;f
+(***p)(1); // déréférencement répété de f puis reconversion en &amp;f
+</code></pre>
+<h2 id="Implicit_conversion_semantics">Sémantique des conversions implicites</h2>
+<p>La conversion implicite, qu'elle soit <em>comme par affectation</em> ou une <em>conversion arithmétique usuelle</em>, se déroule en deux étapes :</p>
+<ol>
+<li>
+<p>transformation de la valeur (si applicable)</p>
+</li>
+<li>
+<p>l'une des conversions listées ci-dessous (si elle peut produire le type cible)</p>
+</li>
+</ol>
+<h3 id="Compatible_types">Types compatibles</h3>
+<p>La conversion d'une valeur de tout type vers tout <a href="types.html#Compatible_types">type compatible</a> est toujours une opération nulle et ne modifie pas la représentation.</p>
+<pre><code class="language-c">uint8_t (*a)[10];         // si uint8_t est un typedef de unsigned char
+unsigned char (*b)[] = a; // alors ces types de pointeurs sont compatibles
+</code></pre>
+<h3 id="Integer_promotions">Promotions entières</h3>
+<p>La promotion entière est la conversion implicite d'une valeur de tout type entier de <em>rang</em> inférieur ou égal au <em>rang</em> de int, ou d'un <a href="bit_field.html">champ de bits</a> de type [<code>_Bool</code> <em>(jusqu'à C23)</em> | <code>bool</code> <em>(depuis C23)</em>], <code>int</code>, <code>signed int</code>, <code>unsigned int</code>, vers la valeur de type <code>int</code> ou <code>unsigned int</code>.</p>
+<p>Si <code>int</code> peut représenter l'intégralité de la plage de valeurs du type d'origine (ou de la plage de valeurs du champ de bits d'origine), la valeur est convertie vers le type <code>int</code>. Sinon, la valeur est convertie vers <code>unsigned int</code>.</p>
+<blockquote>
+<p>La valeur provenant d'un champ de bits d'un type entier à précision exacte est convertie vers le type entier à précision exacte correspondant. Sinon, les types entiers à précision exacte sont exemptés des règles de promotion entière.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<p>Les promotions entières préservent la valeur, y compris le signe :</p>
+<pre><code class="language-c">int main(void)
+{
+    void f(); // déclaration de fonction à l'ancienne
+              // depuis C23, void f(...) a le même comportement vis-à-vis des promotions
+    char x = 'a'; // conversion entière de int vers char
+    f(x); // promotion entière de char vers int
+}
+
+void f(x) int x; {} // la fonction attend un int
+</code></pre>
+<p>Le <em>rang</em> ci-dessus est une propriété de chaque <a href="compatible_type.html">type entier</a> et est défini comme suit :</p>
+<ol>
+<li>
+<p>les rangs de tous les types entiers signés sont différents et croissent avec leur précision : rang de <code>signed char</code> &lt; rang de <code>short</code> &lt; rang de <code>int</code> &lt; rang de <code>long int</code> &lt; rang de <code>long long int</code></p>
+</li>
+<li>
+<p>les rangs de tous les types entiers signés sont égaux aux rangs des types entiers non signés correspondants</p>
+</li>
+<li>
+<p>le rang de tout type entier standard est supérieur au rang de tout type entier étendu ou type entier à précision exacte <em>(depuis C23)</em> de même taille (c'est-à-dire rang de <code>__int64</code> &lt; rang de <code>long long int</code>, mais rang de <code>long long</code> &lt; rang de <code>__int128</code> en raison de la règle <code>(1)</code>)</p>
+</li>
+<li>
+<p>le rang de <code>char</code> est égal au rang de <code>signed char</code> et au rang de <code>unsigned char</code></p>
+</li>
+<li>
+<p>le rang de [<code>_Bool</code> <em>(jusqu'à C23)</em> | <code>bool</code> <em>(depuis C23)</em>] est inférieur au rang de tout autre type entier standard</p>
+</li>
+<li>
+<p>le rang de tout type énuméré est égal au rang de son type entier compatible</p>
+</li>
+<li>
+<p>le classement est transitif : si rang de T1 &lt; rang de T2 et rang de T2 &lt; rang de T3, alors rang de T1 &lt; rang de T3</p>
+</li>
+</ol>
+<blockquote>
+<ol start="8">
+<li>
+<p>le rang d'un type entier signé à précision exacte doit être supérieur au rang de tout type entier standard de largeur inférieure ou de tout type entier à précision exacte de largeur inférieure.</p>
+</li>
+<li>
+<p>le rang de tout type entier à précision exacte par rapport à un type entier étendu de même largeur est défini par l'implémentation.</p>
+</li>
+</ol>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<ol start="10">
+<li>tous les aspects du classement relatif des types entiers étendus non couverts ci-dessus sont définis par l'implémentation.</li>
+</ol>
+<p>Remarque : les promotions entières ne sont appliquées que</p>
+<ul>
+<li>dans le cadre des <em>conversions arithmétiques usuelles</em> (voir ci-dessus)</li>
+<li>dans le cadre des <em>promotions d'arguments par défaut</em> (voir ci-dessus)</li>
+<li>à l'opérande des opérateurs arithmétiques unaires <code>+</code> et <code>-</code></li>
+<li>à l'opérande de l'opérateur bit à bit unaire <code>~</code></li>
+<li>aux deux opérandes des opérateurs de décalage <code>&lt;&lt;</code> et <code>&gt;&gt;</code></li>
+</ul>
+<blockquote>
+<h4 id="Boolean_conversion">Conversion booléenne</h4>
+<p>Une valeur de tout type scalaire peut être implicitement convertie en [<code>_Bool</code> <em>(jusqu'à C23)</em> | <code>bool</code> <em>(depuis C23)</em>]. Les valeurs qui [se comparent égales à une expression constante entière de valeur zéro <em>(jusqu'à C23)</em> | sont un zéro (pour les types arithmétiques), un pointeur nul (pour les types pointeur) ou ont un type de <a href="../types/nullptr_t.html"><code>nullptr_t</code></a> <em>(depuis C23)</em>] sont converties en [<code>0</code> <em>(jusqu'à C23)</em> | <code>false</code> <em>(depuis C23)</em>], toutes les autres valeurs sont converties en [<code>1</code> <em>(jusqu'à C23)</em> | <code>true</code> <em>(depuis C23)</em>].</p>
+<pre><code class="language-c">bool b1 = 0.5;              // b1 == 1 (0.5 converti en int donnerait zéro)
+bool b2 = 2.0*_Imaginary_I; // b2 == 1 (mais converti en int donnerait zéro)
+bool b3 = 0.0 + 3.0*I;      // b3 == 1 (mais converti en int donnerait zéro)
+bool b4 = 0.0/0.0;          // b4 == 1 (NaN n'est pas égal à zéro)
+bool b5 = nullptr;          // b5 == 0 (depuis C23 : nullptr est converti en false)
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h3 id="Integer_conversions">Conversions entières</h3>
+<p>Une valeur de tout type entier peut être implicitement convertie en tout autre type entier. Sauf dans les cas couverts par les promotions et les conversions booléennes ci-dessus, les règles sont :</p>
+<ul>
+<li>si le type cible peut représenter la valeur, la valeur est inchangée</li>
+<li>sinon, si le type cible est non signé, la valeur 2b<br />
+, où b est le nombre de bits de valeur du type cible, est soustraite ou ajoutée de manière répétée à la valeur source jusqu'à ce que le résultat tienne dans le type cible. En d'autres termes, les entiers non signés implémentent une arithmétique modulo.</li>
+<li>sinon, si le type cible est signé, le comportement est défini par l'implémentation (ce qui peut inclure le déclenchement d'un signal)</li>
+</ul>
+<pre><code class="language-c">char x = 'a'; // int -&gt; char, résultat inchangé
+unsigned char n = -123456; // la cible est non signée, le résultat vaut 192 (soit -123456+483*256)
+signed char m = 123456;    // la cible est signée, le résultat est défini par l'implémentation
+assert(sizeof(int) &gt; -1);  // l'assertion échoue :
+                           // operator &gt; demande la conversion de -1 en size_t,
+                           // la cible est non signée, le résultat vaut SIZE_MAX
+</code></pre>
+<h3 id="Real_floating-integer_conversions">Conversions entier-flottant réel</h3>
+<p>Une valeur finie de tout type flottant réel peut être implicitement convertie en tout type entier. Sauf dans les cas couverts par la conversion booléenne ci-dessus, les règles sont :</p>
+<ul>
+<li>La partie fractionnaire est supprimée (troncature vers zéro).
+<ul>
+<li>Si la valeur résultante peut être représentée par le type cible, cette valeur est utilisée</li>
+<li>sinon, le comportement est indéfini</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-c">int n = 3.14; // n == 3
+int x = 1e10; // comportement indéfini pour un int de 32 bits
+</code></pre>
+<p>Une valeur de tout type entier peut être implicitement convertie en tout type flottant réel.</p>
+<ul>
+<li>si la valeur peut être représentée exactement par le type cible, elle est inchangée</li>
+<li>si la valeur peut être représentée, mais pas exactement, le résultat est un choix défini par l'implémentation entre la valeur supérieure la plus proche et la valeur inférieure la plus proche, bien que si l'arithmétique IEEE est prise en charge, l'arrondi se fasse au plus proche. Il n'est pas spécifié si <a href="../numeric/fenv/FE_exceptions.html"><code>FE_INEXACT</code></a> est levé dans ce cas.</li>
+<li>si la valeur ne peut pas être représentée, le comportement est indéfini, bien que si l'arithmétique IEEE est prise en charge, <a href="../numeric/fenv/FE_exceptions.html"><code>FE_INVALID</code></a> est levé et la valeur résultante n'est pas spécifiée.</li>
+</ul>
+<p>Le résultat de cette conversion peut avoir une plage et une précision supérieures à celles indiquées par son type cible (voir <a href="../types/limits/FLT_EVAL_METHOD.html"><code>FLT_EVAL_METHOD</code></a>).</p>
+<p>Si un contrôle sur <a href="../numeric/fenv/FE_exceptions.html"><code>FE_INEXACT</code></a> est nécessaire lors des conversions flottant-vers-entier, <a href="../numeric/math/rint.html"><code>rint</code></a> et <a href="../numeric/math/nearbyint.html"><code>nearbyint</code></a> peuvent être utilisés.</p>
+<pre><code class="language-c">double d = 10; // d = 10.00
+float f = 20000001; // f = 20000000.00 (FE_INEXACT)
+float x = 1+(long long)FLT_MAX; // comportement indéfini
+</code></pre>
+<h3 id="Real_floating-point_conversions">Conversions flottantes réelles</h3>
+<p>Une valeur de tout type flottant réel peut être implicitement convertie en tout autre type flottant réel.</p>
+<ul>
+<li>
+<p>Si la valeur peut être représentée exactement par le type cible, elle est inchangée</p>
+</li>
+<li>
+<p>si la valeur peut être représentée, mais pas exactement, le résultat est la valeur supérieure la plus proche ou la valeur inférieure la plus proche (autrement dit, le sens de l'arrondi est défini par l'implémentation), bien que si l'arithmétique IEEE est prise en charge, l'arrondi se fasse au plus proche</p>
+</li>
+<li>
+<p>si la valeur ne peut pas être représentée, le comportement est indéfini</p>
+<p>Cette section est incomplète<br />
+Raison : vérifier IEEE si un infini de signe approprié est requis</p>
+</li>
+</ul>
+<p>Le résultat de cette conversion peut avoir une plage et une précision supérieures à celles indiquées par son type cible (voir <a href="../types/limits/FLT_EVAL_METHOD.html"><code>FLT_EVAL_METHOD</code></a>).</p>
+<pre><code class="language-c">double d = 0.1; // d = 0.1000000000000000055511151231257827021181583404541015625
+float f = d;    // f = 0.100000001490116119384765625
+float x = 2*(double)FLT_MAX; // undefined
+</code></pre>
+<blockquote>
+<h4 id="Complex_type_conversions">Conversions de types complexes</h4>
+<p>Une valeur de tout type complexe peut être implicitement convertie en tout autre type complexe. Les parties réelle et imaginaire suivent individuellement les règles de conversion des types flottants réels.</p>
+<pre><code class="language-c">double complex d = 0.1 + 0.1*I;
+float complex f = d; // f vaut (0.100000001490116119384765625, 0.100000001490116119384765625)
+</code></pre>
+<h4 id="Imaginary_type_conversions">Conversions de types imaginaires</h4>
+<p>Une valeur de tout type imaginaire peut être implicitement convertie en tout autre type imaginaire. La partie imaginaire suit les règles de conversion des types flottants réels.</p>
+<pre><code class="language-c">double imaginary d = 0.1*_Imaginary_I;
+float imaginary f = d; // f vaut 0.100000001490116119384765625*I
+</code></pre>
+<h4 id="Real-complex_conversions">Conversions réel-complexe</h4>
+<p>Une valeur de tout type flottant réel peut être implicitement convertie en tout type complexe.</p>
+<ul>
+<li>La partie réelle du résultat est déterminée par les règles de conversion des types flottants réels</li>
+<li>La partie imaginaire du résultat est un zéro positif (ou un zéro non signé sur les systèmes non IEEE)</li>
+</ul>
+<p>Une valeur de tout type complexe peut être convertie implicitement en tout type flottant réel</p>
+<ul>
+<li>La partie réelle est convertie selon les règles des types flottants réels</li>
+<li>La partie imaginaire est ignorée</li>
+</ul>
+<p>Note : lors de la conversion complexe vers réel, un NaN dans la partie imaginaire ne se propage pas au résultat réel.</p>
+<pre><code class="language-c">double complex z = 0.5 + 3*I;
+float f = z;  // la partie imaginaire est supprimée, f reçoit 0.5
+z = f;        // affecte 0.5 + 0*I à z
+</code></pre>
+<h4 id="Real-imaginary_conversions">Conversions réel-imaginaire</h4>
+<p>Une valeur de tout type imaginaire peut être convertie implicitement en tout type réel (entier ou à virgule flottante). Le résultat est toujours un zéro positif (ou non signé), sauf lorsque le type cible est [<code>_Bool</code> <em>(jusqu'à C23)</em> | <code>bool</code> <em>(depuis C23)</em>], auquel cas les règles de conversion booléenne s'appliquent.</p>
+<p>Une valeur de tout type réel peut être convertie implicitement en tout type imaginaire. Le résultat est toujours un zéro imaginaire positif.</p>
+<pre><code class="language-c">double imaginary z = 3*I;
+bool b = z;  // Conversion booléenne : affecte true à b
+float f = z; // Conversion réel-imaginaire : affecte 0.0 à f
+z = 3.14;    // Conversion imaginaire-réel : affecte 0*_Imaginary_I à z
+</code></pre>
+<h4 id="Complex-imaginary_conversions">Conversions complexe-imaginaire</h4>
+<p>Une valeur de tout type imaginaire peut être convertie implicitement en tout type complexe.</p>
+<ul>
+<li>La partie réelle du résultat est le zéro positif</li>
+<li>La partie imaginaire du résultat suit les règles de conversion des types réels correspondants</li>
+</ul>
+<p>Une valeur de tout type complexe peut être convertie implicitement en tout type imaginaire</p>
+<ul>
+<li>La partie réelle est ignorée</li>
+<li>La partie imaginaire du résultat suit les règles de conversion des types réels correspondants</li>
+</ul>
+<pre><code class="language-c">double imaginary z = I * (3*I); // le résultat complexe -3.0+0i perd sa partie réelle
+                                // affecte 0*_Imaginary_I à z
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h3 id="Pointer_conversions">Conversions de pointeurs</h3>
+<p>Un pointeur vers <code>void</code> peut être converti implicitement vers et depuis tout pointeur vers un type objet, avec la sémantique suivante :</p>
+<ul>
+<li>Si un pointeur vers un objet est converti en pointeur vers void puis reconverti, sa valeur est égale à celle du pointeur d'origine.</li>
+<li>Aucune autre garantie n'est offerte</li>
+</ul>
+<pre><code class="language-c">int* p = malloc(10 * sizeof(int)); // malloc retourne void*
+</code></pre>
+<p>Un pointeur vers un type non qualifié peut être converti implicitement en pointeur vers la version qualifiée de ce type (autrement dit, les qualificateurs <a href="const.html">const</a>, <a href="volatile.html">volatile</a> et <a href="restrict.html">restrict</a> peuvent être ajoutés). Le pointeur d'origine et le résultat sont égaux.</p>
+<pre><code class="language-c">int n;
+const int* p = &amp;n; // &amp;n est de type int*
+</code></pre>
+<p>Toute <a href="constant_expression.html">expression constante</a> entière de valeur <code>0</code>, ainsi qu'une expression de pointeur entier de valeur zéro convertie en type <code>void*</code>, peut être convertie implicitement en tout type de pointeur (pointeur vers objet comme pointeur vers fonction). Le résultat est la valeur de pointeur nul de son type, garantie comme différente de toute valeur de pointeur non nul de ce type. Cette expression entière ou void* est appelée <em>pointeur nul constant</em>, et la bibliothèque standard en fournit une seule définition sous forme de macro <a href="../types/NULL.html"><code>NULL</code></a>.</p>
+<pre><code class="language-c">int* p = 0;
+double* q = NULL;
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Bien que le dépassement de capacité d'un entier signé dans un opérateur arithmétique soit un comportement indéfini, le dépassement d'un type entier signé lors d'une conversion entière est simplement un comportement non spécifié.</p>
+<p>En revanche, bien que le dépassement de capacité d'un entier non signé dans un opérateur arithmétique (et dans une conversion entière) soit une opération bien définie suivant les règles de l'arithmétique modulo, le dépassement d'un entier non signé lors d'une conversion flottant vers entier est un comportement indéfini : les valeurs de type flottant réel pouvant être converties en entier non signé sont celles de l'intervalle ouvert (-1; Unnn_MAX+1).</p>
+<pre><code class="language-c">unsigned int n = -1.0; // comportement indéfini
+</code></pre>
+<p>Les conversions entre pointeurs et entiers (sauf d'un pointeur vers [<code>_Bool</code> <em>(jusqu'à C23)</em> | <code>bool</code> <em>(depuis C23)</em>] et *(depuis C99)*d'une expression constante entière de valeur zéro vers un pointeur), entre pointeurs vers objets (sauf lorsque l'un des deux types est un pointeur vers void) et entre pointeurs vers fonctions (sauf lorsque les fonctions ont des types compatibles) ne sont jamais implicites et nécessitent un <a href="cast.html">opérateur de conversion explicite</a>.</p>
+<p>Il n'existe aucune conversion (implicite ou explicite) entre pointeurs vers fonctions et pointeurs vers objets (y compris void*) ou entiers.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.3 Conversions (p : à définir)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.3 Conversions (p : 37-41)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.3 Conversions (p : 50-56)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.3 Conversions (p : 42-48)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.2 Conversions</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/implicit_cast.html">Documentation C++</a> pour Conversions implicites</strong></p>
+
+</main>
+</body>
+</html>

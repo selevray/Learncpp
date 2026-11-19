@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déduction d&#x27;arguments de modèle — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déduction-d-arguments-de-modèle">Déduction d'arguments de modèle</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/template_argument_deduction">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Pour instancier un <a href="function_template.html">modèle de fonction</a>, chaque argument de modèle doit être connu, mais tous n'ont pas besoin d'être spécifiés. Lorsque c'est possible, le compilateur déduit les arguments de modèle manquants à partir des arguments de la fonction. Cela se produit lors d'un appel de fonction, lorsqu'on prend l'adresse d'un modèle de fonction, et dans certains <a href="template_argument_deduction.html#Other_contexts">autres contextes</a> :</p>
+<pre><code class="language-cpp">template&lt;typename To, typename From&gt;
+To convert(From f);
+
+void g(double d)
+{
+    int i = convert&lt;int&gt;(d);    // appelle convert&lt;int, double&gt;(double)
+    char c = convert&lt;char&gt;(d);  // appelle convert&lt;char, double&gt;(double)
+    int(*ptr)(float) = convert; // instancie convert&lt;int, float&gt;(float)
+                                // et stocke son adresse dans ptr
+}
+</code></pre>
+<p>Ce mécanisme permet d'utiliser des opérateurs modèles, puisqu'il n'existe pas de syntaxe pour spécifier les arguments de modèle d'un opérateur autrement qu'en le réécrivant sous la forme d'une expression d'appel de fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Hello, world&quot; &lt;&lt; std::endl;
+    // operator&lt;&lt; est recherché par ADL comme std::operator&lt;&lt;,
+    // puis déduit comme operator&lt;&lt;&lt;char, std::char_traits&lt;char&gt;&gt; dans les deux cas
+    // std::endl est déduit comme &amp;std::endl&lt;char, std::char_traits&lt;char&gt;&gt;
+}
+</code></pre>
+<p>La déduction d'arguments de modèle a lieu après la <a href="lookup.html">recherche de nom</a> du modèle de fonction (qui peut impliquer une <a href="adl.html">recherche dépendante des arguments</a>) et avant la <a href="function_template.html#Template_argument_substitution">substitution des arguments de modèle</a> (qui peut impliquer <a href="sfinae.html">SFINAE</a>) et la <a href="overload_resolution.html">résolution de surcharge</a>.</p>
+<blockquote>
+<p>La déduction d'arguments de modèle est aussi effectuée lorsque le nom d'un modèle de classe est utilisé comme type d'un objet en cours de construction :</p>
+<pre><code class="language-cpp">std::pair p(2, 4.5);
+std::tuple t(4, 3, 2.5);
+std::copy_n(vi1, 3, std::back_insert_iterator(vi2));
+std::for_each(vi.begin(), vi.end(), Foo([&amp;](int i) {...}));
+auto lck = std::lock_guard(foo.mtx);
+std::lock_guard lck2(foo.mtx, ul);
+</code></pre>
+<p>La déduction d'arguments de modèle pour les modèles de classe a lieu dans les déclarations et dans les expressions de conversion explicites ; voir <a href="ctad.html">déduction d'arguments de modèle de classe</a> pour plus de détails.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Deduction_from_a_function_call">Déduction à partir d'un appel de fonction</h2>
+<p>La déduction d'arguments de modèle tente de déterminer les arguments de modèle (types pour les paramètres de modèle de type <code>T</code>i, modèles pour les paramètres de modèle de modèle <code>TT</code>i, et valeurs pour les paramètres de modèle non de type <code>I</code>i), qui peuvent être substitués dans chaque paramètre <code>P</code> pour produire le type <em>déduit</em> <code>A</code>, qui est identique au type de l'argument <code>A</code>, après les ajustements listés ci-dessous.</p>
+<p>S'il y a plusieurs paramètres, chaque couple <code>P</code>/<code>A</code> est déduit séparément, puis les arguments de modèle déduits sont combinés. Si la déduction échoue ou est ambiguë pour un couple <code>P</code>/<code>A</code>, ou si des couples différents donnent des arguments de modèle déduits différents, ou si un argument de modèle n'est ni déduit ni spécifié explicitement, la compilation échoue.</p>
+<blockquote>
+<p>Si la suppression des références et des qualificateurs cv de <code>P</code> donne <code>std::initializer_list&lt;P'&gt;</code> et que <code>A</code> est une <a href="list_initialization.html">braced-init-list</a>, alors la déduction est effectuée pour chaque élément de la liste d'initialisation, en prenant <code>P'</code> comme paramètre et l'élément de liste <code>A'</code> comme argument :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(std::initializer_list&lt;T&gt;);
+
+f({1, 2, 3});  // P = std::initializer_list&lt;T&gt;, A = {1, 2, 3}
+               // P'1 = T, A'1 = 1 : T déduit = int
+               // P'2 = T, A'2 = 2 : T déduit = int
+               // P'3 = T, A'3 = 3 : T déduit = int
+               // OK : T déduit = int
+
+f({1, &quot;abc&quot;}); // P = std::initializer_list&lt;T&gt;, A = {1, &quot;abc&quot;}
+               // P'1 = T, A'1 = 1 : T déduit = int
+               // P'2 = T, A'2 = &quot;abc&quot; : T déduit = const char*
+               // erreur : la déduction échoue, T est ambigu
+</code></pre>
+<p>Si la suppression des références et des qualificateurs cv de <code>P</code> donne <code>P'</code>[<code>N</code>], et que <code>A</code> est une braced-init-list non vide, alors la déduction est effectuée comme ci-dessus, sauf que si <code>N</code> est un paramètre de modèle non de type, il est déduit de la longueur de la liste d'initialisation :</p>
+<pre><code class="language-cpp">template&lt;class T, int N&gt;
+void h(T const(&amp;)[N]);
+h({1, 2, 3}); // T déduit = int, N déduit = 3
+
+template&lt;class T&gt;
+void j(T const(&amp;)[3]);
+j({42}); // T déduit = int, la borne de tableau n'est pas un paramètre, non considérée
+
+struct Aggr
+{
+    int i;
+    int j;
+};
+
+template&lt;int N&gt;
+void k(Aggr const(&amp;)[N]);
+k({1, 2, 3});       // erreur : la déduction échoue, pas de conversion de int vers Aggr
+k({{1}, {2}, {3}}); // OK : N déduit = 3
+
+template&lt;int M, int N&gt;
+void m(int const(&amp;)[M][N]);
+m({{1, 2}, {3, 4}}); // M déduit = 2, N déduit = 2
+
+template&lt;class T, int N&gt;
+void n(T const(&amp;)[N], T);
+n({{1}, {2}, {3}}, Aggr()); // T déduit = Aggr, N déduit = 3
+</code></pre>
+<p>Si un <a href="parameter_pack.html">pack de paramètres</a> apparaît comme dernier <code>P</code>, alors le type <code>P</code> est confronté au type <code>A</code> de chacun des arguments restants de l'appel. Chaque correspondance déduit les arguments de modèle pour la position suivante de l'expansion du pack :</p>
+<pre><code class="language-cpp">template&lt;class... Types&gt;
+void f(Types&amp;...);
+
+void h(int x, float&amp; y)
+{
+    const int z = x;
+    f(x, y, z); // P = Types&amp;..., A1 = x : premier membre de Types... déduit = int
+                // P = Types&amp;..., A2 = y : deuxième membre de Types... déduit = float
+                // P = Types&amp;..., A3 = z : troisième membre de Types... déduit = const int
+                // appelle f&lt;int, float, const int&gt;
+}
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si <code>P</code> est un type fonction, un type pointeur vers fonction ou un type pointeur vers fonction membre, et si <code>A</code> est un <a href="overloaded_address.html">ensemble de fonctions surchargées</a> ne contenant pas de modèles de fonction, la déduction d'arguments de modèle est tentée avec chaque surcharge. Si une seule réussit, cette déduction réussie est utilisée. Si aucune ou plusieurs réussissent, le paramètre de modèle est un contexte non déductible (voir ci-dessous) :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+int f(T(*p)(T));
+
+int g(int);
+int g(char);
+
+f(g); // P = T(*)(T), A = ensemble de surcharges
+      // P = T(*)(T), A1 = int(int) : T déduit = int
+      // P = T(*)(T), A2 = int(char) : échec de la déduction de T
+      // une seule surcharge fonctionne, la déduction réussit
+</code></pre>
+<p>Avant le début de la déduction, les ajustements suivants sont apportés à <code>P</code> et <code>A</code> :</p>
+<ol>
+<li>Si <code>P</code> n'est pas un type référence,</li>
+</ol>
+<p>a) si <code>A</code> est un type tableau, <code>A</code> est remplacé par le type pointeur obtenu par la conversion tableau-vers-pointeur ;</p>
+<p>b) sinon, si <code>A</code> est un type fonction, <code>A</code> est remplacé par le type pointeur obtenu par la conversion fonction-vers-pointeur ;</p>
+<p>c) sinon, si <code>A</code> est un type qualifié cv, les qualificateurs cv de premier niveau sont ignorés pour la déduction :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T);
+
+int a[3];
+f(a); // P = T, A = int[3], ajusté en int* : T déduit = int*
+
+void b(int);
+f(b); // P = T, A = void(int), ajusté en void(*)(int) : T déduit = void(*)(int)
+
+const int c = 13;
+f(c); // P = T, A = const int, ajusté en int : T déduit = int
+</code></pre>
+<ol start="2">
+<li>
+<p>Si <code>P</code> est un type qualifié cv, les qualificateurs cv de premier niveau sont ignorés pour la déduction.</p>
+</li>
+<li>
+<p>Si <code>P</code> est un type référence, le type référencé est utilisé pour la déduction.</p>
+</li>
+<li>
+<p>Si <code>P</code> est une référence rvalue vers un paramètre de modèle non qualifié cv (appelées <a href="reference.html#Forwarding_references">références de transmission</a>), et que l'argument d'appel de fonction correspondant est une lvalue, le type référence lvalue vers <code>A</code> est utilisé à la place de <code>A</code> pour la déduction (Note : c'est la base du fonctionnement de <a href="../utility/forward.html"><code>std::forward</code></a>. Note : dans la <a href="ctad.html">déduction d'arguments de modèle de classe</a>, un paramètre de modèle d'un modèle de classe n'est jamais une référence de transmission <em>(depuis C++17)</em>) :</p>
+</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T&gt;
+int f(T&amp;&amp;);       // P est une référence rvalue vers T non qualifié cv (référence de transfert)
+
+template&lt;class T&gt;
+int g(const T&amp;&amp;); // P est une référence rvalue vers T qualifié cv (pas de cas particulier)
+
+int main()
+{
+    int i;
+    int n1 = f(i); // l'argument est une lvalue : appelle f&lt;int&amp;&gt;(int&amp;) (cas particulier)
+    int n2 = f(0); // l'argument n'est pas une lvalue : appelle f&lt;int&gt;(int&amp;&amp;)
+
+//  int n3 = g(i); // erreur : déduit g&lt;int&gt;(const int&amp;&amp;), qui
+                   // ne peut pas lier une référence rvalue à une lvalue
+}
+</code></pre>
+<p>Après ces transformations, la déduction se poursuit comme décrit ci-dessous (voir la section <a href="template_argument_deduction.html#Deduction_from_a_type">déduction à partir d'un type</a>) et tente de trouver des arguments de modèle tels que le <code>A</code> déduit (c'est-à-dire <code>P</code> après les ajustements énumérés ci-dessus et la substitution des paramètres de modèle déduits) soit identique au <em>transformé</em> <code>A</code>, c'est-à-dire <code>A</code> après les ajustements énumérés ci-dessus.</p>
+<p>Si la déduction habituelle à partir de <code>P</code> et <code>A</code> échoue, les alternatives suivantes sont en outre considérées :</p>
+<ol>
+<li>Si <code>P</code> est un type référence, le <code>A</code> déduit (c'est-à-dire le type référencé par la référence) peut être davantage qualifié cv que le <code>A</code> transformé :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(const T&amp; t);
+
+bool a = false;
+f(a); // P = const T&amp;, ajusté en const T, A = bool :
+      // T déduit = bool, A déduit = const bool
+      // A déduit est plus qualifié cv que A
+</code></pre>
+<ol start="2">
+<li>Le <code>A</code> transformé peut être un autre type pointeur ou pointeur vers membre pouvant être converti en <code>A</code> déduit via une <a href="implicit_cast.html#Qualification_conversions">conversion de qualification</a>ou une conversion de pointeur de fonction <em>(depuis C++17)</em> :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(const T*);
+
+int* p;
+f(p); // P = const T*, A = int* :
+      // T déduit = int, A déduit = const int*
+      // la conversion de qualification s'applique (de int* à const int*)
+</code></pre>
+<ol start="3">
+<li>Si <code>P</code> est une classe et que <code>P</code> a la forme <a href="templates.html#template-id">simple-template-id</a>, alors le <code>A</code> transformé peut être une classe dérivée du <code>A</code> déduit. De même, si <code>P</code> est un pointeur vers une classe de la forme <em>simple-template-id</em>, le <code>A</code> transformé peut être un pointeur vers une classe dérivée pointée par le <code>A</code> déduit :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct B {};
+
+template&lt;class T&gt;
+struct D : public B&lt;T&gt; {};
+
+template&lt;class T&gt;
+void f(B&lt;T&gt;&amp;) {}
+
+void f()
+{
+    D&lt;int&gt; d;
+    f(d); // P = B&lt;T&gt;&amp;, ajusté en P = B&lt;T&gt; (un simple-template-id), A = D&lt;int&gt; :
+          // T déduit = int, A déduit = B&lt;int&gt;
+          // A dérive de A déduit
+}
+</code></pre>
+<h3 id="Non-deduced_contexts">Contextes non déductibles</h3>
+<p>Dans les cas suivants, les types, modèles et valeurs non de type utilisés pour composer <code>P</code> ne participent pas à la déduction d'arguments de modèle, mais <em>utilisent</em> à la place les arguments de modèle déduits ailleurs ou explicitement spécifiés. Si un paramètre de modèle n'est utilisé que dans des contextes non déductibles et n'est pas explicitement spécifié, la déduction d'arguments de modèle échoue.</p>
+<ol>
+<li>Le <code>nested-name-specifier</code> (tout ce qui se trouve à gauche de l'opérateur de résolution de portée <code>::</code>) d'un type spécifié à l'aide d'un <a href="name.html#Qualified_identifiers">qualified-id</a> :</li>
+</ol>
+<pre><code class="language-cpp">// le modèle d'identité, souvent utilisé pour exclure certains arguments de la déduction
+// (disponible sous le nom std::type_identity depuis C++20)
+template&lt;typename T&gt;
+struct identity { typedef T type; };
+
+template&lt;typename T&gt;
+void bad(std::vector&lt;T&gt; x, T value = 1);
+
+template&lt;typename T&gt;
+void good(std::vector&lt;T&gt; x, typename identity&lt;T&gt;::type value = 1);
+
+std::vector&lt;std::complex&lt;double&gt;&gt; x;
+
+bad(x, 1.2);  // P1 = std::vector&lt;T&gt;, A1 = std::vector&lt;std::complex&lt;double&gt;&gt;
+              // P1/A1 : T déduit = std::complex&lt;double&gt;
+              // P2 = T, A2 = double
+              // P2/A2 : T déduit = double
+              // erreur : la déduction échoue, T est ambigu
+
+good(x, 1.2); // P1 = std::vector&lt;T&gt;, A1 = std::vector&lt;std::complex&lt;double&gt;&gt;
+              // P1/A1 : T déduit = std::complex&lt;double&gt;
+              // P2 = identity&lt;T&gt;::type, A2 = double
+              // P2/A2 : utilise le T déduit par P1/A1 car T se trouve à gauche de :: dans P2
+              // OK : T = std::complex&lt;double&gt;
+</code></pre>
+<blockquote>
+<ol start="2">
+<li>Un <a href="pack_indexing.html#Pack_indexing_specifier">spécificateur d'indexation de pack</a> ou une <a href="pack_indexing.html#Pack_indexing_expression">expression d'indexation de pack</a> :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename... Ts&gt;
+void f(Ts...[0], std::tuple&lt;Ts...&gt;);
+
+f(3, std::tuple(5, 'A'));
+// P2 = std::tuple&lt;Ts...&gt;, A2 = std::tuple&lt;int, char&gt;
+// P2/A2 : premier membre de Ts... déduit = int
+// P2/A2 : second membre de Ts... déduit = char
+// P1 = Ts...[0], A1 = int : Ts...[0] est un contexte non déductible
+</code></pre>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<blockquote>
+<ol start="3">
+<li>L'expression d'un <a href="decltype.html">spécificateur decltype</a> :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(decltype(*std::declval&lt;T&gt;()) arg);
+
+int n;
+f&lt;int*&gt;(n); // P = decltype(*declval&lt;T&gt;()), A = int : T est dans un contexte non déductible
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="4">
+<li>Un argument de modèle non de type ou une borne de tableau dans lequel une sous-expression référence un paramètre de modèle :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;std::size_t N&gt;
+void f(std::array&lt;int, 2 * N&gt; a);
+
+std::array&lt;int, 10&gt; a;
+f(a); // P = std::array&lt;int, 2 * N&gt;, A = std::array&lt;int, 10&gt; :
+      // 2 * N est un contexte non déductible, N ne peut pas être déduit
+      // note : f(std::array&lt;int, N&gt; a) pourrait déduire N
+</code></pre>
+<ol start="5">
+<li>Un paramètre de modèle utilisé dans le type d'un paramètre de fonction ayant un argument par défaut qui est utilisé dans l'appel pour lequel la déduction d'arguments est effectuée :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T, typename F&gt;
+void f(const std::vector&lt;T&gt;&amp; v, const F&amp; comp = std::less&lt;T&gt;());
+
+std::vector&lt;std::string&gt; v(3);
+f(v); // P1 = const std::vector&lt;T&gt;&amp;, A1 = lvalue std::vector&lt;std::string&gt;
+      // P1/A1 : T déduit = std::string
+      // P2 = const F&amp;, A2 = rvalue std::less&lt;std::string&gt;
+      // P2 est un contexte non déductible pour F (paramètre de modèle) utilisé dans le
+      // type de paramètre (const F&amp;) du paramètre de fonction comp,
+      // qui possède un argument par défaut utilisé dans l'appel f(v)
+</code></pre>
+<ol start="6">
+<li>Le paramètre <code>P</code>, dont <code>A</code> est une fonction ou un ensemble de surcharges tel que plus d'une fonction correspond à <code>P</code> ou aucune fonction ne correspond à <code>P</code>, ou que l'ensemble de surcharges comprend un ou plusieurs modèles de fonction :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void out(const T&amp; value) { std::cout &lt;&lt; value; }
+
+out(&quot;123&quot;);     // P = const T&amp;, A = lvalue const char[4] : T déduit = char[4]
+out(std::endl); // P = const T&amp;, A = modèle de fonction : T est dans un contexte non déductible
+</code></pre>
+<ol start="7">
+<li>Le paramètre <code>P</code>, dont <code>A</code> est une braced-init-list, mais <code>P</code> n'est pas <a href="../utility/initializer_list.html"><code>std::initializer_list</code></a>, une référence vers une (éventuellement qualifiée cv), ou une référence vers un tableau}}:</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void g1(std::vector&lt;T&gt;);
+
+template&lt;class T&gt;
+void g2(std::vector&lt;T&gt;, T x);
+
+g1({1, 2, 3});     // P = std::vector&lt;T&gt;, A = {1, 2, 3} : T est dans un contexte non déductible
+                   // erreur : T n'est pas spécifié explicitement ni déduit d'un autre couple P/A
+
+g2({1, 2, 3}, 10); // P1 = std::vector&lt;T&gt;, A1 = {1, 2, 3} : T est dans un contexte non déductible
+                   // P2 = T, A2 = int : T déduit = int
+</code></pre>
+<blockquote>
+<ol start="8">
+<li>Le paramètre <code>P</code> qui est un pack de paramètres et qui n'apparaît pas à la fin de la liste de paramètres :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class... Ts, class T&gt;
+void f1(T n, Ts... args);
+
+template&lt;class... Ts, class T&gt;
+void f2(Ts... args, T n);
+
+f1(1, 2, 3, 4); // P1 = T, A1 = 1 : T déduit = int
+                // P2 = Ts..., A2 = 2, A3 = 3, A4 = 4 : Ts déduit = [int, int, int]
+
+f2(1, 2, 3, 4); // P1 = Ts... : Ts est un contexte non déductible
+</code></pre>
+<ol start="9">
+<li>La liste de paramètres de modèle qui apparaît dans le paramètre <code>P</code>, et qui comprend une expansion de pack qui n'est pas à la toute fin de la liste de paramètres de modèle :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;int...&gt;
+struct T {};
+
+template&lt;int... Ts1, int N, int... Ts2&gt;
+void good(const T&lt;N, Ts1...&gt;&amp; arg1, const T&lt;N, Ts2...&gt;&amp;);
+
+template&lt;int... Ts1, int N, int... Ts2&gt;
+void bad(const T&lt;Ts1..., N&gt;&amp; arg1, const T&lt;Ts2..., N&gt;&amp;);
+
+T&lt;1, 2&gt; t1;
+T&lt;1, -1, 0&gt; t2;
+
+good(t1, t2); // P1 = const T&lt;N, Ts1...&gt;&amp;, A1 = T&lt;1, 2&gt; :
+              // N déduit = 1, Ts1 déduit = [2]
+              // P2 = const T&lt;N, Ts2...&gt;&amp;, A2 = T&lt;1, -1, 0&gt; :
+              // N déduit = 1, Ts2 déduit = [-1, 0]
+
+bad(t1, t2);  // P1 = const T&lt;Ts1..., N&gt;&amp;, A1 = T&lt;1, 2&gt; :
+              // &lt;Ts1..., N&gt; est un contexte non déductible
+              // P2 = const T&lt;Ts2..., N&gt;&amp;, A2 = T&lt;1, -1, 0&gt; :
+              // &lt;Ts2..., N&gt; est un contexte non déductible
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="10">
+<li>Pour <code>P</code> de type tableau (mais non référence vers tableau ni pointeur vers tableau), la borne majeure du tableau :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;int i&gt;
+void f1(int a[10][i]);
+
+template&lt;int i&gt;
+void f2(int a[i][20]);    // P = int[i][20], type tableau
+
+template&lt;int i&gt;
+void f3(int (&amp;a)[i][20]); // P = int(&amp;)[i][20], référence vers un tableau
+
+void g()
+{
+    int a[10][20];
+    f1(a);     // OK : i déduit = 20
+    f1&lt;20&gt;(a); // OK
+    f2(a);     // erreur : i est dans un contexte non déductible
+    f2&lt;10&gt;(a); // OK
+    f3(a);     // OK : i déduit = 10
+    f3&lt;10&gt;(a); // OK
+}
+</code></pre>
+<p>Dans tous les cas, si une partie d'un nom de type est non déduite, tout le nom de type constitue un contexte non déductible. Cependant, les types composés peuvent inclure à la fois des noms de type déduits et non déduits. Par exemple, dans <code>A&lt;T&gt;::B&lt;T2&gt;</code>, <code>T</code> est non déduit à cause de la règle #1 (spécificateur de nom imbriqué), et <code>T2</code> est non déduit car il fait partie du même nom de type, mais dans <code>void(*f)(typename A&lt;T&gt;::B, A&lt;T&gt;)</code>, le <code>T</code> dans <code>A&lt;T&gt;::B</code> est non déduit (à cause de la même règle), tandis que le <code>T</code> dans <code>A&lt;T&gt;</code> est déduit.</p>
+<h3 id="Deduction_from_a_type">Déduction à partir d'un type</h3>
+<p>Étant donné un paramètre de fonction <code>P</code> qui dépend d'un ou plusieurs paramètres de modèle de type <code>T</code>i, de paramètres de modèle template <code>TT</code>i, ou de paramètres de modèle non de type <code>I</code>i, et l'argument correspondant <code>A</code>, la déduction a lieu si <code>P</code> a l'une des formes suivantes :</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : possiblement un tableau avec de micro-exemples</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>cv</code><em>(facultatif)</em> <code>T</code>;</li>
+<li><code>T*</code>;</li>
+<li><code>T&amp;</code>;</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>T&amp;&amp;</code>;</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li><code>T</code><em>(facultatif)</em> <code>[I</code><em>(facultatif)</em><code>]</code>;</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>T</code><em>(facultatif)</em> <code>(U</code><em>(facultatif)</em><code>)</code>;</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>T</code><em>(facultatif)</em> <code>(U</code><em>(facultatif)</em><code>)</code> <code>noexcept(I</code><em>(facultatif)</em><code>)</code>;</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li><code>T</code><em>(facultatif)</em> <code>U</code><em>(facultatif)</em><code>::*</code>;</li>
+<li><code>TT</code><em>(facultatif)</em><code>&lt;T&gt;</code>;</li>
+<li><code>TT</code><em>(facultatif)</em><code>&lt;I&gt;</code>;</li>
+<li><code>TT</code><em>(facultatif)</em><code>&lt;TU&gt;</code>;</li>
+<li><code>TT</code><em>(facultatif)</em><code>&lt;&gt;</code>.</li>
+</ul>
+<p>Dans les formes ci-dessus,</p>
+<ul>
+<li><code>T</code><em>(facultatif)</em> ou <code>U</code><em>(facultatif)</em> représente un type ou <code>parameter-type-list</code> qui satisfait soit ces règles récursivement, soit est un contexte non déductible dans <code>P</code> ou <code>A</code>, soit est le même type non dépendant dans <code>P</code> et <code>A</code>.</li>
+<li><code>TT</code><em>(facultatif)</em> ou <code>TU</code><em>(facultatif)</em> représente soit un modèle de classe, soit un paramètre de modèle template.</li>
+<li><code>I</code><em>(facultatif)</em> représente une expression qui est soit une <code>I</code>, est dépendante de la valeur dans <code>P</code> ou <code>A</code>, soit a la même valeur constante dans <code>P</code> et <code>A</code>.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>noexcept(I</code><em>(facultatif)</em><code>)</code> représente une <a href="noexcept_spec.html">spécification d'exception</a> dans laquelle l'opérande du spécificateur <code>noexcept</code> possiblement implicite satisfait les règles pour un <code>I</code><em>(facultatif)</em> ci-dessus.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Si <code>P</code> a l'une des formes qui incluent une liste de paramètres de modèle <code>&lt;T&gt;</code> ou <code>&lt;I&gt;</code>, alors chaque élément <code>P</code>i de cette liste d'arguments de modèle est comparé à l'argument de modèle correspondant <code>A</code>i de son <code>A</code>. Si le dernier <code>P</code>i est une expansion de pack, alors son motif est comparé à chaque argument restant de la liste d'arguments de modèle de <code>A</code>. Un paramètre pack final qui n'est pas autrement déduit est déduit comme un pack de paramètres vide.</p>
+<p>Si <code>P</code> a l'une des formes qui incluent une liste de paramètres de fonction <code>(T)</code>, alors chaque paramètre <code>P</code>i de cette liste est comparé à l'argument correspondant <code>A</code>i de la liste de paramètres de fonction de <code>A</code>. Si le dernier <code>P</code>i est une expansion de pack, alors son déclarateur est comparé à chaque <code>A</code>i restant dans la liste de types de paramètres de <code>A</code>.</p>
+<p>Les formes peuvent être imbriquées et traitées récursivement :</p>
+<ul>
+<li><code>X&lt;int&gt;(*)(char[6])</code> est un exemple de <code>T*</code>, où <code>T</code> est <code>X&lt;int&gt;(char[6])</code> ;</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>X&lt;int&gt;(char[6])</code> est un exemple de <code>T</code><em>(facultatif)</em> <code>(U</code><em>(facultatif)</em><code>)</code>, où <code>T</code> est <code>X&lt;int&gt;</code> et <code>U</code> est <code>char[6]</code> ;</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>X&lt;int&gt;(char[6])</code> est un exemple de <code>T</code><em>(facultatif)</em> <code>(U</code><em>(facultatif)</em><code>)</code> <code>noexcept(I</code><em>(facultatif)</em><code>)</code>, où <code>T</code> est <code>X&lt;int&gt;</code>, <code>U</code> est <code>char[6]</code>, et <code>I</code> dans le spécificateur <code>noexcept</code> implicite est <code>false</code> ;</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li><code>X&lt;int&gt;</code> est un exemple de <code>TT</code><em>(facultatif)</em><code>&lt;T&gt;</code>, où <code>TT</code> est <code>X</code> et <code>T</code> est <code>int</code>, et</li>
+<li><code>char[6]</code> est un exemple de <code>T</code><em>(facultatif)</em> <code>[I</code><em>(facultatif)</em><code>]</code>, où <code>T</code> est <code>char</code> et <code>I</code> est <code>std::size_t(6)</code>.</li>
+</ul>
+<blockquote>
+<p>Un argument de modèle de type ne peut pas être déduit à partir du type d'un argument de modèle non de type :</p>
+<pre><code class="language-cpp">template&lt;typename T, T i&gt;
+void f(double a[10][i]);
+
+double v[10][20];
+f(v); // P = double[10][i], A = double[10][20] :
+      // i peut être déduit égal à 20
+      // mais T ne peut pas être déduit du type de i
+</code></pre>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<p>Lorsque la valeur de l'argument correspondant à un paramètre de modèle non de type P, déclaré avec un type dépendant, est déduite d'une expression, les paramètres de modèle du type de P sont déduits à partir du type de la valeur.</p>
+<pre><code class="language-cpp">template&lt;long n&gt;
+struct A {};
+
+template&lt;class T&gt;
+struct C;
+
+template&lt;class T, T n&gt;
+struct C&lt;A&lt;n&gt;&gt; { using Q = T; };
+
+typedef long R;
+
+typedef C&lt;A&lt;2&gt;&gt;::Q R; // OK : T a été déduit comme long
+                      // à partir de la valeur d'argument de modèle dans le type A&lt;2&gt;
+
+template&lt;auto X&gt;
+class bar {};
+
+template&lt;class T, T n&gt;
+void f(bar&lt;n&gt; x);
+
+f(bar&lt;3&gt;{}); // OK: T a été déduit en int (et n en 3)
+             // à partir de la valeur d'argument de modèle dans le type bar&lt;3&gt;
+</code></pre>
+<p>Le type de <code>N</code> dans le type <code>T[N]</code> est <a href="../types/size_t.html"><code>std::size_t</code></a>.</p>
+<pre><code class="language-cpp">template&lt;class T, T i&gt;
+void f(int (&amp;a)[i]);
+
+int v[10];
+f(v); // OK : T est std::size_t
+</code></pre>
+<p>Le type de <code>B</code> dans <code>noexcept(B)</code> spécificateur d'un type fonction est <code>bool</code>.</p>
+<pre><code class="language-cpp">template&lt;bool&gt;
+struct A {};
+
+template&lt;auto&gt;
+struct B;
+template&lt;auto X, void (*F)() noexcept(X)&gt;
+struct B&lt;F&gt; { A&lt;X&gt; ax; };
+
+void f_nothrow() noexcept;
+B&lt;f_nothrow&gt; bn; // OK : X est déduit comme true et le type de X est déduit comme bool.
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Si un paramètre de modèle non de type d'un modèle de fonction est utilisé dans la liste de paramètres de modèle d'un paramètre de fonction (qui est aussi un modèle), et que l'argument de modèle correspondant est déduit, le type de l'argument de modèle déduit (tel que spécifié dans sa liste de paramètres de modèle englobante, ce qui signifie que les références sont conservées) doit correspondre exactement au type du paramètre de modèle non de type, à l'exception près que les qualificateurs cv sont ignorés, et sauf lorsque l'argument de modèle est déduit d'une borne de tableau : dans ce cas, tout type entier est autorisé, même <code>bool</code> bien qu'il devienne toujours <code>true</code> :</p>
+<pre><code class="language-cpp">template&lt;int i&gt;
+class A {};
+
+template&lt;short s&gt;
+void f(A&lt;s&gt;); // le type du paramètre de modèle non type est short
+
+void k1()
+{
+    A&lt;1&gt; a;  // le type du paramètre de modèle non type de a est int
+
+    f(a);    // P = A&lt;(short)s&gt;, A = A&lt;(int)1&gt;
+             // erreur : l'argument de modèle non type déduit n'a pas le même
+             // type que l'argument de modèle correspondant
+
+    f&lt;1&gt;(a); // OK : l'argument de modèle n'est pas déduit,
+             // ceci appelle f&lt;(short)1&gt;(A&lt;(short)1&gt;)
+}
+
+template&lt;int&amp;&gt;
+struct X;
+
+template&lt;int&amp; R&gt;
+void k2(X&lt;R&gt;&amp;);
+
+int n;
+void g(X&lt;n&gt; &amp;x)
+{
+    k2(x); // P = X&lt;R&gt;, A = X&lt;n&gt;
+           // le type du paramètre est int&amp;
+           // le type de l'argument est int&amp; dans la déclaration de modèle de struct X
+           // OK (avec CWG 2091) : déduit R pour référencer n
+}
+</code></pre>
+<p>Un paramètre de modèle de type ne peut pas être déduit à partir du type d'un argument par défaut de fonction :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(T = 5, T = 7);
+
+void g()
+{
+    f(1);     // OK : appelle f&lt;int&gt;(1, 7)
+    f();      // erreur : impossible de déduire T
+    f&lt;int&gt;(); // OK : appelle f&lt;int&gt;(5, 7)
+}
+</code></pre>
+<p>La déduction d'un paramètre de modèle template peut utiliser le type employé dans la spécialisation de modèle utilisée dans l'appel de fonction :</p>
+<pre><code class="language-cpp">template&lt;template&lt;typename&gt; class X&gt;
+struct A {}; // A est un modèle avec un paramètre TT
+
+template&lt;template&lt;typename&gt; class TT&gt;
+void f(A&lt;TT&gt;) {}
+
+template&lt;class T&gt;
+struct B {};
+
+A&lt;B&gt; ab;
+f(ab); // P = A&lt;TT&gt;, A = A&lt;B&gt; : TT déduit = B, appelle f(A&lt;B&gt;)
+</code></pre>
+<h2 id="Other_contexts">Autres contextes</h2>
+<p>Outre les appels de fonction et les expressions d'opérateurs, la déduction d'arguments de modèle est utilisée dans les situations suivantes :</p>
+<blockquote>
+<h4 id="auto_type_deduction">Déduction de type auto</h4>
+<p>La déduction d'arguments de modèle est utilisée dans les <a href="declarations.html">déclarations</a> de variables, lors de la déduction de la signification du <strong><a href="auto.html">spécificateur auto</a></strong> à partir de l'initialiseur de la variable.</p>
+<p>Le paramètre <code>P</code> est obtenu comme suit : dans <code>T</code>, le type déclaré de la variable qui comprend <code>auto</code>, chaque occurrence de <code>auto</code> est remplacée par un paramètre de modèle de type imaginaire <code>U</code> ou, si l'initialisation est une copy-list-initialization, par <code>std::initializer_list&lt;U&gt;</code>. L'argument <code>A</code> est l'expression d'initialisation. Après la déduction de <code>U</code> à partir de <code>P</code> et <code>A</code> selon les règles décrites ci-dessus, le <code>U</code> déduit est substitué dans <code>P</code> pour obtenir le type réel de la variable :</p>
+<pre><code class="language-cpp">const auto&amp; x = 1 + 2; // P = const U&amp;, A = 1 + 2 :
+                       // mêmes règles que pour l'appel de f(1 + 2) où f est
+                       // template&lt;class U&gt; void f(const U&amp; u)
+                       // U déduit = int, le type de x est const int&amp;
+
+auto l = {13}; // P = std::initializer_list&lt;U&gt;, A = {13}:
+               // U déduit = int, le type de l est std::initializer_list&lt;int&gt;
+</code></pre>
+<p>Dans une direct-list-initialization (mais non dans une copy-list-initialization), lors de la déduction de la signification de <a href="auto.html">auto</a> à partir d'une braced-init-list, la braced-init-list ne doit contenir qu'un seul élément, et le type de auto sera le type de cet élément :</p>
+<pre><code class="language-cpp">auto x1 = {3}; // x1 est std::initializer_list&lt;int&gt;
+auto x2{1, 2}; // erreur : pas un élément unique
+auto x3{3};    // x3 est int
+               // (avant N3922, x2 et x3 étaient tous deux std::initializer_list&lt;int&gt;)
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<h4 id="auto-returning_functions">Fonctions à type de retour auto</h4>
+<p>La déduction d'arguments de modèle est utilisée dans les déclarations de <a href="functions.html">fonctions</a>, lors de la déduction de la signification du spécificateur <a href="auto.html">auto</a> dans le type de retour de la fonction, à partir de l'instruction return.</p>
+<p>Pour les fonctions à type de retour auto, le paramètre <code>P</code> est obtenu comme suit : dans <code>T</code>, le type de retour déclaré de la fonction qui comprend <code>auto</code>, chaque occurrence de <code>auto</code> est remplacée par un paramètre de modèle de type imaginaire <code>U</code>. L'argument <code>A</code> est l'expression de l'instruction <a href="return.html">return</a>, et si l'instruction return n'a pas d'opérande, <code>A</code> est <code>void()</code>. Après la déduction de <code>U</code> à partir de <code>P</code> et <code>A</code> selon les règles décrites ci-dessus, le <code>U</code> déduit est substitué dans <code>T</code> pour obtenir le type de retour réel :</p>
+<pre><code class="language-cpp">auto f() { return 42; } // P = auto, A = 42 :
+                        // U déduit = int, le type de retour de f est int
+</code></pre>
+<p>Si une telle fonction comporte plusieurs instructions return, la déduction est effectuée pour chaque instruction return. Tous les types obtenus doivent être identiques et deviennent le type de retour réel.</p>
+<p>Si une telle fonction ne comporte aucune instruction return, <code>A</code> est <code>void()</code> lors de la déduction.</p>
+<p>Note : la signification du marqueur <code>decltype(auto)</code> dans les déclarations de variables et de fonctions n'utilise pas la déduction d'arguments de modèle.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<h3 id="Overload_resolution">Résolution de surcharge</h3>
+<p>La déduction d'arguments de modèle est utilisée lors de la <a href="overload_resolution.html">résolution de surcharge</a>, lors de la génération de spécialisations à partir d'un modèle de fonction candidat. <code>P</code> et <code>A</code> sont les mêmes que dans un appel de fonction ordinaire :</p>
+<pre><code class="language-cpp">std::string s;
+std::getline(std::cin, s);
+
+// « std::getline » désigne 4 modèles de fonctions,
+// dont 2 sont des fonctions candidates (nombre correct de paramètres)
+
+// 1er modèle candidat :
+// P1 = std::basic_istream&lt;CharT, Traits&gt;&amp;, A1 = std::cin
+// P2 = std::basic_string&lt;CharT, Traits, Allocator&gt;&amp;, A2 = s
+// la déduction détermine les paramètres de modèle de type CharT, Traits et Allocator
+// spécialisation std::getline&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt;&gt;
+
+// 2e modèle candidat :
+// P1 = std::basic_istream&lt;CharT, Traits&gt;&amp;&amp;, A1 = std::cin
+// P2 = std::basic_string&lt;CharT, Traits, Allocator&gt;&amp;, A2 = s
+// la déduction détermine les paramètres de modèle de type CharT, Traits et Allocator
+// spécialisation std::getline&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt;&gt;
+
+// la résolution de surcharge classe la liaison de référence depuis la lvalue std::cin
+// et choisit la première des deux spécialisations candidates
+</code></pre>
+<p>Si la déduction échoue, ou si la déduction réussit mais que la spécialisation qu'elle produit serait invalide (par exemple, un opérateur surchargé dont les paramètres ne sont ni de type classe ni de type énumération), la spécialisation n'est pas incluse dans l'ensemble de surcharges, à l'instar de <a href="sfinae.html">SFINAE</a>.</p>
+<h3 id="Address_of_an_overload_set">Adresse d'un ensemble de surcharges</h3>
+<p>La déduction d'arguments de modèle est utilisée lors de la prise d'<a href="overloaded_address.html">adresse d'un ensemble de surcharges</a>, qui inclut des modèles de fonction.</p>
+<p>Le type fonction du modèle de fonction est <code>P</code>. Le <a href="overloaded_address.html">type cible</a> est le type de <code>A</code> :</p>
+<pre><code class="language-cpp">std::cout &lt;&lt; std::endl;
+
+// std::endl désigne un modèle de fonction
+// type de P de endl =
+// std::basic_ostream&lt;CharT, Traits&gt;&amp; (std::basic_ostream&lt;CharT, Traits&gt;&amp;)
+// paramètre A de operator&lt;&lt; =
+// std::basic_ostream&lt;char, std::char_traits&lt;char&gt;&gt;&amp; (*)(
+//   std::basic_ostream&lt;char, std::char_traits&lt;char&gt;&gt;&amp;
+// )
+// (les autres surcharges de operator&lt;&lt; ne sont pas viables)
+// la déduction détermine les paramètres de modèle de type CharT et Traits
+</code></pre>
+<p>Une règle supplémentaire s'applique à la déduction dans ce cas : lors de la comparaison des paramètres de fonction <code>P</code>i et <code>A</code>i, si <code>P</code>i est une référence rvalue vers un paramètre de modèle non qualifié cv (une « référence de transmission ») et que le <code>A</code>i correspondant est une référence lvalue, alors <code>P</code>i est ajusté au type du paramètre de modèle (T&amp;&amp; devient T).</p>
+<blockquote>
+<p>Si le type de retour du modèle de fonction est un marqueur (<code>auto</code> ou <code>decltype(auto)</code>), ce type de retour est un contexte non déductible et est déterminé à partir de l'instanciation.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<h3 id="Partial_ordering">Ordre partiel</h3>
+<p>La déduction d'arguments de modèle est utilisée lors de l'<a href="function_template.html">ordonnancement partiel des modèles de fonction surchargés</a>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Conversion_function_template">Modèle de fonction de conversion</h3>
+<p>La déduction d'arguments de modèle est utilisée lors de la sélection des arguments de modèle de <a href="cast_operator.html">fonction de conversion définie par l'utilisateur</a>.</p>
+<p><code>A</code> est le type requis comme résultat de la conversion. <code>P</code> est le type de retour du modèle de fonction de conversion. Si <code>P</code> est un type référence, alors le type référencé est utilisé à la place de <code>P</code> pour les parties suivantes de la section.</p>
+<p>Si <code>A</code> n'est pas un type référence :</p>
+<p>a) si le <code>P</code> est un type tableau, alors le type pointeur obtenu par conversion tableau-vers-pointeur est utilisé à la place de <code>P</code> ;</p>
+<p>b) si le <code>P</code> est un type fonction, alors le type pointeur de fonction obtenu par conversion fonction-vers-pointeur est utilisé à la place de <code>P</code> ;</p>
+<p>c) si <code>P</code> est qualifié cv, les qualificateurs cv de premier niveau sont ignorés.</p>
+<p>Si <code>A</code> est qualifié cv, les qualificateurs cv de premier niveau sont ignorés. Si <code>A</code> est un type référence, le type référencé est utilisé pour la déduction.</p>
+<p>Si la déduction habituelle à partir de <code>P</code> et <code>A</code> (telle que décrite ci-dessus) échoue, les alternatives suivantes sont en plus considérées :</p>
+<p>a) si <code>A</code> est un type référence, <code>A</code> peut être plus qualifié cv que le <code>A</code> déduit ;</p>
+<p>b) si <code>A</code> est un type pointeur ou pointeur vers membre, le <code>A</code> déduit peut être tout pointeur convertible en <code>A</code> par conversion de qualification :</p>
+<pre><code class="language-cpp">struct C
+{
+    template&lt;class T&gt;
+    operator T***();
+};
+C c;
+
+const int* const* const* p1 = c;
+
+// P = T***, A = const int* const* const*
+// déduction habituelle d'appel de fonction pour
+// template&lt;class T&gt; void f(T*** p) comme si appelé avec l'argument
+// de type const int* const* const* échoue
+// une déduction supplémentaire pour les fonctions de conversion détermine T = int
+// (A déduit int***, convertible en const int* const* const*)
+</code></pre>
+<blockquote>
+<p>c) si <code>A</code> est un type pointeur de fonction, le <code>A</code> déduit peut être un pointeur vers fonction noexcept, convertible en <code>A</code> par conversion de pointeur de fonction ;</p>
+<p>d) si <code>A</code> est un pointeur vers fonction membre, le <code>A</code> déduit peut être un pointeur vers fonction membre noexcept, convertible en <code>A</code> par conversion de pointeur de fonction.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Voir <a href="member_template.html#Conversion_function_templates">membre modèle</a> pour les autres règles concernant les modèles de fonction de conversion.</p>
+<h3 id="Explicit_instantiation">Instanciation explicite</h3>
+<p>La déduction d'arguments de modèle est utilisée dans les <a href="function_template.html#Explicit_instantiation">instanciations explicites</a>, les <a href="template_specialization.html">spécialisations explicites</a>, et dans les <a href="friend.html#Template_friends">déclarations d'amitié</a> où le declarator-id désigne une spécialisation d'un modèle de fonction (par exemple, <code>friend ostream&amp; operator&lt;&lt; &lt;&gt; (...)</code>) : si tous les arguments de modèle ne sont pas explicitement spécifiés ou par défaut, la déduction d'arguments de modèle sert à déterminer la spécialisation de quel modèle est désignée.</p>
+<p><code>P</code> est le type du modèle de fonction considéré comme correspondance potentielle, et <code>A</code> est le type fonction de la déclaration. S'il n'y a aucune correspondance ou plus d'une (après ordonnancement partiel), la déclaration de fonction est mal formée :</p>
+<pre><code class="language-cpp">template&lt;class X&gt;
+void f(X a);        // 1er modèle f
+template&lt;class X&gt;
+void f(X* a);       // 2e modèle f
+template&lt;&gt;
+void f&lt;&gt;(int* a) {} // spécialisation explicite de f
+
+// P1 = void(X), A1 = void(int*) : X déduit = int*, f&lt;int*&gt;(int*)
+// P2 = void(X*), A2 = void(int*) : X déduit = int, f&lt;int&gt;(int*)
+// f&lt;int*&gt;(int*) et f&lt;int&gt;(int*) sont alors soumis au classement partiel
+// qui sélectionne f&lt;int&gt;(int*) comme modèle le plus spécialisé
+</code></pre>
+<p>Une règle supplémentaire s'applique à la déduction dans ce cas : lors de la comparaison des paramètres de fonction <code>P</code>i et <code>A</code>i, si <code>P</code>i est une référence rvalue vers un paramètre de modèle non qualifié cv (une « référence de transmission ») et que le <code>A</code>i correspondant est une référence lvalue, alors <code>P</code>i est ajusté au type du paramètre de modèle (T&amp;&amp; devient T).</p>
+<h3 id="Deallocation_function_template">Modèle de fonction de désallocation</h3>
+<p>La déduction d'arguments de modèle est utilisée pour déterminer si une spécialisation de <a href="../memory/new/operator_delete.html">fonction de désallocation</a> correspond à une forme de placement donnée de <code>operator new</code>.</p>
+<p><code>P</code> est le type du modèle de fonction considéré comme correspondance potentielle, et <code>A</code> est le type fonction de la fonction de désallocation qui correspondrait à l'opérateur de placement new considéré. S'il n'y a aucune correspondance ou plus d'une (après résolution de surcharge), la fonction de désallocation de placement n'est pas appelée (une fuite mémoire peut se produire) :</p>
+<pre><code class="language-cpp">struct X
+{
+    X() { throw std::runtime_error(&quot;&quot;); }
+
+    static void* operator new(std::size_t sz, bool b)   { return ::operator new(sz); }
+    static void* operator new(std::size_t sz, double f) { return ::operator new(sz); }
+
+    template&lt;typename T&gt;
+    static void operator delete(void* ptr, T arg)
+    {
+        ::operator delete(ptr);
+    }
+};
+
+int main()
+{
+    try
+    {
+        X* p1 = new (true) X; // lorsque X() lève une exception, operator delete est recherché
+                              // P1 = void(void*, T), A1 = void(void*, bool) :
+                              // T déduit = bool
+                              // P2 = void(void*, T), A2 = void(void*, double) :
+                              // T déduit = double
+                              // la résolution de surcharge choisit operator delete&lt;bool&gt;
+    }
+    catch(const std::exception&amp;) {}
+
+    try
+    {
+        X* p1 = new (13.2) X; // même recherche, choisit operator delete&lt;double&gt;
+    }
+    catch(const std::exception&amp;) {}
+}
+</code></pre>
+<h2 id="Alias_templates">Modèles d'alias</h2>
+<p>Les <a href="type_alias.html">modèles d'alias</a> ne sont pas déduits, sauf dans <a href="ctad.html#Deduction_for_alias_templates">la déduction d'arguments de modèle de classe</a> <em>(depuis C++20)</em> :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct Alloc {};
+
+template&lt;class T&gt;
+using Vec = vector&lt;T, Alloc&lt;T&gt;&gt;;
+Vec&lt;int&gt; v;
+
+template&lt;template&lt;class, class&gt; class TT&gt;
+void g(TT&lt;int, Alloc&lt;int&gt;&gt;);
+g(v); // OK : TT déduit = vector
+
+template&lt;template&lt;class&gt; class TT&gt;
+void f(TT&lt;int&gt;);
+f(v); // erreur : TT ne peut pas être déduit comme « Vec » car Vec est un modèle d'alias
+</code></pre>
+<h2 id="Implicit_conversions">Conversions implicites</h2>
+<p>La déduction de type ne tient pas compte des conversions implicites (autres que les ajustements de type listés ci-dessus) : c'est le rôle de la <a href="overload_resolution.html">résolution de surcharge</a>, qui intervient plus tard. Cependant, si la déduction réussit pour tous les paramètres qui participent à la déduction d'arguments de modèle, et si tous les arguments de modèle non déduits sont explicitement spécifiés ou par défaut, alors les paramètres de fonction restants sont comparés aux arguments de fonction correspondants. Pour chaque paramètre restant <code>P</code> dont le type était non dépendant avant la substitution des arguments de modèle explicitement spécifiés, si l'argument correspondant <code>A</code> ne peut pas être implicitement converti en <code>P</code>, la déduction échoue.</p>
+<p>Les paramètres de types dépendants auxquels aucun paramètre de modèle ne participe à la déduction d'arguments de modèle, ainsi que les paramètres devenus non dépendants suite à la substitution d'arguments de modèle explicitement spécifiés, seront vérifiés lors de la résolution de surcharge :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct Z { typedef typename T::x xx; };
+
+template&lt;class T&gt;
+typename Z&lt;T&gt;::xx f(void*, T); // #1
+
+template&lt;class T&gt;
+void f(int, T);                // #2
+
+struct A {} a;
+
+int main()
+{
+    f(1, a); // pour #1, la déduction détermine T = struct A, mais l'argument restant 1
+             // ne peut pas être converti implicitement en son paramètre void*: la déduction échoue
+             // l'instanciation du type de retour n'est pas demandée
+             // pour #2, la déduction détermine T = struct A, et l'argument restant 1
+             // peut être converti implicitement en son paramètre int : la déduction réussit
+             // l'appel de fonction compile comme un appel à #2 (l'échec de déduction est SFINAE)
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/70.html">CWG 70</a></td>
+<td>C++98</td>
+<td>la question de savoir si les bornes de tableau seraient déduites n'était pas spécifiée</td>
+<td>spécifié comme non déductible</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/300.html">CWG 300</a></td>
+<td>C++98</td>
+<td>la déduction a eu lieu pour les paramètres de fonction de forme <code>type(*)(T)/T(*)()/T(*)(T)</code>, les pointeurs de fonction correspondent à ces formes mais pas les références de fonction</td>
+<td>modifier ces formes en <code>type(T)/T()/T(T)</code> afin qu'elles puissent aussi couvrir les références</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/322.html">CWG 322</a></td>
+<td>C++98</td>
+<td>les paramètres de type de type référence n'étaient pas ajustés pour utiliser le type référencé pour la déduction</td>
+<td>ajustement ajouté</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/976.html">CWG 976</a></td>
+<td>C++98</td>
+<td>dans la déduction pour les modèles d'opérateurs de conversion, le <code>const T&amp;</code> type de retour ne pouvait jamais correspondre au type de résultat <code>T</code></td>
+<td>règles ajustées pour permettre ces correspondances</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1387.html">CWG 1387</a></td>
+<td>C++11</td>
+<td>l'expression d'un spécificateur decltype n'était pas un contexte non déductible</td>
+<td>c'est le cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1391.html">CWG 1391</a></td>
+<td>C++98</td>
+<td>l'effet des conversions implicites des arguments qui ne participent pas à la déduction n'était pas spécifié</td>
+<td>spécifié comme décrit ci-dessus</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1591.html">CWG 1591</a></td>
+<td>C++11</td>
+<td>impossible de déduire la borne de tableau et le type d'élément à partir d'une <em>braced-init-list</em></td>
+<td>déduction autorisée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2052.html">CWG 2052</a></td>
+<td>C++98</td>
+<td>la déduction d'un opérateur avec des arguments non de classe non énumération était une erreur bloquante</td>
+<td>erreur silencieuse s'il existe d'autres surcharges</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2091.html">CWG 2091</a></td>
+<td>C++98</td>
+<td>la déduction d'un paramètre non-type de référence ne fonctionnait pas en raison d'une incompatibilité de type avec l'argument</td>
+<td>incompatibilité de type évitée</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/N3922">N3922</a></td>
+<td>C++11</td>
+<td>l'initialisation par liste directe de <code>auto</code> déduit <a href="../utility/initializer_list.html"><code>std::initializer_list</code></a></td>
+<td>mal formé pour plus d'un élément, déduit le type d'élément pour un seul élément</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2355.html">CWG 2355</a></td>
+<td>C++17</td>
+<td>la valeur dans un spécificateur <code>noexcept</code> d'un type fonction n'était pas déductible</td>
+<td>rendue déductible</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

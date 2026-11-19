@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::hardware_destructive_interference_size, std::hardware_constructive_interference_size — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-hardware_destructive_interference_size-std-hardware_constructive_interference_size"><code>std::hardware_destructive_interference_size, std::hardware_constructive_interference_size</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/hardware_destructive_interference_size">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;new&gt;</strong></p>
+<pre><code class="language-cpp">inline constexpr std::size_t
+    hardware_destructive_interference_size = /*défini par l'implémentation*/;  // (1) (depuis C++17)
+
+inline constexpr std::size_t
+    hardware_constructive_interference_size = /*défini par l'implémentation*/;  // (2) (depuis C++17)
+</code></pre>
+<ol>
+<li>Décalage minimal entre deux objets pour éviter le faux partage. Garanti d'être au moins égal à <code>alignof(std::max_align_t)</code></li>
+</ol>
+<pre><code class="language-cpp">struct keep_apart
+{
+    alignas(std::hardware_destructive_interference_size) std::atomic&lt;int&gt; cat;
+    alignas(std::hardware_destructive_interference_size) std::atomic&lt;int&gt; dog;
+};
+</code></pre>
+<ol start="2">
+<li>Taille maximale de mémoire contiguë pour favoriser le vrai partage. Garanti d'être au moins égal à <code>alignof(std::max_align_t)</code></li>
+</ol>
+<pre><code class="language-cpp">struct together
+{
+    std::atomic&lt;int&gt; dog;
+    int puppy;
+};
+
+struct kennel
+{
+    // Autres membres de données...
+
+    alignas(sizeof(together)) together pack;
+
+    // Autres membres de données...
+};
+
+static_assert(sizeof(together) &lt;= std::hardware_constructive_interference_size);
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Ces constantes fournissent un moyen portable d'accéder à la taille de la ligne de cache de données L1.</p>
+<p><strong>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_lib_hardware_interference_size"><code>__cpp_lib_hardware_interference_size</code></a> | <a href="../compiler_support/17.html#cpp_lib_hardware_interference_size_201703L"><code>201703L</code></a> | <em>(C++17)</em> | <code>constexpr std::hardware_constructive_interference_size</code> and</p>
+<p><code>constexpr std::hardware_destructive_interference_size</code></p>
+<h2 id="Example">Exemple</h2>
+<p>Le programme utilise deux threads qui écrivent de façon atomique dans les membres de données des objets globaux donnés. Le premier objet tient dans une seule ligne de cache, ce qui provoque une « interférence matérielle ». Le second objet place ses membres de données sur des lignes de cache distinctes, de sorte que la « synchronisation de cache » possible après les écritures des threads est évitée.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;chrono&gt;
+#include &lt;cstddef&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;new&gt;
+#include &lt;thread&gt;
+
+#ifdef __cpp_lib_hardware_interference_size
+    using std::hardware_constructive_interference_size;
+    using std::hardware_destructive_interference_size;
+#else
+    // 64 octets sur x86-64 │ L1_CACHE_BYTES │ L1_CACHE_SHIFT │ __cacheline_aligned │ ...
+    constexpr std::size_t hardware_constructive_interference_size = 64;
+    constexpr std::size_t hardware_destructive_interference_size = 64;
+#endif
+
+std::mutex cout_mutex;
+
+constexpr int max_write_iterations{10'000'000}; // le réglage temporel du benchmark
+
+struct alignas(hardware_constructive_interference_size)
+OneCacheLiner // occupe une ligne de cache
+{
+    std::atomic_uint64_t x{};
+    std::atomic_uint64_t y{};
+}
+oneCacheLiner;
+
+struct TwoCacheLiner // occupe deux lignes de cache
+{
+    alignas(hardware_destructive_interference_size) std::atomic_uint64_t x{};
+    alignas(hardware_destructive_interference_size) std::atomic_uint64_t y{};
+}
+twoCacheLiner;
+
+inline auto now() noexcept { return std::chrono::high_resolution_clock::now(); }
+
+template&lt;bool xy&gt;
+void oneCacheLinerThread()
+{
+    const auto start{now()};
+
+    for (uint64_t count{}; count != max_write_iterations; ++count)
+        if constexpr (xy)
+            oneCacheLiner.x.fetch_add(1, std::memory_order_relaxed);
+        else
+            oneCacheLiner.y.fetch_add(1, std::memory_order_relaxed);
+
+    const std::chrono::duration&lt;double, std::milli&gt; elapsed{now() - start};
+    std::lock_guard lk{cout_mutex};
+    std::cout &lt;&lt; &quot;oneCacheLinerThread() spent &quot; &lt;&lt; elapsed.count() &lt;&lt; &quot; ms\n&quot;;
+    if constexpr (xy)
+        oneCacheLiner.x = elapsed.count();
+    else
+        oneCacheLiner.y = elapsed.count();
+}
+
+template&lt;bool xy&gt;
+void twoCacheLinerThread()
+{
+    const auto start{now()};
+
+    for (uint64_t count{}; count != max_write_iterations; ++count)
+        if constexpr (xy)
+            twoCacheLiner.x.fetch_add(1, std::memory_order_relaxed);
+        else
+            twoCacheLiner.y.fetch_add(1, std::memory_order_relaxed);
+
+    const std::chrono::duration&lt;double, std::milli&gt; elapsed{now() - start};
+    std::lock_guard lk{cout_mutex};
+    std::cout &lt;&lt; &quot;twoCacheLinerThread() spent &quot; &lt;&lt; elapsed.count() &lt;&lt; &quot; ms\n&quot;;
+    if constexpr (xy)
+        twoCacheLiner.x = elapsed.count();
+    else
+        twoCacheLiner.y = elapsed.count();
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;__cpp_lib_hardware_interference_size &quot;
+#   ifdef __cpp_lib_hardware_interference_size
+        &quot;= &quot; &lt;&lt; __cpp_lib_hardware_interference_size &lt;&lt; '\n';
+#   else
+        &quot;is not defined, use &quot; &lt;&lt; hardware_destructive_interference_size
+                               &lt;&lt; &quot; as fallback\n&quot;;
+#   endif
+
+    std::cout &lt;&lt; &quot;hardware_destructive_interference_size == &quot;
+              &lt;&lt; hardware_destructive_interference_size &lt;&lt; '\n'
+              &lt;&lt; &quot;hardware_constructive_interference_size == &quot;
+              &lt;&lt; hardware_constructive_interference_size &lt;&lt; &quot;\n\n&quot;
+              &lt;&lt; std::fixed &lt;&lt; std::setprecision(2)
+              &lt;&lt; &quot;sizeof( OneCacheLiner ) == &quot; &lt;&lt; sizeof(OneCacheLiner) &lt;&lt; '\n'
+              &lt;&lt; &quot;sizeof( TwoCacheLiner ) == &quot; &lt;&lt; sizeof(TwoCacheLiner) &lt;&lt; &quot;\n\n&quot;;
+
+    constexpr int max_runs{4};
+
+    int oneCacheLiner_average{0};
+    for (auto i{0}; i != max_runs; ++i)
+    {
+        std::thread th1{oneCacheLinerThread&lt;0&gt;};
+        std::thread th2{oneCacheLinerThread&lt;1&gt;};
+        th1.join();
+        th2.join();
+        oneCacheLiner_average += oneCacheLiner.x + oneCacheLiner.y;
+    }
+    std::cout &lt;&lt; &quot;Average T1 time: &quot;
+              &lt;&lt; (oneCacheLiner_average / max_runs / 2) &lt;&lt; &quot; ms\n\n&quot;;
+
+    int twoCacheLiner_average{0};
+    for (auto i{0}; i != max_runs; ++i)
+    {
+        std::thread th1{twoCacheLinerThread&lt;0&gt;};
+        std::thread th2{twoCacheLinerThread&lt;1&gt;};
+        th1.join();
+        th2.join();
+        twoCacheLiner_average += twoCacheLiner.x + twoCacheLiner.y;
+    }
+    std::cout &lt;&lt; &quot;Average T2 time: &quot;
+              &lt;&lt; (twoCacheLiner_average / max_runs / 2) &lt;&lt; &quot; ms\n\n&quot;
+              &lt;&lt; &quot;Ratio T1/T2:~ &quot;
+              &lt;&lt; 1.0 * oneCacheLiner_average / twoCacheLiner_average &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">__cpp_lib_hardware_interference_size = 201703
+hardware_destructive_interference_size == 64
+hardware_constructive_interference_size == 64
+
+sizeof( OneCacheLiner ) == 64
+sizeof( TwoCacheLiner ) == 128
+
+oneCacheLinerThread() spent 517.83 ms
+oneCacheLinerThread() spent 533.43 ms
+oneCacheLinerThread() spent 527.36 ms
+oneCacheLinerThread() spent 555.69 ms
+oneCacheLinerThread() spent 574.74 ms
+oneCacheLinerThread() spent 591.66 ms
+oneCacheLinerThread() spent 555.63 ms
+oneCacheLinerThread() spent 555.76 ms
+Average T1 time: 550 ms
+
+twoCacheLinerThread() spent 89.79 ms
+twoCacheLinerThread() spent 89.94 ms
+twoCacheLinerThread() spent 89.46 ms
+twoCacheLinerThread() spent 90.28 ms
+twoCacheLinerThread() spent 89.73 ms
+twoCacheLinerThread() spent 91.11 ms
+twoCacheLinerThread() spent 89.17 ms
+twoCacheLinerThread() spent 90.09 ms
+Average T2 time: 89 ms
+
+Ratio T1/T2:~ 6.16
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="thread/hardware_concurrency.html">hardware_concurrency</a> [statique]</strong> — renvoie le nombre de threads concurrents pris en charge par l'implémentation <em>(fonction membre statique publique de <code>std::thread</code>)</em></li>
+<li><strong><a href="jthread/hardware_concurrency.html">hardware_concurrency</a> [statique]</strong> — renvoie le nombre de threads concurrents pris en charge par l'implémentation <em>(fonction membre statique publique de <code>std::jthread</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::create_directory, std::filesystem::create_directories — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-create_directory-std-filesystem-create_directories"><code>std::filesystem::create_directory, std::filesystem::create_directories</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/create_directory">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">bool create_directory( const std::filesystem::path&amp; p );  // (1) (depuis C++17)
+
+bool create_directory( const std::filesystem::path&amp; p, std::error_code&amp; ec ) noexcept;  // (2) (depuis C++17)
+
+bool create_directory( const std::filesystem::path&amp; p,
+                       const std::filesystem::path&amp; existing_p );  // (3) (depuis C++17)
+
+bool create_directory( const std::filesystem::path&amp; p,
+                       const std::filesystem::path&amp; existing_p,
+                       std::error_code&amp; ec ) noexcept;  // (4) (depuis C++17)
+
+bool create_directories( const std::filesystem::path&amp; p );  // (5) (depuis C++17)
+
+bool create_directories( const std::filesystem::path&amp; p, std::error_code&amp; ec );  // (6) (depuis C++17)
+</code></pre>
+<p>1,2) Crée le répertoire <code>p</code> comme si par POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html"><code>mkdir()</code></a> avec un second argument de <code>static_cast&lt;int&gt;(std::filesystem::perms::all)</code> (le répertoire parent doit déjà exister). Si la fonction échoue parce que <code>p</code> désigne un répertoire existant, aucune erreur n'est signalée. Sinon, en cas d'échec, une erreur est signalée.</p>
+<p>3,4) Identique à <code>(1,2)</code>, sauf que les attributs du nouveau répertoire sont copiés depuis <code>existing_p</code> (qui doit être un répertoire existant). Il dépend du système d'exploitation quels attributs sont copiés : sur les systèmes POSIX, les attributs sont copiés comme si par</p>
+<pre><code class="language-cpp">stat(existing_p.c_str(), &amp;attributes_stat)
+mkdir(p.c_str(), attributes_stat.st_mode)
+</code></pre>
+<p>Sur Windows, aucun attribut de <code>existing_p</code> n'est copié.</p>
+<p>5,6) Exécute <code>(1,2)</code> pour chaque élément de <code>p</code> qui n'existe pas encore. Si <code>p</code> existe déjà, la fonction ne fait rien (cette situation n'est pas considérée comme une erreur).</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — le chemin du nouveau répertoire à créer</li>
+<li><code>existing_p</code> — le chemin d'un répertoire dont copier les attributs</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si un répertoire a été nouvellement créé pour le répertoire désigné par <code>p</code>, <code>false</code> sinon.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<p>1,5) Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</p>
+<p>2,6) Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+<ol start="3">
+<li>
+<p>Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreurs de l'API OS sous-jacente, construite avec <code>p</code> comme premier argument de chemin, <code>existing_p</code> comme second argument de chemin, et le code d'erreur OS comme argument de code d'erreur.</p>
+</li>
+<li>
+<p>Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>La surcharge <code>(3,4)</code> préservant les attributs est implicitement invoquée par <a href="copy.html"><code>copy()</code></a> lors de la copie récursive de répertoires. Son équivalent dans boost.filesystem est <a href="https://www.boost.org/doc/libs/1_57_0/libs/filesystem/doc/reference.html#copy_directory"><code>copy_directory</code></a> (avec l'ordre des arguments inversé).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstdlib&gt;
+#include &lt;filesystem&gt;
+
+int main()
+{
+    std::filesystem::current_path(std::filesystem::temp_directory_path());
+
+    // Utilisation de base
+    std::filesystem::create_directories(&quot;sandbox/1/2/a&quot;);
+    std::filesystem::create_directory(&quot;sandbox/1/2/b&quot;);
+
+    // Le répertoire existe déjà (renvoie false, sans erreur)
+    assert(!std::filesystem::create_directory(&quot;sandbox/1/2/b&quot;));
+
+    // Utilisation avec copie des permissions
+    std::filesystem::permissions(
+        &quot;sandbox/1/2/b&quot;,
+        std::filesystem::perms::others_all,
+        std::filesystem::perm_options::remove
+    );
+    std::filesystem::create_directory(&quot;sandbox/1/2/c&quot;, &quot;sandbox/1/2/b&quot;);
+
+    std::system(&quot;ls -l sandbox/1/2&quot;);
+    std::system(&quot;tree sandbox&quot;);
+    std::filesystem::remove_all(&quot;sandbox&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">drwxr-xr-x 2 user group 4096 Apr 15 09:33 a
+drwxr-x--- 2 user group 4096 Apr 15 09:33 b
+drwxr-x--- 2 user group 4096 Apr 15 09:33 c
+sandbox
+└── 1
+    └── 2
+        ├── a
+        ├── b
+        └── c
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2935">LWG 2935</a></td>
+<td>C++17</td>
+<td>erreur si la cible existe déjà mais n'est pas un répertoire</td>
+<td>pas d'erreur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3014">LWG 3014</a></td>
+<td>C++17</td>
+<td><code>error_code</code> surcharge de <code>create_directories</code> marquée noexcept mais pouvant allouer de la mémoire</td>
+<td>noexcept supprimé</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P1164R1">P1164R1</a></td>
+<td>C++17</td>
+<td>l'échec de création causé par un fichier existant qui n'est pas un répertoire n'est pas une erreur</td>
+<td>rendu une erreur</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="create_symlink.html">create_symlinkcreate_directory_symlink</a> (C++17) (C++17)</strong> — crée un lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="copy.html">copy</a> (C++17)</strong> — copie des fichiers ou des répertoires <em>(fonction)</em></li>
+<li><strong><a href="perms.html">perms</a> (C++17)</strong> — identifie les permissions du système de fichiers <em>(énumération)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

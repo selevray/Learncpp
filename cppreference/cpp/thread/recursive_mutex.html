@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::recursive_mutex — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-recursive_mutex"><code>std::recursive_mutex</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/recursive_mutex">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">class recursive_mutex;  // (depuis C++11)
+</code></pre>
+<p>La classe <code>recursive_mutex</code> est une primitive de synchronisation qui peut être utilisée pour protéger des données partagées contre des accès simultanés de plusieurs threads.</p>
+<p><code>recursive_mutex</code> offre une sémantique de propriété exclusive et récursive :</p>
+<ul>
+<li>Un thread appelant <em>possède</em> un <code>recursive_mutex</code> pendant une période qui commence lorsqu'il appelle avec succès soit <a href="recursive_mutex/lock.html"><code>lock</code></a>, soit <a href="mutex/try_lock.html"><code>try_lock</code></a>. Pendant cette période, le thread peut effectuer des appels supplémentaires à <a href="recursive_mutex/lock.html"><code>lock</code></a> ou <a href="recursive_mutex/try_lock.html"><code>try_lock</code></a>. La période de propriété se termine lorsque le thread effectue un nombre correspondant d'appels à <a href="recursive_mutex/unlock.html"><code>unlock</code></a>.</li>
+<li>Lorsqu'un thread possède un <code>recursive_mutex</code>, tous les autres threads seront bloqués (lors des appels à <a href="recursive_mutex/lock.html"><code>lock</code></a>) ou recevront une valeur de retour <code>false</code> (pour <a href="recursive_mutex/try_lock.html"><code>try_lock</code></a>) s'ils tentent de revendiquer la propriété du <code>recursive_mutex</code>.</li>
+<li>Le nombre maximal de fois qu'un <code>recursive_mutex</code> peut être verrouillé n'est pas spécifié, mais une fois ce nombre atteint, les appels à <a href="recursive_mutex/lock.html"><code>lock</code></a> lèveront <a href="../error/system_error.html"><code>std::system_error</code></a> et les appels à <a href="mutex/try_lock.html"><code>try_lock</code></a> renverront <code>false</code>.</li>
+</ul>
+<p>Le comportement d'un programme est indéfini si un <code>recursive_mutex</code> est détruit alors qu'il est encore possédé par un thread. La classe <code>recursive_mutex</code> satisfait à toutes les exigences de <a href="../named_req/Mutex.html"><em>Mutex</em></a> et de <a href="../named_req/StandardLayoutType.html"><em>StandardLayoutType</em></a>.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li><strong><code>native_handle_type</code> <em>(optional</em>)</strong>* — défini par l'implémentation</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="recursive_mutex/recursive_mutex.html">(constructeur)</a></strong> — construit le mutex <em>(fonction membre publique)</em></li>
+<li><strong><a href="recursive_mutex/~recursive_mutex.html">(destructeur)</a></strong> — détruit le mutex <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — non copiable par affectation <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Verrouillage {#Locking}</strong></p>
+<ul>
+<li><strong><a href="recursive_mutex/lock.html">lock</a></strong> — verrouille le mutex, bloque si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="recursive_mutex/try_lock.html">try_lock</a></strong> — tente de verrouiller le mutex, retourne si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="recursive_mutex/unlock.html">unlock</a></strong> — déverrouille le mutex <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Descripteur natif {#Native_handle}</strong></p>
+<ul>
+<li><strong><a href="recursive_mutex/native_handle.html">native_handle</a></strong> — retourne l'objet de descripteur natif sous-jacent défini par l'implémentation <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>Un cas d'utilisation de <code>recursive_mutex</code> est la protection d'un état partagé dans une classe dont les fonctions membres peuvent s'appeler mutuellement.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;thread&gt;
+
+class X
+{
+    std::recursive_mutex m;
+    std::string shared;
+public:
+    void fun1()
+    {
+        std::lock_guard&lt;std::recursive_mutex&gt; lk(m);
+        shared = &quot;fun1&quot;;
+        std::cout &lt;&lt; &quot;in fun1, shared variable is now &quot; &lt;&lt; shared &lt;&lt; '\n';
+    }
+    void fun2()
+    {
+        std::lock_guard&lt;std::recursive_mutex&gt; lk(m);
+        shared = &quot;fun2&quot;;
+        std::cout &lt;&lt; &quot;in fun2, shared variable is now &quot; &lt;&lt; shared &lt;&lt; '\n';
+        fun1(); // le verrou récursif devient utile ici
+        std::cout &lt;&lt; &quot;back in fun2, shared variable is &quot; &lt;&lt; shared &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    X x;
+    std::thread t1(&amp;X::fun1, &amp;x);
+    std::thread t2(&amp;X::fun2, &amp;x);
+    t1.join();
+    t2.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">in fun1, shared variable is now fun1
+in fun2, shared variable is now fun2
+in fun1, shared variable is now fun1
+back in fun2, shared variable is fun1
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mutex.html">mutex</a> (C++11)</strong> — fournit un mécanisme d'exclusion mutuelle de base <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

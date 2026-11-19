@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déduction des arguments de modèle de classe (CTAD) (depuis C++17) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déduction-des-arguments-de-modèle-de-classe-ctad-depuis-c-17">Déduction des arguments de modèle de classe (CTAD) (depuis C++17)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/ctad">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Pour instancier un <a href="class_template.html">modèle de classe</a>, chaque argument de modèle doit être connu, mais il n'est pas nécessaire de spécifier chaque argument de modèle. Dans les contextes suivants, le compilateur déduit les arguments de modèle à partir du type de l'initialiseur :</p>
+<ul>
+<li>toute <a href="declarations.html">déclaration</a> qui spécifie l'initialisation d'une variable et d'un modèle de variable, dont le type déclaré est le modèle de classe (éventuellement <a href="cv.html">qualifié cv</a>) :</li>
+</ul>
+<pre><code class="language-cpp">std::pair p(2, 4.5);     // se déduit en std::pair&lt;int, double&gt; p(2, 4.5);
+std::tuple t(4, 3, 2.5); // équivalent à auto t = std::make_tuple(4, 3, 2.5);
+std::less l;             // équivalent à std::less&lt;void&gt; l;
+</code></pre>
+<ul>
+<li><a href="new.html">expressions new</a> :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    A(T, T);
+};
+
+auto y = new A{1, 2}; // le type alloué est A&lt;int&gt;
+</code></pre>
+<ul>
+<li>expressions de <a href="explicit_cast.html">conversion de style fonctionnel</a> :</li>
+</ul>
+<pre><code class="language-cpp">auto lck = std::lock_guard(mtx);     // se déduit en std::lock_guard&lt;std::mutex&gt;
+std::copy_n(vi1, 3,
+    std::back_insert_iterator(vi2)); // se déduit en std::back_insert_iterator&lt;T&gt;,
+                                     // où T est le type du conteneur vi2
+std::for_each(vi.begin(), vi.end(),
+    Foo([&amp;](int i) {...}));          // se déduit en Foo&lt;T&gt;,
+                                     // où T est le type unique de la lambda
+</code></pre>
+<blockquote>
+<ul>
+<li>le type d'un <a href="template_parameters.html#Non-type_template_parameter">paramètre de modèle non-type</a> :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct X
+{
+    constexpr X(T) {}
+};
+
+template&lt;X x&gt;
+struct Y {};
+
+Y&lt;0&gt; y; // OK, Y&lt;X&lt;int&gt;(0)&gt;
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Deduction_for_class_templates">Déduction pour les modèles de classe</h2>
+<h3 id="Implicitly-generated_deduction_guides">Guides de déduction générés implicitement</h3>
+<p>Lorsque, dans une conversion de style fonctionnel ou dans la déclaration d'une variable, le spécificateur de type consiste uniquement en le nom d'un modèle de classe primaire <code>C</code> (c'est-à-dire sans liste d'arguments de modèle qui l'accompagne), les candidats à la déduction sont formés comme suit :</p>
+<ul>
+<li>Si <code>C</code> est défini, pour chaque constructeur (ou modèle de constructeur) <code>Ci</code> déclaré dans le modèle primaire nommé, un modèle de fonction fictif <code>Fi</code> est construit, de sorte que toutes les conditions suivantes soient satisfaites :
+<ul>
+<li>Les paramètres de modèle de <code>Fi</code> sont les paramètres de modèle de <code>C</code>, suivis (si <code>Ci</code> est un modèle de constructeur) des paramètres de modèle de <code>Ci</code> (les arguments de modèle par défaut sont également inclus).</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>Les <a href="constraints.html">contraintes associées</a> de <code>Fi</code> sont la conjonction des contraintes associées de <code>C</code> et des contraintes associées de <code>Ci</code>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>
+<p>La <a href="function.html#Parameter_list">liste de paramètres</a> de <code>Fi</code> est la liste de paramètres de <code>Ci</code>.</p>
+</li>
+<li>
+<p>Le type de retour de <code>Fi</code> est <code>C</code> suivi des paramètres de modèle du modèle de classe renfermé dans <code>&lt;&gt;</code>.</p>
+</li>
+<li>
+<p>Si <code>C</code> n'est pas défini ou ne déclare aucun constructeur, un modèle de fonction fictif supplémentaire est ajouté, dérivé comme ci-dessus d'un constructeur hypothétique <code>C()</code>.</p>
+</li>
+<li>
+<p>Dans tous les cas, un modèle de fonction fictif supplémentaire, dérivé comme ci-dessus d'un constructeur hypothétique <code>C(C)</code>, est ajouté ; il est appelé candidat de déduction par copie.</p>
+</li>
+<li>
+<p>Pour chaque <a href="ctad.html#User-defined_deduction_guides">guide de déduction défini par l'utilisateur</a> <code>Gi</code>, une fonction ou un modèle de fonction fictif <code>Fi</code> est construit, de sorte que toutes les conditions suivantes soient satisfaites :</p>
+<ul>
+<li>La liste de paramètres de <code>Fi</code> est la liste de paramètres de <code>Gi</code>.</li>
+<li>Le type de retour de <code>Fi</code> est l'identifiant de modèle simple de <code>Gi</code>.</li>
+<li>Si <code>Gi</code> a des paramètres de modèle (syntaxe <code>(2)</code>), <code>Fi</code> est un modèle de fonction, et sa liste de paramètres de modèle est la liste de paramètres de modèle de <code>Gi</code>. Sinon, <code>Fi</code> est une fonction.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>De plus, si</li>
+<li><code>C</code> est défini et satisfait les exigences d'un <a href="aggregate_initialization.html">type agrégat</a>, en supposant qu'aucune classe de base dépendante n'a de fonctions virtuelles ni de classes de base virtuelles,</li>
+<li>il n'existe aucun guide de déduction défini par l'utilisateur pour <code>C</code>, et</li>
+<li>la variable est initialisée à partir d'une liste non vide d'initialiseurs <code>arg1, arg2, ..., argn</code> (qui peut utiliser un <a href="aggregate_initialization.html#Designated_initializer">initialiseur désigné</a>), un candidat de déduction d'agrégat peut être ajouté. La liste de paramètres du candidat de déduction d'agrégat est produite à partir des types des éléments de l'agrégat, comme suit :</li>
+<li>Soit <code>ei</code> le <a href="aggregate_initialization.html">élément d'agrégat</a> (éventuellement récursif) qui serait initialisé à partir de <code>argi</code>, où</li>
+<li>l'<a href="aggregate_initialization.html#Brace_elision">élision d'accolades</a> n'est pas prise en compte pour tout élément d'agrégat qui possède</li>
+<li>un type non-tableau <a href="dependent_name.html#Dependent_types">dépendant</a>,</li>
+<li>un type tableau dont la borne est <a href="dependent_name.html#Value-dependent_expressions">dépendante de la valeur</a>, ou</li>
+<li>un type tableau dont le type des éléments est dépendant et <code>argi</code> est un <a href="string_literal.html">littéral de chaîne</a></li>
+<li>si <code>C</code> (ou son élément qui est lui-même un agrégat) possède une base qui est une <a href="parameter_pack.html">expansion de paquet</a> :</li>
+<li>si l'expansion de paquet est un élément d'agrégat final, elle est considérée comme correspondant à tous les éléments restants de la liste d'initialiseurs ;</li>
+<li>sinon, le paquet est considéré comme vide.</li>
+<li>S'il n'existe pas un tel <code>ei</code>, le candidat de déduction d'agrégat n'est pas ajouté.</li>
+<li>Sinon, déterminer la liste de paramètres <code>T1, T2, ..., Tn</code> du candidat de déduction d'agrégat comme suit :</li>
+<li>Si <code>ei</code> est un tableau et <code>argi</code> est un <code>braced-init-list</code> ﻿, <code>Ti</code> est une référence rvalue vers le type déclaré de <code>ei</code>.</li>
+<li>Si <code>ei</code> est un tableau et <code>argi</code> est un <a href="string_literal.html">littéral de chaîne</a>, <code>Ti</code> est une référence lvalue vers le type déclaré qualifié const de <code>ei</code>.</li>
+<li>Sinon, <code>Ti</code> est le type déclaré de <code>ei</code>.</li>
+<li>Si un paquet a été ignoré parce qu'il s'agit d'un élément d'agrégat non final, un paramètre paquet supplémentaire de la forme <code>Pj ...</code> est inséré à sa position d'origine dans l'agrégat. (Cela fera généralement échouer la déduction.)</li>
+<li>Si un paquet est un élément d'agrégat final, la séquence finale de paramètres qui lui correspond est remplacée par un seul paramètre de la forme <code>Tn ...</code>.
+Le candidat de déduction d'agrégat est un modèle de fonction fictif, dérivé comme ci-dessus d'un constructeur hypothétique <code>C(T1, T2, ..., Tn)</code>. Pendant la déduction d'arguments de modèle pour le candidat de déduction d'agrégat, le nombre d'éléments d'un paquet de paramètres final n'est déduit du nombre d'arguments de fonction restants que s'il n'a pas été déduit autrement.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    T t;
+
+    struct
+    {
+        long a, b;
+    } u;
+};
+
+A a{1, 2, 3};
+// candidat de déduction d'agrégat :
+//   template&lt;class T&gt;
+//   A&lt;T&gt; F(T, long, long);
+
+template&lt;class... Args&gt;
+struct B : std::tuple&lt;Args...&gt;, Args... {};
+
+B b{std::tuple&lt;std::any, std::string&gt;{}, std::any{}};
+// candidat de déduction d'agrégat :
+//   template&lt;class... Args&gt;
+//   B&lt;Args...&gt; F(std::tuple&lt;Args...&gt;, Args...);
+
+// le type de b est déduit comme B&lt;std::any, std::string&gt;
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La <a href="template_argument_deduction.html">déduction d'arguments de modèle</a> et la <a href="overload_resolution.html">résolution de surcharge</a> sont ensuite effectuées pour l'initialisation d'un objet fictif d'un type de classe hypothétique, dont les signatures des constructeurs correspondent aux guides (à l'exception du type de retour) afin de former un ensemble de surcharges, l'initialiseur étant fourni par le contexte dans lequel la déduction d'arguments de modèle de classe a été effectuée, sauf que la première phase de <a href="overload_resolution.html#List-initialization">l'initialisation par liste</a> (prise en compte des constructeurs à liste d'initialiseurs) est omise si la liste d'initialiseurs consiste en une seule expression de type (éventuellement qualifié cv) <code>U</code>, où <code>U</code> est une spécialisation de <code>C</code> ou une classe dérivée d'une spécialisation de <code>C</code>.</p>
+<p>Ces constructeurs fictifs sont des membres publics du type de classe hypothétique. Ils sont explicit si le guide a été formé à partir d'un constructeur explicit. Si la résolution de surcharge échoue, le programme est mal formé. Sinon, le type de retour de la spécialisation du modèle <code>F</code> sélectionné devient la spécialisation de modèle de classe déduite.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct UniquePtr
+{
+    UniquePtr(T* t);
+};
+
+UniquePtr dp{new auto(2.0)};
+
+// Un constructeur déclaré :
+// C1: UniquePtr(T*);
+
+// Ensemble de guides de déduction générés implicitement :
+
+// F1: template&lt;class T&gt;
+//     UniquePtr&lt;T&gt; F(T* p);
+
+// F2: template&lt;class T&gt;
+//     UniquePtr&lt;T&gt; F(UniquePtr&lt;T&gt;); // candidat de déduction de copie
+
+// classe fictive à initialiser :
+// struct X
+// {
+//     template&lt;class T&gt;
+//     X(T* p);         // issu de F1
+//
+//     template&lt;class T&gt;
+//     X(UniquePtr&lt;T&gt;); // issu de F2
+// };
+
+// initialisation directe d'un objet X
+// avec &quot;new double(2.0)&quot; comme initialiseur
+// sélectionne le constructeur qui correspond au guide F1 avec T = double
+// Pour F1 avec T=double, le type de retour est UniquePtr&lt;double&gt;
+
+// result:
+// UniquePtr&lt;double&gt; dp{new auto(2.0)}
+</code></pre>
+<p>Ou, pour un exemple plus complexe (remarque : « <code>S::N</code> » ne compilerait pas : les qualificateurs de résolution de portée ne sont pas quelque chose qui peut être déduit) :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct S
+{
+    template&lt;class U&gt;
+    struct N
+    {
+        N(T);
+        N(T, U);
+
+        template&lt;class V&gt;
+        N(V, U);
+    };
+};
+
+S&lt;int&gt;::N x{2.0, 1};
+
+// les guides de déduction générés implicitement sont (notez que T est déjà connu comme étant int)
+
+// F1: template&lt;class U&gt;
+//     S&lt;int&gt;::N&lt;U&gt; F(int);
+
+// F2: template&lt;class U&gt;
+//     S&lt;int&gt;::N&lt;U&gt; F(int, U);
+
+// F3: template&lt;class U, class V&gt;
+//     S&lt;int&gt;::N&lt;U&gt; F(V, U);
+
+// F4: template&lt;class U&gt;
+//     S&lt;int&gt;::N&lt;U&gt; F(S&lt;int&gt;::N&lt;U&gt;); (candidat de déduction de copie)
+
+// Résolution de surcharge pour l'initialisation directe par liste avec &quot;{2.0, 1}&quot; comme initialiseur
+// choisit F3 avec U=int et V=double.
+// Le type de retour est S&lt;int&gt;::N&lt;int&gt;
+
+// result:
+// S&lt;int&gt;::N&lt;int&gt; x{2.0, 1};
+</code></pre>
+<h3 id="User-defined_deduction_guides">Guides de déduction définis par l'utilisateur</h3>
+<p>La syntaxe d'un guide de déduction défini par l'utilisateur est la syntaxe d'une déclaration de fonction (modèle) avec un type de retour final, à ceci près qu'elle utilise le nom d'un modèle de classe comme nom de fonction :</p>
+<p>|
+| |
+| <code>explicit</code> ﻿*(facultatif)* <code>template-name</code> <code>(</code> <code>parameter-list</code> <code>)</code> <code>-&gt;</code> <code>simple-template-id</code> <code>requires-clause</code> ﻿*(facultatif)* <code>;</code> | (1) | |
+|
+| <code>template &lt;template-parameter-list</code> ﻿<code>&gt;</code> <code>requires-clause</code> ﻿*(facultatif)* <code>explicit</code> ﻿*(facultatif)* <code>template-name</code> <code>(</code> <code>parameter-list</code> <code>)</code> <code>-&gt;</code> <code>simple-template-id</code> <code>requires-clause</code> ﻿*(facultatif)* <code>;</code> | (2) | |
+|</p>
+<ul>
+<li><code>template-parameter-list</code> — une liste non vide, séparée par des virgules, de <a href="template_parameters.html">paramètres de modèle</a></li>
+<li><code>explicit</code> — un <a href="explicit.html">spécificateur <code>explicit</code></a></li>
+<li><code>template-name</code> — le nom du modèle de classe dont les arguments doivent être déduits</li>
+<li><code>parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> (éventuellement vide)</li>
+<li><code>simple-template-id</code> — un <a href="templates.html#Template_identifiers">identifiant de modèle simple</a></li>
+<li><code>requires-clause</code> — (depuis C++20) une <a href="constraints.html#Requires_clauses">clause <code>requires</code></a></li>
+</ul>
+<blockquote>
+<p>Les paramètres des guides de déduction définis par l'utilisateur ne peuvent pas avoir de types d'espace réservé : la syntaxe de <a href="function_template.html#Abbreviated_function_template">modèle de fonction abrégé</a> n'est pas autorisée.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Les guides de déduction définis par l'utilisateur doivent nommer un modèle de classe et doivent être introduits dans la même portée sémantique que le modèle de classe (qui peut être un espace de noms ou une classe englobante) et, pour un modèle de classe membre, doivent avoir le même accès, mais les guides de déduction ne deviennent pas membres de cette portée.</p>
+<p>Un guide de déduction n'est pas une fonction et n'a pas de corps. Les guides de déduction ne sont pas trouvés par recherche de nom et ne participent pas à la résolution de surcharge, sauf pour la <a href="overload_resolution.html#Best_viable_function">résolution de surcharge parmi d'autres guides de déduction</a> lors de la déduction des arguments de modèle de classe. Les guides de déduction ne peuvent pas être redéclarés dans la même unité de traduction pour le même modèle de classe.</p>
+<pre><code class="language-cpp">// déclaration du modèle
+template&lt;class T&gt;
+struct container
+{
+    container(T t) {}
+
+    template&lt;class Iter&gt;
+    container(Iter beg, Iter end);
+};
+
+// guide de déduction supplémentaire
+template&lt;class Iter&gt;
+container(Iter b, Iter e) -&gt; container&lt;typename std::iterator_traits&lt;Iter&gt;::value_type&gt;;
+
+// uses
+container c(7); // OK : déduit T=int à l'aide d'un guide généré implicitement
+std::vector&lt;double&gt; v = {/* ... */};
+auto d = container(v.begin(), v.end()); // OK : déduit T=double
+container e{5, 6}; // Error: il n'existe pas de std::iterator_traits&lt;int&gt;::value_type
+</code></pre>
+<p>Les constructeurs fictifs utilisés pour la résolution de surcharge (décrits ci-dessus) sont <a href="explicit.html">explicit</a> s'ils correspondent à un guide de déduction généré implicitement à partir d'un constructeur explicit ou à un guide de déduction défini par l'utilisateur déclaré explicit. Comme toujours, ces constructeurs sont ignorés dans un contexte d'initialisation par copie :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    explicit A(const T&amp;, ...) noexcept; // #1
+    A(T&amp;&amp;, ...);                        // #2
+};
+
+int i;
+A a1 = {i, i}; // error: impossible de déduire depuis une référence rvalue dans #2,
+               // et #1 est explicit, et n'est pas pris en compte dans l'initialisation par copie.
+A a2{i, i};    // OK, #1 se déduit en A&lt;int&gt; et initialise également
+A a3{0, i};    // OK, #2 se déduit en A&lt;int&gt; et initialise également
+A a4 = {0, i}; // OK, #2 se déduit en A&lt;int&gt; et initialise également
+
+template&lt;class T&gt;
+A(const T&amp;, const T&amp;) -&gt; A&lt;T&amp;&gt;; // #3
+
+template&lt;class T&gt;
+explicit A(T&amp;&amp;, T&amp;&amp;)  -&gt; A&lt;T&gt;;  // #4
+
+A a5 = {0, 1}; // error: #3 se déduit en A&lt;int&amp;&gt;
+               // #1 &amp; #2 aboutissent à des constructeurs aux mêmes paramètres.
+A a6{0, 1};    // OK, #4 se déduit en A&lt;int&gt; et #2 initialise
+A a7 = {0, i}; // error: #3 se déduit en A&lt;int&amp;&gt;
+A a8{0, i};    // error: #3 se déduit en A&lt;int&amp;&gt;
+</code></pre>
+<p>Utiliser un typedef membre ou un modèle d'alias dans la liste de paramètres d'un constructeur ou d'un modèle de constructeur ne rend pas, à lui seul, le paramètre correspondant du guide généré implicitement un contexte non déductible.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct B
+{
+    template&lt;class U&gt;
+    using TA = T;
+
+    template&lt;class U&gt;
+    B(U, TA&lt;U&gt;); // #1
+};
+
+// Le guide de déduction implicite généré à partir de #1 équivaut à
+//     template&lt;class T, class U&gt;
+//     B(U, T) -&gt; B&lt;T&gt;;
+// plutôt que
+//     template&lt;class T, class U&gt;
+//     B(U, typename B&lt;T&gt;::template TA&lt;U&gt;) -&gt; B&lt;T&gt;;
+// qui n'aurait pas pu être déduit
+
+B b{(int*)0, (char*)0}; // OK, déduit B&lt;char*&gt;
+</code></pre>
+<blockquote>
+<h3 id="Deduction_for_alias_templates">Déduction pour les modèles d'alias</h3>
+<p>Lorsqu'une conversion de style fonctionnel ou la déclaration d'une variable utilise le nom d'un modèle d'alias <code>A</code> sans liste d'arguments comme spécificateur de type, où <code>A</code> est défini comme alias de <code>B&lt;ArgList&gt;</code>, la portée de <code>B</code> est non dépendante, et <code>B</code> est soit un modèle de classe, soit un modèle d'alias défini de manière similaire, la déduction procède de la même manière que pour les modèles de classe, à ceci près que les guides sont alors générés à partir des guides de <code>B</code>, comme suit :</p>
+<ul>
+<li>Pour chaque guide <code>f</code> de <code>B</code>, déduire les arguments de modèle du type de retour de <code>f</code> à partir de <code>B&lt;ArgList&gt;</code> en utilisant la <a href="template_argument_deduction.html">déduction d'arguments de modèle</a>, à ceci près que la déduction n'échoue pas si certains arguments ne sont pas déduits. Si la déduction échoue pour une autre raison, poursuivre avec un ensemble vide d'arguments de modèle déduits.</li>
+<li>Substituer le résultat de la déduction ci-dessus dans <code>f</code> ; si la substitution échoue, aucun guide n'est produit ; sinon, soit <code>g</code> le résultat de la substitution, un guide <code>f'</code> est formé, tel que</li>
+<li>Les types de paramètres et le type de retour de <code>f'</code> sont les mêmes que ceux de <code>g</code></li>
+<li>Si <code>f</code> est un modèle, <code>f'</code> est un modèle de fonction dont la liste de paramètres de modèle se compose de tous les paramètres de modèle de <code>A</code> (y compris leurs arguments de modèle par défaut) qui apparaissent dans les déductions ci-dessus ou (récursivement) dans leurs arguments de modèle par défaut, suivis des paramètres de modèle de <code>f</code> qui n'ont pas été déduits (y compris leurs arguments de modèle par défaut) ; sinon (<code>f</code> n'est pas un modèle), <code>f'</code> est une fonction</li>
+<li>Les <a href="constraints.html">contraintes</a> associées de <code>f'</code> sont la conjonction des contraintes associées de <code>g</code> et d'une contrainte satisfaite si et seulement si les arguments de <code>A</code> sont déductibles à partir du type de résultat</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+class unique_ptr
+{
+    /* ... */
+};
+
+template&lt;class T&gt;
+class unique_ptr&lt;T[]&gt;
+{
+    /* ... */
+};
+
+template&lt;class T&gt;
+unique_ptr(T*) -&gt; unique_ptr&lt;T&gt;;   // #1
+
+template&lt;class T&gt;
+unique_ptr(T*) -&gt; unique_ptr&lt;T[]&gt;; // #2
+
+template&lt;class T&gt;
+concept NonArray = !std::is_array_v&lt;T&gt;;
+
+template&lt;NonArray A&gt;
+using unique_ptr_nonarray = unique_ptr&lt;A&gt;;
+
+template&lt;class A&gt;
+using unique_ptr_array = unique_ptr&lt;A[]&gt;;
+
+// guide généré pour unique_ptr_nonarray :
+
+// depuis #1 (la déduction de unique_ptr&lt;T&gt; à partir de unique_ptr&lt;A&gt; donne T = A) :
+// template&lt;class A&gt;
+//     requires(argument_of_unique_ptr_nonarray_is_deducible_from&lt;unique_ptr&lt;A&gt;&gt;)
+// auto F(A*) -&gt; unique_ptr&lt;A&gt;;
+
+// depuis #2 (la déduction de unique_ptr&lt;T[]&gt; à partir de unique_ptr&lt;A&gt; ne donne rien) :
+// template&lt;class T&gt;
+//     requires(argument_of_unique_ptr_nonarray_is_deducible_from&lt;unique_ptr&lt;T[]&gt;&gt;)
+// auto F(T*) -&gt; unique_ptr&lt;T[]&gt;;
+
+// où argument_of_unique_ptr_nonarray_is_deducible_from peut être défini comme
+
+// template&lt;class&gt;
+// class AA;
+
+// template&lt;NonArray A&gt;
+// class AA&lt;unique_ptr_nonarray&lt;A&gt;&gt; {};
+
+// template&lt;class T&gt;
+// concept argument_of_unique_ptr_nonarray_is_deducible_from =
+//     requires { sizeof(AA&lt;T&gt;); };
+
+// guide généré pour unique_ptr_array :
+
+// depuis #1 (la déduction de unique_ptr&lt;T&gt; à partir de unique_ptr&lt;A[]&gt; donne T = A[]) :
+// template&lt;class A&gt;
+//     requires(argument_of_unique_ptr_array_is_deducible_from&lt;unique_ptr&lt;A[]&gt;&gt;)
+// auto F(A(*)[]) -&gt; unique_ptr&lt;A[]&gt;;
+
+// depuis #2 (la déduction de unique_ptr&lt;T[]&gt; à partir de unique_ptr&lt;A[]&gt; donne T = A) :
+// template&lt;class A&gt;
+//     requires(argument_of_unique_ptr_array_is_deducible_from&lt;unique_ptr&lt;A[]&gt;&gt;)
+// auto F(A*) -&gt; unique_ptr&lt;A[]&gt;;
+
+// où argument_of_unique_ptr_array_is_deducible_from peut être défini comme
+
+// template&lt;class&gt;
+// class BB;
+
+// template&lt;class A&gt;
+// class BB&lt;unique_ptr_array&lt;A&gt;&gt; {};
+
+// template&lt;class T&gt;
+// concept argument_of_unique_ptr_array_is_deducible_from =
+//     requires { sizeof(BB&lt;T&gt;); };
+
+// Use:
+unique_ptr_nonarray p(new int); // déduit en unique_ptr&lt;int&gt;
+// le guide de déduction généré à partir de #1 renvoie unique_ptr&lt;int&gt;
+// le guide de déduction généré à partir de #2 renvoie unique_ptr&lt;int[]&gt;, qui est ignoré car
+//   argument_of_unique_ptr_nonarray_is_deducible_from&lt;unique_ptr&lt;int[]&gt;&gt; n'est pas satisfait
+
+unique_ptr_array q(new int[42]); // déduit en unique_ptr&lt;int[]&gt;
+// le guide de déduction généré à partir de #1 échoue (impossible de déduire A dans A(*)[] à partir de new int[42])
+// le guide de déduction généré à partir de #2 renvoie unique_ptr&lt;int[]&gt;
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>La déduction d'arguments de modèle de classe n'est effectuée que si aucune liste d'arguments de modèle n'est présente. Si une liste d'arguments de modèle est spécifiée, la déduction n'a pas lieu.</p>
+<pre><code class="language-cpp">std::tuple t1(1, 2, 3);                // OK : déduction
+std::tuple&lt;int, int, int&gt; t2(1, 2, 3); // OK : tous les arguments sont fournis
+
+std::tuple&lt;&gt; t3(1, 2, 3);    // Error : aucun constructeur correspondant dans tuple&lt;&gt;.
+                             //        Aucune déduction effectuée.
+std::tuple&lt;int&gt; t4(1, 2, 3); // Erreur
+</code></pre>
+<blockquote>
+<p>La déduction d'arguments de modèle de classe pour les agrégats nécessite généralement des guides de déduction définis par l'utilisateur :</p>
+<pre><code class="language-cpp">template&lt;class A, class B&gt;
+struct Agg
+{
+    A a;
+    B b;
+};
+// les guides implicitement générés sont formés à partir des constructeurs par défaut, de copie et de déplacement
+
+template&lt;class A, class B&gt;
+Agg(A a, B b) -&gt; Agg&lt;A, B&gt;;
+// ^ Ce guide de déduction peut être généré implicitement en C++20
+
+Agg agg{1, 2.0}; // déduit en Agg&lt;int, double&gt; à partir du guide défini par l'utilisateur
+
+template&lt;class... T&gt;
+array(T&amp;&amp;... t) -&gt; array&lt;std::common_type_t&lt;T...&gt;, sizeof...(T)&gt;;
+auto a = array{1, 2, 5u}; // déduit en array&lt;unsigned, 3&gt; à partir du guide défini par l'utilisateur
+</code></pre>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<p>Les guides de déduction définis par l'utilisateur n'ont pas besoin d'être des modèles :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct S
+{
+    S(T);
+};
+S(char const*) -&gt; S&lt;std::string&gt;;
+
+S s{&quot;hello&quot;}; // déduit en S&lt;std::string&gt;
+</code></pre>
+<p>Dans la portée d'un modèle de classe, le nom du modèle sans liste de paramètres est un nom de classe injecté, et peut être utilisé comme type. Dans ce cas, la déduction d'arguments de classe n'a pas lieu et les paramètres de modèle doivent être fournis explicitement :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct X
+{
+    X(T) {}
+
+    template&lt;class Iter&gt;
+    X(Iter b, Iter e) {}
+
+    template&lt;class Iter&gt;
+    auto foo(Iter b, Iter e)
+    {
+        return X(b, e); // pas de déduction : X est le X&lt;T&gt; courant
+    }
+
+    template&lt;class Iter&gt;
+    auto bar(Iter b, Iter e)
+    {
+        return X&lt;typename Iter::value_type&gt;(b, e); // doit préciser ce que nous voulons
+    }
+
+    auto baz()
+    {
+        return ::X(0); // pas le nom de classe injecté ; déduit en X&lt;int&gt;
+    }
+};
+</code></pre>
+<p>Lors de la <a href="overload_resolution.html#Best_viable_function">résolution de surcharge</a>, l'ordre partiel prime sur le fait qu'un modèle de fonction soit généré à partir d'un guide de déduction défini par l'utilisateur : si le modèle de fonction généré à partir du constructeur est plus spécialisé que celui généré à partir du guide de déduction défini par l'utilisateur, celui généré à partir du constructeur est choisi. Comme le candidat de déduction par copie est généralement plus spécialisé qu'un constructeur d'encapsulation, cette règle signifie que la copie est généralement préférée à l'encapsulation.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    A(T, int*);     // #1
+    A(A&lt;T&gt;&amp;, int*); // #2
+
+    enum { value };
+};
+
+template&lt;class T, int N = T::value&gt;
+A(T&amp;&amp;, int*) -&gt; A&lt;T&gt;; //#3
+
+A a{1, 0}; // utilise #1 pour déduire A&lt;int&gt; et s'initialise avec #1
+A b{a, 0}; // utilise #2 (plus spécialisé que #3) pour déduire A&lt;int&gt; et s'initialise avec #2
+</code></pre>
+<p>Lorsque les départageurs précédents, y compris l'ordre partiel, n'ont pas permis de distinguer deux modèles de fonction candidats, les règles suivantes s'appliquent :</p>
+<ul>
+<li>Un modèle de fonction généré à partir d'un guide de déduction défini par l'utilisateur est préféré à un modèle généré implicitement à partir d'un constructeur ou d'un modèle de constructeur.</li>
+<li>Le candidat de déduction par copie est préféré à tous les autres modèles de fonction générés implicitement à partir d'un constructeur ou d'un modèle de constructeur.</li>
+<li>Un modèle de fonction généré implicitement à partir d'un constructeur non template est préféré à un modèle de fonction généré implicitement à partir d'un modèle de constructeur.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    using value_type = T;
+
+    A(value_type); // #1
+    A(const A&amp;);   // #2
+    A(T, T, int);  // #3
+
+    template&lt;class U&gt;
+    A(int, T, U);  // #4
+};                 // #5, le candidat de déduction de copie A(A);
+
+A x(1, 2, 3); // utilise #3, généré à partir d'un constructeur non template
+
+template&lt;class T&gt;
+A(T) -&gt; A&lt;T&gt;; // #6, moins spécialisé que #5
+
+A a(42); // utilise #6 pour déduire A&lt;int&gt; et #1 pour l'initialisation
+A b = a; // utilise #5 pour déduire A&lt;int&gt; et #2 pour l'initialisation
+
+template&lt;class T&gt;
+A(A&lt;T&gt;) -&gt; A&lt;A&lt;T&gt;&gt;; // #7, aussi spécialisé que #5
+
+A b2 = a; // utilise #7 pour déduire A&lt;A&lt;int&gt;&gt; et #1 pour l'initialisation
+</code></pre>
+<p>Une référence rvalue vers un paramètre de modèle non qualifié cv n'est pas une <a href="template_argument_deduction.html">référence de transfert</a> si ce paramètre est un paramètre de modèle de classe :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    template&lt;class U&gt;
+    A(T&amp;&amp;, U&amp;&amp;, int*); // #1 : T&amp;&amp; n'est pas une référence de transfert
+                       //     U&amp;&amp; est une référence de transfert
+
+    A(T&amp;&amp;, int*);      // #2 : T&amp;&amp; n'est pas une référence de transfert
+};
+
+template&lt;class T&gt;
+A(T&amp;&amp;, int*) -&gt; A&lt;T&gt;; // #3 : T&amp;&amp; est une référence de transfert
+
+int i, *ip;
+A a{i, 0, ip};  // erreur, impossible de déduire à partir de #1
+A a0{0, 0, ip}; // utilise #1 pour déduire A&lt;int&gt; et #1 pour l'initialisation
+A a2{i, ip};    // utilise #3 pour déduire A&lt;int&amp;&gt; et #2 pour l'initialisation
+</code></pre>
+<p>Lors de l'initialisation à partir d'un seul argument d'un type qui est une spécialisation du modèle de classe en question, la copie par déduction est généralement préférée à l'enveloppement par défaut :</p>
+<pre><code class="language-cpp">std::tuple t1{1};  //std::tuple&lt;int&gt;
+std::tuple t2{t1}; //std::tuple&lt;int&gt;, et non std::tuple&lt;std::tuple&lt;int&gt;&gt;
+
+std::vector v1{1, 2};   // std::vector&lt;int&gt;
+std::vector v2{v1};     // std::vector&lt;int&gt;, et non std::vector&lt;std::vector&lt;int&gt;&gt; (P0702R1)
+std::vector v3{v1, v2}; // std::vector&lt;std::vector&lt;int&gt;&gt;
+</code></pre>
+<p>En dehors du cas particulier de la copie et de l'enveloppement, la forte préférence pour les constructeurs à liste d'initialiseurs dans l'initialisation par liste reste intacte.</p>
+<pre><code class="language-cpp">std::vector v1{1, 2}; // std::vector&lt;int&gt;
+
+std::vector v2(v1.begin(), v1.end()); // std::vector&lt;int&gt;
+std::vector v3{v1.begin(), v1.end()}; // std::vector&lt;std::vector&lt;int&gt;::iterator&gt;
+</code></pre>
+<p>Avant l'introduction de la déduction des arguments de modèle de classe, une approche courante pour éviter de spécifier explicitement les arguments consiste à utiliser un modèle de fonction :</p>
+<pre><code class="language-cpp">std::tuple p1{1, 1.0};             //std::tuple&lt;int, double&gt;, par déduction
+auto p2 = std::make_tuple(1, 1.0); //std::tuple&lt;int, double&gt;, avant C++17
+</code></pre>
+<p><strong>Macro de test de fonctionnalité</strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_deduction_guides"><code>__cpp_deduction_guides</code></a> | <a href="../compiler_support/17.html#cpp_deduction_guides_201703L"><code>201703L</code></a> | <em>(C++17)</em> | Déduction des arguments de modèle pour les modèles de classe</p>
+<p><a href="../compiler_support/20.html#cpp_deduction_guides_201907L"><code>201907L</code></a> | <em>(C++20)</em> | CTAD pour les agrégats et les alias</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2376.html">CWG 2376</a></td>
+<td>C++17</td>
+<td>La CTAD serait effectuée même si le type de la variable déclarée est différent du modèle de classe dont les arguments doivent être déduits</td>
+<td>ne pas effectuer la CTAD dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2628.html">CWG 2628</a></td>
+<td>C++20</td>
+<td>les guides de déduction implicites ne propageaient pas les contraintes</td>
+<td>propager les contraintes</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2697.html">CWG 2697</a></td>
+<td>C++20</td>
+<td>il n'était pas clair si la syntaxe abrégée de modèle de fonction est autorisée dans les guides de déduction définis par l'utilisateur</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2707.html">CWG 2707</a></td>
+<td>C++20</td>
+<td>les guides de déduction ne pouvaient pas avoir de clause <code>requires</code> finale</td>
+<td>ils le peuvent</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2714.html">CWG 2714</a></td>
+<td>C++17</td>
+<td>les guides de déduction implicites ne prenaient pas en compte les arguments par défaut des constructeurs</td>
+<td>les prendre en compte</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2913.html">CWG 2913</a></td>
+<td>C++20</td>
+<td>la résolution de <a href="https://cplusplus.github.io/CWG/issues/2707.html">CWG issue 2707</a> a rendu la syntaxe du guide de déduction incohérente avec la syntaxe de déclaration de fonction</td>
+<td>syntaxe ajustée</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0702R1">P0702R1</a></td>
+<td>C++17</td>
+<td>un constructeur à liste d'initialisation peut éclipser le candidat de déduction de copie, entraînant un emballage</td>
+<td>phase de liste d'initialisation ignorée lors de la copie</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

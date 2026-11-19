@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Élision de copie — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="élision-de-copie">Élision de copie</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/copy_elision">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Lorsque certains critères sont remplis, la création d'un objet de classe à partir d'un objet source de même type (sans tenir compte de la qualification cv) peut être omise, même si le constructeur sélectionné et/ou le destructeur de l'objet ont des effets de bord. Cette élision de création d'objet est appelée <em>élision de copie</em> ﻿.</p>
+<h2 id="Explanation">Explication</h2>
+<p>L'élision de copie est permise dans les circonstances suivantes (qui peuvent être combinées pour éliminer plusieurs copies) :</p>
+<ul>
+<li>Dans une <a href="return.html">instruction <code>return</code></a> d'une fonction à type de retour de classe, lorsque l'opérande est le nom d'un objet <code>obj</code> non volatile à <a href="storage_duration.html#Automatic_storage_duration">durée de stockage automatique</a> (autre qu'un paramètre de fonction ou un paramètre de <a href="catch.html">gestionnaire</a>), l'<a href="copy_initialization.html">initialisation par copie</a> de l'objet résultat peut être omise en construisant <code>obj</code> directement dans l'objet résultat de l'appel de fonction. Cette variante d'élision de copie est connue sous le nom d'<em>optimisation de la valeur de retour nommée</em> (NRVO).</li>
+</ul>
+<blockquote>
+<ul>
+<li>Lorsqu'un objet de classe <code>target</code> est initialisé par copie avec un objet temporaire <code>obj</code> qui n'a pas été lié à une référence, l'initialisation par copie peut être omise en construisant <code>obj</code> directement dans <code>target</code>. Cette variante d'élision de copie est connue sous le nom d'<em>optimisation de la valeur de retour non nommée</em> (URVO). Depuis C++17, URVO est obligatoire et n'est plus considérée comme une forme d'élision de copie ; voir ci-dessous.</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Dans une <a href="throw.html">expression <code>throw</code></a>, lorsque l'opérande est le nom d'un objet <code>obj</code> non volatile à durée de stockage automatique (autre qu'un paramètre de fonction ou un paramètre de gestionnaire) appartenant à une <a href="scope.html">portée</a> qui ne contient pas le <a href="try.html">bloc <code>try</code></a> englobant le plus interne (s'il existe), l'initialisation par copie de l'objet d'exception peut être omise en construisant <code>obj</code> directement dans l'objet d'exception.</li>
+<li>Dans un <a href="catch.html">gestionnaire</a>, l'initialisation par copie de l'argument du gestionnaire peut être omise en traitant le paramètre du gestionnaire comme un alias de l'objet d'exception si la signification du programme reste inchangée, à l'exception de l'exécution des constructeurs et destructeurs de l'argument du gestionnaire.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Dans les <a href="coroutines.html">coroutines</a>, une copie d'un paramètre de coroutine peut être omise. Dans ce cas, les références à cette copie sont remplacées par des références au paramètre correspondant si la signification du programme reste inchangée, à l'exception de l'exécution d'un constructeur et d'un destructeur de l'objet copie du paramètre.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Lorsqu'une élision de copie se produit, l'implémentation traite la source et la cible de l'initialisation omise comme simplement deux manières différentes de désigner le même objet.</p>
+<blockquote>
+<p>La destruction a lieu au plus tard des deux instants où les deux objets auraient été détruits sans l'optimisation.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Si le premier paramètre du constructeur sélectionné est une référence rvalue vers le type de l'objet, la destruction de cet objet a lieu au moment où la cible aurait été détruite. Sinon, la destruction a lieu au plus tard des deux instants où les deux objets auraient été détruits sans l'optimisation.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<h3 id="Prvalue_semantics_.28.22guaranteed_copy_elision.22.29">Sémantique des prvalues (« élision de copie garantie »)</h3>
+<p>Depuis C++17, une prvalue n'est matérialisée que lorsque c'est nécessaire, puis elle est construite directement dans le stockage de sa destination finale. Cela signifie parfois que, même lorsque la syntaxe du langage suggère visuellement une copie/un déplacement (par exemple <a href="copy_initialization.html">initialisation par copie</a>), aucune copie ni aucun déplacement n'est effectué, ce qui implique que le type n'a pas besoin de disposer d'un constructeur de copie/déplacement accessible. Parmi les exemples figurent :</p>
+<ul>
+<li>Initialisation de l'objet renvoyé dans une <a href="return.html">instruction return</a>, lorsque l'opérande est une <a href="value_category.html">prvalue</a> du même type de classe (sans tenir compte de la <a href="cv.html">qualification cv</a>) que le type de retour de la fonction :</li>
+</ul>
+<pre><code class="language-cpp">T f()
+{
+    return U(); // construit un temporaire de type U,
+                // puis initialise le T renvoyé à partir du temporaire
+}
+T g()
+{
+    return T(); // construit directement le T renvoyé ; pas de déplacement
+}
+</code></pre>
+<p>Le destructeur du type renvoyé doit être accessible au point de l'instruction return et ne pas être supprimé, bien qu'aucun objet T ne soit détruit.</p>
+<ul>
+<li>Lors de l'initialisation d'un objet, lorsque l'expression d'initialisation est une <a href="value_category.html">prvalue</a> du même type de classe (sans tenir compte de la <a href="cv.html">qualification cv</a>) que le type de la variable :</li>
+</ul>
+<pre><code class="language-cpp">T x = T(T(f())); // x est initialisé directement par le résultat de f() ; pas de déplacement
+</code></pre>
+<p>Ceci ne peut s'appliquer que lorsque l'objet initialisé est connu pour ne pas être un sous-objet potentiellement qui se chevauche :</p>
+<pre><code class="language-cpp">struct C { /* ... */ };
+C f();
+
+struct D;
+D g();
+
+struct D : C
+{
+    D() : C(f()) {}    // pas d'élision lors de l'initialisation d'un sous-objet de classe de base
+    D(int) : D(g()) {} // pas d'élision car l'objet D en cours d'initialisation pourrait
+                       // être un sous-objet de classe de base d'une autre classe
+};
+</code></pre>
+<p>Remarque : cette règle ne spécifie pas une optimisation, et la norme ne la décrit pas formellement comme une « élision de copie » (car rien n'est élidé). En revanche, la spécification du langage C++17 concernant les <a href="value_category.html">prvalues</a> et les <a href="implicit_cast.html#Temporary_materialization">temporaires</a> diffère fondamentalement de celle des révisions antérieures de C++ : il n'existe plus de temporaire à partir duquel copier ou déplacer. Une autre façon de décrire le fonctionnement de C++17 est le « passage de valeur non matérialisée » ou « matérialisation différée des temporaires » : les prvalues sont renvoyées et utilisées sans jamais matérialiser de temporaire.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>L'élision de copie est [la seule forme d'optimisation autorisée <em>(jusqu'à C++14)</em> | l'une des deux formes d'optimisation autorisées, avec <a href="new.html#Allocation">l'élision et l'extension d'allocation</a>, <em>(depuis C++14)</em>] pouvant modifier les effets de bord observables. Comme certains compilateurs n'effectuent pas l'élision de copie dans toutes les situations où elle est autorisée (par exemple en mode débogage), les programmes qui reposent sur les effets de bord des constructeurs de copie/déplacement et des destructeurs ne sont pas portables.</p>
+<blockquote>
+<p>Dans une <code>return</code> instruction ou une expression <code>throw</code>, si le compilateur ne peut pas effectuer l'élision de copie alors que les conditions en sont remplies, ou le seraient si la source n'était pas un paramètre de fonction, [le compilateur tentera d'utiliser le constructeur de déplacement même si l'opérande source est désigné par une lvalue <em>(jusqu'à C++23)</em> | l'opérande source sera traité comme une rvalue <em>(depuis C++23)</em>] ; voir <a href="return.html#Notes">l'instruction <code>return</code></a> pour plus de détails.</p>
+<p>Dans une <a href="constant_expression.html">expression constante</a> et une <a href="constant_initialization.html">initialisation constante</a>, l'élision de copie n'est jamais effectuée.</p>
+<pre><code class="language-cpp">struct A
+{
+    void* p;
+    constexpr A() : p(this) {}
+    A(const A&amp;); // Désactiver la copiabilité triviale
+};
+
+constexpr A a;  // OK : a.p pointe vers a
+
+constexpr A f()
+{
+    A x;
+    return x;
+}
+constexpr A b = f(); // erreur : b.p serait pendant et pointerait vers le x à l'intérieur de f
+
+constexpr A c = A(); // (jusqu'à C++17) erreur : c.p serait pendant et pointerait vers un temporaire
+                     // (depuis C++17) OK : c.p pointe vers c ; aucun temporaire n'est impliqué
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_guaranteed_copy_elision"><code>__cpp_guaranteed_copy_elision</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_guaranteed_copy_elision_201606L"><code>201606L</code></a></td>
+<td><em>(C++17)</em></td>
+<td>Élision de copie garantie grâce à des <a href="value_category.html">catégories de valeurs</a> simplifiées</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Noisy
+{
+    Noisy() { std::cout &lt;&lt; &quot;constructed at &quot; &lt;&lt; this &lt;&lt; '\n'; }
+    Noisy(const Noisy&amp;) { std::cout &lt;&lt; &quot;copy-constructed\n&quot;; }
+    Noisy(Noisy&amp;&amp;) { std::cout &lt;&lt; &quot;move-constructed\n&quot;; }
+    ~Noisy() { std::cout &lt;&lt; &quot;destructed at &quot; &lt;&lt; this &lt;&lt; '\n'; }
+};
+
+Noisy f()
+{
+    Noisy v = Noisy(); // (jusqu'à C++17) élision de copie initialisant v à partir d'un temporaire ;
+                       //               le constructeur de déplacement peut être appelé
+                       // (depuis C++17) « élision de copie garantie »
+    return v; // élision de copie (« NRVO ») de v vers l'objet résultat ;
+              // le constructeur de déplacement peut être appelé
+}
+
+void g(Noisy arg)
+{
+    std::cout &lt;&lt; &quot;&amp;arg = &quot; &lt;&lt; &amp;arg &lt;&lt; '\n';
+}
+
+int main()
+{
+    Noisy v = f(); // (jusqu'à C++17) élision de copie initialisant v à partir du résultat de f()
+                   // (depuis C++17) « élision de copie garantie »
+
+    std::cout &lt;&lt; &quot;&amp;v = &quot; &lt;&lt; &amp;v &lt;&lt; '\n';
+
+    g(f()); // (jusqu'à C++17) élision de copie initialisant arg à partir du résultat de f()
+            // (depuis C++17) « élision de copie garantie »
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">constructed at 0x7fffd635fd4e
+&amp;v = 0x7fffd635fd4e
+constructed at 0x7fffd635fd4f
+&amp;arg = 0x7fffd635fd4f
+destructed at 0x7fffd635fd4f
+destructed at 0x7fffd635fd4e
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1967.html">CWG 1967</a></td>
+<td>C++11</td>
+<td>lorsque l'élision de copie est effectuée à l'aide d'un constructeur de déplacement, la durée de vie de l'objet déplacé était encore prise en compte</td>
+<td>non prise en compte</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2426.html">CWG 2426</a></td>
+<td>C++17</td>
+<td>le destructeur n'était pas requis lors du renvoi d'une prvalue</td>
+<td>le destructeur est potentiellement invoqué</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2930.html">CWG 2930</a></td>
+<td>C++98</td>
+<td>seules les opérations de copie(/déplacement) pourraient être élidées, mais un constructeur autre que de copie(/déplacement) peut être sélectionné par initialisation par copie</td>
+<td>élimine toute construction d'objet des initialisations par copie liées</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="copy_initialization.html">initialisation par copie</a></li>
+<li><a href="copy_constructor.html">constructeur de copie</a></li>
+<li><a href="move_constructor.html">constructeur de déplacement</a></li>
+</ul>
+
+</main>
+</body>
+</html>

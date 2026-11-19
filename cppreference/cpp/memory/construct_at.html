@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::construct_at — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-construct_at"><code>std::construct_at</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/construct_at">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class... Args &gt;
+constexpr T* construct_at( T* location, Args&amp;&amp;... args );  // (depuis C++20)
+</code></pre>
+<p>Crée un objet <code>T</code> initialisé avec les arguments de <code>args</code> à l'adresse donnée <code>location</code>.</p>
+<p>Équivalent à <code>if constexpr (std::is_array_v&lt;T&gt;) return ::new (voidify ﻿(*location)) T[1](); else return ::new (voidify ﻿(*location)) T(std::forward&lt;Args&gt;(args)...);</code>, sauf que <code>construct_at</code> peut être utilisé dans l'évaluation d'<a href="../language/constant_expression.html">expressions constantes</a> <em>(jusqu'à C++26)</em>.</p>
+<p>Lorsque <code>construct_at</code> est appelé dans l'évaluation d'une expression constante <code>expr</code>, <code>location</code> doit pointer soit vers un stockage obtenu par <code>std::allocator&lt;T&gt;::allocate</code>, soit vers un objet dont la durée de vie a commencé durant l'évaluation de <code>expr</code>.</p>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li><code>std::is_unbounded_array_v&lt;T&gt;</code> is <code>false</code>.</li>
+<li><code>::new(std::declval&lt;void*&gt;()) T(std::declval&lt;Args&gt;()...)</code> est bien formé lorsqu'il est traité comme une <a href="../language/expressions.html#Potentially-evaluated_expressions">opérande non évaluée</a>.</li>
+</ul>
+<p>Si <code>std::is_array_v&lt;T&gt;</code> vaut <code>true</code> et que <code>sizeof...(Args)</code> est non nul, le programme est mal formé.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>location</code> — pointeur vers le stockage non initialisé sur lequel un objet <code>T</code> sera construit</li>
+<li><code>args...</code> — arguments utilisés pour l'initialisation</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>location</code></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;bit&gt;
+#include &lt;memory&gt;
+
+class S
+{
+    int x_;
+    float y_;
+    double z_;
+public:
+    constexpr S(int x, float y, double z) : x_{x}, y_{y}, z_{z} {}
+    [[nodiscard(&quot;no side-effects!&quot;)]]
+    constexpr bool operator==(const S&amp;) const noexcept = default;
+};
+
+consteval bool test()
+{
+    alignas(S) unsigned char storage[sizeof(S)]{};
+    S uninitialized = std::bit_cast&lt;S&gt;(storage);
+    std::destroy_at(&amp;uninitialized);
+    S* ptr = std::construct_at(std::addressof(uninitialized), 42, 2.71f, 3.14);
+    const bool res{*ptr == S{42, 2.71f, 3.14}};
+    std::destroy_at(ptr);
+    return res;
+}
+static_assert(test());
+
+int main() {}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3436">LWG 3436</a></td>
+<td>C++20</td>
+<td><code>construct_at</code> ne pouvait pas créer d'objets de types tableau</td>
+<td>peut initialiser par valeur des tableaux bornés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3870">LWG 3870</a></td>
+<td>C++20</td>
+<td><code>construct_at</code> pouvait créer des objets de types qualifiés cv</td>
+<td>seuls les types non qualifiés cv sont autorisés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="allocator/allocate.html">allocate</a></strong> — alloue un stockage non initialisé <em>(fonction membre publique de <code>std::allocator&lt;T&gt;</code>)</em></li>
+<li><strong><a href="allocator_traits/construct.html">construct</a> [statique]</strong> — construit un objet dans le stockage alloué <em>(modèle de fonction)</em></li>
+<li><strong><a href="destroy_at.html">destroy_at</a> (C++17)</strong> — détruit un objet à une adresse donnée <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/construct_at.html">ranges::construct_at</a> (C++20)</strong> — crée un objet à une adresse donnée <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

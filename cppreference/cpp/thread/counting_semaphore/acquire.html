@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::counting_semaphore&lt;LeastMaxValue&gt;::acquire — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/counting_semaphore.html">std::counting_semaphore, std::binary_semaphore</a></nav>
+<h1 id="std-counting_semaphore-leastmaxvalue-acquire"><code>std::counting_semaphore&lt;LeastMaxValue&gt;::acquire</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/counting_semaphore/acquire">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void acquire();  // (depuis C++20)
+</code></pre>
+<p>Décrémente atomiquement le compteur interne de <code>1</code> s'il est supérieur à <code>0</code> ; sinon bloque jusqu'à ce qu'il soit supérieur à <code>0</code> et puisse décrémenter avec succès le compteur interne.</p>
+<h2 id="Preconditions">Préconditions</h2>
+<p>(aucune)</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever <a href="../../error/system_error.html"><code>std::system_error</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple illustre le travail concurrent de plusieurs threads aléatoires lorsque au plus N (N est la valeur <em>desired</em> du sémaphore) des fonctions de thread sont actives, tandis que les autres peuvent attendre sur le sémaphore.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;chrono&gt;
+#include &lt;cstddef&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;new&gt;
+#include &lt;random&gt;
+#include &lt;semaphore&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+using namespace std::literals;
+
+constexpr std::size_t max_threads{10U}; // modifiez et observez l'effet
+constexpr std::ptrdiff_t max_sema_threads{3}; // {1} pour un sémaphore binaire
+std::counting_semaphore semaphore{max_sema_threads};
+constexpr auto time_tick{10ms};
+
+unsigned rnd()
+{
+    static std::uniform_int_distribution&lt;unsigned&gt; distribution{2U, 9U}; // [delays]
+    static std::random_device engine;
+    static std::mt19937 noise{engine()};
+    return distribution(noise);
+}
+
+class alignas(std::hardware_destructive_interference_size) Guide
+{
+    inline static std::mutex cout_mutex;
+    inline static std::chrono::time_point&lt;std::chrono::high_resolution_clock&gt; started_at;
+    unsigned delay{rnd()}, occupy{rnd()}, wait_on_sema{};
+
+public:
+    static void start_time() { started_at = std::chrono::high_resolution_clock::now(); }
+
+    void initial_delay() { std::this_thread::sleep_for(delay * time_tick); }
+
+    void occupy_sema()
+    {
+        wait_on_sema =
+            static_cast&lt;unsigned&gt;(std::chrono::duration_cast&lt;std::chrono::milliseconds&gt;(
+                std::chrono::high_resolution_clock::now() - started_at -
+                delay * time_tick).count() / time_tick.count());
+        std::this_thread::sleep_for(occupy * time_tick);
+    }
+
+    void visualize(unsigned id, unsigned x_scale = 2) const
+    {
+        auto cout_n = [=](auto str, unsigned n)
+        {
+            for (n *= x_scale; n-- &gt; 0; std::cout &lt;&lt; str)
+                ;
+        };
+        std::lock_guard lk{cout_mutex};
+        std::cout &lt;&lt; '#' &lt;&lt; std::setw(2) &lt;&lt; id &lt;&lt; ' ';
+        cout_n(&quot;░&quot;, delay);
+        cout_n(&quot;▒&quot;, wait_on_sema);
+        cout_n(&quot;█&quot;, occupy);
+        std::cout &lt;&lt; '\n';
+    }
+
+    static void show_info()
+    {
+        std::cout &lt;&lt; &quot;\nThreads: &quot; &lt;&lt; max_threads &lt;&lt; &quot;, Throughput: &quot; &lt;&lt; max_sema_threads
+                  &lt;&lt; &quot; │ Legend: initial delay ░░ │ wait state ▒▒ │ sema occupation ██ \n&quot;
+                  &lt;&lt; std::endl;
+    }
+};
+
+std::array&lt;Guide, max_threads&gt; guides;
+
+void workerThread(unsigned id)
+{
+    guides[id].initial_delay(); // simule un travail avant l'acquisition du sémaphore
+    semaphore.acquire();        // attend qu'un emplacement libre du sémaphore soit disponible
+    guides[id].occupy_sema();   // simule un travail pendant que le sémaphore est acquis
+    semaphore.release();
+    guides[id].visualize(id);
+}
+
+int main()
+{
+    std::vector&lt;std::jthread&gt; threads;
+    threads.reserve(max_threads);
+
+    Guide::show_info();
+    Guide::start_time();
+
+    for (auto id{0U}; id != max_threads; ++id)
+        threads.push_back(std::jthread(workerThread, id));
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Default case: max_threads{10U}, max_sema_threads{3}
+
+Threads: 10, Throughput: 3 │ Legend: initial delay ░░ │ wait state ▒▒ │ sema occupation ██
+
+# 1 ░░░░██████
+# 2 ░░░░████████
+# 5 ░░░░░░██████████
+# 8 ░░░░░░░░░░░░████████████
+# 9 ░░░░░░░░░░░░██████████████
+# 7 ░░░░░░░░░░░░▒▒▒▒████████████████
+# 4 ░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒████████
+# 6 ░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒██████████████████
+# 3 ░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒████████████
+# 0 ░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒██████████████
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+&quot;Enough for everyone&quot; case (no wait states!): max_threads{10U}, max_sema_threads{10}
+
+Threads: 10, Throughput: 10 │ Legend: initial delay ░░ │ wait state ▒▒ │ sema occupation ██
+
+# 4 ░░░░██████
+# 5 ░░░░░░████
+# 3 ░░░░██████████
+# 1 ░░░░██████████
+# 8 ░░░░░░░░████████████
+# 6 ░░░░░░░░░░░░░░░░██████
+# 7 ░░░░░░░░░░░░░░░░██████
+# 9 ░░░░░░░░░░░░░░░░██████████
+# 0 ░░░░░░░░░░░░██████████████████
+# 2 ░░░░░░░░░░░░░░░░░░████████████
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Binary semaphore case: max_threads{10U}, max_sema_threads{1}
+
+Threads: 10, Throughput: 1 │ Legend: initial delay ░░ │ wait state ▒▒ │ sema occupation ██
+
+# 6 ░░░░████
+# 5 ░░░░▒▒▒▒████
+# 4 ░░░░░░░░░░▒▒██████████
+# 7 ░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒████████████████
+# 2 ░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒██████
+# 3 ░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒████████████████
+# 0 ░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒████████████
+# 1 ░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒████████
+# 8 ░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒██████
+# 9 ░░░░░░░░░░░░░░░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒██████████████
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="release.html">release</a></strong> — incrémente le compteur interne et débloque les acquéreurs <em>(fonction membre publique)</em></li>
+<li><strong><a href="try_acquire.html">try_acquire</a></strong> — tente de décrémenter le compteur interne sans bloquer <em>(fonction membre publique)</em></li>
+<li><strong><a href="try_acquire_for.html">try_acquire_for</a></strong> — tente de décrémenter le compteur interne, en bloquant pendant au plus une durée <em>(fonction membre publique)</em></li>
+<li><strong><a href="try_acquire_until.html">try_acquire_until</a></strong> — tente de décrémenter le compteur interne, en bloquant jusqu'à un instant donné <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

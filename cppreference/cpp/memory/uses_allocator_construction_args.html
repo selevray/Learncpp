@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::uses_allocator_construction_args — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-uses_allocator_construction_args"><code>std::uses_allocator_construction_args</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/uses_allocator_construction_args">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<p><strong>T n'est pas une spécialisation de std::pair</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class Alloc, class... Args &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    Args&amp;&amp;... args ) noexcept;  // (1) (depuis C++20)
+</code></pre>
+<p><strong>T est une spécialisation de std::pair</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class Alloc, class Tuple1, class Tuple2 &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    std::piecewise_construct_t, Tuple1&amp;&amp; x, Tuple2&amp;&amp; y ) noexcept;  // (2) (depuis C++20)
+
+template&lt; class T, class Alloc &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc ) noexcept;  // (3) (depuis C++20)
+
+template&lt; class T, class Alloc, class U, class V &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    U&amp;&amp; u, V&amp;&amp; v ) noexcept;  // (4) (depuis C++20)
+
+template&lt; class T, class Alloc, class U, class V &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    std::pair&lt;U, V&gt;&amp; pr ) noexcept;  // (5) (depuis C++23)
+
+template&lt; class T, class Alloc, class U, class V &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    const std::pair&lt;U, V&gt;&amp; pr ) noexcept;  // (6) (depuis C++20)
+
+template&lt; class T, class Alloc, class U, class V &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    std::pair&lt;U, V&gt;&amp;&amp; pr ) noexcept;  // (7) (depuis C++20)
+
+template&lt; class T, class Alloc, class U, class V &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    const std::pair&lt;U, V&gt;&amp;&amp; pr ) noexcept;  // (8) (depuis C++23)
+
+template&lt; class T, class Alloc, class NonPair &gt;
+constexpr auto uses_allocator_construction_args( const Alloc&amp; alloc,
+    NonPair&amp;&amp; non_pair ) noexcept;  // (9) (depuis C++20)
+</code></pre>
+<p>Prépare la liste d'arguments nécessaire à la création d'un objet du type donné <code>T</code> au moyen de la <a href="uses_allocator.html">construction avec allocateur</a>.</p>
+<ol>
+<li>Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> n'est pas une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>. Renvoie <a href="../utility/tuple.html"><code>std::tuple</code></a> déterminé comme suit :</li>
+</ol>
+<ul>
+<li>Si <code>std::uses_allocator_v&lt;T, Alloc&gt;</code> est <code>false</code> et <code>std::is_constructible_v&lt;T, Args...&gt;</code> est <code>true</code>, renvoie <code>std::forward_as_tuple(std::forward&lt;Args&gt;(args)...)</code>.</li>
+<li>Sinon, si <code>std::uses_allocator_v&lt;T, Alloc&gt;</code> est <code>true</code> et <code>std::is_constructible_v&lt;T, std::allocator_arg_t, const Alloc&amp;, Args...&gt;</code> est <code>true</code>, renvoie<br />
+<code>std::tuple&lt;std::allocator_arg_t, const Alloc&amp;, Args&amp;&amp;...&gt;(std::allocator_arg, alloc, std::forward&lt;Args&gt;(args)...)</code>.</li>
+<li>Sinon, si <code>std::uses_allocator_v&lt;T, Alloc&gt;</code> est <code>true</code> et <code>std::is_constructible_v&lt;T, Args..., const Alloc&amp;&gt;</code> est <code>true</code>, renvoie <code>std::forward_as_tuple(std::forward&lt;Args&gt;(args)..., alloc)</code>.</li>
+<li>Sinon, le programme est mal formé.</li>
+</ul>
+<ol start="2">
+<li>Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> est une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>. Pour <code>T</code> qui vaut <code>std::pair&lt;T1, T2&gt;</code>, équivalent à</li>
+</ol>
+<pre><code class="language-cpp">return std::make_tuple(std::piecewise_construct,
+    std::apply([&amp;alloc](auto&amp;&amp;... args1)
+        {
+            return std::uses_allocator_construction_args&lt;T1&gt;(alloc,
+                       std::forward&lt;decltype(args1)&gt;(args1)...);
+        }, std::forward&lt;Tuple1&gt;(x)
+    ),
+    std::apply([&amp;alloc](auto&amp;&amp;... args2)
+        {
+            return std::uses_allocator_construction_args&lt;T2&gt;(alloc,
+                       std::forward&lt;decltype(args2)&gt;(args2)...);
+        }, std::forward&lt;Tuple2&gt;(y)
+    )
+);
+</code></pre>
+<ol start="3">
+<li>Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> est une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>. Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">return std::uses_allocator_construction_args&lt;T&gt;(alloc,
+    std::piecewise_construct, std::tuple&lt;&gt;{}, std::tuple&lt;&gt;{}
+);
+</code></pre>
+<ol start="4">
+<li>Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> est une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>. Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">return std::uses_allocator_construction_args&lt;T&gt;(alloc,
+    std::piecewise_construct,
+    std::forward_as_tuple(std::forward&lt;U&gt;(u)),
+    std::forward_as_tuple(std::forward&lt;V&gt;(v))
+);
+</code></pre>
+<p>5,6) Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> est une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>. Équivalent à</p>
+<pre><code class="language-cpp">return std::uses_allocator_construction_args&lt;T&gt;(alloc,
+    std::piecewise_construct,
+    std::forward_as_tuple(pr.first),
+    std::forward_as_tuple(pr.second)
+);
+</code></pre>
+<p>7,8) Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> est une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>. Équivalent à</p>
+<pre><code class="language-cpp">return std::uses_allocator_construction_args&lt;T&gt;(alloc,
+    std::piecewise_construct,
+    std::forward_as_tuple(std::get&lt;0&gt;(std::move(pr))),
+    std::forward_as_tuple(std::get&lt;1&gt;(std::move(pr)))
+);
+</code></pre>
+<ol start="9">
+<li>Cette surcharge participe à la résolution de surcharge seulement si <code>T</code> est une spécialisation de <a href="../utility/pair.html"><code>std::pair</code></a>, et étant donné le modèle de fonction à fin d'exposition</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class A, class B&gt;
+void /*deduce-as-pair*/(const std::pair&lt;A, B&gt;&amp;);
+</code></pre>
+<p>, <code>/*deduce-as-pair*/(non_pair)</code> est mal formé lorsqu'il est considéré comme opérande non évalué.<br />
+Soit la classe à fin d'exposition <code>pair-constructor</code> définie comme</p>
+<pre><code class="language-cpp">class /*pair-constructor*/
+{
+    const Alloc&amp; alloc_; // exposition uniquement
+    NonPair&amp;     u_;     // exposition uniquement
+
+    constexpr reconstruct(const std::remove_cv&lt;T&gt;&amp; p) const // exposition uniquement
+    {
+        return std::make_obj_using_allocator&lt;std::remove_cv&lt;T&gt;&gt;(alloc_, p);
+    }
+
+    constexpr reconstruct(std::remove_cv&lt;T&gt;&amp;&amp; p) const // exposition uniquement
+    {
+        return std::make_obj_using_allocator&lt;std::remove_cv&lt;T&gt;&gt;(alloc_, std::move(p));
+    }
+
+public:
+    constexpr operator std::remove_cv&lt;T&gt;() const
+    {
+        return reconstruct(std::forward&lt;NonPair&gt;(u_));
+    }
+};
+</code></pre>
+<p>Cette surcharge équivaut à <code>return std::make_tuple(pair_construction);</code>, où <code>pair_construction</code> est une valeur de type <code>pair-constructor</code> dont les membres <code>alloc_</code> et <code>u_</code> valent respectivement <code>alloc</code> et <code>non_pair</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>alloc</code> — l'allocateur à utiliser</li>
+<li><code>args</code> — les arguments à passer au constructeur de <code>T</code></li>
+<li><code>x</code> — tuple des arguments à passer aux constructeurs du membre de données <code>first</code> de <code>T</code></li>
+<li><code>y</code> — tuple des arguments à passer aux constructeurs du membre de données <code>second</code> de <code>T</code></li>
+<li><code>u</code> — argument unique à passer au constructeur du membre de données <code>first</code> de <code>T</code></li>
+<li><code>v</code> — argument unique à passer au constructeur du membre de données <code>second</code> de <code>T</code></li>
+<li><code>pr</code> — une paire dont le membre de données <code>first</code> sera passé au constructeur du membre de données <code>first</code> de <code>T</code>, et dont le membre de données <code>second</code> sera passé au constructeur du membre de données <code>second</code> de <code>T</code></li>
+<li><code>non_pair</code> — argument unique à convertir en <a href="../utility/pair.html"><code>std::pair</code></a> pour une construction ultérieure</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><a href="../utility/tuple.html"><code>std::tuple</code></a> d'arguments adaptés à passer au constructeur de <code>T</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les surcharges <code>(2-9)</code> assurent la propagation de l'allocateur dans <a href="../utility/pair.html"><code>std::pair</code></a>, qui ne prend en charge ni la convention d'allocateur en tête ni celle en queue (contrairement, par exemple, à <a href="../utility/tuple.html"><code>std::tuple</code></a>, qui utilise la convention d'allocateur en tête).</p>
+<p>Lorsqu'elle est utilisée dans la construction avec allocateur, la fonction de conversion de <code>pair-constructor</code> convertit d'abord l'argument fourni en <a href="../utility/pair.html"><code>std::pair</code></a>, puis construit le résultat à partir de ce <a href="../utility/pair.html"><code>std::pair</code></a> par construction avec allocateur.</p>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3525">LWG 3525</a></td>
+<td>C++20</td>
+<td>aucune surcharge ne pouvait gérer les types non-<code>pair</code> convertibles en <code>pair</code></td>
+<td>surcharge de reconstruction ajoutée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="uses_allocator.html">uses_allocator</a> (C++11)</strong> — vérifie si le type spécifié prend en charge la construction avec uses-allocator <em>(modèle de classe)</em></li>
+<li><strong><a href="make_obj_using_allocator.html">make_obj_using_allocator</a> (C++20)</strong> — crée un objet du type donné au moyen d'une construction avec utilisation d'allocateur <em>(modèle de fonction)</em></li>
+<li><strong><a href="uninitialized_construct_using_allocator.html">uninitialized_construct_using_allocator</a> (C++20)</strong> — crée un objet du type donné à l'emplacement mémoire spécifié au moyen d'une construction avec utilisation d'allocateur <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

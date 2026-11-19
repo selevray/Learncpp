@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Littéraux composés (depuis C99) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="littéraux-composés-depuis-c99">Littéraux composés (depuis C99)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/compound_literal">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Construit un objet sans nom du type spécifié (qui peut être une struct, une union, voire un type tableau) directement en place.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>(</code> <code>storage-class-specifiers</code> ﻿*(facultatif)* (depuis C23) <code>type</code> <code>)</code> <code>{</code> <code>initializer-list</code> <code>}</code> | | (depuis C99) |
+|
+| <code>(</code> <code>storage-class-specifiers</code> ﻿*(facultatif)* (depuis C23) <code>type</code> <code>)</code> <code>{</code> <code>initializer-list</code> <code>,</code> <code>}</code> | | (depuis C99) |
+|
+| <code>(</code> <code>storage-class-specifiers</code> ﻿*(facultatif)* <code>type</code> <code>)</code> <code>{</code> <code>}</code> | | (depuis C23) |
+|</p>
+<p>where</p>
+<ul>
+<li><code>storage-class-specifiers</code> — (depuis C23) Une liste de <a href="storage_duration.html">spécificateurs de classe de stockage</a> ne pouvant contenir que <code>constexpr</code>, <code>static</code>, <code>register</code> ou <code>thread_local</code></li>
+<li><code>type</code> — un <a href="compatible_type.html#Type_names">nom de type</a> désignant tout type objet complet ou un tableau de taille inconnue, mais pas un VLA</li>
+<li><code>initializer-list</code> — liste d'initialiseurs adaptée à l'<a href="initialization.html">initialisation</a> d'un objet de <code>type</code></li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>L'expression de littéral composé construit un objet sans nom du type spécifié par <code>type</code> et l'initialise comme indiqué par <code>initializer-list</code>. Les <a href="initialization.html">initialiseurs désignés</a> sont acceptés.</p>
+<p>Le type du littéral composé est <code>type</code> (sauf lorsque <code>type</code> est un tableau de taille inconnue ; sa taille est déduite de <code>initializer-list</code> comme dans l'<a href="array_initialization.html">initialisation de tableau</a>).</p>
+<p>La catégorie de valeur d'un littéral composé est <a href="value_category.html">lvalue</a> (son adresse peut être prise).</p>
+<blockquote>
+<p>L'objet sans nom auquel le littéral composé est évalué a une <a href="storage_duration.html">durée de stockage</a> statique si le littéral composé apparaît dans la portée de fichier, et une <a href="storage_duration.html">durée de stockage</a> automatique s'il apparaît dans la portée de bloc (auquel cas la <a href="lifetime.html">durée de vie</a> de l'objet se termine à la fin du bloc englobant).</p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>Si le littéral composé est évalué en dehors du corps d'une fonction et en dehors de toute liste de paramètres, il est associé à la portée de fichier ; sinon, il est associé au bloc englobant. Selon cette association, les spécificateurs de classe de stockage (éventuellement vides), le nom de type et la liste d'initialiseurs, s'il y en a, doivent être des spécificateurs valides pour une définition d'objet en portée de fichier ou de bloc respectivement, de la forme suivante,</p>
+<pre><code class="language-text">   storage-class-specifiers typeof(type) ID = { initializer-list };
+</code></pre>
+<p>où ID est un identifiant unique pour l'ensemble du programme. Un littéral composé fournit un objet sans nom dont la valeur, le type, la durée de stockage et les autres propriétés sont ceux qui seraient donnés par la syntaxe de définition ci-dessus ; si la durée de stockage est automatique, la durée de vie de l'instance de l'objet sans nom correspond à l'exécution courante du bloc englobant. Si les spécificateurs de classe de stockage contiennent d'autres spécificateurs que <code>constexpr</code>, <code>static</code>, <code>register</code> ou <code>thread_local</code>, le comportement est indéfini.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Les littéraux composés de types tableaux de caractères ou de caractères larges qualifiés const peuvent partager le stockage avec les <a href="string_literal.html">littéraux de chaîne</a>.</p>
+<pre><code class="language-c">(const char []){&quot;abc&quot;} == &quot;abc&quot; // peut valoir 1 ou 0, non spécifié
+</code></pre>
+<p>Chaque littéral composé ne crée qu'un seul objet dans sa portée :</p>
+<pre><code class="language-c">int f (void)
+{
+    struct s {int i;} *p = 0, *q;
+    int j = 0;
+again:
+    q = p, p = &amp;((struct s){ j++ });
+    if (j &lt; 2) goto again; // remarque ; si une boucle était utilisée, la portée se terminerait ici,
+                           // ce qui mettrait fin à la durée de vie du littéral composé
+                           // laissant p comme pointeur pendant
+    return p == q &amp;&amp; q-&gt;i == 1; // retourne toujours 1
+}
+</code></pre>
+<p>Les littéraux composés étant sans nom, un littéral composé ne peut pas se référencer lui-même (une struct nommée peut contenir un pointeur vers elle-même)</p>
+<p>Bien que la syntaxe d'un littéral composé ressemble à celle d'une <a href="cast.html">conversion</a>, la distinction importante est qu'une conversion est une expression non lvalue, alors qu'un littéral composé est une lvalue.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int *p = (int[]){2, 4}; // crée un tableau statique sans nom de type int[2]
+                        // initialise le tableau avec les valeurs {2, 4}
+                        // crée le pointeur p pointant vers le premier élément de
+                        // le tableau
+const float *pc = (const float []){1e0, 1e1, 1e2}; // littéral composé en lecture seule
+
+struct point {double x,y;};
+
+int main(void)
+{
+    int n = 2, *p = &amp;n;
+    p = (int [2]){*p}; // crée un tableau automatique sans nom de type int[2]
+                       // initialise le premier élément avec la valeur auparavant
+                       // contenue dans *p
+                       // initialise le second élément à zéro
+                       // stocke l'adresse du premier élément dans p
+
+    void drawline1(struct point from, struct point to);
+    void drawline2(struct point *from, struct point *to);
+    drawline1(
+        (struct point){.x=1, .y=1},  // crée deux structures à portée de bloc et
+        (struct point){.x=3, .y=4}); // appelle drawline1, en leur passant par valeur
+    drawline2(
+        &amp;(struct point){.x=1, .y=1},  // crée deux structures à portée de bloc et
+        &amp;(struct point){.x=3, .y=4}); // appelle drawline2, en leur passant leurs adresses
+}
+
+void drawline1(struct point from, struct point to)
+{
+    printf(&quot;drawline1: `from` @ %p {%.2f, %.2f}, `to` @ %p {%.2f, %.2f}\n&quot;,
+        (void*)&amp;from, from.x, from.y, (void*)&amp;to, to.x, to.y);
+}
+
+void drawline2(struct point *from, struct point *to)
+{
+    printf(&quot;drawline2: `from` @ %p {%.2f, %.2f}, `to` @ %p {%.2f, %.2f}\n&quot;,
+        (void*)from, from-&gt;x, from-&gt;y, (void*)to, to-&gt;x, to-&gt;y);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">drawline1: `from` @ 0x7ffd24facea0 {1.00, 1.00}, `to` @ 0x7ffd24face90 {3.00, 4.00}
+drawline2: `from` @ 0x7ffd24facec0 {1.00, 1.00}, `to` @ 0x7ffd24faced0 {3.00, 4.00}
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.5.2.5 Littéraux composés (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.5.2.5 Littéraux composés (p : 61-63)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.5.2.5 Littéraux composés (p : 85-87)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.5.2.5 Littéraux composés (p : 75-77)</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

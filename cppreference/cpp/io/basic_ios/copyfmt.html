@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_ios&lt;CharT,Traits&gt;::copyfmt — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_ios.html">std::basic_ios</a></nav>
+<h1 id="std-basic_ios-chart-traits-copyfmt"><code>std::basic_ios&lt;CharT,Traits&gt;::copyfmt</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_ios/copyfmt">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">basic_ios&amp; copyfmt( const basic_ios&amp; other );
+</code></pre>
+<p>Si <code>other</code> désigne le même objet que <code>*this</code>, n'a aucun effet. Sinon, copie l'état du flux <code>other</code> dans <code>*this</code>. Ceci se fait dans la séquence suivante :</p>
+<ol>
+<li>
+<p>Appelle chaque fonction de rappel enregistrée par <a href="../ios_base/register_callback.html"><code>register_callback()</code></a> en passant <a href="../ios_base/event.html"><code>erase_event</code></a> comme paramètre.</p>
+</li>
+<li>
+<p>Copie tous les objets membres de <code>other</code> vers <code>*this</code> à l'exception de <a href="rdstate.html"><code>rdstate()</code></a>, du masque d'exceptions et de <a href="rdbuf.html"><code>rdbuf()</code></a>. En particulier, effectue des copies de la locale, des indicateurs de formatage, du contenu des tableaux <a href="../ios_base/iword.html"><code>std::ios_base::iword</code></a> et <a href="../ios_base/pword.html"><code>std::ios_base::pword</code></a> (mais pas des pointeurs <code>iword</code> et <code>pword</code> eux-mêmes), des fonctions de rappel et du flux lié.</p>
+</li>
+<li>
+<p>Appelle chaque fonction de rappel enregistrée par <a href="../ios_base/register_callback.html"><code>register_callback()</code></a> en passant <a href="../ios_base/event.html"><code>copyfmt_event</code></a> comme paramètre.</p>
+</li>
+<li>
+<p>Copie le masque d'exceptions de <code>other</code> vers <code>*this</code> comme si on appelait <code>exceptions(other.exceptions())</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — un autre flux à utiliser comme source</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Notes">Notes</h2>
+<p>Le second parcours des fonctions de rappel peut servir à effectuer une copie profonde des objets définis par l'utilisateur pointés par les pointeurs de <a href="../ios_base/pword.html"><code>std::ios_base::pword</code></a>.</p>
+<p><code>copyfmt()</code> peut être utilisé pour sauvegarder et restaurer l'état d'un flux. Boost fournit à cette fin une bibliothèque <a href="https://www.boost.org/doc/libs/release/libs/io/doc/ios_state.html">I/O state savers</a> plus fine.</p>
+<h2 id="Example">Exemple</h2>
+<p>Fait en sorte que l'objet <a href="../basic_ofstream.html"><code>std::ofstream</code></a> « out » se comporte exactement comme <a href="../cout.html"><code>std::cout</code></a>, y compris le formatage, <a href="tie.html"><code>tie()</code></a> vers <a href="../cin.html"><code>std::cin</code></a>, etc.</p>
+<pre><code class="language-cpp">#include &lt;bitset&gt;
+#include &lt;climits&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::ofstream out;
+
+    out.copyfmt(std::cout); // copie tout sauf rdstate et rdbuf
+    out.clear(std::cout.rdstate()); // copie rdstate
+    out.basic_ios&lt;char&gt;::rdbuf(std::cout.rdbuf()); // partage le tampon
+
+    out &lt;&lt; &quot;Hello, world\n&quot;;
+
+    auto bin = [](std::ios_base::fmtflags f)
+    {
+        return std::bitset&lt;sizeof(std::ios_base::fmtflags) * CHAR_BIT&gt;
+            { static_cast&lt;unsigned long long&gt;(f) };
+    };
+    std::ofstream out2;
+    std::cout &lt;&lt; &quot;1) out2.flags(): &quot; &lt;&lt; bin(out2.flags()) &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;2) cout.flags(): &quot; &lt;&lt; bin(std::cout.flags()) &lt;&lt; '\n';
+    std::cout.setf(std::ios::hex | std::ios::fixed | std::ios::boolalpha);
+    std::cout &lt;&lt; &quot;3) cout.flags(): &quot; &lt;&lt; bin(std::cout.flags()) &lt;&lt; '\n';
+    out2.copyfmt(std::cout); // copie tout sauf rdstate et rdbuf
+    std::cout &lt;&lt; &quot;4) out2.flags(): &quot; &lt;&lt; bin(out2.flags()) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Hello, world
+1) out2.flags(): 00000000000000000001000000000010
+2) cout.flags(): 00000000000000000001000000000010
+3) cout.flags(): 00000000000000000001000000001111
+4) out2.flags(): 00000000000000000001000000001111
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue256">LWG 256</a></td>
+<td>C++98</td>
+<td>l'étape 3 appelait les fonctions de rappel enregistrées avec le type d'événement <code>copy_event</code>, qui n'est pas défini</td>
+<td>corrigé en <a href="../ios_base/event.html"><code>copyfmt_event</code></a></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue292">LWG 292</a></td>
+<td>C++98</td>
+<td>si <code>other</code> désigne le même objet que <code>*this</code>, les objets membres étaient quand même copiés et les fonctions de rappel enregistrées étaient quand même appelées</td>
+<td>ne fait rien dans ce cas</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

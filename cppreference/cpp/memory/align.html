@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::align — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-align"><code>std::align</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/align">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">void* align( std::size_t alignment,
+             std::size_t size,
+             void*&amp; ptr,
+             std::size_t&amp; space );  // (depuis C++11)
+</code></pre>
+<p>Étant donné un pointeur <code>ptr</code> vers un tampon de taille <code>space</code>, renvoie un pointeur aligné selon l'<code>alignment</code> spécifié pour <code>size</code> octets et diminue l'argument <code>space</code> du nombre d'octets utilisés pour l'alignement. La première adresse alignée est renvoyée.</p>
+<p>La fonction ne modifie le pointeur que s'il est possible d'insérer dans le tampon le nombre d'octets voulu aligné selon l'alignement donné. Si le tampon est trop petit, la fonction ne fait rien et renvoie <code>nullptr</code>.</p>
+<p>Le comportement est indéfini si <code>alignment</code> n'est pas une puissance de deux.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>alignment</code> — l'alignement souhaité</li>
+<li><code>size</code> — la taille du stockage à aligner</li>
+<li><code>ptr</code> — pointeur vers un stockage contigu (un tampon) d'au moins <code>space</code> octets</li>
+<li><code>space</code> — la taille du tampon dans lequel opérer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur ajustée de <code>ptr</code>, ou la valeur de pointeur nul si l'espace fourni est trop petit.</p>
+<h2 id="Example">Exemple</h2>
+<p>Démontre l'utilisation de <code>std::align</code> pour placer en mémoire des objets de types différents.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+template&lt;std::size_t N&gt;
+struct MyAllocator
+{
+    char data[N];
+    void* p;
+    std::size_t sz;
+    MyAllocator() : p(data), sz(N) {}
+    template&lt;typename T&gt;
+    T* aligned_alloc(std::size_t a = alignof(T))
+    {
+        if (std::align(a, sizeof(T), p, sz))
+        {
+            T* result = reinterpret_cast&lt;T*&gt;(p);
+            p = (char*)p + sizeof(T);
+            sz -= sizeof(T);
+            return result;
+        }
+        return nullptr;
+    }
+};
+
+int main()
+{
+    MyAllocator&lt;64&gt; a;
+    std::cout &lt;&lt; &quot;allocated a.data at &quot; &lt;&lt; (void*)a.data
+              &lt;&lt; &quot; (&quot; &lt;&lt; sizeof a.data &lt;&lt; &quot; bytes)\n&quot;;
+
+    // allouer un char
+    if (char* p = a.aligned_alloc&lt;char&gt;())
+    {
+        *p = 'a';
+        std::cout &lt;&lt; &quot;allocated a char at &quot; &lt;&lt; (void*)p &lt;&lt; '\n';
+    }
+
+    // allouer un int
+    if (int* p = a.aligned_alloc&lt;int&gt;())
+    {
+        *p = 1;
+        std::cout &lt;&lt; &quot;allocated an int at &quot; &lt;&lt; (void*)p &lt;&lt; '\n';
+    }
+
+    // allouer un int, aligné sur une frontière de 32 octets
+    if (int* p = a.aligned_alloc&lt;int&gt;(32))
+    {
+        *p = 2;
+        std::cout &lt;&lt; &quot;allocated an int at &quot; &lt;&lt; (void*)p &lt;&lt; &quot; (32 byte alignment)\n&quot;;
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">allocated a.data at 0x7ffd0b331f80 (64 bytes)
+allocated a char at 0x7ffd0b331f80
+allocated an int at 0x7ffd0b331f84
+allocated an int at 0x7ffd0b331fa0 (32 byte alignment)
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2377">LWG 2377</a></td>
+<td>C++11</td>
+<td><code>alignment</code> doit être une valeur d'alignement fondamentale ou un alignement étendu pris en charge</td>
+<td>doivent seulement être une puissance de deux</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><code>alignof</code> (C++11)</strong> — interroge les exigences d'alignement d'un type <em>(opérateur)</em></li>
+<li><strong><code>alignas</code> (C++11)</strong> — spécifie que le stockage de la variable doit être aligné sur une quantité spécifique <em>(spécificateur)</em></li>
+<li><strong><a href="../types/aligned_storage.html">aligned_storage</a> (since C++11) (deprecated in C++23)</strong> — définit le type adapté à être utilisé comme stockage non initialisé pour des types de taille donnée <em>(modèle de classe)</em></li>
+<li><strong><a href="assume_aligned.html">assume_aligned</a> (C++20)</strong> — informe le compilateur qu'un pointeur est aligné <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

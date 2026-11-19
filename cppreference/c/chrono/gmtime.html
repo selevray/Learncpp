@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gmtime, gmtime_r, gmtime_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/chrono.html">Utilitaires de date et d&#x27;heure</a></nav>
+<h1 id="gmtime-gmtime_r-gmtime_s">gmtime, gmtime_r, gmtime_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/chrono/gmtime">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;time.h&gt;</strong></p>
+<pre><code class="language-c">struct tm* gmtime  ( const time_t* timer );  // (1)
+
+struct tm* gmtime_r( const time_t* timer, struct tm* buf );  // (2) (depuis C23)
+
+struct tm* gmtime_s( const time_t* restrict timer, struct tm* restrict buf );  // (3) (depuis C11)
+</code></pre>
+<ol>
+<li>
+<p>Convertit le temps écoulé depuis l'époque (une valeur <a href="time_t.html"><code>time_t</code></a> pointée par <code>timer</code>) en temps calendaire, exprimé en temps universel coordonné (UTC) au format <a href="tm.html"><code>struct tm</code></a>. Le résultat est stocké en mémoire statique et un pointeur vers cette mémoire statique est renvoyé.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, sauf que la fonction utilise le stockage fourni par l'utilisateur <code>buf</code> pour le résultat.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, sauf que la fonction utilise le stockage fourni par l'utilisateur <code>buf</code> pour le résultat, et que les erreurs suivantes sont détectées à l'exécution et appellent la fonction <a href="../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</p>
+</li>
+</ol>
+<ul>
+<li><code>timer</code> ou <code>buf</code> est un pointeur nul
+Comme pour toutes les fonctions à vérification de bornes, <code>gmtime_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../chrono.html"><code>&lt;time.h&gt;</code></a>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>timer</code> — pointeur vers un objet <a href="time_t.html"><code>time_t</code></a> à convertir</li>
+<li><code>buf</code> — pointeur vers un objet <code>struct tm</code> destiné à stocker le résultat</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>pointeur vers un objet <a href="tm.html"><code>tm</code></a> interne statique en cas de succès, ou pointeur nul sinon. La structure peut être partagée entre <code>gmtime</code>, <a href="localtime.html"><code>localtime</code></a> et <a href="ctime.html"><code>ctime</code></a> et peut être écrasée à chaque appel.</li>
+</ol>
+<p>2,3) copie du pointeur <code>buf</code>, ou pointeur nul en cas d'erreur (qui peut être une violation de contrainte à l'exécution ou un échec de conversion de l'instant indiqué en UTC).</p>
+<h2 id="Notes">Notes</h2>
+<p><code>gmtime</code> n'est peut-être pas thread-safe.</p>
+<p>POSIX exige que <code>gmtime</code> et <code>gmtime_r</code> positionnent <a href="../error/errno.html"><code>errno</code></a> à <a href="../error/errno_macros.html"><code>EOVERFLOW</code></a> s'ils échouent parce que l'argument est trop grand.</p>
+<p>L'implémentation de <code>gmtime_s</code> dans <a href="https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/gmtime-s-gmtime32-s-gmtime64-s?view=vs-2019">Microsoft CRT</a> est incompatible avec la norme C, car elle inverse l'ordre des paramètres.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define __STDC_WANT_LIB_EXT1__ 1
+#define _XOPEN_SOURCE // for putenv
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;   // for putenv
+#include &lt;time.h&gt;
+
+int main(void)
+{
+    time_t t = time(NULL);
+    printf(&quot;UTC:       %s&quot;, asctime(gmtime(&amp;t)));
+    printf(&quot;local:     %s&quot;, asctime(localtime(&amp;t)));
+    // Spécifique à POSIX
+    putenv(&quot;TZ=Asia/Singapore&quot;);
+    printf(&quot;Singapore: %s&quot;, asctime(localtime(&amp;t)));
+
+#ifdef __STDC_LIB_EXT1__
+    struct tm buf;
+    char str[26];
+    asctime_s(str, sizeof str, gmtime_s(&amp;t, &amp;buf));
+    printf(&quot;UTC:       %s&quot;, str);
+    asctime_s(str, sizeof str, localtime_s(&amp;t, &amp;buf));
+    printf(&quot;local:     %s&quot;, str);
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">UTC:       Fri Sep 15 14:22:05 2017
+local:     Fri Sep 15 14:22:05 2017
+Singapore: Fri Sep 15 22:22:05 2017
+UTC:       Fri Sep 15 14:22:05 2017
+local:     Fri Sep 15 14:22:05 2017
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.27.3.3 La fonction gmtime (p: TBD)</li>
+<li>K.3.8.2.3 La fonction gmtime_s (p: TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.27.3.3 La fonction gmtime (p: 288)</li>
+<li>K.3.8.2.3 La fonction gmtime_s (p: 454-455)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.27.3.3 La fonction gmtime (p: 393-394)</li>
+<li>K.3.8.2.3 La fonction gmtime_s (p: 626-627)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.23.3.3 La fonction gmtime (p: 343)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.12.3.3 La fonction gmtime</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="localtime.html">localtimelocaltime_rlocaltime_s</a> (C23) (C11)</strong> — convertit un temps écoulé depuis l'epoch en temps du calendrier exprimé en heure locale <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/chrono/c/gmtime.html">Documentation C++</a> pour gmtime</strong></p>
+
+</main>
+</body>
+</html>

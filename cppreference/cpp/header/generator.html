@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>En-tête de la bibliothèque standard &lt;generator&gt; (depuis C++23) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/header.html">En-têtes de la bibliothèque standard C++</a></nav>
+<h1 id="en-tête-de-la-bibliothèque-standard-generator-depuis-c-23"><code>En-tête de la bibliothèque standard &lt;generator&gt; (depuis C++23)</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/header/generator">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>### Classes {#Classes}</strong></p>
+<ul>
+<li><strong><a href="../coroutine/generator.html">generator</a> (C++23)</strong> — Un <a href="../ranges/view.html"><code>view</code></a> qui représente un <a href="../language/coroutines.html">générateur</a> synchrone de coroutine <em>(modèle de classe)</em></li>
+</ul>
+<h2 id="Synopsis">Synopsis</h2>
+<pre><code class="language-cpp">namespace std {
+  // modèle de classe generator
+  template&lt;class Ref, class V = void, class Allocator = void&gt;
+  class generator;
+
+  namespace pmr {
+    template&lt;class Ref, class V = void&gt;
+    using generator = std::generator&lt;Ref, V, polymorphic_allocator&lt;&gt;&gt;;
+  }
+}
+</code></pre>
+<h3 id="Class_template_std::generator">Modèle de classe <code>std::generator</code></h3>
+<pre><code class="language-cpp">namespace std {
+  template&lt;class Ref, class V = void, class Allocator = void&gt;
+  class generator : public ranges::view_interface&lt;generator&lt;Ref, V, Allocator&gt;&gt;
+  {
+  private:
+    using /*value*/ =
+      conditional_t&lt;is_void_v&lt;V&gt;, remove_cvref_t&lt; Ref &gt;, V&gt;;       // exposition uniquement
+    using /*reference*/ = conditional_t&lt;is_void_v&lt;V&gt;, Ref&amp;&amp;, Ref&gt;; // exposition uniquement
+
+    // classe generator::iterator
+    class /*iterator*/; // exposition uniquement
+
+  public:
+    using yielded =
+      conditional_t&lt;is_reference_v&lt;/*reference*/&gt;, /*reference*/, const /*reference*/&amp;&gt;;
+
+    // classe generator::promise_type
+    class promise_type;
+
+    generator(const generator&amp;) = delete;
+    generator(generator&amp;&amp; other) noexcept;
+
+    ~generator();
+
+    generator&amp; operator=(generator other) noexcept;
+
+    /*iterator*/ begin();
+    default_sentinel_t end() const noexcept;
+
+  private:
+    coroutine_handle&lt;promise_type&gt; /*coroutine_*/ = nullptr; // exposition uniquement
+    unique_ptr&lt;stack&lt;coroutine_handle&lt;&gt;&gt;&gt; /*active_*/;       // exposition uniquement
+  };
+}
+</code></pre>
+<h3 id="Class_std::generator::promise_type">Classe <code>std::generator::promise_type</code></h3>
+<pre><code class="language-cpp">namespace std {
+  template&lt;class Ref, class V, class Allocator&gt;
+  class generator&lt;Ref, V, Allocator&gt;::promise_type
+  {
+  public:
+    generator get_return_object() noexcept;
+
+    suspend_always initial_suspend() const noexcept { return {}; }
+    auto final_suspend() noexcept;
+
+    suspend_always yield_value(yielded val) noexcept;
+
+    auto yield_value(const remove_reference_t&lt;yielded&gt;&amp; lval)
+      requires is_rvalue_reference_v&lt;yielded&gt; &amp;&amp;
+               constructible_from&lt;remove_cvref_t&lt;yielded&gt;,
+                                  const remove_reference_t&lt;yielded&gt;&amp;&gt;;
+
+    template&lt;class R2, class V2, class Alloc2, class Unused&gt;
+      requires same_as&lt;typename generator&lt;R2, V2, Alloc2&gt;::yielded, yielded&gt;
+    auto yield_value(ranges::elements_of&lt;generator&lt;R2, V2, Alloc2&gt;&amp;&amp;, Unused&gt; g) noexcept;
+
+    template&lt;ranges::input_range R, class Alloc&gt;
+      requires convertible_to&lt;ranges::range_reference_t&lt;R&gt;, yielded&gt;
+    auto yield_value(ranges::elements_of&lt;R, Alloc&gt; r);
+
+    void await_transform() = delete;
+
+    void return_void() const noexcept {}
+    void unhandled_exception();
+
+    void* operator new(size_t size)
+      requires same_as&lt;Allocator, void&gt; || default_initializable&lt;Allocator&gt;;
+
+    template&lt;class Alloc, class... Args&gt;
+      requires same_as&lt;Allocator, void&gt; || convertible_to&lt;const Alloc&amp;, Allocator&gt;
+    void* operator new(size_t size, allocator_arg_t, const Alloc&amp; alloc, const Args&amp;...);
+
+    template&lt;class This, class Alloc, class... Args&gt;
+      requires same_as&lt;Allocator, void&gt; || convertible_to&lt;const Alloc&amp;, Allocator&gt;
+    void* operator new(size_t size,
+                       const This&amp;,
+                       allocator_arg_t,
+                       const Alloc&amp; alloc,
+                       const Args&amp;...);
+
+    void operator delete(void* pointer, size_t size) noexcept;
+
+  private:
+    add_pointer_t&lt;yielded&gt; /*value_*/ = nullptr; // exposition uniquement
+    exception_ptr /*except_*/;                   // exposition uniquement
+  };
+}
+</code></pre>
+<h3 id="Class_std::generator::iterator">Classe <code>std::generator::iterator</code></h3>
+<pre><code class="language-cpp">namespace std {
+  template&lt;class Ref, class V, class Allocator&gt;
+  class generator&lt;Ref, V, Allocator&gt;::/*iterator*/
+  {
+  public:
+    using value_type      = /*value*/;
+    using difference_type = ptrdiff_t;
+
+    /*iterator*/(/*iterator*/&amp;&amp; other) noexcept;
+    /*iterator*/&amp; operator=(/*iterator*/&amp;&amp; other) noexcept;
+
+    /*reference*/ operator*() const
+      noexcept(is_nothrow_copy_constructible_v&lt;/*reference*/&gt;);
+    /*iterator*/&amp; operator++();
+    void operator++(int);
+
+    friend bool operator==(const /*iterator*/&amp; i, default_sentinel_t);
+
+  private:
+    coroutine_handle&lt;promise_type&gt; /*coroutine_*/; // exposition uniquement
+  };
+}
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>Norme C++23 (ISO/IEC 14882:2024) :
+<ul>
+<li>26.8.2 Synopsis de l'en-tête <code>&lt;generator&gt;</code> [generator.syn]</li>
+<li>26.8.3 Modèle de classe generator [coro.generator.class]</li>
+<li>26.8.5 Classe generator::promise_type [coro.generator.promise]</li>
+<li>26.8.6 Classe generator::iterator [coro.generator.iterator]</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

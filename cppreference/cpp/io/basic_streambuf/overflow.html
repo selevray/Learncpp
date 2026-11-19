@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_streambuf&lt;CharT,Traits&gt;::overflow — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_streambuf.html">std::basic_streambuf</a></nav>
+<h1 id="std-basic_streambuf-chart-traits-overflow"><code>std::basic_streambuf&lt;CharT,Traits&gt;::overflow</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_streambuf/overflow">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">protected:
+virtual int_type overflow( int_type ch = Traits::eof() );
+</code></pre>
+<p>Garantit qu'il existe de la place dans la <a href="../basic_streambuf.html">zone d'écriture (put area)</a> pour au moins un caractère, en sauvegardant une sous-séquence initiale de caractères commençant à <a href="pptr.html"><code>pbase()</code></a> vers la séquence de sortie et en mettant à jour les pointeurs de la zone d'écriture (si nécessaire). Si <code>ch</code> n'est pas <code>Traits::eof()</code> (c.-à-d. <code>Traits::eq_int_type(ch, Traits::eof()) != true</code>), il est soit placé dans la zone d'écriture, soit directement sauvegardé dans la séquence de sortie.</p>
+<p>La fonction peut mettre à jour les pointeurs <code>pptr</code>, <code>epptr</code> et <code>pbase</code> pour définir l'emplacement où écrire davantage de données. En cas d'échec, la fonction garantit que soit <code>pptr() == nullptr</code>, soit <code>pptr() == epptr</code>.</p>
+<p>La version de la classe de base de la fonction ne fait rien. Les classes dérivées peuvent redéfinir cette fonction pour permettre des mises à jour de la zone d'écriture en cas d'épuisement.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ch</code> — le caractère à stocker dans la zone d'écriture</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Renvoie une valeur non spécifiée, différente de <code>Traits::eof()</code>, en cas de succès, <code>Traits::eof()</code> en cas d'échec.</p>
+<p>La version de la classe de base de la fonction renvoie <code>Traits::eof()</code>.</p>
+<h2 id="Note">Note</h2>
+<p>Les <a href="sputc.html"><code>sputc()</code></a> et <a href="sputn.html"><code>sputn()</code></a> appellent cette fonction en cas de débordement (<code>pptr() == nullptr</code> ou <code>pptr() &gt;= epptr()</code>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+
+// Tampon pour std::ostream implémenté par std::array
+template&lt;std::size_t size, class CharT = char&gt;
+struct ArrayedStreamBuffer : std::basic_streambuf&lt;CharT&gt;
+{
+    using Base = std::basic_streambuf&lt;CharT&gt;;
+    using char_type = typename Base::char_type;
+    using int_type = typename Base::int_type;
+
+    ArrayedStreamBuffer()
+    {
+        // pointeurs de la zone d'écriture travaillant avec 'buffer'
+        Base::setp(buffer.data(), buffer.data() + size);
+    }
+
+    int_type overflow(int_type ch)
+    {
+        std::cout &lt;&lt; &quot;overflow\n&quot;;
+        return Base::overflow(ch);
+    }
+
+    void print_buffer()
+    {
+        for (char_type i : buffer)
+        {
+            if (i == 0)
+                std::cout &lt;&lt; &quot;\\0&quot;;
+            else
+                std::cout &lt;&lt; i;
+            std::cout &lt;&lt; ' ';
+        }
+        std::cout &lt;&lt; '\n';
+    }
+
+private:
+    std::array&lt;char_type, size&gt; buffer{}; // initialise par valeur buffer
+};
+
+int main()
+{
+    ArrayedStreamBuffer&lt;10&gt; streambuf;
+    std::ostream stream(&amp;streambuf);
+
+    stream &lt;&lt; &quot;hello&quot;;
+    streambuf.print_buffer();
+    if (stream.good())
+        std::cout &lt;&lt; &quot;stream is good\n&quot;;
+
+    stream &lt;&lt; &quot;world&quot;;
+    streambuf.print_buffer();
+    if (stream.good())
+        std::cout &lt;&lt; &quot;stream is good\n&quot;;
+
+    stream &lt;&lt; &quot;!&quot;;
+    streambuf.print_buffer();
+    if (!stream.good())
+        std::cout &lt;&lt; &quot;stream is not good\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">h e l l o \0 \0 \0 \0 \0
+stream is good
+h e l l o w o r l d
+stream is good
+overflow
+h e l l o w o r l d
+stream is not good
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="uflow.html">uflow</a> [virtuelle]</strong> — lit des caractères depuis la séquence d'entrée associée vers la zone de lecture et avance le pointeur suivant <em>(fonction membre virtuelle protégée)</em></li>
+<li><strong><a href="underflow.html">underflow</a> [virtuelle]</strong> — lit des caractères depuis la séquence d'entrée associée vers la zone de lecture <em>(fonction membre virtuelle protégée)</em></li>
+<li><strong><a href="../basic_filebuf/overflow.html">overflow</a> [virtuelle]</strong> — écrit des caractères dans le fichier associé depuis la zone d'écriture <em>(fonction membre virtuelle protégée de <code>std::basic_filebuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../basic_stringbuf/overflow.html">overflow</a> [virtuelle]</strong> — ajoute un caractère à la séquence de sortie <em>(fonction membre virtuelle protégée de <code>std::basic_stringbuf&lt;CharT,Traits,Allocator&gt;</code>)</em></li>
+<li><strong><a href="../strstreambuf/overflow.html">overflow</a> [virtuelle]</strong> — ajoute un caractère à la séquence de sortie, peut réallouer ou allouer initialement le tampon s'il est dynamique et non figé <em>(fonction membre virtuelle protégée de <code>std::strstreambuf</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

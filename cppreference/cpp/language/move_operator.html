@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opérateur d&#x27;affectation par déplacement — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="opérateur-d-affectation-par-déplacement">Opérateur d'affectation par déplacement</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/move_operator">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un opérateur d'affectation par déplacement est une <a href="member_functions.html">fonction membre non statique</a> non modèle, portant le nom <code>operator=</code>, qui peut être appelée avec un argument du même type de classe et copie le contenu de l'argument, en le modifiant éventuellement.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Pour la syntaxe formelle de l'opérateur d'affectation par déplacement, voir <a href="function.html">déclaration de fonction</a>. La liste de syntaxes ci-dessous ne présente qu'un sous-ensemble de toutes les syntaxes valides de l'opérateur d'affectation par déplacement.</p>
+<p>|
+| |
+| <code>return-type</code> <code>operator=(parameter-list</code> ﻿<code>);</code> | (1) | |
+|
+| <code>return-type</code> <code>operator=(parameter-list</code> ﻿<code>)</code> <code>function-body</code> | (2) | |
+|
+| <code>return-type</code> <code>operator=(parameter-list-no-default</code> ﻿<code>) = default;</code> | (3) | |
+|
+| <code>return-type</code> <code>operator=(parameter-list</code> ﻿<code>) = delete;</code> | (4) | |
+|
+| <code>return-type</code> <code>class-name</code> ﻿<code>::operator=(parameter-list</code> ﻿<code>)</code> <code>function-body</code> | (5) | |
+|
+| <code>return-type</code> <code>class-name</code> ﻿<code>::operator=(parameter-list-no-default</code> ﻿<code>) = default;</code> | (6) | |
+|</p>
+<ul>
+<li><code>class-name</code> — la classe dont l'opérateur d'affectation par déplacement est déclaré, le type de la classe est noté <code>T</code> dans les descriptions ci-dessous</li>
+<li><code>parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> ne comportant qu'un seul paramètre, de type <code>T&amp;&amp;</code>, <code>const T&amp;&amp;</code>, <code>volatile T&amp;&amp;</code> ou <code>const volatile T&amp;&amp;</code></li>
+<li><code>parameter-list-no-default</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> ne comportant qu'un seul paramètre, de type <code>T&amp;&amp;</code>, <code>const T&amp;&amp;</code>, <code>volatile T&amp;&amp;</code> ou <code>const volatile T&amp;&amp;</code>, et n'ayant pas d'argument par défaut</li>
+<li><code>function-body</code> — le <a href="initializer_list.html">corps de fonction</a> de l'opérateur d'affectation par déplacement</li>
+<li><code>return-type</code> — tout type, mais <code>T&amp;</code> est privilégié afin de rester cohérent avec les types scala</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<ol>
+<li>Déclaration d'un opérateur d'affectation par déplacement à l'intérieur de la définition de classe.</li>
+</ol>
+<p>2-4) Définition d'un opérateur d'affectation par déplacement à l'intérieur de la définition de classe.</p>
+<ol start="3">
+<li>
+<p>L'opérateur d'affectation par déplacement est explicitement défaut.</p>
+</li>
+<li>
+<p>L'opérateur d'affectation par déplacement est supprimé.</p>
+</li>
+</ol>
+<p>5,6) Définition d'un opérateur d'affectation par déplacement en dehors de la définition de classe (la classe doit contenir une déclaration <code>(1)</code>).</p>
+<ol start="6">
+<li>L'opérateur d'affectation par déplacement est explicitement défaut.</li>
+</ol>
+<pre><code class="language-cpp">struct X
+{
+    X&amp; operator=(X&amp;&amp; other);    // opérateur d'affectation par déplacement
+//  X operator=(const X other); // Erreur : type de paramètre incorrect
+};
+
+union Y
+{
+    // les opérateurs d'affectation par déplacement peuvent avoir des syntaxes non listées ci-dessus,
+    // tant qu'ils respectent la syntaxe générale des déclarations de fonctions
+    // et ne violent pas les restrictions listées ci-dessus
+    auto operator=(Y&amp;&amp; other) -&gt; Y&amp;;       // OK : type de retour final
+    Y&amp; operator=(this Y&amp;&amp; self, Y&amp; other); // OK : paramètre d'objet explicite
+//  Y&amp; operator=(Y&amp;&amp;, int num = 1);        // Erreur : possède d'autres paramètres qui ne sont pas des objets
+};
+</code></pre>
+<p>L'opérateur d'affectation par déplacement est appelé chaque fois qu'il est sélectionné par la <a href="overload_resolution.html">résolution de surcharge</a>, par exemple lorsqu'un objet apparaît à gauche d'une expression d'affectation dont le membre droit est une rvalue du même type ou d'un type implicitement convertible.</p>
+<p>Les opérateurs d'affectation par déplacement transfèrent généralement les ressources détenues par l'argument (par exemple des pointeurs vers des objets alloués dynamiquement, des descripteurs de fichiers, des sockets TCP, des handles de threads, etc.), plutôt que d'en faire des copies, et laissent l'argument dans un état valide mais par ailleurs indéterminé. Comme l'affectation par déplacement ne modifie pas la durée de vie de l'argument, le destructeur sera généralement appelé sur l'argument à un moment ultérieur. Par exemple, l'affectation par déplacement depuis un <a href="../string/basic_string.html"><code>std::string</code></a> ou depuis un <a href="../container/vector.html"><code>std::vector</code></a> peut avoir pour effet de laisser l'argument vide. Une affectation par déplacement est définie de manière moins, et non plus, restrictive que l'affectation ordinaire ; là où l'affectation ordinaire doit laisser deux copies des données à l'issue de l'opération, l'affectation par déplacement n'est tenue d'en laisser qu'une seule.</p>
+<h2 id="Implicitly-declared_move_assignment_operator">Opérateur d'affectation par déplacement implicitement déclaré</h2>
+<p>Si aucun opérateur d'affectation par déplacement défini par l'utilisateur n'est fourni pour un type classe, et que toutes les conditions suivantes sont vraies :</p>
+<ul>
+<li>il n'existe aucun <a href="copy_constructor.html">constructeur de copie</a> déclaré par l'utilisateur ;</li>
+<li>il n'existe aucun <a href="move_constructor.html">constructeur de déplacement</a> déclaré par l'utilisateur ;</li>
+<li>il n'existe aucun <a href="as_operator.html">opérateur d'affectation par copie</a> déclaré par l'utilisateur ;</li>
+<li>il n'existe aucun <a href="destructor.html">destructeur</a> déclaré par l'utilisateur,</li>
+</ul>
+<p>alors le compilateur déclare un opérateur d'affectation par déplacement comme <code>inline public</code> membre de sa classe, avec la signature <code>T&amp; T::operator=(T&amp;&amp;)</code>.</p>
+<p>Une classe peut posséder plusieurs opérateurs d'affectation par déplacement, par exemple à la fois <code>T&amp; T::operator=(const T&amp;&amp;)</code> et <code>T&amp; T::operator=(T&amp;&amp;)</code>. Si certains opérateurs d'affectation par déplacement définis par l'utilisateur sont présents, l'utilisateur peut tout de même forcer la génération de l'opérateur d'affectation par déplacement déclaré implicitement à l'aide du mot-clé <code>default</code>.</p>
+<p>L'opérateur d'affectation par déplacement déclaré implicitement possède une spécification d'exception décrite dans [<a href="except_spec.html">spécification d'exception dynamique</a> <em>(jusqu'à C++17)</em> | <a href="noexcept_spec.html">spécification noexcept</a> <em>(depuis C++17)</em>].</p>
+<p>Comme un opérateur d'affectation (par déplacement ou par copie) est toujours déclaré pour toute classe, l'opérateur d'affectation de la classe de base est toujours masqué. Si une déclaration using est utilisée pour importer l'opérateur d'affectation de la classe de base, et que le type de son argument pourrait être identique au type de l'argument de l'opérateur d'affectation implicite de la classe dérivée, la déclaration using est également masquée par la déclaration implicite.</p>
+<h2 id="Implicitly-defined_move_assignment_operator">Opérateur d'affectation par déplacement défini implicitement</h2>
+<p>Si l'opérateur d'affectation par déplacement déclaré implicitement n'est ni supprimé ni trivial, il est défini (c'est-à-dire qu'un corps de fonction est généré et compilé) par le compilateur si <a href="definition.html#ODR-use">odr-used</a>ou <a href="constant_expression.html#Functions_and_variables_needed_for_constant_evaluation">nécessaire à l'évaluation constante</a> <em>(depuis C++14)</em>.</p>
+<p>Pour les types union, l'opérateur d'affectation par déplacement défini implicitement copie la représentation de l'objet (comme par <a href="../string/byte/memmove.html"><code>std::memmove</code></a>).</p>
+<p>Pour les types classe qui ne sont pas des unions, l'opérateur d'affectation par déplacement effectue une affectation par déplacement membre par membre complète des sous-objets de base directs et des membres non statiques immédiats de l'objet, dans leur ordre de déclaration, en utilisant l'affectation intégrée pour les types scalaires, l'affectation par déplacement membre par membre pour les tableaux, et l'opérateur d'affectation par déplacement pour les types classe (appelé de manière non virtuelle).</p>
+<blockquote>
+<p>L'opérateur d'affectation par déplacement défini implicitement pour une classe <code>T</code> est <a href="constexpr.html"><code>constexpr</code></a> si</p>
+<ul>
+<li><code>T</code> est un <a href="../named_req/LiteralType.html">type littéral</a>, et</li>
+<li>l'opérateur d'affectation sélectionné pour déplacer chaque sous-objet de base directe est une fonction constexpr, et</li>
+<li>pour chaque membre de donnée non statique de <code>T</code> de type classe (ou tableau de ceux-ci), l'opérateur d'affectation sélectionné pour déplacer ce membre est une fonction constexpr.</li>
+</ul>
+<p><em>(depuis C++14) (jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>L'opérateur d'affectation par déplacement défini implicitement pour une classe <code>T</code> est <a href="constexpr.html"><code>constexpr</code></a>.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Comme pour l'affectation par copie, il n'est pas spécifié si les sous-objets de classe de base virtuelle accessibles par plus d'un chemin dans le treillis d'héritage sont affectés plus d'une fois par l'opérateur d'affectation par déplacement défini implicitement :</p>
+<pre><code class="language-cpp">struct V
+{
+    V&amp; operator=(V&amp;&amp; other)
+    {
+        // celui-ci peut être appelé une ou deux fois
+        // si appelé deux fois, 'other' est le sous-objet V tout juste déplacé
+        return *this;
+    }
+};
+
+struct A : virtual V {}; // operator= appelle V::operator=
+struct B : virtual V {}; // operator= appelle V::operator=
+struct C : B, A {};      // operator= appelle B::operator=, puis A::operator=
+                         // mais ils ne peuvent appeler V::operator= qu'une seule fois
+
+int main()
+{
+    C c1, c2;
+    c2 = std::move(c1);
+}
+</code></pre>
+<h2 id="Deleted_move_assignment_operator">Opérateur d'affectation par déplacement supprimé</h2>
+<p>L'opérateur d'affectation par déplacement déclaré implicitement ou par défaut pour la classe <code>T</code> est défini comme supprimé si l'une des conditions suivantes est satisfaite :</p>
+<ul>
+<li><code>T</code> possède un membre de données non statique d'un type non classe qualifié const (ou d'un tableau multidimensionnel de ce type).</li>
+<li><code>T</code> possède un membre de données non statique de type référence.</li>
+<li><code>T</code> possède un <a href="objects.html#Potentially_constructed_subobject">sous-objet potentiellement construit</a> de type classe <code>M</code> (ou tableau multidimensionnel de ceux-ci) tel que la résolution de surcharge appliquée pour trouver l'opérateur d'affectation par déplacement de <code>M</code>
+<ul>
+<li>ne produit aucun candidat utilisable, ou</li>
+<li>dans le cas où le sous-objet est un <a href="union.html#Union-like_classes">membre variant</a>, sélectionne une fonction non triviale.</li>
+</ul>
+</li>
+</ul>
+<p>Un opérateur d'affectation par déplacement déclaré implicitement et supprimé est ignoré par la <a href="overload_resolution.html">résolution de surcharge</a>.</p>
+<h2 id="Trivial_move_assignment_operator">Opérateur d'affectation par déplacement trivial</h2>
+<p>L'opérateur d'affectation par déplacement de la classe <code>T</code> est trivial si toutes les conditions suivantes sont vraies :</p>
+<ul>
+<li>il n'est pas fourni par l'utilisateur (c'est-à-dire qu'il est défini implicitement ou par défaut) ;</li>
+<li><code>T</code> ne possède aucune fonction membre virtuelle ;</li>
+<li><code>T</code> ne possède aucune classe de base virtuelle ;</li>
+<li>l'opérateur d'affectation par déplacement sélectionné pour chaque base directe de <code>T</code> est trivial ;</li>
+<li>l'opérateur d'affectation par déplacement sélectionné pour chaque membre non statique de type classe (ou tableau de type classe) de <code>T</code> est trivial.</li>
+</ul>
+<p>Un opérateur d'affectation par déplacement trivial effectue la même action qu'un opérateur d'affectation par copie trivial, c'est-à-dire qu'il copie la représentation de l'objet comme par <a href="../string/byte/memmove.html"><code>std::memmove</code></a>. Tous les types de données compatibles avec le langage C sont trivialement affectables par déplacement.</p>
+<h2 id="Eligible_move_assignment_operator">Opérateur d'affectation par déplacement éligible</h2>
+<blockquote>
+<p>Un opérateur d'affectation par déplacement est éligible s'il n'est pas supprimé.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Un opérateur d'affectation par déplacement est éligible si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li>Il n'est pas supprimé.</li>
+<li>Ses <a href="constraints.html">contraintes associées</a> (le cas échéant) sont satisfaites.</li>
+<li>Aucun opérateur d'affectation par déplacement dont les contraintes associées sont satisfaites n'est <a href="constraints.html#Partial_ordering_of_constraints">plus contraint</a>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La trivialité des opérateurs d'affectation par déplacement éligibles détermine si la classe est un <a href="../named_req/TriviallyCopyable.html">type trivialement copiable</a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Si les opérateurs d'affectation par copie et par déplacement sont tous deux fournis, la résolution de surcharge sélectionne l'affectation par déplacement si l'argument est une <a href="value_category.html"><em>rvalue</em></a> (soit une <a href="value_category.html"><em>prvalue</em></a> comme un temporaire sans nom, soit une <a href="value_category.html"><em>xvalue</em></a> comme le résultat de <code>std::move</code>), et sélectionne l'affectation par copie si l'argument est une <a href="value_category.html"><em>lvalue</em></a> (objet nommé ou fonction/opérateur renvoyant une référence lvalue). Si seul l'opérateur d'affectation par copie est fourni, toutes les catégories d'arguments le sélectionnent (tant qu'il prend son argument par valeur ou par référence vers const, car les rvalues peuvent se lier à des références const), ce qui fait de l'affectation par copie le repli de l'affectation par déplacement lorsque le déplacement n'est pas disponible.</p>
+<p>Il n'est pas spécifié si les sous-objets de classe de base virtuelle accessibles par plus d'un chemin dans le treillis d'héritage sont affectés plus d'une fois par l'opérateur d'affectation par déplacement défini implicitement (même règle pour l'<a href="as_operator.html">affectation par copie</a>).</p>
+<p>Voir <a href="operators.html#Assignment_operator">surcharge de l'opérateur d'affectation</a> pour plus de détails sur le comportement attendu d'un opérateur d'affectation par déplacement défini par l'utilisateur.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt;
+
+struct A
+{
+    std::string s;
+
+    A() : s(&quot;test&quot;) {}
+
+    A(const A&amp; o) : s(o.s) { std::cout &lt;&lt; &quot;move failed!\n&quot;; }
+
+    A(A&amp;&amp; o) : s(std::move(o.s)) {}
+
+    A&amp; operator=(const A&amp; other)
+    {
+         s = other.s;
+         std::cout &lt;&lt; &quot;copy assigned\n&quot;;
+         return *this;
+    }
+
+    A&amp; operator=(A&amp;&amp; other)
+    {
+         s = std::move(other.s);
+         std::cout &lt;&lt; &quot;move assigned\n&quot;;
+         return *this;
+    }
+};
+
+A f(A a) { return a; }
+
+struct B : A
+{
+    std::string s2;
+    int n;
+    // opérateur d'affectation par déplacement implicite B&amp; B::operator=(B&amp;&amp;)
+    // appelle l'opérateur d'affectation par déplacement de A
+    // appelle l'opérateur d'affectation par déplacement de s2
+    // et effectue une copie binaire de n
+};
+
+struct C : B
+{
+    ~C() {} // le destructeur empêche l'affectation par déplacement implicite
+};
+
+struct D : B
+{
+    D() {}
+    ~D() {} // le destructeur empêcherait l'affectation par déplacement implicite
+    D&amp; operator=(D&amp;&amp;) = default; // forcer quand même une affectation par déplacement
+};
+
+int main()
+{
+    A a1, a2;
+    std::cout &lt;&lt; &quot;Trying to move-assign A from rvalue temporary\n&quot;;
+    a1 = f(A()); // affectation par déplacement depuis un temporaire rvalue
+    std::cout &lt;&lt; &quot;Trying to move-assign A from xvalue\n&quot;;
+    a2 = std::move(a1); // affectation par déplacement depuis une xvalue
+
+    std::cout &lt;&lt; &quot;\nTrying to move-assign B\n&quot;;
+    B b1, b2;
+    std::cout &lt;&lt; &quot;Before move, b1.s = \&quot;&quot; &lt;&lt; b1.s &lt;&lt; &quot;\&quot;\n&quot;;
+    b2 = std::move(b1); // appelle l'affectation par déplacement implicite
+    std::cout &lt;&lt; &quot;After move, b1.s = \&quot;&quot; &lt;&lt; b1.s &lt;&lt; &quot;\&quot;\n&quot;;
+
+    std::cout &lt;&lt; &quot;\nTrying to move-assign C\n&quot;;
+    C c1, c2;
+    c2 = std::move(c1); // appelle l'opérateur d'affectation par copie
+
+    std::cout &lt;&lt; &quot;\nTrying to move-assign D\n&quot;;
+    D d1, d2;
+    d2 = std::move(d1);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Trying to move-assign A from rvalue temporary
+move assigned
+Trying to move-assign A from xvalue
+move assigned
+
+Trying to move-assign B
+Before move, b1.s = &quot;test&quot;
+move assigned
+After move, b1.s = &quot;&quot;
+
+Trying to move-assign C
+copy assigned
+
+Trying to move-assign D
+move assigned
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1353.html">CWG 1353</a></td>
+<td>C++11</td>
+<td>les conditions dans lesquelles les opérateurs d'affectation par déplacement par défaut sont définis comme supprimés ne prenaient pas en compte les types tableaux multidimensionnels</td>
+<td>prendre en compte ces types</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1402.html">CWG 1402</a></td>
+<td>C++11</td>
+<td>un opérateur d'affectation par déplacement par défaut qui devait appeler un opérateur d'affectation par copie non trivial était supprimé ; un opérateur d'affectation par déplacement par défaut qui est supprimé participait tout de même à la résolution de surcharge</td>
+<td>permettait l'appel d'un tel opérateur d'affectation par copie ; rendu ignoré par la résolution de surcharge</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1806.html">CWG 1806</a></td>
+<td>C++11</td>
+<td>la spécification d'un opérateur d'affectation par déplacement par défaut impliquant une classe de base virtuelle était absente</td>
+<td>added</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2094.html">CWG 2094</a></td>
+<td>C++11</td>
+<td>un sous-objet volatile rendait non trivial un opérateur d'affectation par déplacement par défaut (<a href="https://cplusplus.github.io/CWG/issues/496.html">problème CWG 496</a>)</td>
+<td>la trivialité n'est pas affectée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2180.html">CWG 2180</a></td>
+<td>C++11</td>
+<td>un opérateur d'affectation par déplacement par défaut pour la classe <code>T</code> n'était pas défini comme supprimé si <code>T</code> est abstraite et possède des classes de base virtuelles directes non affectables par déplacement</td>
+<td>l'opérateur est défini comme supprimé dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2595.html">CWG 2595</a></td>
+<td>C++20</td>
+<td>un opérateur d'affectation par déplacement n'était pas éligible s'il existait un autre opérateur d'affectation par déplacement qui est plus contraint mais ne satisfait pas ses contraintes associées</td>
+<td>il peut être éligible dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2690.html">CWG 2690</a></td>
+<td>C++11</td>
+<td>l'opérateur d'affectation par déplacement défini implicitement pour les types union ne copiait pas la représentation de l'objet</td>
+<td>elles copient la représentation de l'objet</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="initializer_list.html">constructor</a></li>
+<li><a href="converting_constructor.html">constructeur de conversion</a></li>
+<li><a href="as_operator.html">affectation par copie</a></li>
+<li><a href="copy_constructor.html">constructeur de copie</a></li>
+<li><a href="default_constructor.html">constructeur par défaut</a></li>
+<li><a href="destructor.html">destructor</a></li>
+<li><a href="initialization.html">initialization</a>
+<ul>
+<li><a href="aggregate_initialization.html">initialisation agrégat</a></li>
+<li><a href="constant_initialization.html">initialisation constante</a></li>
+<li><a href="copy_initialization.html">initialisation par copie</a></li>
+<li><a href="default_initialization.html">initialisation par défaut</a></li>
+<li><a href="direct_initialization.html">initialisation directe</a></li>
+<li><a href="list_initialization.html">initialisation par liste</a></li>
+<li><a href="reference_initialization.html">initialisation de référence</a></li>
+<li><a href="value_initialization.html">initialisation par valeur</a></li>
+<li><a href="zero_initialization.html">initialisation à zéro</a></li>
+</ul>
+</li>
+<li><a href="move_constructor.html">constructeur de déplacement</a></li>
+</ul>
+
+</main>
+</body>
+</html>

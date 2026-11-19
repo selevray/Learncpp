@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::pmr::null_memory_resource — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-pmr-null_memory_resource"><code>std::pmr::null_memory_resource</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/null_memory_resource">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory_resource&gt;</strong></p>
+<pre><code class="language-cpp">std::pmr::memory_resource* null_memory_resource() noexcept;  // (depuis C++17)
+</code></pre>
+<p>Renvoie un pointeur vers un <code>memory_resource</code> qui n'effectue aucune allocation.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Renvoie un pointeur <code>p</code> vers un objet à durée de stockage statique d'un type dérivé de <a href="memory_resource.html"><code>std::pmr::memory_resource</code></a>, avec les propriétés suivantes :</p>
+<ul>
+<li>sa fonction <code>allocate()</code> lève toujours <a href="new/bad_alloc.html"><code>std::bad_alloc</code></a> ;</li>
+<li>sa fonction <code>deallocate()</code> n'a aucun effet ;</li>
+<li>pour tout <code>memory_resource</code> <code>r</code>, <code>p-&gt;is_equal(r)</code> renvoie <code>&amp;r == p</code>.</li>
+</ul>
+<p>La même valeur est renvoyée à chaque fois que cette fonction est appelée.</p>
+<h2 id="Example">Exemple</h2>
+<p>Le programme illustre l'utilisation principale de <code>null_memory_resource</code> : s'assurer qu'un pool de mémoire qui nécessite de la mémoire allouée sur la pile n'allouera PAS de mémoire sur le tas s'il a besoin de davantage de mémoire.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;memory_resource&gt;
+#include &lt;string&gt;
+#include &lt;unordered_map&gt;
+
+int main()
+{
+    // allouer de la mémoire sur la pile
+    std::array&lt;std::byte, 20000&gt; buf;
+
+    // sans allocation de secours sur le tas
+    std::pmr::monotonic_buffer_resource pool{buf.data(), buf.size(),
+                                             std::pmr::null_memory_resource()};
+
+    // allouer trop de mémoire
+    std::pmr::unordered_map&lt;long, std::pmr::string&gt; coll{&amp;pool};
+    try
+    {
+        for (std::size_t i = 0; i &lt; buf.size(); ++i)
+        {
+            coll.emplace(i, &quot;just a string with number &quot; + std::to_string(i));
+
+            if (i &amp;&amp; i % 50 == 0)
+                std::clog &lt;&lt; &quot;size: &quot; &lt;&lt; i &lt;&lt; &quot;...\n&quot;;
+        }
+    }
+    catch (const std::bad_alloc&amp; e)
+    {
+        std::cerr &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+
+    std::cout &lt;&lt; &quot;size: &quot; &lt;&lt; coll.size() &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">size: 50...
+size: 100...
+size: 150...
+std::bad_alloc
+size: 183
+</code></pre>
+
+</main>
+</body>
+</html>

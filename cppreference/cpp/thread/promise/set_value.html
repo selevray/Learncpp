@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::promise&lt;R&gt;::set_value — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/promise.html">std::promise</a></nav>
+<h1 id="std-promise-r-set_value"><code>std::promise&lt;R&gt;::set_value</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/promise/set_value">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Modèle principal</strong></p>
+<pre><code class="language-cpp">void set_value( const R&amp; value );  // (1) (depuis C++11)
+
+void set_value( R&amp;&amp; value );  // (2) (depuis C++11)
+</code></pre>
+<p><strong>spécialisations de std:: promise &lt; R &amp; &gt;</strong></p>
+<pre><code class="language-cpp">void set_value( R&amp; value );  // (3) (depuis C++11)
+</code></pre>
+<p><strong>spécialisation de std:: promise &lt; void &gt;</strong></p>
+<pre><code class="language-cpp">void set_value();  // (4) (depuis C++11)
+</code></pre>
+<p>1-3) Stocke atomiquement <code>value</code> dans l'état partagé et rend l'état prêt.</p>
+<ol start="4">
+<li>Rend l'état prêt.</li>
+</ol>
+<p>L'opération se comporte comme si <code>set_value</code>, <a href="set_exception.html"><code>set_exception</code></a>, <a href="set_value_at_thread_exit.html"><code>set_value_at_thread_exit</code></a> et <a href="set_exception_at_thread_exit.html"><code>set_exception_at_thread_exit</code></a> acquéraient un même mutex associé à l'objet promise lors de la mise à jour de cet objet.</p>
+<p>Les appels à cette fonction n'introduisent pas de courses de données avec les appels à <a href="get_future.html"><code>get_future</code></a> (ils n'ont donc pas besoin de se synchroniser entre eux).</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>value</code> — valeur à stocker dans l'état partagé</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p><a href="../future_error.html"><code>std::future_error</code></a> dans les conditions suivantes :</p>
+<ul>
+<li><code>*this</code> n'a pas d'état partagé. Le code d'erreur est défini à <a href="../future_errc.html"><code>no_state</code></a>.</li>
+<li>L'état partagé stocke déjà une valeur ou une exception. Le code d'erreur est défini à <a href="../future_errc.html"><code>promise_already_satisfied</code></a>.</li>
+</ul>
+<p>Additionally:</p>
+<ol>
+<li>
+<p>Toute exception levée par le constructeur sélectionné pour copier un objet de type <code>R</code>.</p>
+</li>
+<li>
+<p>Toute exception levée par le constructeur sélectionné pour déplacer un objet de type <code>R</code>.</p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<p>Cet exemple montre comment <code>std::promise&lt;void&gt;</code> peut être utilisé comme signaux entre threads.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cctype&gt;
+#include &lt;chrono&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;sstream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+using namespace std::chrono_literals;
+
+int main()
+{
+    std::istringstream iss_numbers{&quot;3 4 1 42 23 -23 93 2 -289 93&quot;};
+    std::istringstream iss_letters{&quot; a 23 b,e a2 k k?a;si,ksa c&quot;};
+
+    std::vector&lt;int&gt; numbers;
+    std::vector&lt;char&gt; letters;
+    std::promise&lt;void&gt; numbers_promise, letters_promise;
+
+    auto numbers_ready = numbers_promise.get_future();
+    auto letter_ready = letters_promise.get_future();
+
+    std::thread value_reader([&amp;]
+    {
+        // Opérations d'E/S
+        std::copy(std::istream_iterator&lt;int&gt;{iss_numbers},
+                  std::istream_iterator&lt;int&gt;{},
+                  std::back_inserter(numbers));
+
+        // notifie pour les nombres
+        numbers_promise.set_value();
+
+        std::copy_if(std::istreambuf_iterator&lt;char&gt;{iss_letters},
+                     std::istreambuf_iterator&lt;char&gt;{},
+                     std::back_inserter(letters),
+                     ::isalpha);
+
+        // notifie pour les lettres
+        letters_promise.set_value();
+    });
+
+    numbers_ready.wait();
+
+    std::sort(numbers.begin(), numbers.end());
+
+    if (letter_ready.wait_for(1s) == std::future_status::timeout)
+    {
+        // affiche les nombres pendant l'obtention des lettres
+        for (int num : numbers)
+            std::cout &lt;&lt; num &lt;&lt; ' ';
+        numbers.clear(); // les nombres ont déjà été affichés
+    }
+
+    letter_ready.wait();
+    std::sort(letters.begin(), letters.end());
+
+    // ne fait rien si les nombres ont déjà été affichés
+    for (int num : numbers)
+        std::cout &lt;&lt; num &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    for (char let : letters)
+        std::cout &lt;&lt; let &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    value_reader.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">-289 -23 1 2 3 4 23 42 93 93
+a a a a b c e i k k k s s
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2098">LWG 2098</a></td>
+<td>C++11</td>
+<td>les surcharges de <code>(1,2)</code> ne pouvaient lever que les exceptions levées par le constructeur de copie/déplacement de <code>R</code> respectivement</td>
+<td>elles peuvent lever les exceptions levées par le constructeur réel sélectionné pour copier/déplacer un objet de type <code>R</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="set_value_at_thread_exit.html">set_value_at_thread_exit</a></strong> — définit le résultat à une valeur spécifique tout en ne livrant la notification qu'à la sortie du thread <em>(fonction membre publique)</em></li>
+<li><strong><a href="set_exception.html">set_exception</a></strong> — définit le résultat pour indiquer une exception <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

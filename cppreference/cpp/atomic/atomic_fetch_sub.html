@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic_fetch_sub, std::atomic_fetch_sub_explicit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-atomic_fetch_sub-std-atomic_fetch_sub_explicit"><code>std::atomic_fetch_sub, std::atomic_fetch_sub_explicit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic_fetch_sub">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+T atomic_fetch_sub( std::atomic&lt;T&gt;* obj,
+                    typename std::atomic&lt;T&gt;::difference_type arg ) noexcept;  // (1) (depuis C++11)
+
+template&lt; class T &gt;
+T atomic_fetch_sub( volatile std::atomic&lt;T&gt;* obj,
+                    typename std::atomic&lt;T&gt;::difference_type arg ) noexcept;  // (2) (depuis C++11)
+
+template&lt; class T &gt;
+T atomic_fetch_sub_explicit( std::atomic&lt;T&gt;* obj,
+                             typename std::atomic&lt;T&gt;::difference_type arg,
+                             std::memory_order order ) noexcept;  // (3) (depuis C++11)
+
+template&lt; class T &gt;
+T atomic_fetch_sub_explicit( volatile std::atomic&lt;T&gt;* obj,
+                             typename std::atomic&lt;T&gt;::difference_type arg,
+                             std::memory_order order ) noexcept;  // (4) (depuis C++11)
+</code></pre>
+<p>Effectue une soustraction atomique. Soustrait atomiquement <code>arg</code> à la valeur pointée par <code>obj</code> et retourne la valeur <code>obj</code> détenue précédemment. L'opération est effectuée comme si la suite suivante était exécutée :</p>
+<p>1,2) <code>obj-&gt;fetch_sub(arg)</code></p>
+<p>3,4) <code>obj-&gt;fetch_sub(arg, order)</code></p>
+<p>Si <code>std::atomic&lt;T&gt;</code> n'a pas de membre <code>fetch_sub</code> (ce membre n'est fourni que pour les types <a href="atomic.html#Specializations_for_integral_types">entiers</a>, <a href="atomic.html#Specializations_for_floating-point_types">à virgule flottante</a> <em>(depuis C++20)</em> et <a href="atomic.html#Partial_specializations">pointeurs</a> à l'exception de <code>bool</code>), le programme est mal formé.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>obj</code> — pointeur vers l'objet atomique à modifier</li>
+<li><code>arg</code> — la valeur à soustraire de la valeur stockée dans l'objet atomique</li>
+<li><code>order</code> — l'ordre de synchronisation mémoire</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur immédiatement antérieure aux effets de cette fonction dans l'<a href="memory_order.html#Modification_order">ordre de modification</a> de <code>*obj</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Plusieurs threads peuvent utiliser <code>std::atomic_fetch_sub</code> pour traiter simultanément un conteneur indexé.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+#include &lt;numeric&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+const int N = 50;
+std::atomic&lt;int&gt; cnt;
+std::vector&lt;int&gt; data(N);
+
+void reader(int id)
+{
+    for (;;)
+    {
+        int idx = atomic_fetch_sub_explicit(&amp;cnt, 1, std::memory_order_relaxed);
+        if (idx &gt;= 0)
+            std::cout &lt;&lt; &quot;reader &quot; &lt;&lt; std::to_string(id) &lt;&lt; &quot; processed item &quot;
+                      &lt;&lt; std::to_string(data[idx]) &lt;&lt; '\n';
+        else
+        {
+            std::cout &lt;&lt; &quot;reader &quot; &lt;&lt; std::to_string(id) &lt;&lt; &quot; done\n&quot;;
+            break;
+        }
+    }
+}
+
+int main()
+{
+    std::iota(data.begin(), data.end(), 1);
+    cnt = data.size() - 1;
+
+    std::vector&lt;std::thread&gt; v;
+    for (int n = 0; n &lt; 5; ++n)
+        v.emplace_back(reader, n);
+    for (auto&amp; t : v)
+        t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">reader 2 processed item 50
+reader 1 processed item 44
+reader 4 processed item 46
+&lt;....&gt;
+reader 0 done
+reader 4 done
+reader 3 done
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P0558R1">P0558R1</a></td>
+<td>C++11</td>
+<td>une correspondance exacte de type était requise car <code>T</code> a été déduit à partir de plusieurs arguments</td>
+<td><code>T</code> n'est déduit qu'à partir de <code>obj</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="atomic/fetch_sub.html">fetch_sub</a></strong> — soustrait atomiquement l'argument de la valeur stockée dans l'objet atomique et obtient la valeur détenue précédemment <em>(fonction membre publique de <code>std::atomic&lt;T&gt;</code>)</em></li>
+<li><strong><a href="atomic_fetch_add.html">atomic_fetch_addatomic_fetch_add_explicit</a> (C++11) (C++11)</strong> — ajoute une valeur non atomique à un objet atomique et obtient la valeur précédente de l'atomique <em>(modèle de fonction)</em></li>
+</ul>
+<p><strong><a href="../../c/atomic/atomic_fetch_sub.html">Documentation C</a> pour atomic_fetch_sub, atomic_fetch_sub_explicit</strong></p>
+
+</main>
+</body>
+</html>

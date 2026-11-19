@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::filesystem::is_socket — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../cpp/experimental/fs.html">Bibliothèque du système de fichiers</a></nav>
+<h1 id="std-experimental-filesystem-is_socket"><code>std::experimental::filesystem::is_socket</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/fs/is_socket">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/filesystem&gt;</strong></p>
+<pre><code class="language-cpp">bool is_socket( file_status s );  // (1) (TS sur le système de fichiers)
+
+bool is_socket( const path&amp; p );
+bool is_socket( const path&amp; p, error_code&amp; ec );  // (2) (TS sur le système de fichiers)
+</code></pre>
+<p>Vérifie si le statut de fichier ou le chemin donné correspond à un socket IPC nommé, tel que déterminé par la constante POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html">S_IFSOCK</a>.</p>
+<ol>
+<li>
+<p>Équivalent à <code>s.type() == file_type::socket</code>.</p>
+</li>
+<li>
+<p>Équivalent à <code>is_socket(status(p))</code> ou <code>is_socket(status(p, ec))</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — statut de fichier à vérifier</li>
+<li><code>p</code> — chemin à examiner</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si le fichier indiqué par <code>p</code> ou si le type indiqué <code>s</code> désigne un socket nommé. La surcharge sans exception renvoie <code>false</code> si une erreur survient.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>1)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept</code></p>
+<ol start="2">
+<li>La surcharge sans paramètre <code>error_code&amp;</code> lève <a href="filesystem_error.html">filesystem_error</a> en cas d'erreur de l'API du système sous-jacent, construite avec <code>p</code> comme premier argument et le code d'erreur du système comme argument de code d'erreur. <code>std::bad_alloc</code> peut être levée si l'allocation mémoire échoue. La surcharge prenant un paramètre <code>error_code&amp;</code> le définit au code d'erreur de l'API du système si un appel à l'API échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient. Cette surcharge a<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept</code></li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Les sockets nommés sont des sockets de domaine UNIX construits avec les API POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/socket.html">socket</a> et <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/bind.html">bind</a>, qui peuvent être utilisés pour la communication interprocessus avancée. En particulier, ils peuvent servir à transmettre des descripteurs de fichiers ouverts d'un processus en cours d'exécution à un autre.</p>
+<p>Les informations fournies par cette fonction sont généralement aussi fournies comme sous-produit de l'itération sur les répertoires. Pendant l'itération sur les répertoires, appeler <code>is_socket(*iterator)</code> est moins efficace que <code>is_socket(iterator-&gt;status())</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+#include &lt;cstring&gt;
+#include &lt;experimental/filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;sys/un.h&gt;
+#include &lt;unistd.h&gt;
+
+namespace fs = std::experimental::filesystem;
+
+void demo_status(const fs::path&amp; p, fs::file_status s)
+{
+    std::cout &lt;&lt; p;
+    // alternative : switch(s.type()) { case fs::file_type::regular: ... }
+    if (fs::is_regular_file(s))
+        std::cout &lt;&lt; &quot; is a regular file\n&quot;;
+    if (fs::is_directory(s))
+        std::cout &lt;&lt; &quot; is a directory\n&quot;;
+    if (fs::is_block_file(s))
+        std::cout &lt;&lt; &quot; is a block device\n&quot;;
+    if (fs::is_character_file(s))
+        std::cout &lt;&lt; &quot; is a character device\n&quot;;
+    if (fs::is_fifo(s))
+        std::cout &lt;&lt; &quot; is a named IPC pipe\n&quot;;
+    if (fs::is_socket(s))
+        std::cout &lt;&lt; &quot; is a named IPC socket\n&quot;;
+    if (fs::is_symlink(s))
+        std::cout &lt;&lt; &quot; is a symlink\n&quot;;
+    if (!fs::exists(s))
+        std::cout &lt;&lt; &quot; does not exist\n&quot;;
+}
+
+int main()
+{
+    // créer des fichiers de différents types
+    fs::create_directory(&quot;sandbox&quot;);
+    std::ofstream(&quot;sandbox/file&quot;); // créer un fichier régulier
+    fs::create_directory(&quot;sandbox/dir&quot;);
+    mkfifo(&quot;sandbox/pipe&quot;, 0644);
+    struct sockaddr_un addr;
+    addr.sun_family = AF_UNIX;
+    std::strcpy(addr.sun_path, &quot;sandbox/sock&quot;);
+    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    bind(fd, (struct sockaddr*)&amp;addr, sizeof addr);
+    fs::create_symlink(&quot;file&quot;, &quot;sandbox/symlink&quot;);
+
+    // démonstration des différents accesseurs de statut
+    for (auto it = fs::directory_iterator(&quot;sandbox&quot;); it != fs::directory_iterator(); ++it)
+        demo_status(*it, it-&gt;symlink_status()); // utiliser le statut mis en cache de l'entrée de répertoire
+    demo_status(&quot;dev/null&quot;, fs::status(&quot;/dev/null&quot;)); // appels directs à status
+    demo_status(&quot;dev/sda&quot;, fs::status(&quot;/dev/sda&quot;));
+    demo_status(&quot;sandbox/no&quot;, fs::status(&quot;/sandbox/no&quot;));
+
+    // cleanup
+    close(fd);
+    fs::remove_all(&quot;sandbox&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;sandbox/file&quot; is a regular file
+&quot;sandbox/dir&quot; is a directory
+&quot;sandbox/pipe&quot; is a named IPC pipe
+&quot;sandbox/sock&quot; is a named IPC socket
+&quot;sandbox/symlink&quot; is a symlink
+&quot;dev/null&quot; is a character device
+&quot;dev/sda&quot; is a block device
+&quot;sandbox/no&quot; does not exist
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="status.html">statussymlink_status</a></strong> — détermine les attributs du fichier détermine les attributs du fichier, en vérifiant la cible du lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="file_status.html">file_status</a></strong> — représente le type de fichier et les permissions <em>(classe)</em></li>
+<li><strong><a href="status_known.html">status_known</a></strong> — vérifie si le statut du fichier est connu <em>(fonction)</em></li>
+<li><strong><a href="is_block_file.html">is_block_file</a></strong> — vérifie si le chemin donné désigne un périphérique bloc <em>(fonction)</em></li>
+<li><strong><a href="is_character_file.html">is_character_file</a></strong> — vérifie si le chemin donné désigne un périphérique caractère <em>(fonction)</em></li>
+<li><strong><a href="is_directory.html">is_directory</a></strong> — vérifie si le chemin donné désigne un répertoire <em>(fonction)</em></li>
+<li><strong><a href="is_fifo.html">is_fifo</a></strong> — vérifie si le chemin donné désigne un tube nommé <em>(fonction)</em></li>
+<li><strong><a href="is_other.html">is_other</a></strong> — vérifie si l'argument désigne un fichier <em>autre</em> <em>(fonction)</em></li>
+<li><strong><a href="is_regular_file.html">is_regular_file</a></strong> — vérifie si l'argument désigne un fichier régulier <em>(fonction)</em></li>
+<li><strong><a href="is_symlink.html">is_symlink</a></strong> — vérifie si l'argument désigne un lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="exists.html">exists</a></strong> — vérifie si le chemin désigne un objet existant du système de fichiers <em>(fonction)</em></li>
+<li><strong><a href="directory_entry/status.html">statussymlink_status</a></strong> — état en cache du fichier désigné par cette entrée de répertoire symlink_status en cache du fichier désigné par cette entrée de répertoire <em>(fonction membre publique de <code>std::experimental::filesystem::directory_entry</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

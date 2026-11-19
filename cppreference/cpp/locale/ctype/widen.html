@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ctype&lt;CharT&gt;::widen, do_widen — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/ctype.html">std::ctype</a></nav>
+<h1 id="std-ctype-chart-widen-do_widen"><code>std::ctype&lt;CharT&gt;::widen, do_widen</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/ctype/widen">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+CharT widen( char c ) const;  // (1)
+
+public:
+const char* widen( const char* beg, const char* end, CharT* dst ) const;  // (2)
+
+protected:
+virtual CharT do_widen( char c ) const;  // (3)
+
+protected:
+virtual const char* do_widen( const char* beg, const char* end, CharT* dst ) const;  // (4)
+</code></pre>
+<p>1,2) Fonction membre publique, appelle la fonction membre virtuelle protégée correspondante <code>do_widen</code> surcharge de la classe la plus dérivée. La surcharge (1) appelle <code>do_widen(c)</code>, la surcharge (2) appelle <code>do_widen(beg, end, dst)</code>.</p>
+<ol start="3">
+<li>
+<p>Convertit le caractère sur un octet <code>c</code> en sa représentation de caractère large correspondante, en utilisant la transformation la plus simple et raisonnable. En général, cela ne s'applique qu'aux caractères dont l'encodage multi-octets tient sur un seul octet (par exemple U+0000-U+007F en UTF-8).</p>
+</li>
+<li>
+<p>Pour chaque caractère du tableau de caractères <code>[beg,end)</code>, écrit le caractère élargi correspondant dans les positions successives du tableau de caractères pointé par <code>dst</code>.</p>
+</li>
+</ol>
+<p>L'élargissement renvoie toujours un caractère large, mais seuls les caractères de [<a href="../../language/charset.html#Basic_source_character_set">l'ensemble de caractères source de base</a> <em>(jusqu'à C++23)</em> | <a href="../../language/charset.html#Basic_character_set">l'ensemble de caractères de base</a> <em>(depuis C++23)</em>] ont la garantie d'avoir une transformation d'élargissement unique, bien définie, et également garantie réversible (par <a href="narrow.html"><code>narrow()</code></a>). En pratique, tous les caractères dont la représentation multi-octets tient sur un seul octet sont généralement élargis vers leurs équivalents de caractères larges, et le reste des valeurs possibles sur un octet est généralement associé à la même valeur de remplacement, typiquement <code>CharT(-1)</code>.</p>
+<p>L'élargissement, en cas de succès, préserve toutes les catégories de classification de caractères connues de <a href="is.html"><code>is()</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>c</code> — caractère à convertir</li>
+<li><code>dflt</code> — valeur par défaut à produire si la conversion échoue</li>
+<li><code>beg</code> — pointeur vers le premier caractère d'un tableau de caractères à convertir</li>
+<li><code>end</code> — pointeur vers la fin (un au-delà du dernier élément) du tableau de caractères à convertir</li>
+<li><code>dst</code> — pointeur vers le premier élément du tableau de caractères à remplir</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1,3) Caractère élargi.</p>
+<p>2,4) <code>end</code></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+void try_widen(const std::ctype&lt;wchar_t&gt;&amp; f, char c)
+{
+    wchar_t w = f.widen(c);
+    std::cout &lt;&lt; &quot;The single-byte character &quot; &lt;&lt; +(unsigned char)c
+              &lt;&lt; &quot; widens to &quot; &lt;&lt; +w &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::locale::global(std::locale(&quot;cs_CZ.iso88592&quot;));
+    auto&amp; f = std::use_facet&lt;std::ctype&lt;wchar_t&gt;&gt;(std::locale());
+    std::cout &lt;&lt; std::hex &lt;&lt; std::showbase &lt;&lt; &quot;In Czech ISO-8859-2 locale:\n&quot;;
+    try_widen(f, 'a');
+    try_widen(f, '\xdf'); // Lettre allemande ß (U+00df) en ISO-8859-2
+    try_widen(f, '\xec'); // Lettre tchèque ě (U+011b) en ISO-8859-2
+
+    std::locale::global(std::locale(&quot;cs_CZ.utf8&quot;));
+    auto&amp; f2 = std::use_facet&lt;std::ctype&lt;wchar_t&gt;&gt;(std::locale());
+    std::cout &lt;&lt; &quot;In Czech UTF-8 locale:\n&quot;;
+    try_widen(f2, 'a');
+    try_widen(f2, '\xdf');
+    try_widen(f2, '\xec');
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">In Czech ISO-8859-2 locale:
+The single-byte character 0x61 widens to 0x61
+The single-byte character 0xdf widens to 0xdf
+The single-byte character 0xec widens to 0x11b
+In Czech UTF-8 locale:
+The single-byte character 0x61 widens to 0x61
+The single-byte character 0xdf widens to 0xffffffff
+The single-byte character 0xec widens to 0xffffffff
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue153">LWG 153</a></td>
+<td>C++98</td>
+<td><code>widen</code> appelait toujours la surcharge (4)</td>
+<td>appelle la surcharge correspondante</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="narrow.html">narrow</a></strong> — invoque <code>do_narrow</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="../../io/basic_ios/widen.html">widen</a></strong> — convertit les caractères en version large <em>(fonction membre publique de <code>std::basic_ios&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../../string/multibyte/btowc.html">btowc</a></strong> — élargit un caractère étroit monooctet en caractère large, si possible <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

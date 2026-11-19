@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::destroy_at — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-destroy_at"><code>std::destroy_at</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/destroy_at">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+void destroy_at( T* p );  // (depuis C++17) (jusqu'à C++20)
+
+template&lt; class T &gt;
+constexpr void destroy_at( T* p );  // (depuis C++20)
+</code></pre>
+<p>Si <code>T</code> n'est pas un type tableau, appelle le destructeur de l'objet pointé par <code>p</code>, comme si par <code>p-&gt;~T()</code>.</p>
+<p>Si <code>T</code> est un type tableau, [le programme est mal formé <em>(jusqu'à C++20)</em> | détruit récursivement les éléments de <code>*p</code> dans l'ordre, comme si en appelant <code>std::destroy(std::begin(*p), std::end(*p))</code> <em>(depuis C++20)</em>].</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — un pointeur vers l'objet à détruire</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class T&gt;
+constexpr void destroy_at(T* p)
+{
+    if constexpr (std::is_array_v&lt;T&gt;)
+        for (auto &amp;elem : *p)
+            (destroy_at)(std::addressof(elem));
+    else
+        p-&gt;~T();
+}
+// C++17 version:
+// template&lt;class T&gt; void destroy_at(T* p) { p-&gt;~T(); }
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><code>destroy_at</code> déduit le type de l'objet à détruire et évite donc de l'écrire explicitement dans l'appel au destructeur.</p>
+<blockquote>
+<p>Lorsque <code>destroy_at</code> est appelé lors de l'évaluation d'une <a href="../language/constant_expression.html">expression constante</a> <code>e</code>, l'argument <code>p</code> doit pointer vers un objet dont la durée de vie a commencé pendant l'évaluation de <code>e</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant montre comment utiliser <code>destroy_at</code> pour détruire une séquence contiguë d'éléments.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;new&gt;
+
+struct Tracer
+{
+    int value;
+    ~Tracer() { std::cout &lt;&lt; value &lt;&lt; &quot; destructed\n&quot;; }
+};
+
+int main()
+{
+    alignas(Tracer) unsigned char buffer[sizeof(Tracer) * 8];
+
+    for (int i = 0; i &lt; 8; ++i)
+        new(buffer + sizeof(Tracer) * i) Tracer{i}; //construire manuellement des objets
+
+    auto ptr = std::launder(reinterpret_cast&lt;Tracer*&gt;(buffer));
+
+    for (int i = 0; i &lt; 8; ++i)
+        std::destroy_at(ptr + i);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">0 destructed
+1 destructed
+2 destructed
+3 destructed
+4 destructed
+5 destructed
+6 destructed
+7 destructed
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="destroy.html">destroy</a> (C++17)</strong> — détruit un intervalle d'objets <em>(modèle de fonction)</em></li>
+<li><strong><a href="destroy_n.html">destroy_n</a> (C++17)</strong> — détruit un certain nombre d'objets dans un intervalle <em>(modèle de fonction)</em></li>
+<li><strong><a href="construct_at.html">construct_at</a> (C++20)</strong> — crée un objet à une adresse donnée <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/destroy_at.html">ranges::destroy_at</a> (C++20)</strong> — détruit un objet à une adresse donnée <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

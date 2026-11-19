@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::result_of, std::invoke_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-result_of-std-invoke_result"><code>std::result_of, std::invoke_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/result_of">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class &gt;
+class result_of; // non défini
+template&lt; class F, class... ArgTypes &gt;
+class result_of&lt;F(ArgTypes...)&gt;;  // (1) (depuis C++11) (obsolète en C++17) (supprimé en C++20)
+
+template&lt; class F, class... ArgTypes &gt;
+class invoke_result;  // (2) (depuis C++17)
+</code></pre>
+<p>Déduit le type de retour d'une <a href="../utility/functional.html"><code>INVOKE</code> expression</a> à la compilation.</p>
+<blockquote>
+<p><code>F</code> doit être un type appelable, une référence vers une fonction, ou une référence vers un type appelable. L'invocation de <code>F</code> avec <code>ArgTypes...</code> doit être une expression bien formée.</p>
+<p><em>(depuis C++11) (jusqu'à C++14)</em></p>
+</blockquote>
+<blockquote>
+<p><code>F</code> et tous les types de <code>ArgTypes</code> peuvent être n'importe quel type complet, tableau de borne inconnue, ou (éventuellement qualifié cv) <code>void</code>.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<p>Si le programme ajoute des spécialisations pour l'un des modèles décrits sur cette page, le comportement est indéfini.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li><strong><code>type</code></strong> — le type de retour du type <a href="../named_req/Callable.html"><em>Callable</em></a> <code>F</code> s'il est invoqué avec les arguments <code>ArgTypes...</code>. Défini uniquement si F peut être appelé avec les arguments <code>ArgTypes...</code> dans un contexte non évalué. <em>(depuis C++14)</em></li>
+</ul>
+<h2 id="Helper_types">Types auxiliaires</h2>
+<pre><code class="language-cpp">template&lt; class T &gt;
+using result_of_t = typename result_of&lt;T&gt;::type;  // (1) (depuis C++14) (obsolète en C++17) (supprimé en C++20)
+
+template&lt; class F, class... ArgTypes &gt;
+using invoke_result_t = typename invoke_result&lt;F, ArgTypes...&gt;::type;  // (2) (depuis C++17)
+</code></pre>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt;class T&gt;
+    struct is_reference_wrapper : std::false_type {};
+    template&lt;class U&gt;
+    struct is_reference_wrapper&lt;std::reference_wrapper&lt;U&gt;&gt; : std::true_type {};
+
+    template&lt;class T&gt;
+    struct invoke_impl
+    {
+        template&lt;class F, class... Args&gt;
+        static auto call(F&amp;&amp; f, Args&amp;&amp;... args)
+            -&gt; decltype(std::forward&lt;F&gt;(f)(std::forward&lt;Args&gt;(args)...));
+    };
+
+    template&lt;class B, class MT&gt;
+    struct invoke_impl&lt;MT B::*&gt;
+    {
+        template&lt;class T, class Td = typename std::decay&lt;T&gt;::type,
+            class = typename std::enable_if&lt;std::is_base_of&lt;B, Td&gt;::value&gt;::type&gt;
+        static auto get(T&amp;&amp; t) -&gt; T&amp;&amp;;
+
+        template&lt;class T, class Td = typename std::decay&lt;T&gt;::type,
+            class = typename std::enable_if&lt;is_reference_wrapper&lt;Td&gt;::value&gt;::type&gt;
+        static auto get(T&amp;&amp; t) -&gt; decltype(t.get());
+
+        template&lt;class T, class Td = typename std::decay&lt;T&gt;::type,
+            class = typename std::enable_if&lt;!std::is_base_of&lt;B, Td&gt;::value&gt;::type,
+            class = typename std::enable_if&lt;!is_reference_wrapper&lt;Td&gt;::value&gt;::type&gt;
+        static auto get(T&amp;&amp; t) -&gt; decltype(*std::forward&lt;T&gt;(t));
+
+        template&lt;class T, class... Args, class MT1,
+            class = typename std::enable_if&lt;std::is_function&lt;MT1&gt;::value&gt;::type&gt;
+        static auto call(MT1 B::*pmf, T&amp;&amp; t, Args&amp;&amp;... args)
+            -&gt; decltype((invoke_impl::get(
+                std::forward&lt;T&gt;(t)).*pmf)(std::forward&lt;Args&gt;(args)...));
+
+        template&lt;class T&gt;
+        static auto call(MT B::*pmd, T&amp;&amp; t)
+            -&gt; decltype(invoke_impl::get(std::forward&lt;T&gt;(t)).*pmd);
+    };
+
+    template&lt;class F, class... Args, class Fd = typename std::decay&lt;F&gt;::type&gt;
+    auto INVOKE(F&amp;&amp; f, Args&amp;&amp;... args)
+        -&gt; decltype(invoke_impl&lt;Fd&gt;::call(std::forward&lt;F&gt;(f),
+            std::forward&lt;Args&gt;(args)...));
+} // espace de noms detail
+
+// Implémentation minimale en C++11 :
+template&lt;class&gt; struct result_of;
+template&lt;class F, class... ArgTypes&gt;
+struct result_of&lt;F(ArgTypes...)&gt;
+{
+    using type = decltype(detail::INVOKE(std::declval&lt;F&gt;(), std::declval&lt;ArgTypes&gt;()...));
+};
+
+// Implémentation conforme en C++14 (également valide en C++11) :
+namespace detail
+{
+    template&lt;typename AlwaysVoid, typename, typename...&gt;
+    struct invoke_result {};
+    template&lt;typename F, typename...Args&gt;
+    struct invoke_result&lt;
+        decltype(void(detail::INVOKE(std::declval&lt;F&gt;(), std::declval&lt;Args&gt;()...))),
+            F, Args...&gt;
+    {
+        using type = decltype(detail::INVOKE(std::declval&lt;F&gt;(), std::declval&lt;Args&gt;()...));
+    };
+} // espace de noms detail
+
+template&lt;class&gt; struct result_of;
+template&lt;class F, class... ArgTypes&gt;
+struct result_of&lt;F(ArgTypes...)&gt; : detail::invoke_result&lt;void, F, ArgTypes...&gt; {};
+
+template&lt;class F, class... ArgTypes&gt;
+struct invoke_result : detail::invoke_result&lt;void, F, ArgTypes...&gt; {};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Tel que formulé en C++11, le comportement de <code>std::result_of</code> est indéfini lorsque <code>INVOKE(std::declval&lt;F&gt;(), std::declval&lt;ArgTypes&gt;()...)</code> est mal formé (par exemple lorsque F n'est pas du tout un type appelable). C++14 remplace cela par un <a href="../language/sfinae.html">SFINAE</a> (lorsque F n'est pas appelable, <code>std::result_of&lt;F(ArgTypes...)&gt;</code> n'a tout simplement pas le membre <code>type</code>).</p>
+<p>La motivation derrière <code>std::result_of</code> est de déterminer le résultat de l'invocation d'un <a href="../named_req/Callable.html"><em>Callable</em></a>, en particulier si ce type de résultat diffère selon les ensembles d'arguments.</p>
+<p><code>F(Args...)</code> est un type de fonction dont <code>Args...</code> désignent les types des arguments et <code>F</code> le type de retour. Ainsi, <code>std::result_of</code> présente plusieurs particularités qui ont conduit à son obsolescence au profit de <code>std::invoke_result</code> en C++17 :</p>
+<ul>
+<li><code>F</code> ne peut pas être un type de fonction ou un type tableau (mais peut être une référence vers ceux-ci) ;</li>
+<li>si l'un des <code>Args</code> a le type « tableau de <code>T</code> » ou un type de fonction <code>T</code>, il est automatiquement ajusté en <code>T*</code> ;</li>
+<li>ni <code>F</code> ni aucun de <code>Args...</code> ne peut être un type de classe abstraite ;</li>
+<li>si l'un de <code>Args...</code> a un qualificateur cv de premier niveau, celui-ci est ignoré ;</li>
+<li>aucun de <code>Args...</code> ne peut être de type <code>void</code>.</li>
+</ul>
+<p>Pour éviter ces particularités, <code>result_of</code> est souvent utilisé avec des types référence comme <code>F</code> et <code>Args...</code>. Par exemple :</p>
+<pre><code class="language-cpp">template&lt;class F, class... Args&gt;
+std::result_of_t&lt;F&amp;&amp;(Args&amp;&amp;...)&gt; // au lieu de std::result_of_t&lt;F(Args...)&gt;, qui est incorrect
+    my_invoke(F&amp;&amp; f, Args&amp;&amp;... args)
+    {
+        /* implementation */
+    }
+</code></pre>
+<h2 id="Notes_2">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_result_of_sfinae"><code>__cpp_lib_result_of_sfinae</code></a></td>
+<td><a href="../compiler_support/14.html#cpp_lib_result_of_sfinae_201210L"><code>201210L</code></a></td>
+<td><em>(C++14)</em></td>
+<td><code>std::result_of</code> et <a href="../language/sfinae.html">SFINAE</a></td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_is_invocable"><code>__cpp_lib_is_invocable</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_is_invocable_201703L"><code>201703L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><a href="is_invocable.html"><code>std::is_invocable</code></a>, <code>std::invoke_result</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Examples">Exemples</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt;
+
+struct S
+{
+    double operator()(char, int&amp;);
+    float operator()(int) { return 1.0; }
+};
+
+template&lt;class T&gt;
+typename std::result_of&lt;T(int)&gt;::type f(T&amp; t)
+{
+    std::cout &lt;&lt; &quot;overload of f for callable T\n&quot;;
+    return t(0);
+}
+
+template&lt;class T, class U&gt;
+int f(U u)
+{
+    std::cout &lt;&lt; &quot;overload of f for non-callable T\n&quot;;
+    return u;
+}
+
+int main()
+{
+    // le résultat de l'invocation de S avec les arguments char et int&amp; est double
+    std::result_of&lt;S(char, int&amp;)&gt;::type d = 3.14; // d a le type double
+    static_assert(std::is_same&lt;decltype(d), double&gt;::value, &quot;&quot;);
+
+    // std::invoke_result utilise une syntaxe différente (sans parenthèses)
+    std::invoke_result&lt;S,char,int&amp;&gt;::type b = 3.14;
+    static_assert(std::is_same&lt;decltype(b), double&gt;::value, &quot;&quot;);
+
+    // le résultat de l'invocation de S avec un argument int est float
+    std::result_of&lt;S(int)&gt;::type x = 3.14; // x a le type float
+    static_assert(std::is_same&lt;decltype(x), float&gt;::value, &quot;&quot;);
+
+    // result_of peut être utilisé avec un pointeur vers fonction membre comme suit
+    struct C { double Func(char, int&amp;); };
+    std::result_of&lt;decltype(&amp;C::Func)(C, char, int&amp;)&gt;::type g = 3.14;
+    static_assert(std::is_same&lt;decltype(g), double&gt;::value, &quot;&quot;);
+
+    f&lt;C&gt;(1); // peut échouer à la compilation en C++11 ; appelle la surcharge non appelable en C++14
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">overload of f for non-callable T
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../utility/functional/invoke.html">invokeinvoke_r</a> (C++17) (C++23)</strong> — invoque tout objet <a href="../named_req/Callable.html"><em>Callable</em></a> avec des arguments donnés et possibilité de spécifier le type de retour <em>(depuis C++23)</em> <em>(modèle de fonction)</em></li>
+<li><strong><a href="is_invocable.html">is_invocableis_invocable_ris_nothrow_invocableis_nothrow_invocable_r</a> (C++17)</strong> — vérifie si un type peut être invoqué (comme par <a href="../utility/functional/invoke.html"><code>std::invoke</code></a>) avec les types d'arguments donnés <em>(modèle de classe)</em></li>
+<li><strong><a href="../utility/declval.html">declval</a> (C++11)</strong> — obtient une référence à un objet du type argument de modèle pour une utilisation dans un contexte non évalué <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

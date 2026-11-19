@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Champs de bits — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="champs-de-bits">Champs de bits</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/bit_field">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Déclare un membre de largeur explicite, en bits. Des membres champs de bits adjacents peuvent être empaquetés pour partager et chevaucher les octets individuels.</p>
+<p>Une déclaration de champ de bits est une déclaration de membre de <a href="struct.html">struct</a> ou d'<a href="union.html">union</a> qui utilise le <a href="declarations.html">déclarateur</a> suivant :</p>
+<p>|
+| |
+| <code>identifier</code> ﻿*(facultatif)* <code>:</code> <code>width</code> | | |
+|</p>
+<ul>
+<li><code>identifier</code> — un nom du champ de bits en cours de déclaration. Le nom est facultatif : les champs de bits sans nom introduisent le nombre de bits de bourrage spécifié</li>
+<li><code>width</code> — une <a href="constant_expression.html">expression constante</a> entière dont la valeur est supérieure ou égale à zéro et inférieure ou égale au nombre de bits du type sous-jacent. Lorsqu'elle est strictement positive, il s'agit du nombre de bits qu'occupera ce champ de bits. La valeur zéro n'est autorisée que pour les champs de bits sans nom et a une signification particulière : elle indique que le champ de bits suivant dans la définition de la classe commencera à la frontière d'une unité d'allocation.</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Les champs de bits ne peuvent avoir qu'un seul des types suivants (éventuellement qualifié <a href="const.html">const</a> ou <a href="volatile.html">volatile</a>) :</p>
+<ul>
+<li><code>unsigned int</code>, pour les champs de bits non signés (par ex. <code>unsigned int b : 3;</code> a pour intervalle <code>[0,7]</code>)</li>
+<li><code>signed int</code>, pour les champs de bits signés (<code>signed int b : 3;</code> a pour intervalle <code>[-4,3]</code>)</li>
+<li><code>int</code>, pour les champs de bits dont la signature est définie par l'implémentation (notez que cela diffère de la signification du mot-clé <code>int</code> partout ailleurs, où il signifie « signed int »). Par exemple, <code>int b : 3;</code> peut avoir pour intervalle de valeurs <code>[0,7]</code> ou <code>[-4,3]</code>.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>_Bool</code>, pour les champs de bits d'un seul bit (par ex. <code>bool x : 1;</code>) a pour intervalle <code>[0,1]</code> et les <a href="conversion.html">conversions implicites</a> vers et depuis ce type suivent les règles de conversion booléenne.</li>
+</ul>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>types entiers à précision binaire (par ex. <code>_BitInt(5) : 4;</code> a pour intervalle <code>[-8,7]</code> et <code>unsigned _BitInt(5) : 4;</code> a pour intervalle <code>[0,15]</code>).</li>
+</ul>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<p>D'autres types définis par l'implémentation peuvent être acceptables. Il est également défini par l'implémentation qu'un champ de bits puisse être de type <a href="atomic.html">atomique</a>. <em>(depuis C11)</em> Le nombre de bits d'un champ de bits (<code>width</code>) fixe la limite de l'intervalle des valeurs qu'il peut contenir :</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+struct S
+{
+    // champ non signé de trois bits,
+    // les valeurs autorisées sont 0...7
+    unsigned int b : 3;
+};
+
+int main(void)
+{
+    struct S s = {7};
+    ++s.b; // dépassement de capacité non signé
+    printf(&quot;%d\n&quot;, s.b); // output: 0
+}
+</code></pre>
+<p>Plusieurs champs de bits adjacents peuvent (et sont généralement) empaquetés ensemble :</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+struct S
+{
+    // occupera généralement 4 octets :
+    // 5 bits : valeur de b1
+    // 11 bits : inutilisés
+    // 6 bits : valeur de b2
+    // 2 bits : valeur de b3
+    // 8 bits : inutilisés
+    unsigned b1 : 5, : 11, b2 : 6, b3 : 2;
+};
+
+int main(void)
+{
+    printf(&quot;%zu\n&quot;, sizeof(struct S)); // affiche généralement 4
+}
+</code></pre>
+<p>Le <em>champ de bits sans nom</em> spécial de <code>width</code> de valeur zéro interrompt le bourrage : il indique que le champ de bits suivant commence au début de l'unité d'allocation suivante :</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+struct S
+{
+    // occupera généralement 8 octets :
+    // 5 bits : valeur de b1
+    // 27 bits : inutilisés
+    // 6 bits : valeur de b2
+    // 15 bits : valeur de b3
+    // 11 bits : inutilisés
+    unsigned b1 : 5;
+    unsigned    : 0; // commence un nouvel unsigned int
+    unsigned b2 : 6;
+    unsigned b3 : 15;
+};
+
+int main(void)
+{
+    printf(&quot;%zu\n&quot;, sizeof(struct S)); // affiche généralement 8
+}
+</code></pre>
+<p>Comme les champs de bits ne commencent pas nécessairement au début d'un octet, l'adresse d'un champ de bits ne peut pas être prise. Les pointeurs vers des champs de bits sont impossibles. Les champs de bits ne peuvent pas être utilisés avec <a href="sizeof.html"><code>sizeof</code></a>et [<a href="alignas.html"><code>_Alignas</code></a> <em>(depuis C11)</em> <em>(jusqu'à C23)</em> | <a href="alignas.html"><code>alignas</code></a> <em>(depuis C23)</em>] <em>(depuis C11)</em>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les utilisations suivantes de champs de bits provoquent un <em>comportement indéfini</em> :</p>
+<ul>
+<li>Appel de <a href="../types/offsetof.html"><code>offsetof</code></a> sur un champ de bits.</li>
+</ul>
+<p>Les propriétés suivantes des champs de bits sont <em>non spécifiées</em> :</p>
+<ul>
+<li>Alignement de l'unité d'allocation qui contient un champ de bits.</li>
+</ul>
+<p>Les propriétés suivantes des champs de bits sont <em>définies par l'implémentation</em> :</p>
+<ul>
+<li>Indique si les champs de bits de type <code>int</code> sont traités comme signés ou non signés.</li>
+<li>Indique si des types autres que <code>int</code>, <code>signed int</code>, <code>unsigned int</code>[, <code>_Bool</code> <em>(depuis C99)</em> | , et (éventuellement <code>unsigned</code>) <code>_BitInt(N)</code> <em>(depuis C23)</em>] sont autorisés.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Indique si les types atomiques sont autorisés.</li>
+</ul>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<ul>
+<li>Indique si un champ de bits peut chevaucher la frontière d'une unité d'allocation.</li>
+<li>L'ordre des champs de bits au sein d'une unité d'allocation (sur certaines plateformes, les champs de bits sont empaquetés de gauche à droite, sur d'autres de droite à gauche).</li>
+</ul>
+<blockquote>
+<p>Bien que le nombre de bits de la représentation objet de <code>_Bool</code> soit au moins <a href="../types/limits.html"><code>CHAR_BIT</code></a>, la <code>width</code> du champ de bits de type <code>_Bool</code> ne peut pas être supérieure à <code>1</code>.</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>En langage C++, la largeur d'un champ de bits peut dépasser la largeur du type sous-jacent (mais les bits supplémentaires sont des bits de bourrage), et les champs de bits de type <code>int</code> sont toujours signés.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.5.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/bit_field.html">Documentation C++</a> pour Champ de bits</strong></p>
+
+</main>
+</body>
+</html>

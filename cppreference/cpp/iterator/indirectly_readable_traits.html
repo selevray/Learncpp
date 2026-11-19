@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::indirectly_readable_traits — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/iterator.html">Bibliothèque des itérateurs</a></nav>
+<h1 id="std-indirectly_readable_traits"><code>std::indirectly_readable_traits</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/indirectly_readable_traits">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class I &gt;
+struct indirectly_readable_traits {};  // (1) (depuis C++20)
+
+template&lt; class T &gt;
+struct indirectly_readable_traits&lt;T*&gt; :
+    /* cond-value-type */&lt;T&gt; {};  // (2) (depuis C++20)
+
+template&lt; class I &gt;
+    requires std::is_array_v&lt;I&gt;
+struct indirectly_readable_traits&lt;I&gt;;
+{ using value_type = std::remove_cv_t&lt;std::remove_extent_t&lt;I&gt;&gt;; }  // (3) (depuis C++20)
+
+template&lt; class T &gt;
+struct indirectly_readable_traits&lt;const T&gt; :
+    indirectly_readable_traits&lt;T&gt; {};  // (4) (depuis C++20)
+
+template&lt; /* has-member-value-type */ T &gt;
+struct indirectly_readable_traits&lt;T&gt; :
+    /* cond-value-type */&lt;typename T::value_type&gt; {};  // (5) (depuis C++20)
+
+template&lt; /* has-member-element-type */ T &gt;
+struct indirectly_readable_traits&lt;T&gt; :
+    /* cond-value-type */&lt;typename T::element_type&gt; {};  // (6) (depuis C++20)
+
+template&lt; /* has-member-value-type */ T &gt;
+    requires /* has-member-element-type */&lt;T&gt;
+struct indirectly_readable_traits&lt;T&gt; {};  // (7) (depuis C++20)
+
+template&lt; /* has-member-value-type */ T &gt;
+    requires /* has-member-element-type */&lt;T&gt; &amp;&amp;
+             std::same_as&lt;std::remove_cv_t&lt;typename T::element_type&gt;,
+                          std::remove_cv_t&lt;typename T::value_type&gt;&gt;
+struct indirectly_readable_traits&lt;T&gt; :
+    /* cond-value-type */&lt;typename T::value_type&gt; {};  // (8) (depuis C++20)
+</code></pre>
+<p><strong>Classes et concepts auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class &gt;
+struct /* cond-value-type */ {};  // (1) ( exposition uniquement* )
+
+template&lt; class T &gt;
+    requires std::is_object_v&lt;T&gt;
+struct /* cond-value-type */ &lt;T&gt;
+{ using value_type = std::remove_cv_t&lt;T&gt;; };  // (2) ( exposition uniquement* )
+
+template&lt; class T &gt;
+concept /* has-member-value-type */ =
+    requires { typename T::value_type; };  // (3) ( exposition uniquement* )
+
+template&lt; class T &gt;
+concept /* has-member-element-type */ =
+    requires { typename T::element_type; };  // (4) ( exposition uniquement* )
+</code></pre>
+<p>Calcule le type de valeur associé de l'argument de modèle. Si le type de valeur associé existe, il est représenté par le type imbriqué <code>value_type</code>, sinon <code>value_type</code> n'est pas défini. Un programme peut spécialiser <code>indirectly_readable_traits</code> pour un <a href="../language/type-id.html#Program-defined_type">type défini par le programme</a>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les spécialisations ci-dessus peuvent être décrites informellement comme suit.</p>
+<p>Étant donné un type <code>T</code>, son type de valeur associé <code>V</code> est déterminé comme suit :</p>
+<ul>
+<li>Si <code>T</code> est qualifié const, <code>V</code> est le type de valeur associé de <code>T</code> non qualifié const.</li>
+<li>Sinon, si <code>T</code> est un type tableau, <code>V</code> est le type d'élément du tableau non qualifié cv.</li>
+<li>Sinon, un type de valeur conditionnel <code>C</code> est d'abord déterminé :
+<ul>
+<li>Si <code>T</code> est un type pointeur, <code>C</code> est le type pointé.</li>
+<li>Sinon, si <code>T</code> possède les types imbriqués <code>value_type</code> et <code>element_type</code> :
+<ul>
+<li>Si ces types sont identiques (sans tenir compte du qualificatif cv), <code>C</code> est <code>typename T::value_type</code>.</li>
+<li>Sinon, <code>C</code> est indéfini.</li>
+</ul>
+</li>
+<li>Sinon, si <code>T</code> possède le type imbriqué <code>value_type</code> mais pas <code>element_type</code>, <code>C</code> est <code>typename T::value_type</code>.</li>
+<li>Sinon, si <code>T</code> possède le type imbriqué <code>element_type</code> mais pas <code>value_type</code>, <code>C</code> est <code>typename T::element_type</code>.</li>
+<li>Sinon, <code>C</code> est indéfini. Puis <code>V</code> est déterminé à partir de <code>C</code> comme suit :</li>
+<li>Si <code>C</code> est indéfini, ou si <code>C</code> n'est pas un <a href="../language/type-id.html#Object_type">type objet</a>, <code>V</code> est indéfini.</li>
+<li>Sinon, <code>V</code> est <code>C</code> non qualifié cv.</li>
+</ul>
+</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><code>value_type</code> est destiné à être utilisé avec des types <a href="indirectly_readable.html"><code>indirectly_readable</code></a>, comme les itérateurs. Il n'est pas destiné à être utilisé avec des plages.</p>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3446">LWG 3446</a></td>
+<td>C++20</td>
+<td>les spécialisations <code>(5,6)</code> étaient ambiguës pour les types possédant à la fois les types imbriqués <code>value_type</code> et <code>element_type</code></td>
+<td>ajout de la spécialisation <code>(8)</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3541">LWG 3541</a></td>
+<td>C++20</td>
+<td>LWG 3446 a introduit une erreur forte pour les cas ambigus où <code>value_type</code> et <code>element_type</code> sont différents</td>
+<td>ajout de la spécialisation <code>(7)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="indirectly_readable.html">indirectly_readable</a> (C++20)</strong> — spécifie qu'un type est indirectement lisible en appliquant l'opérateur <code>*</code> <em>(concept)</em></li>
+<li><strong><a href="iter_t.html">iter_value_titer_reference_titer_const_reference_titer_difference_titer_rvalue_reference_titer_common_reference_t</a> (C++20) (C++20) (C++23) (C++20) (C++20) (C++20)</strong> — calcule les types associés d'un itérateur <em>(modèle d'alias)</em></li>
+<li><strong><a href="iterator_traits.html">iterator_traits</a></strong> — fournit une interface uniforme aux propriétés d'un itérateur <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

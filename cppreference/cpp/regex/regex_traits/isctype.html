@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::regex_traits&lt;CharT&gt;::isctype — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/regex.html">Bibliothèque des expressions régulières (depuis C++11)</a> › <a href="../../../cpp/regex/regex_traits.html">std::regex_traits</a></nav>
+<h1 id="std-regex_traits-chart-isctype"><code>std::regex_traits&lt;CharT&gt;::isctype</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/regex/regex_traits/isctype">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">bool isctype( CharT c, char_class_type f ) const;
+</code></pre>
+<p>Détermine si le caractère <code>c</code> appartient à la classe de caractères identifiée par <code>f</code>, qui est à son tour une valeur renvoyée par <a href="lookup_classname.html"><code>lookup_classname()</code></a> ou un OU binaire de plusieurs de ces valeurs.</p>
+<p>La version de cette fonction fournie dans les spécialisations de la bibliothèque standard de <a href="../regex_traits.html"><code>std::regex_traits</code></a> effectue les opérations suivantes :</p>
+<ol>
+<li>Convertit d'abord <code>f</code> en une valeur <code>m</code> de type <a href="../../locale/ctype_base.html"><code>std::ctype_base::mask</code></a>.</li>
+</ol>
+<p>Pour chaque catégorie <a href="../../locale/ctype.html"><code>std::ctype</code></a> listée dans le tableau de la page <a href="lookup_classname.html"><code>lookup_classname()</code></a>, si les bits de <code>f</code> correspondant à la catégorie sont activés, les bits correspondants de <code>m</code> seront également activés.</p>
+<ol start="2">
+<li>Tente ensuite de classer le caractère dans la locale imprégnée en appelant <code>std::use_facet&lt;std::ctype&lt;CharT&gt;&gt;(getloc()).is(m, c)</code>.</li>
+</ol>
+<ul>
+<li>Si cet appel renvoie <code>true</code>, <code>isctype()</code> renverra également <code>true</code>.</li>
+<li>Sinon, si <code>c</code> est égal à <code>'_'</code>, et que <code>f</code> inclut le résultat de l'appel à <a href="lookup_classname.html"><code>lookup_classname()</code></a> pour la classe de caractères <code>[:w:]</code>, <code>true</code> est renvoyé, sinon <code>false</code> est renvoyé.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>c</code> — le caractère à classer</li>
+<li><code>f</code> — le masque de bits obtenu à partir d'un ou plusieurs appels à <a href="lookup_classname.html"><code>lookup_classname()</code></a></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si <code>c</code> est classé par <code>f</code>, <code>false</code> sinon.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::regex_traits&lt;char&gt; t;
+    std::string str_alnum = &quot;alnum&quot;;
+    auto a = t.lookup_classname(str_alnum.begin(), str_alnum.end());
+    std::string str_w = &quot;w&quot;; // [:w:] correspond à [:alnum:] plus '_'
+    auto w = t.lookup_classname(str_w.begin(), str_w.end());
+    std::cout &lt;&lt; std::boolalpha
+              &lt;&lt; t.isctype('A', w) &lt;&lt; ' ' &lt;&lt; t.isctype('A', a) &lt;&lt; '\n'
+              &lt;&lt; t.isctype('_', w) &lt;&lt; ' ' &lt;&lt; t.isctype('_', a) &lt;&lt; '\n'
+              &lt;&lt; t.isctype(' ', w) &lt;&lt; ' ' &lt;&lt; t.isctype(' ', a) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">true true
+true false
+false false
+</code></pre>
+<p>Démontre une implémentation personnalisée des traits de regex de <a href="lookup_classname.html"><code>lookup_classname()</code></a> / <code>isctype()</code> :</p>
+<pre><code class="language-cpp">#include &lt;cwctype&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+#include &lt;regex&gt;
+
+// Ce trait de regex personnalisé utilise wctype/iswctype pour implémenter lookup_classname/isctype.
+struct wctype_traits : std::regex_traits&lt;wchar_t&gt;
+{
+    using char_class_type = std::wctype_t;
+
+    template&lt;class It&gt;
+    char_class_type lookup_classname(It first, It last, bool = false) const
+    {
+        return std::wctype(std::string(first, last).c_str());
+    }
+
+    bool isctype(wchar_t c, char_class_type f) const
+    {
+        return std::iswctype(c, f);
+    }
+};
+
+int main()
+{
+    std::locale::global(std::locale(&quot;ja_JP.utf8&quot;));
+    std::wcout.sync_with_stdio(false);
+    std::wcout.imbue(std::locale());
+
+    std::wsmatch m;
+    std::wstring in = L&quot;風の谷のナウシカ&quot;;
+    // correspond à tous les caractères (ils sont classés comme alnum)
+    std::regex_search(in, m, std::wregex(L&quot;([[:alnum:]]+)&quot;));
+    std::wcout &lt;&lt; &quot;alnums: &quot; &lt;&lt; m[1] &lt;&lt; '\n'; // prints &quot;風の谷のナウシカ&quot;
+    // correspond uniquement aux katakana
+    std::regex_search(in, m,
+                      std::basic_regex&lt;wchar_t, wctype_traits&gt;(L&quot;([[:jkata:]]+)&quot;));
+    std::wcout &lt;&lt; &quot;katakana: &quot; &lt;&lt; m[1] &lt;&lt; '\n'; // prints &quot;ナウシカ&quot;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">alnums: 風の谷のナウシカ
+katakana: ナウシカ
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2018">LWG 2018</a></td>
+<td>C++11</td>
+<td>la valeur de <code>m</code> était non spécifiée</td>
+<td>correspond au support minimal de <a href="lookup_classname.html"><code>lookup_classname()</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="lookup_classname.html">lookup_classname</a></strong> — obtient une classe de caractères par son nom <em>(fonction membre publique)</em></li>
+<li><strong><a href="../../locale/ctype/is.html">do_is</a> [virtuelle]</strong> — classifie un caractère ou une séquence de caractères <em>(fonction membre protégée virtuelle de <code>std::ctype&lt;CharT&gt;</code>)</em></li>
+<li><strong><a href="../../string/wide/iswctype.html">iswctype</a></strong> — classe un caractère large selon la catégorie <a href="../../locale/LC_categories.html"><code>LC_CTYPE</code></a> spécifiée <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

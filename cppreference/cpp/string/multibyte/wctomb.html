@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::wctomb — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="std-wctomb"><code>std::wctomb</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/multibyte/wctomb">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">int wctomb( char* s, wchar_t wc );
+</code></pre>
+<p>Convertit un caractère large <code>wc</code> en codage multioctet et le stocke (séquences de décalage comprises) dans le tableau de caractères dont le premier élément est pointé par <code>s</code>. Au plus <code>MB_CUR_MAX</code> caractères sont stockés. La conversion dépend de la catégorie LC_CTYPE de la locale courante.</p>
+<p>Si <code>wc</code> est le caractère nul, l'octet nul est écrit dans <code>s</code>, précédé des séquences de décalage nécessaires pour rétablir l'état de décalage initial.</p>
+<p>Si <code>s</code> est un pointeur nul, réinitialise l'état de conversion global et détermine si des séquences de décalage sont utilisées.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers le tableau de caractères de sortie</li>
+<li><code>wc</code> — caractère large à convertir</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Si <code>s</code> n'est pas un pointeur nul, renvoie le nombre d'octets contenus dans la représentation multioctet de <code>wc</code>, ou <code>-1</code> si <code>wc</code> n'est pas un caractère valide.</p>
+<p>Si <code>s</code> est un pointeur nul, réinitialise son état de conversion interne pour représenter l'état de décalage initial et retourne <code>0</code> si l'encodage multioctet courant ne dépend pas d'un état (n'utilise pas de séquences de décalage), ou une valeur non nulle si l'encodage multioctet courant dépend d'un état (utilise des séquences de décalage).</p>
+<h2 id="Notes">Notes</h2>
+<p>Chaque appel à <code>wctomb</code> met à jour l'état de conversion global interne (un objet statique de type <a href="mbstate_t.html"><code>std::mbstate_t</code></a>, connu seulement de cette fonction). Si l'encodage multioctet utilise des états de décalage, cette fonction n'est pas réentrante. Dans tous les cas, plusieurs threads ne doivent pas appeler <code>wctomb</code> sans synchronisation : <a href="wcrtomb.html"><code>std::wcrtomb</code></a> peut être utilisée à la place.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;clocale&gt;
+#include &lt;cstdlib&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+void print_wide(const std::wstring&amp; wstr)
+{
+    bool shifts = std::wctomb(nullptr, 0); // réinitialiser l'état de conversion
+    std::cout &lt;&lt; &quot;shift sequences are &quot; &lt;&lt; (shifts ? &quot;&quot; : &quot;not&quot; )
+              &lt;&lt; &quot; used\n&quot; &lt;&lt; std::uppercase &lt;&lt; std::setfill('0');
+    for (const wchar_t wc : wstr)
+    {
+        std::string mb(MB_CUR_MAX, '\0');
+        const int ret = std::wctomb(&amp;mb[0], wc);
+        const char* s = ret &gt; 1 ? &quot;s&quot; : &quot;&quot;;
+        std::cout &lt;&lt; &quot;multibyte char '&quot; &lt;&lt; mb &lt;&lt; &quot;' is &quot; &lt;&lt; ret
+                  &lt;&lt; &quot; byte&quot; &lt;&lt; s &lt;&lt; &quot;: [&quot; &lt;&lt; std::hex;
+        for (int i{0}; i != ret; ++i)
+        {
+            const int c = 0xFF &amp; mb[i];
+            std::cout &lt;&lt; (i ? &quot; &quot; : &quot;&quot;) &lt;&lt; std::setw(2) &lt;&lt; c;
+        }
+        std::cout &lt;&lt; &quot;]\n&quot; &lt;&lt; std::dec;
+    }
+}
+
+int main()
+{
+    std::setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    // encodage multioctet étroit UTF-8
+    std::wstring wstr = L&quot;z\u00df\u6c34\U0001d10b&quot;; // ou L&quot;zß水𝄋&quot;
+    print_wide(wstr);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">shift sequences are not used
+multibyte char 'z' is 1 byte: [7A]
+multibyte char 'ß' is 2 bytes: [C3 9F]
+multibyte char '水' is 3 bytes: [E6 B0 B4]
+multibyte char '𝄋' is 4 bytes: [F0 9D 84 8B]
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbtowc.html">mbtowc</a></strong> — convertit le prochain caractère multioctet en caractère large <em>(fonction)</em></li>
+<li><strong><a href="wcrtomb.html">wcrtomb</a></strong> — convertit un caractère large en sa représentation multioctet, étant donné l'état <em>(fonction)</em></li>
+<li><strong><a href="../../locale/codecvt/out.html">do_out</a> [virtuelle]</strong> — convertit une chaîne de <code>InternT</code> vers <code>ExternT</code>, par exemple lors de l'écriture dans le fichier <em>(fonction membre virtuelle protégée de <code>std::codecvt&lt;InternT,ExternT,StateT&gt;</code>)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/multibyte/wctomb.html">Documentation C</a> pour wctomb</strong></p>
+
+</main>
+</body>
+</html>

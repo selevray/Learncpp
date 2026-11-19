@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ios_base::iword — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/ios_base.html">std::ios_base</a></nav>
+<h1 id="std-ios_base-iword"><code>std::ios_base::iword</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/ios_base/iword">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">long&amp; iword( int index );
+</code></pre>
+<p>Alloue d'abord ou redimensionne le stockage privé (tableau dynamique de <code>long</code> ou autre structure de données indexable) suffisamment pour rendre <code>index</code> un index valide, puis renvoie une référence vers l'élément <code>long</code> du stockage privé d'indice <code>index</code>.</p>
+<p>La référence peut être invalidée par toute opération sur cet objet <code>ios_base</code>, y compris un autre appel à <code>iword()</code>, mais les valeurs stockées sont conservées, de sorte que la lecture depuis <code>iword(index)</code> avec le même indice plus tard produira la même valeur jusqu'au prochain appel à <a href="../basic_ios/copyfmt.html"><code>std::basic_ios::copyfmt()</code></a>. La valeur peut être utilisée à toute fin. L'indice de l'élément doit être obtenu par un appel précédent à <a href="xalloc.html"><code>xalloc()</code></a>, sinon le comportement est indéfini. Les nouveaux éléments sont initialisés à <code>0</code>.</p>
+<p>Si la fonction échoue (éventuellement à cause d'un échec d'allocation) et que <code>*this</code> est un sous-objet de classe de base d'un objet ou sous-objet <code>basic_ios&lt;&gt;</code>, appelle <code>std::basic_ios&lt;&gt;::setstate(badbit)</code> qui peut lever <a href="failure.html"><code>std::ios_base::failure</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>L'usage typique du stockage iword est de transmettre des informations (par ex. des indicateurs de formatage personnalisés) depuis des manipulateurs d'E/S définis par l'utilisateur vers des <code>operator&lt;&lt;</code> et <code>operator&gt;&gt;</code> définis par l'utilisateur, ou vers des facettes de formatage définies par l'utilisateur et intégrées aux flux standard.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>index</code> — valeur d'indice de l'élément</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une référence vers l'élément.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever <a href="failure.html"><code>std::ios_base::failure</code></a> lors de la mise à 1 du badbit.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+struct Foo
+{
+    static int foo_xalloc;
+    std::string data;
+
+    Foo(const std::string&amp; s) : data(s) {}
+};
+
+// Alloue le stockage iword pour une utilisation avec des objets Foo
+int Foo::foo_xalloc = std::ios_base::xalloc();
+
+// Cet opérateur operator&lt;&lt; défini par l'utilisateur affiche la chaîne à l'envers si l'iword contient 1
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, Foo&amp; f)
+{
+    if (os.iword(Foo::foo_xalloc) == 1)
+        return os &lt;&lt; std::string(f.data.rbegin(), f.data.rend());
+    else
+        return os &lt;&lt; f.data;
+}
+
+// Ce manipulateur d'E/S bascule le nombre stocké dans iword entre 0 et 1
+std::ios_base&amp; rev(std::ios_base&amp; os)
+{
+    os.iword(Foo::foo_xalloc) = !os.iword(Foo::foo_xalloc);
+    return os;
+}
+
+int main()
+{
+    Foo f(&quot;example&quot;);
+    std::cout &lt;&lt; f &lt;&lt; '\n' &lt;&lt; rev &lt;&lt; f &lt;&lt; '\n' &lt;&lt; rev &lt;&lt; f &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">example
+elpmaxe
+example
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue36">LWG 36</a></td>
+<td>C++98</td>
+<td>la valeur stockée pourrait ne pas être conservée si la référence est invalidée</td>
+<td>la valeur stockée est conservée jusqu'au prochain appel de <code>copyfmt()</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue41">LWG 41</a></td>
+<td>C++98</td>
+<td>la fonction positionne badbit d'elle-même en cas d'échec, mais <code>ios_base</code> ne fournit pas une telle interface</td>
+<td>badbit est positionné par <code>basic_ios</code> (si <code>*this</code> est un sous-objet de classe de base)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="pword.html">pword</a></strong> — redimensionne le stockage privé si nécessaire et donne accès à l'élément <code>void*</code> à l'indice donné <em>(fonction membre publique)</em></li>
+<li><strong><a href="xalloc.html">xalloc</a> [statique]</strong> — renvoie un entier unique à l'échelle du programme, utilisable en toute sécurité comme indice pour <a href="pword.html"><code>pword()</code></a> et <strong><code>iword()</code></strong> <em>(fonction membre statique publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atoi, std::atol, std::atoll — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="std-atoi-std-atol-std-atoll"><code>std::atoi, std::atol, std::atoll</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/byte/atoi">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">int       atoi( const char* str );  // (1)
+
+long      atol( const char* str );  // (2)
+
+long long atoll( const char* str );  // (3) (depuis C++11)
+</code></pre>
+<p>Interprète une valeur entière dans une chaîne d'octets pointée par <code>str</code>. La base implicite est toujours 10.</p>
+<p>Ignore les caractères d'espacement jusqu'à ce que le premier caractère non blanc soit trouvé, puis prend autant de caractères que possible pour former une représentation valide d'un nombre entier et les convertit en valeur entière. La valeur entière valide est constituée des parties suivantes :</p>
+<ul>
+<li><em>(facultatif)</em> signe plus ou moins</li>
+<li>chiffres numériques</li>
+</ul>
+<p>Si la valeur du résultat ne peut pas être représentée, c'est-à-dire si la valeur convertie sort de l'intervalle du type de retour correspondant, le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>str</code> — pointeur vers la chaîne d'octets terminée par un caractère nul à interpréter</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Valeur entière correspondant au contenu de <code>str</code> en cas de succès.</p>
+<p>Si aucune conversion ne peut être effectuée, <code>0</code> est retourné.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+T atoi_impl(const char* str)
+{
+    while (std::isspace(static_cast&lt;unsigned char&gt;(*str)))
+        ++str;
+
+    bool negative = false;
+
+    if (*str == '+')
+        ++str;
+    else if (*str == '-')
+    {
+        ++str;
+        negative = true;
+    }
+
+    T result = 0;
+    for (; std::isdigit(static_cast&lt;unsigned char&gt;(*str)); ++str)
+    {
+        int digit = *str - '0';
+        result *= 10;
+        result -= digit; // calcul en négatif pour prendre en charge INT_MIN, LONG_MIN,..
+    }
+
+    return negative ? result : -result;
+}
+
+int atoi(const char* str)
+{
+    return atoi_impl&lt;int&gt;(str);
+}
+
+long atol(const char* str)
+{
+    return atoi_impl&lt;long&gt;(str);
+}
+
+long long atoll(const char* str)
+{
+    return atoi_impl&lt;long long&gt;(str);
+}
+</code></pre>
+<p>Les implémentations réelles de la bibliothèque C++ se replient sur les implémentations de la bibliothèque C de <code>atoi</code>, <code>atoil</code> et <code>atoll</code>, qui les implémentent directement (comme dans <a href="https://github.com/bminor/musl/blob/master/src/stdlib/atoi.c">MUSL libc</a>) ou délèguent à <a href="strtol.html"><code>strtol</code></a>/<a href="strtol.html"><code>strtoll</code></a> (comme dans <a href="https://github.com/bminor/glibc/blob/master/stdlib/atoi.c">GNU libc</a>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    const auto data =
+    {
+        &quot;42&quot;,
+        &quot;0x2A&quot;, // traité comme « 0 » et « x2A » comme reste superflu, et non comme hexadécimal
+        &quot;3.14159&quot;,
+        &quot;31337 with words&quot;,
+        &quot;words and 2&quot;,
+        &quot;-012345&quot;,
+        &quot;10000000000&quot; // note : hors de l'intervalle de int32_t
+    };
+
+    for (const char* s : data)
+    {
+        const int i{std::atoi(s)};
+        std::cout &lt;&lt; &quot;std::atoi('&quot; &lt;&lt; s &lt;&lt; &quot;') is &quot; &lt;&lt; i &lt;&lt; '\n';
+        if (const long long ll{std::atoll(s)}; i != ll)
+            std::cout &lt;&lt; &quot;std::atoll('&quot; &lt;&lt; s &lt;&lt; &quot;') is &quot; &lt;&lt; ll &lt;&lt; '\n';
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">std::atoi('42') is 42
+std::atoi('0x2A') is 0
+std::atoi('3.14159') is 3
+std::atoi('31337 with words') is 31337
+std::atoi('words and 2') is 0
+std::atoi('-012345') is -12345
+std::atoi('10000000000') is 1410065408
+std::atoll('10000000000') is 10000000000
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../basic_string/stol.html">stoistolstoll</a> (C++11) (C++11) (C++11)</strong> — convertit une chaîne en entier signé <em>(fonction)</em></li>
+<li><strong><a href="../basic_string/stoul.html">stoulstoull</a> (C++11) (C++11)</strong> — convertit une chaîne en entier non signé <em>(fonction)</em></li>
+<li><strong><a href="strtol.html">strtolstrtoll</a> (C++11)</strong> — convertit une chaîne d'octets en valeur entière <em>(fonction)</em></li>
+<li><strong><a href="strtoul.html">strtoulstrtoull</a> (C++11)</strong> — convertit une chaîne d'octets en valeur entière non signée <em>(fonction)</em></li>
+<li><strong><a href="strtoimax.html">strtoimaxstrtoumax</a> (C++11) (C++11)</strong> — convertit une chaîne d'octets en <a href="../../types/integer.html"><code>std::intmax_t</code></a> ou <a href="../../types/integer.html"><code>std::uintmax_t</code></a> <em>(fonction)</em></li>
+<li><strong><a href="../../utility/from_chars.html">from_chars</a> (C++17)</strong> — convertit une suite de caractères en une valeur entière ou à virgule flottante <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/byte/atoi.html">Documentation C</a> pour atoi, atol, atoll</strong></p>
+
+</main>
+</body>
+</html>

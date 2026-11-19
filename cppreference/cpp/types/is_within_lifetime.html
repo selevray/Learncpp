@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::is_within_lifetime — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-is_within_lifetime"><code>std::is_within_lifetime</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/is_within_lifetime">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+consteval bool is_within_lifetime( const T* ptr ) noexcept;  // (depuis C++26)
+</code></pre>
+<p>Détermine si le pointeur <code>ptr</code> pointe vers un objet qui se trouve dans sa <a href="../language/lifetime.html">durée de vie</a>.</p>
+<p>Lors de l'évaluation d'une expression <code>E</code> en tant qu'expression constante de base, un appel à <code>std::is_within_lifetime</code> est mal formé sauf si <code>ptr</code> pointe vers un objet</p>
+<ul>
+<li>qui est <a href="../language/constant_expression.html#Usable_in_constant_expressions">utilisable dans les expressions constantes</a>, ou</li>
+<li>dont la durée de vie de l'objet complet a commencé dans <code>E</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur à détecter</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si le pointeur <code>ptr</code> pointe vers un objet qui se trouve dans sa durée de vie ; sinon <code>false</code>.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_is_within_lifetime"><code>__cpp_lib_is_within_lifetime</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_is_within_lifetime_202306L"><code>202306L</code></a></td>
+<td><em>(C++26)</em></td>
+<td>Vérifier si une alternative d'union est active</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<p><code>std::is_within_lifetime</code> peut être utilisé pour vérifier si un membre d'union est actif :</p>
+<pre><code class="language-cpp">#include &lt;type_traits&gt;
+
+// un type booléen optionnel n'occupant qu'un octet,
+// en supposant sizeof(bool) == sizeof(char)
+struct optional_bool
+{
+    union { bool b; char c; };
+
+    // en supposant les représentations de valeur de true et false
+    // distinctes de la représentation de valeur de 2
+    constexpr optional_bool() : c(2) {}
+    constexpr optional_bool(bool b) : b(b) {}
+
+    constexpr auto has_value() const -&gt; bool
+    {
+        if consteval
+        {
+            return std::is_within_lifetime(&amp;b); // pendant l'évaluation constante,
+                                                // ne peut pas lire c
+        }
+        else
+        {
+            return c != 2; // à l'exécution, doit lire c
+        }
+    }
+
+    constexpr auto operator*() -&gt; bool&amp;
+    {
+        return b;
+    }
+};
+
+int main()
+{
+    constexpr optional_bool disengaged;
+    constexpr optional_bool engaged(true);
+
+    static_assert(!disengaged.has_value());
+    static_assert(engaged.has_value());
+    static_assert(*engaged);
+}
+</code></pre>
+
+</main>
+</body>
+</html>

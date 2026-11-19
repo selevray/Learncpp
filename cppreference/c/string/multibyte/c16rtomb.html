@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>c16rtomb — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="c16rtomb"><code>c16rtomb</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/multibyte/c16rtomb">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;uchar.h&gt;</strong></p>
+<pre><code class="language-c">size_t c16rtomb( char* restrict s, char16_t c16, mbstate_t* restrict ps );  // (depuis C11)
+</code></pre>
+<p>Convertit un point de code unique depuis sa représentation de caractère large à 16 bits de longueur variable (généralement UTF-16) vers sa représentation de caractère multioctet étroit.</p>
+<p>Si <code>s</code> n'est pas un pointeur nul et que <code>c16</code> est la dernière unité de code de 16 bits d'un encodage valide à longueur variable d'un point de code, la fonction détermine le nombre d'octets nécessaires pour stocker la représentation multioctet de ce point de code (y compris les éventuelles séquences de décalage, et en tenant compte de l'état de conversion multioctet courant <code>*ps</code>), et stocke cette représentation multioctet dans le tableau de caractères dont le premier élément est pointé par <code>s</code>, en mettant à jour <code>*ps</code> si nécessaire. Au plus <code>MB_CUR_MAX</code> octets peuvent être écrits par cette fonction.</p>
+<p>Si <code>s</code> est un pointeur nul, l'appel équivaut à <code>c16rtomb(buf, u'\0', ps)</code> pour un tampon interne <code>buf</code>.</p>
+<p>Si <code>c16</code> est le caractère large nul <code>u'\0'</code>, un octet nul est stocké, précédé de toute séquence de décalage nécessaire pour rétablir l'état de décalage initial, et le paramètre d'état de conversion <code>*ps</code> est mis à jour pour représenter l'état de décalage initial.</p>
+<p>Si <code>c16</code> n'est pas l'unité de code finale d'une représentation de 16 bits d'un caractère large, il n'écrit pas dans le tableau pointé par <code>s</code>, seul <code>*ps</code> est mis à jour.</p>
+<p>Si la macro <code>__STDC_UTF_16__</code> est définie, l'encodage 16 bits utilisé par cette fonction est UTF-16 ; sinon, il est défini par l'implémentation. La macro est toujours définie et l'encodage est toujours UTF-16. <em>(depuis C23)</em> Dans tous les cas, l'encodage de caractères multioctets utilisé par cette fonction est spécifié par la locale C actuellement active.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers le tableau de caractères étroits où le caractère multioctet sera stocké</li>
+<li><code>c16</code> — le caractère large de 16 bits à convertir</li>
+<li><code>ps</code> — pointeur vers l'objet d'état de conversion utilisé lors de l'interprétation de la chaîne multioctet</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, renvoie le nombre d'octets (y compris les éventuelles séquences de décalage) écrits dans le tableau de caractères dont le premier élément est pointé par <code>s</code>. Cette valeur peut être <code>0</code>, par exemple lors du traitement des unités <code>char16_t</code> initiales d'une séquence de plusieurs unités <code>char16_t</code> (cela se produit lors du traitement du substitut initial d'une paire de substituts en UTF-16).</p>
+<p>En cas d'échec (si <code>c16</code> n'est pas une unité de code 16 bits valide), renvoie <code>-1</code>, stocke <a href="../../error/errno_macros.html"><code>EILSEQ</code></a> dans <a href="../../error/errno.html"><code>errno</code></a> et laisse <code>*ps</code> dans un état non spécifié.</p>
+<h2 id="Notes">Notes</h2>
+<p>Dans C11 tel que publié, contrairement à <a href="mbrtoc16.html"><code>mbrtoc16</code></a>, qui convertit un encodage multioctet de longueur variable (comme UTF-8) en encodage 16 bits de longueur variable (comme UTF-16), cette fonction ne peut convertir que des encodages 16 bits à une seule unité, ce qui signifie qu'elle ne peut pas convertir UTF-16 en UTF-8, bien que ce soit l'intention initiale de cette fonction. Cela a été corrigé par le rapport de défaut post-C11 <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/n2059.htm#dr_488">DR488</a>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Remarque : cet exemple suppose que la correction du rapport de défaut <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/n2059.htm#dr_488">DR488</a> est appliquée</p>
+<pre><code class="language-c">#include &lt;locale.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;uchar.h&gt;
+
+mbstate_t state;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    const char16_t in[] = u&quot;zß水🍌&quot;; // ou &quot;z\u00df\u6c34\U0001F34C&quot;
+    const size_t in_sz = sizeof in / sizeof *in;
+
+    printf(&quot;Processing %zu UTF-16 code units: [ &quot;, in_sz);
+    for (size_t n = 0; n &lt; in_sz; ++n)
+        printf(&quot;%#x &quot;, in[n]);
+    puts(&quot;]&quot;);
+
+    char out[MB_CUR_MAX * in_sz];
+    char *p = out;
+    for (size_t n = 0; n &lt; in_sz; ++n)
+    {
+        size_t rc = c16rtomb(p, in[n], &amp;state);
+        if (rc == (size_t)-1)
+            break;
+        p += rc;
+    }
+
+    size_t out_sz = p - out;
+    printf(&quot;into %zu UTF-8 code units: [ &quot;, out_sz);
+    for (size_t x = 0; x &lt; out_sz; ++x)
+        printf(&quot;%#x &quot;, +(unsigned char)out[x]);
+    puts(&quot;]&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Processing 6 UTF-16 code units: [ 0x7a 0xdf 0x6c34 0xd83c 0xdf4c 0 ]
+into 11 UTF-8 code units: [ 0x7a 0xc3 0x9f 0xe6 0xb0 0xb4 0xf0 0x9f 0x8d 0x8c 0 ]
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.28.1.2 La fonction c16rtomb (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.28.1.2 La fonction c16rtomb (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.28.1.2 La fonction c16rtomb (p : 399-400)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbrtoc16.html">mbrtoc16</a> (C11)</strong> — convertit un caractère multioctet étroit en encodage UTF-16 <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/multibyte/c16rtomb.html">Documentation C++</a> pour c16rtomb</strong></p>
+
+</main>
+</body>
+</html>

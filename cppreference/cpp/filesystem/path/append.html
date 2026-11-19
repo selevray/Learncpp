@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::path::append, std::filesystem::path::operator/= — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a> › <a href="../../../cpp/filesystem/path.html">std::filesystem::path</a></nav>
+<h1 id="std-filesystem-path-append-std-filesystem-path-operator"><code>std::filesystem::path::append, std::filesystem::path::operator/=</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/path/append">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">path&amp; operator/=( const path&amp; p );  // (1) (depuis C++17)
+
+template&lt; class Source &gt;
+path&amp; operator/=( const Source&amp; source );  // (2) (depuis C++17)
+
+template&lt; class Source &gt;
+path&amp; append( const Source&amp; source );  // (3) (depuis C++17)
+
+template&lt; class InputIt &gt;
+path&amp; append( InputIt first, InputIt last );  // (4) (depuis C++17)
+</code></pre>
+<ol>
+<li>Si <code>p.is_absolute() || (p.has_root_name() &amp;&amp; p.root_name() != root_name())</code>, alors remplace le chemin courant par <code>p</code> comme si par <code>operator=(p)</code> et termine.</li>
+</ol>
+<ul>
+<li>
+<p>Sinon, si <code>p.has_root_directory()</code>, alors supprime tout répertoire racine et tout le chemin relatif du nom de chemin au format générique de <code>*this</code>.</p>
+</li>
+<li>
+<p>Sinon, si <code>has_filename() || (!has_root_directory() &amp;&amp; is_absolute())</code>, alors ajoute <code>path::preferred_separator</code> au format générique de <code>*this</code>.</p>
+</li>
+<li>
+<p>Dans tous les cas, ajoute le nom de chemin au format natif de <code>p</code>, en omettant tout <code>root-name</code> de son format générique, au format natif de <code>*this</code>.</p>
+</li>
+</ul>
+<pre><code class="language-cpp">// où « //host » est un nom de racine
+path(&quot;//host&quot;)  / &quot;foo&quot; // le résultat est      « //host/foo » (ajoute avec séparateur)
+path(&quot;//host/&quot;) / &quot;foo&quot; // le résultat est aussi « //host/foo » (ajoute sans séparateur)
+
+// Sous POSIX,
+path(&quot;foo&quot;) / &quot;&quot;      // le résultat est « foo/ » (ajoute)
+path(&quot;foo&quot;) / &quot;/bar&quot;; // le résultat est « /bar » (remplace)
+
+// Sous Windows,
+path(&quot;foo&quot;) / &quot;C:/bar&quot;;  // le résultat est « C:/bar » (remplace)
+path(&quot;foo&quot;) / &quot;C:&quot;;      // le résultat est « C: »     (remplace)
+path(&quot;C:&quot;) / &quot;&quot;;         // le résultat est « C: »     (ajoute, sans séparateur)
+path(&quot;C:foo&quot;) / &quot;/bar&quot;;  // donne « C:/bar »        (supprime le chemin relatif, puis ajoute)
+path(&quot;C:foo&quot;) / &quot;C:bar&quot;; // donne « C:foo/bar »     (ajoute, en omettant le nom de racine de p)
+</code></pre>
+<p>2,3) Identique à <code>(1)</code>, mais accepte tout <a href="../../string/basic_string.html"><code>std::basic_string</code></a>, <a href="../../string/basic_string_view.html"><code>std::basic_string_view</code></a>, chaîne multicaractère terminée par un caractère nul, ou un itérateur d'entrée pointant vers une séquence multicaractère terminée par un caractère nul. Équivalent à <code>return operator/=(path(source));</code>.</p>
+<ol start="4">
+<li>Identique à <code>(1)</code>, mais accepte toute paire d'itérateurs désignant une chaîne multicaractère. Équivalent à <code>return operator/=(path(first, last));</code>.</li>
+</ol>
+<p><code>(2)</code> et <code>(3)</code> participent à la résolution de surcharge uniquement si <code>Source</code> et <code>path</code> ne sont pas du même type, et que l'une des conditions suivantes est vraie :</p>
+<ul>
+<li><code>Source</code> est une spécialisation de <a href="../../string/basic_string.html"><code>std::basic_string</code></a> ou <a href="../../string/basic_string_view.html"><code>std::basic_string_view</code></a>, ou</li>
+<li><code>std::iterator_traits&lt;std::decay_t&lt;Source&gt;&gt;::value_type</code> est valide et désigne un type de caractère d'encodage éventuellement qualifié const (<code>char</code>, <code>char8_t</code>, <em>(depuis C++20)</em><code>char16_t</code>, <code>char32_t</code>, ou <code>wchar_t</code>).</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — nom de chemin à ajouter</li>
+<li><code>source</code> — <a href="../../string/basic_string.html"><code>std::basic_string</code></a>, <a href="../../string/basic_string_view.html"><code>std::basic_string_view</code></a>, chaîne multicaractère terminée par un caractère nul, ou itérateur d'entrée pointant vers une séquence multicaractère terminée par un caractère nul, représentant un nom de chemin (au format portable ou natif)</li>
+<li><code>first, last</code> — paire de <a href="../../named_req/InputIterator.html"><em>LegacyInputIterator</em>s</a> spécifiant une séquence multicaractère représentant un nom de chemin</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+<li>Le type de valeur de <code>InputIt</code> doit être l'un des types de caractères encodés (<code>char</code>, <code>wchar_t</code>, <code>char16_t</code> et <code>char32_t</code>).</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever <code>std::bad_alloc</code> si l'allocation mémoire échoue.</p>
+<h2 id="Notes">Notes</h2>
+<p>Ces fonctions produisent en pratique une approximation du sens du chemin argument <code>p</code> dans un environnement où <code>*this</code> est le répertoire de départ.</p>
+<h2 id="Example">Exemple</h2>
+<p>La sortie est produite sous Windows.</p>
+<pre><code class="language-cpp">#include &lt;filesystem&gt;
+#include &lt;iostream&gt;
+namespace fs = std::filesystem;
+
+int main()
+{
+    fs::path p1 = &quot;C:&quot;;
+    p1 /= &quot;Users&quot;; // n'insère pas de séparateur
+    std::cout &lt;&lt; &quot;\&quot;C:\&quot; / \&quot;Users\&quot; == &quot; &lt;&lt; p1 &lt;&lt; '\n';
+    p1 /= &quot;batman&quot;; // insère fs::path::preferred_separator, '\' sous Windows
+    std::cout &lt;&lt; &quot;\&quot;C:\&quot; / \&quot;Users\&quot; / \&quot;batman\&quot; == &quot; &lt;&lt; p1 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;C:&quot; / &quot;Users&quot; == &quot;C:Users&quot;
+&quot;C:&quot; / &quot;Users&quot; / &quot;batman&quot; == &quot;C:Users\\batman&quot;
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3244">LWG 3244</a></td>
+<td>C++17</td>
+<td>la contrainte selon laquelle <code>Source</code> ne peut pas être <code>path</code> était absente</td>
+<td>added</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="concat.html">concatoperator+=</a></strong> — concatène deux chemins sans introduire de séparateur de répertoire <em>(fonction membre publique)</em></li>
+<li><strong><a href="operator_slash.html">operator/</a> (C++17)</strong> — concatène deux chemins avec un séparateur de répertoire <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

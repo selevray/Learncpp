@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::money_put&lt;CharT,OutputIt&gt;::put, do_put — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/money_put.html">std::money_put</a></nav>
+<h1 id="std-money_put-chart-outputit-put-do_put"><code>std::money_put&lt;CharT,OutputIt&gt;::put, do_put</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/money_put/put">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+iter_type put( iter_type out, bool intl, std::ios_base&amp; f,
+               char_type fill, long double quant ) const;  // (1)
+
+iter_type put( iter_type out, bool intl, std::ios_base&amp; f,
+               char_type fill, const string_type&amp; quant ) const;  // (2)
+
+protected:
+virtual iter_type do_put( iter_type out, bool intl, std::ios_base&amp; str,
+                          char_type fill, long double units ) const;  // (3)
+
+virtual iter_type do_put( iter_type out, bool intl, std::ios_base&amp; str,
+                          char_type fill, const string_type&amp; digits ) const;  // (4)
+</code></pre>
+<p>Formate une valeur monétaire et écrit le résultat dans le flux de sortie.</p>
+<p>1,2) Fonctions membres publiques, appellent la fonction membre <code>do_put</code> de la classe la plus dérivée.</p>
+<ol start="3">
+<li>
+<p>Les arguments numériques <code>units</code> sont convertis en chaîne de caractères larges comme si par <code>ct.widen(buf1, buf1 + std::sprintf(buf1, &quot;%.0Lf&quot;, units), buf2)</code>, où <code>ct</code> est la facette <a href="../ctype.html"><code>std::ctype</code></a> imprégnée dans <code>str.getloc()</code>, et <code>buf1</code> et <code>buf2</code> sont des tampons de caractères suffisamment grands. La chaîne de caractères résultante <code>buf2</code> est traitée, formatée et écrite dans <code>out</code> comme décrit ci-dessous.</p>
+</li>
+<li>
+<p>De la chaîne argument <code>digits</code>, seul le signe moins initial optionnel (déterminé en le comparant à <code>ct.widen('-')</code>, où <code>ct</code> est la facette <a href="../ctype.html"><code>std::ctype</code></a> imprégnée dans <code>str.getloc()</code>) et les chiffres immédiatement suivants (tels que classés par <code>ct</code>) sont retenus comme séquence de caractères à traiter, formater et écrire dans <code>out</code> comme décrit ci-dessous.</p>
+</li>
+</ol>
+<p>Étant donnée la séquence de caractères issue des étapes précédentes, si le premier caractère est égal à <code>ct.widen('-')</code>, appelle <code>mp.neg_format()</code> pour obtenir le <a href="../money_base.html"><code>pattern</code></a> de formatage ; sinon, appelle <code>mp.pos_format()</code>, où <code>mp</code> est la facette <code>std::moneypunct&lt;CharT, intl&gt;</code> imprégnée dans <code>str.getloc()</code>.</p>
+<p>Les séparateurs de milliers et les caractères de point décimal sont insérés selon les besoins de <code>mp.grouping()</code>, <code>mp.frac_digits()</code>, <code>mp.decimal_point()</code> et <code>mp.thousands_sep()</code>, et la chaîne résultante est placée dans la séquence de sortie à l'endroit où <a href="../money_base.html"><code>value</code></a> apparaît dans le motif de formatage.</p>
+<p>Si <code>str.flags() &amp; str.showbase</code> est non nul (le manipulateur <a href="../../io/manip/showbase.html"><code>std::showbase</code></a> a été utilisé), alors le symbole ou la chaîne de devise est généré en appelant <code>mp.curr_symbol()</code> et placé dans la séquence de sortie à l'endroit où <a href="../money_base.html"><code>symbol</code></a> apparaît dans le motif de formatage.</p>
+<p>Si <code>mp.positive_sign()</code> (dans le cas où le motif de formatage positif est utilisé) ou <code>mp.negative_sign()</code> (dans le cas où le motif de formatage négatif est utilisé) renvoie une chaîne de plus d'un caractère, le premier caractère renvoyé est placé dans la séquence de sortie à l'endroit où <a href="../money_base.html"><code>sign</code></a> apparaît dans le motif de formatage, et les autres caractères sont placés après tous les autres caractères ; par exemple, le motif de formatage <code>{sign, value, space, symbol}</code> avec les unités <code>123</code> et un negative_sign valant <code>&quot;-&quot;</code> peut produire <code>&quot;-1.23 €&quot;</code>, tandis qu'un negative_sign valant <code>&quot;()&quot;</code> produirait <code>&quot;(1.23 €)&quot;</code>.</p>
+<p>Si le nombre de caractères générés pour le format spécifié est inférieur à la valeur renvoyée par <code>str.width()</code>, alors des copies de <code>fill</code> sont insérées pour porter la longueur totale de la séquence de sortie à exactement <code>str.width()</code>, comme suit :</p>
+<ul>
+<li>Si <code>str.flags() &amp; str.adjustfield</code> est égal à <code>str.internal</code>, les caractères de remplissage sont insérés à l'endroit où <code>none</code> ou <code>space</code> apparaît dans le motif de formatage.</li>
+<li>Sinon, si <code>str.flags() &amp; str.adjustfield</code> est égal à <code>str.left</code>, les copies de <code>fill</code> sont ajoutées après tous les autres caractères.</li>
+<li>Sinon, les caractères de remplissage sont placés avant tous les autres caractères.</li>
+</ul>
+<p>Enfin, appelle <code>str.width(0)</code> pour annuler les effets de tout <a href="../../io/manip/setw.html"><code>std::setw</code></a>.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur pointant immédiatement après le dernier caractère produit.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les unités monétaires sont supposées être les plus petites unités non fractionnaires de la devise : des cents aux États-Unis, des yens au Japon.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+struct my_punct : std::moneypunct_byname&lt;char, false&gt;
+{
+    my_punct(const char* name) : moneypunct_byname(name) {}
+    string_type do_negative_sign() const { return &quot;()&quot;; }
+};
+
+int main()
+{
+    std::locale loc(&quot;ru_RU.utf8&quot;);
+    std::cout.imbue(loc);
+    long double units = -123.45;
+    std::cout &lt;&lt; &quot;In Russian locale, &quot; &lt;&lt; units &lt;&lt; &quot; prints as &quot; &lt;&lt; std::showbase;
+
+    // remarque : ce qui suit est équivalent à simplement std::put_money(units)
+    std::use_facet&lt;std::money_put&lt;char&gt;&gt;(loc).put(
+        {std::cout}, false, std::cout, std::cout.fill(), units);
+    std::cout &lt;&lt; '\n';
+
+    std::cout.imbue(std::locale(std::cout.getloc(), new my_punct(&quot;ru_RU.utf8&quot;)));
+    std::cout &lt;&lt; &quot;With negative_sign set to \&quot;()\&quot;, it prints as &quot;;
+    std::use_facet&lt;std::money_put&lt;char&gt;&gt;(loc).put(
+        {std::cout}, false, std::cout, std::cout.fill(), units);
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">In Russian locale, -123,45 prints as -1.23 руб
+With negative_sign set to &quot;()&quot;, it prints as (1.23 руб)
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue328">LWG 328</a></td>
+<td>C++98</td>
+<td>le format utilisé pour <a href="../../io/c/printf.html"><code>std::sprintf</code></a> était <code>&quot;%.01f&quot;</code></td>
+<td>corrigé en <code>&quot;%.0Lf&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../moneypunct.html">moneypunct</a></strong> — définit les paramètres de formatage monétaire utilisés par <a href="../money_get.html"><code>std::money_get</code></a> et <a href="../money_put.html"><code>std::money_put</code></a> <em>(modèle de classe)</em></li>
+<li><strong><a href="../money_get.html">money_get</a></strong> — analyse et construit une valeur monétaire depuis une séquence de caractères en entrée <em>(modèle de classe)</em></li>
+<li><strong><a href="../../io/manip/put_money.html">put_money</a> (C++11)</strong> — formate et affiche une valeur monétaire <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

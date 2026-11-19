@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::void_t — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-void_t"><code>std::void_t</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/void_t">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... &gt;
+using void_t = void;  // (depuis C++17)
+</code></pre>
+<p>Métafonction utilitaire qui associe une séquence de types quelconques au type <code>void</code>. Cette métafonction est un moyen pratique d'exploiter <a href="../language/sfinae.html">SFINAE</a> avant les <a href="../language/constraints.html">concepts</a> de C++20, en particulier pour retirer conditionnellement des fonctions de l'<a href="../language/overload_resolution.html">ensemble des candidats</a> selon qu'une expression est valide dans un <a href="../language/expressions.html#Unevaluated_expressions">contexte non évalué</a> (comme opérande de l'expression <a href="../language/decltype.html"><code>decltype</code></a>), permettant d'avoir des surcharges de fonctions ou des spécialisations distinctes selon les opérations supportées.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette métafonction est utilisée en métaprogrammation de modèles pour détecter des types mal formés dans un contexte SFINAE :</p>
+<pre><code class="language-cpp">// le modèle primaire gère les types qui n'ont pas de membre ::type imbriqué :
+template&lt;class, class = void&gt;
+struct has_type_member : std::false_type {};
+
+// la spécialisation reconnaît les types qui possèdent un membre ::type imbriqué :
+template&lt;class T&gt;
+struct has_type_member&lt;T, std::void_t&lt;typename T::type&gt;&gt; : std::true_type {};
+</code></pre>
+<p>Elle peut aussi servir à détecter la validité d'une expression :</p>
+<pre><code class="language-cpp">// le modèle primaire gère les types qui ne supportent pas la pré-incrémentation :
+template&lt;class, class = void&gt;
+struct has_pre_increment_member : std::false_type {};
+
+// la spécialisation reconnaît les types qui supportent la pré-incrémentation :
+template&lt;class T&gt;
+struct has_pre_increment_member&lt;T,
+           std::void_t&lt;decltype( ++std::declval&lt;T&amp;&gt;() )&gt;
+       &gt; : std::true_type {};
+</code></pre>
+<p>Jusqu'à la résolution du <a href="https://cplusplus.github.io/CWG/issues/1558.html">CWG issue 1558</a> (un défaut de C++11), les paramètres inutilisés des <a href="../language/type_alias.html">alias templates</a> n'étaient pas garantis d'assurer SFINAE et pouvaient être ignorés ; les compilateurs anciens nécessitent donc une définition plus complexe de <code>void_t</code>, comme</p>
+<pre><code class="language-cpp">template&lt;typename... Ts&gt;
+struct make_void { typedef void type; };
+
+template&lt;typename... Ts&gt;
+using void_t = typename make_void&lt;Ts...&gt;::type;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_void_t"><code>__cpp_lib_void_t</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_void_t_201411L"><code>201411L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><a href="void_t.html#Top"><code>std::void_t</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;map&gt;
+#include &lt;type_traits&gt;
+#include &lt;vector&gt;
+
+// Modèle de variable qui vérifie si un type possède les fonctions membres begin() et end()
+template&lt;typename, typename = void&gt;
+constexpr bool is_iterable = false;
+
+template&lt;typename T&gt;
+constexpr bool is_iterable&lt;
+    T,
+    std::void_t&lt;decltype(std::declval&lt;T&gt;().begin()),
+                decltype(std::declval&lt;T&gt;().end())
+    &gt;
+&gt; = true;
+
+// Un trait d'itérateur dont value_type est le value_type du conteneur itéré,
+// supporte même back_insert_iterator (où value_type est void)
+
+template&lt;typename T, typename = void&gt;
+struct iterator_trait : std::iterator_traits&lt;T&gt; {};
+
+template&lt;typename T&gt;
+struct iterator_trait&lt;T, std::void_t&lt;typename T::container_type&gt;&gt;
+    : std::iterator_traits&lt;typename T::container_type::iterator&gt; {};
+
+class A {};
+
+#define SHOW(...) std::cout &lt;&lt; std::setw(34) &lt;&lt; #__VA_ARGS__ \
+                            &lt;&lt; &quot; == &quot; &lt;&lt; __VA_ARGS__ &lt;&lt; '\n'
+
+int main()
+{
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; std::left;
+    SHOW(is_iterable&lt;std::vector&lt;double&gt;&gt;);
+    SHOW(is_iterable&lt;std::map&lt;int, double&gt;&gt;);
+    SHOW(is_iterable&lt;double&gt;);
+    SHOW(is_iterable&lt;A&gt;);
+
+    using container_t = std::vector&lt;int&gt;;
+    container_t v;
+
+    static_assert(std::is_same_v&lt;
+        container_t::value_type,
+        iterator_trait&lt;decltype(std::begin(v))&gt;::value_type
+    &gt;);
+
+    static_assert(std::is_same_v&lt;
+        container_t::value_type,
+        iterator_trait&lt;decltype(std::back_inserter(v))&gt;::value_type
+    &gt;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">is_iterable&lt;std::vector&lt;double&gt;&gt;   == true
+is_iterable&lt;std::map&lt;int, double&gt;&gt; == true
+is_iterable&lt;double&gt;                == false
+is_iterable&lt;A&gt;                     == false
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="enable_if.html">enable_if</a> (C++11)</strong> — <a href="../language/sfinae.html">supprime</a> conditionnellement une surcharge de fonction ou une spécialisation de modèle de la résolution de surcharge <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

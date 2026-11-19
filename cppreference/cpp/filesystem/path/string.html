@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::path::string, std::filesystem::path::wstring, std::filesystem::path::u8string, std::filesystem::path::u16string, std::filesystem::path::u32string — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a> › <a href="../../../cpp/filesystem/path.html">std::filesystem::path</a></nav>
+<h1 id="std-filesystem-path-string-std-filesystem-path-wstring-std-filesystem-path-u8string-std-filesystem-path-u16string-std-filesystem-path-u32string"><code>std::filesystem::path::string, std::filesystem::path::wstring, std::filesystem::path::u8string, std::filesystem::path::u16string, std::filesystem::path::u32string</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/path/string">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class CharT, class Traits = std::char_traits&lt;CharT&gt;,
+          class Alloc = std::allocator&lt;CharT&gt; &gt;
+std::basic_string&lt;CharT,Traits,Alloc&gt;
+    string( const Alloc&amp; a = Alloc() ) const;  // (1) (depuis C++17)
+
+std::string string() const;
+
+std::wstring wstring() const;
+
+std::u16string u16string() const;
+
+std::u32string u32string() const;
+
+std::string u8string() const;  // (depuis C++17) (jusqu'à C++20)
+
+std::u8string u8string() const;  // (depuis C++20)
+</code></pre>
+<p>Renvoie le nom de chemin interne au format natif, converti vers le type de chaîne spécifié. La conversion, le cas échéant, s'effectue comme suit :</p>
+<ul>
+<li>Si <code>path::value_type</code> est <code>char</code>, la conversion, le cas échéant, dépend du système. C'est le cas sur les systèmes POSIX typiques (comme Linux), où l'encodage natif est UTF-8 et <code>string()</code> n'effectue aucune conversion.</li>
+<li>Sinon, si <code>path::value_type</code> est <code>wchar_t</code>, la conversion, le cas échéant, n'est pas spécifiée. C'est le cas sous Windows, où <code>wchar_t</code> fait 16 bits et l'encodage natif est UTF-16.</li>
+<li>Sinon, si <code>path::value_type</code> est <code>char16_t</code>, l'encodage natif est UTF-16 et la méthode de conversion n'est pas spécifiée.</li>
+<li>Sinon, si <code>path::value_type</code> est <code>char32_t</code>, l'encodage natif est UTF-32 et la méthode de conversion n'est pas spécifiée.</li>
+<li>Sinon, si <code>path::value_type</code> est <code>char8_t</code>, l'encodage natif est UTF-8 et la méthode de conversion n'est pas spécifiée.</li>
+</ul>
+<ol>
+<li>
+<p>Toutes les allocations mémoire sont effectuées par <code>a</code>.</p>
+</li>
+<li>
+<p>L'encodage du résultat dans le cas de <code>u8string()</code> est toujours UTF-8.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le nom de chemin interne au format natif, converti dans le type de chaîne spécifié.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever des exceptions définies par l'implémentation.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;clocale&gt;
+#include &lt;cstdio&gt;
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+int main()
+{
+    const char* const localeName = &quot;ja_JP.utf-8&quot;;
+    std::setlocale(LC_ALL, localeName);
+    std::locale::global(std::locale(localeName));
+
+    const std::filesystem::path p(u8&quot;要らない.txt&quot;);
+    std::ofstream(p) &lt;&lt; &quot;File contents&quot;;
+
+    // la représentation de chaîne native peut être utilisée avec les API du système d'exploitation
+    if (std::FILE* const f = std::fopen(p.string().c_str(), &quot;r&quot;))
+    {
+        for (int ch; (ch = std::fgetc(f)) != EOF;)
+            std::putchar(ch);
+
+        std::fclose(f);
+    }
+
+    // les représentations multioctets et larges peuvent être utilisées pour la sortie
+    std::cout &lt;&lt; &quot;\nFile name in narrow multibyte encoding: &quot; &lt;&lt; p.string() &lt;&lt; '\n';
+
+    // wstring() lève une exception dans stdlibc++ (selon gcc-12.1.0), voir :
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=95048
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=102839
+    // fonctionne avec gcc-12.2.1 (2023/02/01) plus récent et clang-10+
+    std::wcout &lt;&lt; &quot;File name in wide encoding: &quot; &lt;&lt; p.wstring() &lt;&lt; '\n';
+
+    std::filesystem::remove(p);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">File contents
+File name in narrow multibyte encoding: 要らない.txt
+File name in wide encoding: 要らない.txt
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="generic_string.html">generic_stringgeneric_wstringgeneric_u8stringgeneric_u16stringgeneric_u32string</a></strong> — renvoie le chemin au format de nom de chemin générique converti en chaîne <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::expected&lt;T,E&gt;::operator= — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/expected.html">std::expected</a></nav>
+<h1 id="std-expected-t-e-operator"><code>std::expected&lt;T,E&gt;::operator=</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/expected/operator=">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Modèle primaire</strong></p>
+<pre><code class="language-cpp">constexpr expected&amp; operator=( const expected&amp; other );  // (1) (depuis C++23)
+
+constexpr expected&amp; operator=( expected&amp;&amp; other )
+    noexcept(/* voir ci-dessous */);  // (2) (depuis C++23)
+
+template&lt; class U = T &gt;
+constexpr expected&amp; operator=( U&amp;&amp; v );  // (3) (depuis C++23)
+
+template&lt; class G &gt;
+constexpr expected&amp; operator=( const std::unexpected&lt;G&gt;&amp; e );  // (4) (depuis C++23)
+
+template&lt; class G &gt;
+constexpr expected&amp; operator=( std::unexpected&lt;G&gt;&amp;&amp; e );  // (5) (depuis C++23)
+</code></pre>
+<p><strong>void spécialisation partielle</strong></p>
+<pre><code class="language-cpp">constexpr expected&amp; operator=( const expected&amp; other );  // (6) (depuis C++23)
+
+constexpr expected&amp; operator=( expected&amp;&amp; other )
+    noexcept(/* voir ci-dessous */);  // (7) (depuis C++23)
+
+template&lt; class G &gt;
+constexpr expected&amp; operator=( const std::unexpected&lt;G&gt;&amp; e );  // (8) (depuis C++23)
+
+template&lt; class G &gt;
+constexpr expected&amp; operator=( std::unexpected&lt;G&gt;&amp;&amp; e );  // (9) (depuis C++23)
+</code></pre>
+<p><strong>Modèle de fonction auxiliaire</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class U, class... Args &gt;
+constexpr void reinit-expected( T&amp; newval, U&amp; oldval, Args&amp;&amp;... args )  // (10) (depuis C++23) ( exposition uniquement* )
+</code></pre>
+<p>Affecte une nouvelle valeur à un objet <code>expected</code> existant.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — un autre objet <code>expected</code> dont la valeur contenue doit être affectée</li>
+<li><code>v</code> — valeur à affecter à la valeur contenue</li>
+<li><code>e</code> — objet <a href="unexpected.html"><code>std::unexpected</code></a> dont la valeur contenue doit être affectée</li>
+<li><code>newval</code> — la valeur contenue à construire</li>
+<li><code>oldval</code> — la valeur contenue à détruire</li>
+<li><code>args</code> — les arguments utilisés comme initialiseurs de <code>newval</code></li>
+</ul>
+<h2 id="Effects">Effets</h2>
+<h3 id="Primary_template_assignment_operators">Opérateurs d'affectation du modèle primaire</h3>
+<p>1,2) Affecte l'état de <code>other</code> à <code>*this</code>.</p>
+<p>Si <a href="operator_bool.html"><code>has_value()</code></a> et <code>rhs.has_value()</code> ont des valeurs différentes (c'est-à-dire que l'un de <code>*this</code> et <code>other</code> contient une valeur attendue <a href="../expected.html#Data_members"><code>val</code></a> et l'autre une valeur inattendue <a href="../expected.html#Data_members"><code>unex</code></a>), le modèle de fonction exposé uniquement <a href="operator%3D.html#Helper_function_template"><code>reinit-expected</code></a> est appelé pour mettre à jour l'état de manière sûre.</p>
+<ol>
+<li>La valeur contenue est affectée comme suit :</li>
+</ol>
+<p><strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Valeur de <code>other.has_value()</code></strong></p>
+<p><strong><code>true</code></strong> | <strong><code>false</code></strong></p>
+<p><code>true</code>
+| <code>val = *other;</code>
+| <code>reinit-expected (unex, val, other.error());</code></p>
+<p><code>false</code>
+| <code>reinit-expected (val, unex, *other);</code>
+| <code>unex = other.error();</code></p>
+<ol start="2">
+<li>La valeur contenue est affectée comme suit :</li>
+</ol>
+<p><strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Valeur de <code>other.has_value()</code></strong></p>
+<p><strong><code>true</code></strong> | <strong><code>false</code></strong></p>
+<p><code>true</code>
+| <code>val = std::move(*other);</code>
+| <code>reinit-expected (unex, val, std::move(other.error()));</code></p>
+<p><code>false</code>
+| <code>reinit-expected (val, unex, std::move(*other));</code>
+| <code>unex = std::move(other.error());</code></p>
+<p>Puis, si aucune exception n'a été levée, exécute <code>has_val = other.has_value();</code>.</p>
+<ol start="3">
+<li>La valeur attendue est affectée comme suit :</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Valeur de <a href="operator_bool.html"><code>has_value()</code></a></th>
+<th>Équivalent à</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>true</code></td>
+<td><code>val = std::forward&lt;U&gt;(v);</code></td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td><code>reinit-expected(val, unex, std::forward&lt;U&gt;(v));has_val = false;</code></td>
+</tr>
+</tbody>
+</table>
+<p>4,5) La valeur inattendue est affectée comme suit :</p>
+<p><strong>Surcharge</strong> | <strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Équivalent à</strong></p>
+<p><code>(4)</code>
+| <code>true</code>
+| <code>reinit-expected(val, unex, std::forward&lt;const G&amp;&gt;(e.error()));has_val = false;</code></p>
+<p><code>false</code>
+| <code>unex = std::forward&lt;const G&amp;&gt;(e.error());</code></p>
+<p><code>(5)</code>
+| <code>true</code>
+| <code>reinit-expected(val, unex, std::forward&lt;G&gt;(e.error()));has_val = false;</code></p>
+<p><code>false</code>
+| <code>unex = std::forward&lt;G&gt;(e.error());</code></p>
+<h3 id="void_partial_specialization_assignment_operators">Opérateurs d'affectation des spécialisations partielles de <code>void</code></h3>
+<ol start="6">
+<li>La valeur inattendue est affectée ou détruite comme suit :</li>
+</ol>
+<p><strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Valeur de <code>other.has_value()</code></strong></p>
+<p><strong><code>true</code></strong> | <strong><code>false</code></strong></p>
+<p><code>true</code>
+| (aucun effet) | <code>std::construct_at (std::addressof(unex), rhs.unex);has_val = false;</code></p>
+<p><code>false</code>
+| <code>std::destroy_at(std::addressof(unex));has_val = true;</code>
+| <code>unex = other.error();</code></p>
+<ol start="7">
+<li>La valeur inattendue est affectée ou détruite comme suit :</li>
+</ol>
+<p><strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Valeur de <code>other.has_value()</code></strong></p>
+<p><strong><code>true</code></strong> | <strong><code>false</code></strong></p>
+<p><code>true</code>
+| (aucun effet) | <code>std::construct_at (std::addressof(unex), std::move(rhs.unex));has_val = false;</code></p>
+<p><code>false</code>
+| <code>std::destroy_at(std::addressof(unex));has_val = true;</code>
+| <code>unex = std::move(other.error());</code></p>
+<p>8,9) La valeur inattendue est affectée comme suit :</p>
+<p><strong>Surcharge</strong> | <strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Équivalent à</strong></p>
+<p><code>(8)</code>
+| <code>true</code>
+| <code>std::construct_at(std::addressof(unex), std::forward&lt;const G&amp;&gt;(e.error()));has_val = false;</code></p>
+<p><code>false</code>
+| <code>unex = std::forward&lt;const G&amp;&gt;(e.error());</code></p>
+<p><code>(9)</code>
+| <code>true</code>
+| <code>std::construct_at(std::addressof(unex), std::forward&lt;G&gt;(e.error()));has_val = false;</code></p>
+<p><code>false</code>
+| <code>unex = std::forward&lt;G&gt;(e.error());</code></p>
+<h3 id="Helper_function_template">Modèle de fonction auxiliaire</h3>
+<p>Le modèle de fonction exposé uniquement <code>reinit-expected</code> est « défini » comme suit :</p>
+<pre><code class="language-cpp">template&lt;class NewType, class OldType, class... Args&gt;
+constexpr void reinit-expected(NewType&amp; new_val, OldType&amp; old_val, Args&amp;&amp;... args)
+{
+    // Cas 1 : la construction de “new_val” ne lève pas d'exception :
+    // “new_val” peut être directement construit après destruction de “old_val”
+    if constexpr (std::is_nothrow_constructible_v&lt;NewType, Args...&gt;)
+    {
+        std::destroy_at(std::addressof(old_val));
+        std::construct_at(std::addressof(new_val), std::forward&lt;Args&gt;(args)...);
+    }
+    // Cas 2 : la construction par déplacement de “new_val” ne lève pas d'exception :
+    // construire d'abord un objet temporaire NewType
+    // (“old_val” reste intact si une exception est levée lors de cette construction)
+    else if constexpr (std::is_nothrow_move_constructible_v&lt;NewType&gt;)
+    {
+        NewType temp(std::forward&lt;Args&gt;(args)...); // peut lever une exception
+        std::destroy_at(std::addressof(old_val));
+        std::construct_at(std::addressof(new_val), std::move(temp));
+    }
+    // Cas 3 : la construction de “new_val” peut lever une exception :
+    // une sauvegarde de “old_val” est nécessaire afin de se rétablir après une exception
+    else
+    {
+        OldType temp(std::move(old_val)); // peut lever une exception
+        std::destroy_at(std::addressof(old_val));
+        try
+        {
+            std::construct_at(std::addressof(new_val),
+                              std::forward&lt;Args&gt;(args)...); // peut lever une exception
+        }
+        catch (...)
+        {
+            std::construct_at(std::addressof(old_val), std::move(temp));
+            throw;
+        }
+    }
+}
+</code></pre>
+<p>Ce modèle de fonction est appelé lorsque l'affectation va faire en sorte que <code>*this</code> contienne la valeur de l'autre alternative (c'est-à-dire de la valeur attendue vers la valeur inattendue, ou de la valeur inattendue vers la valeur attendue).</p>
+<p>Dans ce cas, l'ancienne valeur <code>oldval</code> doit être détruite avant de construire la nouvelle valeur <code>newval</code>. Cependant, la construction de <code>newval</code> peut lever une exception. Afin de fournir une <a href="../../language/exceptions.html#Exception_safety">garantie forte d'exception</a>, l'ancienne valeur doit être restaurée avant de relancer l'exception, de sorte que <code>*this</code> ait un état valide pendant que l'exception est traitée.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1-9) <code>*this</code></p>
+<h2 id="Constraints_and_supplement_information">Contraintes et informations complémentaires</h2>
+<h3 id="Primary_template_assignment_operators_2">Opérateurs d'affectation du modèle primaire</h3>
+<ol>
+<li>Cette surcharge est définie comme supprimée sauf si toutes les valeurs suivantes sont <code>true</code> :</li>
+</ol>
+<ul>
+<li><code>std::is_copy_assignable_v&lt;T&gt;</code></li>
+<li><code>std::is_copy_constructible_v&lt;T&gt;</code></li>
+<li><code>std::is_copy_assignable_v&lt;E&gt;</code></li>
+<li><code>std::is_copy_constructible_v&lt;E&gt;</code></li>
+<li><code>std::is_nothrow_move_constructible_v&lt;T&gt; || std::is_nothrow_move_constructible_v&lt;E&gt;</code></li>
+</ul>
+<ol start="2">
+<li>Cette surcharge ne participe à la résolution de surcharge que si toutes les valeurs suivantes sont <code>true</code> :</li>
+</ol>
+<ul>
+<li><code>std::is_move_assignable_v&lt;T&gt;</code></li>
+<li><code>std::is_move_constructible_v&lt;T&gt;</code></li>
+<li><code>std::is_move_assignable_v&lt;E&gt;</code></li>
+<li><code>std::is_move_constructible_v&lt;E&gt;</code></li>
+<li><code>std::is_nothrow_move_constructible_v&lt;T&gt; || std::is_nothrow_move_constructible_v&lt;E&gt;</code></li>
+</ul>
+<ol start="3">
+<li>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</li>
+</ol>
+<ul>
+<li><code>std::is_same_v&lt;expected, std::remove_cvref_t&lt;U&gt;&gt;</code> is <code>false</code>.</li>
+<li><code>std::remove_cvref_t&lt;U&gt;</code> n'est pas une spécialisation de <code>std::unexpected</code>.</li>
+<li>Toutes les valeurs suivantes sont <code>true</code> :
+<ul>
+<li><code>std::is_constructible_v&lt;T, U&gt;</code></li>
+<li><code>std::is_assignable_v&lt;T&amp;, U&gt;</code></li>
+<li><code>std::is_nothrow_constructible_v&lt;T, U&gt; || std::is_nothrow_move_constructible_v&lt;T&gt; ||std::is_nothrow_move_constructible_v&lt;E&gt;</code></li>
+</ul>
+</li>
+</ul>
+<ol start="4">
+<li>Cette surcharge ne participe à la résolution de surcharge que si toutes les valeurs suivantes sont <code>true</code> :</li>
+</ol>
+<ul>
+<li><code>std::is_constructible_v&lt;E, const G&amp;&gt;</code></li>
+<li><code>std::is_assignable_v&lt;E&amp;, const G&amp;&gt;</code></li>
+<li><code>std::is_nothrow_constructible_v&lt;E, const G&amp;&gt; || std::is_nothrow_move_constructible_v&lt;T&gt; ||std::is_nothrow_move_constructible_v&lt;E&gt;</code></li>
+</ul>
+<ol start="5">
+<li>Cette surcharge ne participe à la résolution de surcharge que si toutes les valeurs suivantes sont <code>true</code> :</li>
+</ol>
+<ul>
+<li><code>std::is_constructible_v&lt;E, G&gt;</code></li>
+<li><code>std::is_assignable_v&lt;E&amp;, G&gt;</code></li>
+<li><code>std::is_nothrow_constructible_v&lt;E, G&gt; || std::is_nothrow_move_constructible_v&lt;T&gt; ||std::is_nothrow_move_constructible_v&lt;E&gt;</code></li>
+</ul>
+<h3 id="void_partial_specialization_assignment_operators_2">Opérateurs d'affectation des spécialisations partielles de <code>void</code></h3>
+<ol start="6">
+<li>
+<p>Cette surcharge est définie comme supprimée sauf si <code>std::is_copy_assignable_v&lt;E&gt;</code> et <code>std::is_copy_constructible_v&lt;E&gt;</code> sont tous deux <code>true</code>.</p>
+</li>
+<li>
+<p>Cette surcharge ne participe à la résolution de surcharge que si <code>std::is_move_constructible_v&lt;E&gt;</code> et <code>std::is_move_assignable_v&lt;E&gt;</code> sont tous deux <code>true</code>.</p>
+</li>
+<li>
+<p>Cette surcharge ne participe à la résolution de surcharge que si <code>std::is_constructible_v&lt;E, const G&amp;&gt;</code> et <code>std::is_assignable_v&lt;E&amp;, const G&amp;&gt;</code> sont tous deux <code>true</code>.</p>
+</li>
+<li>
+<p>Cette surcharge ne participe à la résolution de surcharge que si <code>std::is_constructible_v&lt;E, G&gt;</code> et <code>std::is_assignable_v&lt;E&amp;, G&gt;</code> sont tous deux <code>true</code>.</p>
+</li>
+</ol>
+<h2 id="Exceptions">Exceptions</h2>
+<p>2)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept( std::is_nothrow_move_constructible_v&lt;T&gt; &amp;&amp; std::is_nothrow_move_assignable_v&lt;T&gt; &amp;&amp; std::is_nothrow_move_constructible_v&lt;E&gt; &amp;&amp; std::is_nothrow_move_assignable_v&lt;E&gt;)</code></p>
+<p>7)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept(std::is_nothrow_move_constructible_v&lt;E&gt; &amp;&amp; std::is_nothrow_move_assignable_v&lt;E&gt;)</code></p>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue4025">LWG 4025</a></td>
+<td>C++23</td>
+<td>la surcharge <code>(7)</code> est définie comme supprimée si <code>E</code> n'est pas constructible par déplacement ou n'est pas affectable par déplacement</td>
+<td>elle ne participe pas à la résolution de surcharge dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="emplace.html">emplace</a></strong> — construit la valeur attendue sur place <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

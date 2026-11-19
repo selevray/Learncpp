@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration asm — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-asm">Déclaration asm</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/asm">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><em>asm-declaration</em> permet d'intégrer du code source en langage assembleur dans un programme C++. Cette déclaration est à support conditionnel et *(depuis C++11)*définie par l'implémentation, ce qui signifie qu'elle peut ne pas être présente et, même lorsqu'elle est fournie par l'implémentation, *(depuis C++11)*elle n'a pas de signification fixe.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>attr</code> ﻿*(facultatif)* <code>asm (</code> <code>string-literal</code> <code>)</code> <code>;</code> | | (jusqu'à C++26) |
+|
+| <code>attr</code> ﻿*(facultatif)* <code>asm (</code> <code>balanced-token-seq</code> <code>)</code> <code>;</code> | | (depuis C++26) |
+|</p>
+<ul>
+<li><code>attr</code> — (depuis C++11) un nombre quelconque d'<a href="attributes.html">attributs</a></li>
+<li><code>string-literal</code> — identique à celui de <a href="string_literal.html">littéral de chaîne</a>, y compris les littéraux de chaîne bruts</li>
+<li><code>balanced-token-seq</code> — une suite de jetons où parenthèses, crochets et accolades sont équilibrés ; toute restriction sur <code>balanced-token-seq</code> et sa signification est définie par l'implémentation</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p><code>balanced-token-seq</code> est généralement un littéral de chaîne représentant un court programme écrit en langage assembleur, exécuté à chaque exécution de cette déclaration. Les différents compilateurs C++ ont des règles très variables pour les asm-declarations et des conventions différentes pour l'interaction avec le code C++ environnant.</p>
+<p>Comme les autres <a href="declarations.html">déclarations de bloc</a>, cette déclaration peut apparaître à l'intérieur d'un bloc (corps de fonction ou autre instruction composée), et, comme toutes les autres déclarations, elle peut aussi apparaître en dehors d'un bloc.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : rédiger une note sur la syntaxe d'assemblage étendue de GCC, puisqu'elle est désormais prise en charge par Intel, IBM, Sun (à partir de la v12), etc.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_constexpr"><code>__cpp_constexpr</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_constexpr_201907L"><code>201907L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><a href="default_initialization.html">Initialisation par défaut</a> triviale et <a href="asm.html#Syntax">asm-declaration</a> dans les fonctions <code>constexpr</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/asm.html"><code>asm</code></a></p>
+<h2 id="Example">Exemple</h2>
+<p>Démontre deux formes de syntaxe d'assembleur en ligne proposées par les compilateurs GCC/Clang. Ce programme ne fonctionne correctement que sur la plateforme x86_64 sous Linux.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+extern &quot;C&quot; int func(int x);
+// la définition de func est écrite en langage assembleur
+// un littéral de chaîne brute pourrait être très utile
+asm(R&quot;(
+.globl func
+    .type func, @function
+    func:
+    .cfi_startproc
+    movl %edi, %eax /* x is in RDI, see x86-64 calling convention */
+    addl $1, %eax
+    ret
+    .cfi_endproc
+)&quot;);
+
+int main()
+{
+    int n = func(0110);
+    // auparavant assembleur en ligne non standard, rendu conforme par P2361R6
+    asm (&quot;leal (%0,%0,4),%0&quot;
+         : &quot;=r&quot; (n)
+         : &quot;0&quot; (n));
+    std::cout &lt;&lt; &quot;73*5 = &quot; &lt;&lt; n &lt;&lt; std::endl; // le flush est intentionnel
+
+    // assembleur en ligne standard
+    asm (&quot;movq $60, %rax\n&quot; // le numéro de l'appel système exit sous Linux
+         &quot;movq $2,  %rdi\n&quot; // ce programme renvoie 2
+         &quot;syscall&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">73*5 = 365
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/195.html">CWG 195</a></td>
+<td>C++98</td>
+<td>il était requis de prendre en charge toutes les asm-declarations</td>
+<td>rendu à support conditionnel</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2262.html">CWG 2262</a></td>
+<td>C++11</td>
+<td>les attributs ne pouvaient pas être appliqués aux asm-declarations</td>
+<td>allowed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++26 (ISO/IEC 14882:2026) :</p>
+<ul>
+<li>9.10 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>9.10 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>9.10 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>10.4 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>7.4 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>7.4 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>7.4 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>7.4 La déclaration <code>asm</code> [dcl.asm]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="../links.html#C.2B.2B_ABIs">C++ ABIs</a></li>
+</ul>
+<p><strong><a href="../../c/language/asm.html">Documentation C</a> pour Assembleur en ligne</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html">GCC Inline Assembly HOWTO</a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="http://locklessinc.com/articles/gcc_asm/">GCC Inline ASM</a> — Locklessinc.com</td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://www.ibm.com/docs/en/xl-c-and-cpp-aix/16.1?topic=compatibility-inline-assembly-statements">IBM XL C/C++ Inline Assembly</a></td>
+</tr>
+<tr>
+<td>4.</td>
+<td><a href="https://www.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/intrinsics/data-align-mem-alloc-intrins-and-inline-asmbly/inline-assembly.html">Intel C++ Inline Assembly</a></td>
+</tr>
+<tr>
+<td>5.</td>
+<td><a href="https://learn.microsoft.com/en-us/cpp/assembler/inline/inline-assembler">Visual Studio Inline Assembler</a></td>
+</tr>
+<tr>
+<td>6.</td>
+<td><a href="https://web.archive.org/web/20160528215011/https://blogs.oracle.com/x86be/entry/gcc_style_asm_inlining_support">Sun Studio 12 Asm Statements</a></td>
+</tr>
+<tr>
+<td>7.</td>
+<td><a href="https://web.archive.org/web/20151009200102/https://h21007.www2.hp.com/portal/site/dspp/menuitem.863c3e4cbcdc3f3515b49c108973a801?ciid=4308e2f5bde02110e2f5bde02110275d6e10RCRD">Inline assembly for Itanium-based HP-UX</a></td>
+</tr>
+<tr>
+<td>8.</td>
+<td><a href="https://en.wikipedia.org/wiki/X86_calling_conventions">Conventions d'appel x86</a> — Wikipedia</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

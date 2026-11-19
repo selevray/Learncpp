@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::enable_shared_from_this — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-enable_shared_from_this"><code>std::enable_shared_from_this</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/enable_shared_from_this">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+class enable_shared_from_this;  // (depuis C++11)
+</code></pre>
+<p><code>std::enable_shared_from_this</code> permet à un objet <code>t</code> actuellement géré par un <a href="shared_ptr.html"><code>std::shared_ptr</code></a> nommé <code>pt</code> de générer en toute sécurité des instances supplémentaires de <a href="shared_ptr.html"><code>std::shared_ptr</code></a> <code>pt1</code>, <code>pt2</code> etc. qui partagent toutes la propriété de <code>t</code> avec <code>pt</code>.</p>
+<p>Hériter publiquement de <code>std::enable_shared_from_this&lt;T&gt;</code> fournit au type <code>T</code> une fonction membre <code>shared_from_this</code>. Si un objet <code>t</code> de type <code>T</code> est géré par un <code>std::shared_ptr&lt;T&gt;</code> nommé <code>pt</code>, alors appeler <code>T::shared_from_this</code> renverra un nouveau <code>std::shared_ptr&lt;T&gt;</code> qui partage la propriété de <code>t</code> avec <code>pt</code>.</p>
+<h2 id="Data_members">Membres de données</h2>
+<p><strong>Membre Description</strong></p>
+<ul>
+<li><strong><code>mutable std::weak_ptr&lt;T&gt;</code> <code>weak_this</code></strong> — l'objet suivant le bloc de contrôle du premier propriétaire partagé de <code>*this</code> <em>(objet membre exposé uniquement</em>)*</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="enable_shared_from_this/enable_shared_from_this.html">(constructeur)</a></strong> — construit un objet <code>enable_shared_from_this</code> <em>(fonction membre protégée)</em></li>
+<li><strong><a href="enable_shared_from_this/~enable_shared_from_this.html">(destructeur)</a></strong> — détruit un objet <code>enable_shared_from_this</code> <em>(fonction membre protégée)</em></li>
+<li><strong><a href="enable_shared_from_this/operator%3D.html">operator=</a></strong> — renvoie une référence à <code>*this</code> <em>(fonction membre protégée)</em></li>
+<li><strong><a href="enable_shared_from_this/shared_from_this.html">shared_from_this</a></strong> — renvoie un <a href="shared_ptr.html"><code>std::shared_ptr</code></a> qui partage la propriété de <code>*this</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="enable_shared_from_this/weak_from_this.html">weak_from_this</a> (C++17)</strong> — renvoie un <a href="weak_ptr.html"><code>std::weak_ptr</code></a> qui partage la propriété de <code>*this</code> <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Les constructeurs de <a href="shared_ptr.html"><code>std::shared_ptr</code></a> détectent la présence d'une base <code>enable_shared_from_this</code> non ambiguë et accessible (c'est-à-dire que l'héritage public est obligatoire) et affectent le <a href="shared_ptr.html"><code>std::shared_ptr</code></a> nouvellement créé à <code>weak_this</code> s'il n'est pas déjà possédé par un <a href="shared_ptr.html"><code>std::shared_ptr</code></a> vivant. Construire un <a href="shared_ptr.html"><code>std::shared_ptr</code></a> pour un objet déjà géré par un autre <a href="shared_ptr.html"><code>std::shared_ptr</code></a> ne consultera pas <code>weak_this</code> et conduira donc à un comportement indéfini.</p>
+<p>Il est permis d'appeler <code>shared_from_this</code> uniquement sur un objet déjà partagé, c'est-à-dire sur un objet géré par <code>std::shared_ptr&lt;T&gt;</code>. Sinon, <a href="bad_weak_ptr.html"><code>std::bad_weak_ptr</code></a> est levée (par le constructeur de <a href="shared_ptr.html"><code>std::shared_ptr</code></a> à partir d'un <code>weak_this</code> construit par défaut ﻿).</p>
+<p><code>enable_shared_from_this</code> fournit l'alternative sûre à une expression comme <code>std::shared_ptr&lt;T&gt;(this)</code>, qui risque de provoquer la destruction de <code>this</code> plus d'une fois par plusieurs propriétaires qui ignorent l'existence les uns des autres (voir l'exemple ci-dessous).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+class Good : public std::enable_shared_from_this&lt;Good&gt;
+{
+public:
+    std::shared_ptr&lt;Good&gt; getptr()
+    {
+        return shared_from_this();
+    }
+};
+
+class Best : public std::enable_shared_from_this&lt;Best&gt;
+{
+    struct Private{ explicit Private() = default; };
+
+public:
+    // Le constructeur n'est utilisable que par cette classe
+    Best(Private) {}
+
+    // Tous les autres doivent utiliser cette fonction de fabrique
+    // Ainsi, tous les objets Best seront contenus dans un shared_ptr
+    static std::shared_ptr&lt;Best&gt; create()
+    {
+        return std::make_shared&lt;Best&gt;(Private());
+    }
+
+    std::shared_ptr&lt;Best&gt; getptr()
+    {
+        return shared_from_this();
+    }
+};
+
+struct Bad
+{
+    std::shared_ptr&lt;Bad&gt; getptr()
+    {
+        return std::shared_ptr&lt;Bad&gt;(this);
+    }
+    ~Bad() { std::cout &lt;&lt; &quot;Bad::~Bad() called\n&quot;; }
+};
+
+void testGood()
+{
+    // Bien : les deux shared_ptr partagent le même objet
+    std::shared_ptr&lt;Good&gt; good0 = std::make_shared&lt;Good&gt;();
+    std::shared_ptr&lt;Good&gt; good1 = good0-&gt;getptr();
+    std::cout &lt;&lt; &quot;good1.use_count() = &quot; &lt;&lt; good1.use_count() &lt;&lt; '\n';
+}
+
+void misuseGood()
+{
+    // Mal : shared_from_this est appelé sans qu'un std::shared_ptr ne possède l'appelant
+    try
+    {
+        Good not_so_good;
+        std::shared_ptr&lt;Good&gt; gp1 = not_so_good.getptr();
+    }
+    catch (std::bad_weak_ptr&amp; e)
+    {
+        // comportement indéfini (jusqu'à C++17) et std::bad_weak_ptr levée (depuis C++17)
+        std::cout &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+}
+
+void testBest()
+{
+    // Best : identique, mais impossible de l'allouer sur la pile :
+    std::shared_ptr&lt;Best&gt; best0 = Best::create();
+    std::shared_ptr&lt;Best&gt; best1 = best0-&gt;getptr();
+    std::cout &lt;&lt; &quot;best1.use_count() = &quot; &lt;&lt; best1.use_count() &lt;&lt; '\n';
+
+    // Best stackBest; // &lt;- Ne compilera pas car Best::Best() est privé.
+}
+
+void testBad()
+{
+    // Mauvais, chaque shared_ptr pense être le seul propriétaire de l'objet
+    std::shared_ptr&lt;Bad&gt; bad0 = std::make_shared&lt;Bad&gt;();
+    std::shared_ptr&lt;Bad&gt; bad1 = bad0-&gt;getptr();
+    std::cout &lt;&lt; &quot;bad1.use_count() = &quot; &lt;&lt; bad1.use_count() &lt;&lt; '\n';
+} // UB : double suppression de Bad
+
+int main()
+{
+    testGood();
+    misuseGood();
+
+    testBest();
+
+    testBad();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">good1.use_count() = 2
+bad_weak_ptr
+best1.use_count() = 2
+bad1.use_count() = 1
+Bad::~Bad() called
+Bad::~Bad() called
+*** glibc detected *** ./test: double free or corruption
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2179">LWG 2179</a> (<a href="https://wg21.link/P0033R1">P0033R1</a>)</td>
+<td>C++11</td>
+<td>pour un type <code>T</code> dérivé de <code>enable_shared_from_this</code>, le comportement de la construction de deux <code>std::shared_ptr&lt;T&gt;</code> à partir du même objet <code>T*</code> n'était pas clair</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2529">LWG 2529</a> (<a href="https://wg21.link/P0033R1">P0033R1</a>)</td>
+<td>C++11</td>
+<td>on ne savait pas comment le <a href="weak_ptr.html"><code>std::weak_ptr</code></a> sous-jacent est mis à jour</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="shared_ptr.html">shared_ptr</a> (C++11)</strong> — pointeur intelligent à sémantique de propriété partagée d'objet <em>(modèle de classe)</em></li>
+<li><strong><a href="shared_ptr/make_shared.html">make_sharedmake_shared_for_overwrite</a> (C++20)</strong> — crée un pointeur partagé qui gère un nouvel objet <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

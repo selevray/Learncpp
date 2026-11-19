@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fmod, fmodf, fmodl — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/numeric.html">Numerics</a> › <a href="../../../c/numeric/math.html">Fonctions mathématiques courantes</a></nav>
+<h1 id="fmod-fmodf-fmodl">fmod, fmodf, fmodl</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/numeric/math/fmod">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;math.h&gt;</strong></p>
+<pre><code class="language-c">float       fmodf( float x, float y );  // (1) (depuis C99)
+
+double      fmod( double x, double y );  // (2)
+
+long double fmodl( long double x, long double y );  // (3) (depuis C99)
+</code></pre>
+<p><strong>Défini dans l'en-tête &lt;tgmath.h&gt;</strong></p>
+<pre><code class="language-c">#define fmod( x, y )  // (4) (depuis C99)
+</code></pre>
+<p>1-3) Calcule le reste en virgule flottante de l'opération de division <code>x / y</code>.</p>
+<ol start="4">
+<li>Macro générique au type : si un argument est de type <code>long double</code>, <code>fmodl</code> est appelée. Sinon, si un argument est de type entier ou de type <code>double</code>, <code>fmod</code> est appelée. Sinon, <code>fmodf</code> est appelée.</li>
+</ol>
+<p>Le reste à virgule flottante de l'opération de division <code>x / y</code> calculé par cette fonction vaut exactement la valeur <code>x - n * y</code>, où <code>n</code> est <code>x / y</code> dont la partie fractionnaire a été tronquée.</p>
+<p>La valeur renvoyée a le même signe que <code>x</code> et sa valeur absolue est inférieure ou égale à celle de <code>y</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>x, y</code> — valeurs à virgule flottante</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, renvoie le reste à virgule flottante de la division <code>x / y</code> tel que défini ci-dessus.</p>
+<p>Si une erreur de domaine se produit, une valeur définie par l'implémentation est renvoyée (NaN lorsque pris en charge).</p>
+<p>Si une erreur d'intervalle due à un sous-dépassement se produit, le résultat correct (après arrondi) est renvoyé.</p>
+<h2 id="Error_handling">Gestion des erreurs</h2>
+<p>Les erreurs sont signalées comme spécifié dans <a href="math_errhandling.html"><code>math_errhandling</code></a>.</p>
+<p>Une erreur de domaine peut se produire si <code>y</code> vaut zéro.</p>
+<p>Si l'implémentation prend en charge l'arithmétique à virgule flottante IEEE (CEI 60559) :</p>
+<ul>
+<li>Si <code>x</code> vaut ±0 et <code>y</code> est non nul, ±0 est renvoyé.</li>
+<li>Si <code>x</code> vaut ±∞ et <code>y</code> n'est pas NaN, NaN est renvoyé et <a href="../fenv/FE_exceptions.html"><code>FE_INVALID</code></a> est levé.</li>
+<li>Si <code>y</code> vaut ±0 et <code>x</code> n'est pas NaN, NaN est renvoyé et <a href="../fenv/FE_exceptions.html"><code>FE_INVALID</code></a> est levé.</li>
+<li>Si <code>y</code> vaut ±∞ et <code>x</code> est fini, <code>x</code> est renvoyé.</li>
+<li>Si l'un des arguments est NaN, NaN est renvoyé.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/fmod.html">POSIX exige</a> qu'une erreur de domaine se produise si <code>x</code> est infini ou si <code>y</code> vaut zéro.</p>
+<p><code>fmod</code>, mais pas <a href="remainder.html"><code>remainder</code></a>, est utile pour effectuer un enveloppement silencieux de types à virgule flottante vers des types entiers non signés : <code>(0.0 &lt;= (y = fmod(rint(x), 65536.0 )) ? y : 65536.0 + y)</code> est dans l'intervalle <code>[-0.0,65535.0]</code>, ce qui correspond à <code>unsigned short</code>, mais <code>remainder(rint(x), 65536.0)</code> est dans l'intervalle <code>[-32767.0,+32768.0]</code>, qui est en dehors de l'intervalle de <code>signed short</code>.</p>
+<p>La version <code>double</code> de <code>fmod</code> se comporte comme si elle était implémentée de la manière suivante :</p>
+<pre><code class="language-c">double fmod(double x, double y)
+{
+#pragma STDC FENV_ACCESS ON
+    double result = remainder(fabs(x), (y = fabs(y)));
+    if (signbit(result))
+        result += y;
+    return copysign(result, x);
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;fenv.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+
+// #pragma STDC FENV_ACCESS ON
+
+int main(void)
+{
+    printf(&quot;fmod(+5.1, +3.0) = %.1f\n&quot;, fmod(5.1, 3));
+    printf(&quot;fmod(-5.1, +3.0) = %.1f\n&quot;, fmod(-5.1, 3));
+    printf(&quot;fmod(+5.1, -3.0) = %.1f\n&quot;, fmod(5.1, -3));
+    printf(&quot;fmod(-5.1, -3.0) = %.1f\n&quot;, fmod(-5.1, -3));
+
+    // valeurs spéciales
+    printf(&quot;fmod(+0.0, 1.0) = %.1f\n&quot;, fmod(0, 1));
+    printf(&quot;fmod(-0.0, 1.0) = %.1f\n&quot;, fmod(-0.0, 1));
+    printf(&quot;fmod(+5.1, Inf) = %.1f\n&quot;, fmod(5.1, INFINITY));
+
+    // gestion des erreurs
+    feclearexcept(FE_ALL_EXCEPT);
+    printf(&quot;fmod(+5.1, 0) = %.1f\n&quot;, fmod(5.1, 0));
+    if (fetestexcept(FE_INVALID))
+        puts(&quot;    FE_INVALID raised&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">fmod(+5.1, +3.0) = 2.1
+fmod(-5.1, +3.0) = -2.1
+fmod(+5.1, -3.0) = 2.1
+fmod(-5.1, -3.0) = -2.1
+fmod(+0.0, 1.0) = 0.0
+fmod(-0.0, 1.0) = -0.0
+fmod(+5.1, Inf) = 5.1
+fmod(+5.1, 0) = nan
+    FE_INVALID raised
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.12.10.1 Les fonctions fmod (p : TBD)</li>
+<li>7.25 Macros génériques par type &lt;tgmath.h&gt; (p: TBD)</li>
+<li>F.10.7.1 Les fonctions fmod (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.12.10.1 Les fonctions fmod (p : 185)</li>
+<li>7.25 Mathématiques à types génériques &lt;tgmath.h&gt; (p : 274-275)</li>
+<li>F.10.7.1 Les fonctions fmod (p : 385)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.12.10.1 Les fonctions fmod (p : 254)</li>
+<li>7.25 Mathématiques génériques par type &lt;tgmath.h&gt; (p : 373-375)</li>
+<li>F.10.7.1 Les fonctions fmod (p : 528)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.12.10.1 Les fonctions fmod (p : 235)</li>
+<li>7.22 Mathématiques génériques par type &lt;tgmath.h&gt; (p : 335-337)</li>
+<li>F.9.7.1 Les fonctions fmod (p : 465)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.5.6.4 La fonction fmod</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="div.html">divldivlldiv</a> (C99)</strong> — calcule le quotient et le reste de la division entière <em>(fonction)</em></li>
+<li><strong><a href="remainder.html">remainderremainderfremainderl</a> (C99) (C99) (C99)</strong> — calcule le reste signé de l'opération de division à virgule flottante <em>(fonction)</em></li>
+<li><strong><a href="remquo.html">remquoremquofremquol</a> (C99) (C99) (C99)</strong> — calcule le reste signé ainsi que les trois derniers bits de l'opération de division <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/numeric/math/fmod.html">Documentation C++</a> pour fmod</strong></p>
+
+</main>
+</body>
+</html>

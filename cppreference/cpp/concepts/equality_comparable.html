@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::equality_comparable, std::equality_comparable_with — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/concepts.html">Bibliothèque des concepts (depuis C++20)</a></nav>
+<h1 id="std-equality_comparable-std-equality_comparable_with"><code>std::equality_comparable, std::equality_comparable_with</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/concepts/equality_comparable">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;concepts&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+concept equality_comparable = __WeaklyEqualityComparableWith&lt;T, T&gt;;  // (1) (depuis C++20)
+
+template&lt; class T, class U &gt;
+concept equality_comparable_with =
+    std::equality_comparable&lt;T&gt; &amp;&amp;
+    std::equality_comparable&lt;U&gt; &amp;&amp;
+    __ComparisonCommonTypeWith&lt;T, U&gt; &amp;&amp;
+    std::equality_comparable&lt;
+        std::common_reference_t&lt;
+            const std::remove_reference_t&lt;T&gt;&amp;,
+            const std::remove_reference_t&lt;U&gt;&amp;&gt;&gt; &amp;&amp;
+    __WeaklyEqualityComparableWith&lt;T, U&gt;;  // (2) (depuis C++20)
+</code></pre>
+<p><strong>Concepts auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class U &gt;
+concept __WeaklyEqualityComparableWith =
+    requires(const std::remove_reference_t&lt;T&gt;&amp; t,
+             const std::remove_reference_t&lt;U&gt;&amp; u) {
+        { t == u } -&gt; boolean-testable;
+        { t != u } -&gt; boolean-testable;
+        { u == t } -&gt; boolean-testable;
+        { u != t } -&gt; boolean-testable;
+    };  // (3) ( exposition uniquement* )
+
+template&lt; class T, class U &gt;
+concept __ComparisonCommonTypeWith =
+    std::common_reference_with&lt;
+        const std::remove_reference_t&lt;T&gt;&amp;,
+        const std::remove_reference_t&lt;U&gt;&amp;&gt;;  // (jusqu'à C++23) ( exposition uniquement* )
+
+template&lt; class T, class U, class C = std::common_reference_t&lt;const T&amp;, const U&amp;&gt; &gt;
+concept _ComparisonCommonTypeWithImpl =
+    std::same_as&lt;std::common_reference_t&lt;const T&amp;, const U&amp;&gt;,
+                 std::common_reference_t&lt;const U&amp;, const T&amp;&gt;&gt; &amp;&amp;
+    requires {
+        requires std::convertible_to&lt;const T&amp;, const C&amp;&gt; ||
+            std::convertible_to&lt;T, const C&amp;&gt;;
+        requires std::convertible_to&lt;const U&amp;, const C&amp;&gt; ||
+            std::convertible_to&lt;U, const C&amp;&gt;;
+    };
+template&lt; class T, class U &gt;
+concept __ComparisonCommonTypeWith =
+    _ComparisonCommonTypeWithImpl&lt;std::remove_cvref_t&lt;T&gt;, std::remove_cvref_t&lt;U&gt;&gt;;  // (depuis C++23) ( exposition uniquement* )
+</code></pre>
+<ol>
+<li>
+<p>Le concept <code>std::equality_comparable</code> spécifie que les opérateurs de comparaison <code>==</code> et <code>!=</code> sur <code>T</code> reflètent l'égalité : <code>==</code> donne <code>true</code> si et seulement si les opérandes sont égaux.</p>
+</li>
+<li>
+<p>Le concept <code>std::equality_comparable_with</code> spécifie que les opérateurs de comparaison <code>==</code> et <code>!=</code> sur des opérandes <code>T</code> et <code>U</code> (éventuellement de types mixtes) donnent des résultats cohérents avec l'égalité. La comparaison d'opérandes mixtes donne des résultats équivalents à la comparaison des opérandes convertis en leur type commun.</p>
+</li>
+<li>
+<p>Le concept <code>__WeaklyEqualityComparableWith</code>, uniquement pour l'exposition, spécifie qu'un objet de type <code>T</code> et un objet de type <code>U</code> peuvent être comparés pour l'égalité l'un avec l'autre (dans les deux ordres) en utilisant à la fois <code>==</code> et <code>!=</code>, et que les résultats des comparaisons sont cohérents.</p>
+</li>
+<li>
+<p>Le concept <code>__ComparisonCommonTypeWith</code>, uniquement pour l'exposition, spécifie que deux types partagent un type commun, et qu'une lvalue constou une rvalue non const <em>(depuis C++23)</em> de l'un ou l'autre type est convertible en ce type commun.</p>
+</li>
+</ol>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Ces concepts ne sont modélisés que s'ils sont satisfaits et que tous les concepts qu'ils subsument sont modélisés.</p>
+<p>Dans les paragraphes suivants, étant donné une expression <code>E</code> et un type <code>C</code>, <code>CONVERT_TO&lt;C&gt;(E)</code> est défini comme suit :</p>
+<blockquote>
+<ul>
+<li><code>static_cast&lt;C&gt;(std::as_const(E))</code>.</li>
+</ul>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>static_cast&lt;const C&amp;&gt;(std::as_const(E))</code> si c'est une expression valide,</li>
+<li><code>static_cast&lt;const C&amp;&gt;(std::move(E))</code> sinon.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<ol>
+<li>
+<p><code>std::equality_comparable&lt;T&gt;</code> n'est modélisé que si, étant donnés des objets <code>a</code> et <code>b</code> de type <code>T</code>, <code>bool(a == b)</code> vaut <code>true</code> si et seulement si <code>a</code> et <code>b</code> sont égaux. Avec l'exigence que <code>a == b</code> soit <a href="../concepts.html#Equality_preservation">préservant l'égalité</a>, cela implique que <code>==</code> est symétrique et transitive, et de plus que <code>==</code> est réflexive pour tous les objets <code>a</code> égaux à au moins un autre objet.</p>
+</li>
+<li>
+<p><code>std::equality_comparable_with&lt;T, U&gt;</code> n'est modélisé que si, soit</p>
+</li>
+</ol>
+<ul>
+<li><code>t</code> et <code>t2</code> des lvalues désignant des objets égaux distincts de types <code>const std::remove_reference_t&lt;T&gt;</code> et <code>std::remove_cvref_t&lt;T&gt;</code> respectivement,</li>
+<li><code>u</code> et <code>u2</code> des lvalues désignant des objets égaux distincts de types <code>const std::remove_reference_t&lt;U&gt;</code> et <code>std::remove_cvref_t&lt;U&gt;</code> respectivement,</li>
+<li><code>C</code> be <code>std::common_reference_t&lt;const std::remove_reference_t&lt;T&gt;&amp;, const std::remove_reference_t&lt;U&gt;&amp;&gt;</code>,</li>
+</ul>
+<p>l'expression suivante est vraie :</p>
+<ul>
+<li><code>bool(t == u) == bool(CONVERT_TO&lt;C&gt;(t2) == CONVERT_TO&lt;C&gt;(u2))</code>.</li>
+</ul>
+<ol start="3">
+<li><code>__WeaklyEqualityComparableWith&lt;T, U&gt;</code> n'est modélisé que si, étant donné</li>
+</ol>
+<ul>
+<li><code>t</code>, une lvalue de type <code>const std::remove_reference_t&lt;T&gt;</code> et</li>
+<li><code>u</code>, une lvalue de type <code>const std::remove_reference_t&lt;U&gt;</code>,</li>
+</ul>
+<p>les propositions suivantes sont vraies :</p>
+<ul>
+<li><code>t == u</code>, <code>u == t</code>, <code>t != u</code>, <code>u != t</code> ont le même domaine ;</li>
+<li><code>bool(u == t) == bool(t == u)</code>;</li>
+<li><code>bool(t != u) == !bool(t == u)</code>; and</li>
+<li><code>bool(u != t) == bool(t != u)</code>.</li>
+</ul>
+<ol start="4">
+<li><code>__WeaklyEqualityComparableWith&lt;T, U&gt;</code> n'est modélisé que si :</li>
+</ol>
+<blockquote>
+<p>Le concept <a href="common_reference_with.html"><code>common_reference_with</code></a> correspondant est modélisé.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>Soit</p>
+<ul>
+<li><code>C</code> be <code>std::common_reference_t&lt;const T&amp;, const U&amp;&gt;</code>,</li>
+<li><code>t1</code> et <code>t2</code> des expressions <a href="../concepts.html#Equality_preservation">préservant l'égalité</a> qui sont des lvalues de type <code>std::remove_cvref_t&lt;T&gt;</code>,</li>
+<li><code>u1</code> et <code>u2</code> des expressions <a href="../concepts.html#Equality_preservation">préservant l'égalité</a> qui sont des lvalues de type <code>std::remove_cvref_t&lt;U&gt;</code>,</li>
+</ul>
+<p>les conditions suivantes sont vérifiées :</p>
+<ul>
+<li><code>CONVERT_TO&lt;C&gt;(t1)</code> est égal à <code>CONVERT_TO&lt;C&gt;(t2)</code> si et seulement si <code>t1</code> est égal à <code>t2</code> ; et</li>
+<li><code>CONVERT_TO&lt;C&gt;(u1)</code> est égal à <code>CONVERT_TO&lt;C&gt;(u2)</code> si et seulement si <code>u1</code> est égal à <code>u2</code>.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Equality_preservation">Préservation de l'égalité</h2>
+<p>Les expressions déclarées dans les <a href="../language/requires.html"><code>requires</code> expressions</a> des concepts de la bibliothèque standard doivent être <a href="../concepts.html#Equality_preservation">préservant l'égalité</a> (sauf mention contraire).</p>
+<h2 id="Implicit_expression_variations">Variations d'expressions implicites</h2>
+<p>Une <a href="../language/requires.html"><code>requires</code> expression</a> qui utilise une expression non modifiante pour un opérande lvalue constant quelconque nécessite également des <a href="../concepts.html#Implicit_expression_variations">variations d'expressions implicites</a>.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>18.5.4 Concept <code>equality_comparable</code> [concept.equalitycomparable]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>18.5.3 Concept <code>equality_comparable</code> [concept.equalitycomparable]</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

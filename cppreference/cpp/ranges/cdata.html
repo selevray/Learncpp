@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::cdata — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-cdata"><code>std::ranges::cdata</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/cdata">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<pre><code class="language-cpp">inline namespace /*unspecified*/ {
+    inline constexpr /*unspecified*/ cdata = /*unspecified*/;
+}  // (depuis C++20) (objet point de personnalisation)
+</code></pre>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+    requires /* voir ci-dessous */
+constexpr /* voir ci-dessous */ cdata( T&amp;&amp; t );  // (depuis C++20)
+</code></pre>
+<p>Renvoie un pointeur vers le premier élément de type constant <em>(depuis C++23)</em> d'un intervalle contigu désigné par un argument qualifié const <em>(jusqu'à C++23)</em>.</p>
+<blockquote>
+<p>Soit <code>CT</code> égal à</p>
+<ul>
+<li><code>const std::remove_reference_t&lt;T&gt;&amp;</code> si l'argument est une lvalue (c.-à-d. <code>T</code> est un type de référence lvalue),</li>
+<li><code>const T</code> sinon.</li>
+</ul>
+<p>Un appel à <code>ranges::cdata</code> est <a href="../language/expressions.html#Expression-equivalence">expression-equivalent</a> à <code>ranges::data(static_cast&lt;CT&amp;&amp;&gt;(t))</code>.</p>
+<p>Le type de retour est équivalent à <code>std::remove_reference_t&lt;ranges::range_reference_t&lt;CT&gt;&gt;*</code>.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>Si l'argument est une lvalue ou si <code>ranges::enable_borrowed_range&lt;std::remove_cv_t&lt;T&gt;&gt;</code> est <code>true</code>, alors un appel à <code>ranges::cdata</code> est <a href="../language/expressions.html#Expression-equivalence">équivalent à l'expression</a> suivante :</p>
+<ul>
+<li><code>as-const-pointer(ranges::data(possibly-const-range(t)))</code>.</li>
+</ul>
+<p>Le type de retour est équivalent à <code>std::remove_reference_t&lt;ranges::range_const_reference_t&lt;T&gt;&gt;*</code>.</p>
+<p>Dans tous les autres cas, un appel à <code>ranges::cdata</code> est mal formé, ce qui peut entraîner un <a href="../language/sfinae.html">échec de substitution</a> lorsque l'appel apparaît dans le contexte immédiat d'une instanciation de modèle.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Si <code>ranges::cdata(t)</code> est valide, elle renvoie un pointeur vers un objet de type constant <em>(depuis C++23)</em>.</p>
+<h2 id="Customization_point_objects">Objets de point de personnalisation</h2>
+<p>Le nom <code>ranges::cdata</code> désigne un <em>objet de point de personnalisation</em>, qui est un <a href="../named_req/FunctionObject.html">objet fonction</a> const d'un type de classe <a href="../named_req/LiteralType.html">littéral</a> <a href="../concepts/semiregular.html"><code>semiregular</code></a>. À des fins d'exposition, la version sans qualificateurs cv de son type est désignée par <code>__cdata_fn</code>.</p>
+<p>Toutes les instances de <code>__cdata_fn</code> sont égales. Les effets de l'invocation de différentes instances du type <code>__cdata_fn</code> sur les mêmes arguments sont équivalents, qu'il s'agisse ou non d'une lvalue ou d'une rvalue, et que l'expression désignant l'instance soit qualifiée const ou non (toutefois, une instance qualifiée volatile n'est pas tenue d'être invocable). Ainsi, <code>ranges::cdata</code> peut être copié librement et ses copies peuvent être utilisées de manière interchangeable.</p>
+<p>Étant donné un ensemble de types <code>Args...</code>, si <code>std::declval&lt;Args&gt;()...</code> satisfont aux exigences relatives aux arguments de <code>ranges::cdata</code> ci-dessus, alors <code>__cdata_fn</code> modélise</p>
+<ul>
+<li><code>std::invocable&lt;__cdata_fn, Args...&gt;</code>,</li>
+<li><code>std::invocable&lt;const __cdata_fn, Args...&gt;</code>,</li>
+<li><code>std::invocable&lt;__cdata_fn&amp;, Args...&gt;</code>, and</li>
+<li><code>std::invocable&lt;const __cdata_fn&amp;, Args...&gt;</code>.</li>
+</ul>
+<p>Sinon, aucun opérateur d'appel de fonction de <code>__cdata_fn</code> ne participe à la résolution de surcharge.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstring&gt;
+#include &lt;iostream&gt;
+#include &lt;ranges&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::string src {&quot;hello world!\n&quot;};
+
+//  std::ranges::cdata(src)[0] = 'H'; // error, src.data() est traité comme en lecture seule
+    std::ranges::data(src)[0] = 'H'; // OK, src.data() est un stockage non const
+
+    char dst[20]; // stockage pour une chaîne de caractères de style C
+    std::strcpy(dst, std::ranges::cdata(src));
+    // [data(src), data(src) + size(src)] est garanti être une NTBS
+
+    std::cout &lt;&lt; dst;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Hello world!
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="data.html">ranges::data</a> (C++20)</strong> — obtient un pointeur vers le début d'un intervalle contigu <em>(objet point de personnalisation)</em></li>
+<li><strong><a href="../iterator/data.html">data</a> (C++17)</strong> — obtient le pointeur vers le tableau sous-jacent <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

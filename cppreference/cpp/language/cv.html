@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qualificateurs de type cv (const et volatile) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="qualificateurs-de-type-cv-const-et-volatile">qualificateurs de type cv (const et volatile)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/cv">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Apparaissent dans tout spécificateur de type, y compris <code>decl-specifier-seq</code> de la <a href="declarations.html">grammaire des déclarations</a>, pour spécifier la constance ou la volatilité de l'objet déclaré ou du type nommé.</p>
+<ul>
+<li><code>const</code> - indique que le type est <em>constant</em>.</li>
+<li><code>volatile</code> - indique que le type est <em>volatile</em>.</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Tout type (éventuellement <a href="type-id.html#Incomplete_type">incomplet</a>) autre qu'un <a href="functions.html">type fonction</a> ou un <a href="reference.html">type référence</a> est un type appartenant à un groupe de quatre types distincts mais liés :</p>
+<ul>
+<li>Une version <em>non qualifiée cv</em>.</li>
+<li>Une version <em>qualifiée const</em>.</li>
+<li>Une version <em>qualifiée volatile</em>.</li>
+<li>Une version <em>qualifiée const volatile</em>.</li>
+</ul>
+<p>Ces quatre types du même groupe ont la même <a href="objects.html#Object_representation_and_value_representation">représentation</a> et les mêmes exigences d'<a href="objects.html#Alignment">alignement</a>.</p>
+<p>Les <a href="array.html">types tableau</a> sont considérés comme ayant la même qualification cv que leurs types d'éléments.</p>
+<h3 id="const_and_volatile_objects">Objets const et volatile</h3>
+<p>Lorsqu'un objet est créé pour la première fois, les qualificateurs cv utilisés (qui peuvent faire partie de <code>decl-specifier-seq</code> ou d'un <code>declarator</code> dans une <a href="declarations.html">déclaration</a>, ou faire partie de <code>type-id</code> dans une <a href="new.html">expression new</a>) déterminent la constance ou la volatilité de l'objet, comme suit :</p>
+<ul>
+<li>
+<p>Un <em>objet const</em> est</p>
+<ul>
+<li>un objet dont le type est qualifié const, ou</li>
+<li>un sous-objet non <a href="cv.html#mutable">mutable</a> d'un objet const. Un tel objet ne peut pas être modifié : tenter de le faire directement est une erreur à la compilation, et tenter de le faire indirectement (par exemple en modifiant l'objet const à travers une référence ou un pointeur vers un type non const) entraîne un comportement indéfini.</li>
+</ul>
+</li>
+<li>
+<p>Un <em>objet volatile</em> est</p>
+<ul>
+<li>un objet dont le type est qualifié volatile,</li>
+<li>un sous-objet d'un objet volatile, ou</li>
+<li>un sous-objet <a href="cv.html#mutable">mutable</a> d'un objet const volatile. Chaque accès (opération de lecture ou d'écriture, appel de fonction membre, etc.) effectué à travers une expression glvalue de type qualifié volatile est traité comme un effet de bord visible pour les <a href="as_if.html">besoins de l'optimisation</a> (c'est-à-dire que, au sein d'un même fil d'exécution, les accès volatiles ne peuvent être ni supprimés par l'optimisation ni réordonnés avec un autre effet de bord visible qui est <a href="eval_order.html">séquencé avant</a> ou après l'accès volatile. Cela rend les objets volatils adaptés à la communication avec un <a href="../utility/program/signal.html">gestionnaire de signal</a>, mais pas avec un autre fil d'exécution, voir <a href="../atomic/memory_order.html"><code>std::memory_order</code></a>). Toute tentative d'accès à un objet volatile à travers une <a href="value_category.html#glvalue">glvalue</a> de type non volatile (par exemple à travers une référence ou un pointeur vers un type non volatile) entraîne un comportement indéfini.</li>
+</ul>
+</li>
+<li>
+<p>Un <em>objet const volatile</em> est</p>
+<ul>
+<li>un objet dont le type est qualifié const volatile,</li>
+<li>un sous-objet non <a href="cv.html#mutable">mutable</a> d'un objet const volatile,</li>
+<li>un sous-objet const d'un objet volatile, ou</li>
+<li>un sous-objet volatile non <a href="cv.html#mutable">mutable</a> d'un objet const. Se comporte à la fois comme un objet const et comme un objet volatile.</li>
+</ul>
+</li>
+</ul>
+<p>Chaque qualificateur cv (<code>const</code> et <code>volatile</code>) peut apparaître au plus une fois dans toute séquence de qualificateurs cv. Par exemple, <code>const const</code> et <code>volatile const volatile</code> ne sont pas des séquences de qualificateurs cv valides.</p>
+<h2 id="mutable_specifier">spécificateur <code>mutable</code></h2>
+<ul>
+<li><code>mutable</code> - permet la modification du membre de classe déclaré mutable même si l'objet englobant est déclaré const (c'est-à-dire que le membre de classe est mutable).</li>
+</ul>
+<p>Peut apparaître dans la déclaration de membres de classe non statiques <a href="data_members.html">de classe</a> de type non référence et non const :</p>
+<pre><code class="language-cpp">class X
+{
+    mutable const int* p; // OK
+    mutable int* const q; // mal formé
+    mutable int&amp;       r; // mal formé
+};
+</code></pre>
+<p><code>mutable</code> est utilisé pour indiquer que le membre n'affecte pas l'état visible de l'extérieur de la classe (comme c'est souvent le cas pour les mutex, les caches de mémoïsation, l'évaluation paresseuse et l'instrumentation d'accès).</p>
+<pre><code class="language-cpp">class ThreadsafeCounter
+{
+    mutable std::mutex m; // La « règle M&amp;M » : mutable et mutex vont ensemble
+    int data = 0;
+public:
+    int get() const
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(m);
+        return data;
+    }
+
+    void inc()
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(m);
+        ++data;
+    }
+};
+</code></pre>
+<h2 id="Conversions">Conversions</h2>
+<p>Il existe un ordre partiel des qualificateurs cv selon l'ordre croissant des restrictions. On dit que le type est <em>plus</em> ou <em>moins</em> qualifié cv que :</p>
+<ul>
+<li><em>non qualifié</em> &lt; <code>const</code></li>
+<li><em>non qualifié</em> &lt; <code>volatile</code></li>
+<li><em>non qualifié</em> &lt; <code>const volatile</code></li>
+<li><code>const</code> &lt; <code>const volatile</code></li>
+<li><code>volatile</code> &lt; <code>const volatile</code></li>
+</ul>
+<p>Les références et pointeurs vers des types qualifiés cv peuvent être implicitement convertis en références et pointeurs vers des types plus qualifiés cv, voir <a href="implicit_cast.html#Qualification_conversions">conversions de qualification</a> pour plus de détails.</p>
+<p>Pour convertir une référence ou un pointeur vers un type qualifié cv en une référence ou un pointeur vers un type moins qualifié cv, <a href="const_cast.html"><code>const_cast</code></a> doit être utilisé.</p>
+<h2 id="Notes">Notes</h2>
+<p>Le qualificateur <code>const</code> utilisé dans la déclaration d'une variable non locale non volatile [non-<a href="variable_template.html">modèle</a> <em>(depuis C++14)</em> | non-<a href="inline.html">inline</a> <em>(depuis C++17)</em>] qui n'est pas déclarée <code>extern</code> lui donne une <a href="storage_duration.html#Linkage">liaison interne</a>. Cela diffère du C, où les variables const de portée fichier ont une liaison externe.</p>
+<p>La grammaire du langage C++ traite <code>mutable</code> comme un <a href="storage_duration.html">spécificateur de classe de stockage</a>, et non comme un qualificateur de type, mais elle n'affecte ni la classe de stockage ni la liaison.</p>
+<blockquote>
+<p>Certaines utilisations de volatile sont obsolètes :</p>
+<ul>
+<li>lvalue de type volatile en tant qu'opérande des opérateurs d'<a href="operator_incdec.html">incrémentation/décrémentation</a> intégrés ;</li>
+<li>lvalue de type volatile en tant qu'opérande gauche d'une <a href="operator_assignment.html">affectation directe</a> intégrée, sauf si l'expression d'affectation directe apparaît dans un <a href="expressions.html#Unevaluated_expressions">contexte non évalué</a> ou est une <a href="expressions.html#Discarded-value_expressions">expression à valeur ignorée</a> ;</li>
+<li>type d'objet volatile en tant que type de paramètre de fonction ou type de valeur de retour ;</li>
+<li>qualificateur volatile dans une déclaration de <a href="structured_binding.html">liaison structurée</a>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/const.html"><code>const</code></a>,
+<a href="../keyword/volatile.html"><code>volatile</code></a>,
+<a href="../keyword/mutable.html"><code>mutable</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+
+int main()
+{
+    int n1 = 0;          // objet non const
+    const int n2 = 0;    // objet const
+    int const n3 = 0;    // objet const (identique à n2)
+    volatile int n4 = 0; // objet volatile
+
+    const struct
+    {
+        int n1;
+        mutable int n2;
+    } x = {0, 0};        // objet const avec membre mutable
+
+    n1 = 1;   // OK : objet modifiable
+//  n2 = 2;   // error: non-modifiable object
+    n4 = 3;   // OK : traité comme un effet de bord
+//  x.n1 = 4; // error : un membre d'un objet const est const
+    x.n2 = 4; // OK : un membre mutable d'un objet const n'est pas const
+
+    const int&amp; r1 = n1; // référence sur const liée à un objet non const
+//  r1 = 2; // error : tentative de modification via une référence sur const
+    const_cast&lt;int&amp;&gt;(r1) = 2; // OK : modifie l'objet non const n1
+
+    const int&amp; r2 = n2; // référence sur const liée à un objet const
+//  r2 = 2; // error : tentative de modification via une référence sur const
+//  const_cast&lt;int&amp;&gt;(r2) = 2; // comportement indéfini : tentative de modification de l'objet const n2
+
+    [](...){}(n3, n4, x, r2); // voir aussi : [[maybe_unused]]
+
+    std::system(&quot;g++ -O3 -Wa,-adhln ./main.cpp&quot;); // peut générer de l'asm sur les systèmes POSIX
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text"># typical machine code produced on an x86_64 platform
+# (only the code that contributes to observable side-effects is emitted)
+main:
+    movl    $0, -4(%rsp) # volatile int n4 = 0;
+    movl    $3, -4(%rsp) # n4 = 3;
+    xorl    %eax, %eax   # return 0 (implicit)
+    ret
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1428.html">CWG 1428</a></td>
+<td>C++98</td>
+<td>la définition de « objet const » était fondée sur la déclaration</td>
+<td>fondée sur le type de l'objet</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1528.html">CWG 1528</a></td>
+<td>C++98</td>
+<td>il n'existait aucune exigence sur le nombre d'occurrences de chaque qualificateur cv dans la même séquence de qualificateurs cv</td>
+<td>au plus une fois pour chaque qualificateur cv</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1799.html">CWG 1799</a></td>
+<td>C++98</td>
+<td><code>mutable</code> pouvait être appliqué à des membres de données non déclarés <code>const</code>, mais les types de ces membres pouvaient rester qualifiés const</td>
+<td>impossible d'appliquer <code>mutable</code> aux membres de données de types qualifiés const</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/language/const.html">Documentation C</a> pour le qualificateur <code>const</code></strong></p>
+<p><strong><a href="../../c/language/volatile.html">Documentation C</a> pour le qualificateur <code>volatile</code></strong></p>
+
+</main>
+</body>
+</html>

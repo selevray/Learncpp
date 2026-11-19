@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::shared_future — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-shared_future"><code>std::shared_future</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/shared_future">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;future&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt; class shared_future;  // (1) (depuis C++11)
+
+template&lt; class T &gt; class shared_future&lt;T&amp;&gt;;  // (2) (depuis C++11)
+
+template&lt;&gt; class shared_future&lt;void&gt;;  // (3) (depuis C++11)
+</code></pre>
+<p>Le modèle de classe <code>std::shared_future</code> fournit un mécanisme pour accéder au résultat d'opérations asynchrones, semblable à <a href="future.html"><code>std::future</code></a>, à ceci près que plusieurs threads peuvent attendre le même état partagé. Contrairement à <a href="future.html"><code>std::future</code></a>, qui n'est que déplaçable (de sorte qu'une seule instance peut faire référence à un résultat asynchrone donné), <code>std::shared_future</code> est copiable et plusieurs objets future partagés peuvent faire référence au même état partagé.</p>
+<p>L'accès au même état partagé depuis plusieurs threads est sûr si chaque thread le fait via sa propre copie d'un objet <code>shared_future</code>.</p>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="shared_future/shared_future.html">(constructeur)</a></strong> — construit l'objet futur <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_future/~shared_future.html">(destructeur)</a></strong> — détruit l'objet futur <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_future/operator%3D.html">operator=</a></strong> — affecte le contenu <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Obtention du résultat {#Getting_the_result}</strong></p>
+<ul>
+<li><strong><a href="shared_future/get.html">get</a></strong> — retourne le résultat <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### État {#State}</strong></p>
+<ul>
+<li><strong><a href="shared_future/valid.html">valid</a></strong> — vérifie si le futur possède un état partagé <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_future/wait.html">wait</a></strong> — attend que le résultat devienne disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_future/wait_for.html">wait_for</a></strong> — attend le résultat, retourne s'il n'est pas disponible pendant la durée de temporisation spécifiée <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_future/wait_until.html">wait_until</a></strong> — attend le résultat, retourne s'il n'est pas disponible avant que le point temporel spécifié soit atteint <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>Un <code>shared_future</code> peut être utilisé pour signaler simultanément plusieurs threads, de façon semblable à <a href="condition_variable/notify_all.html"><code>std::condition_variable::notify_all()</code></a>.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::promise&lt;void&gt; ready_promise, t1_ready_promise, t2_ready_promise;
+    std::shared_future&lt;void&gt; ready_future(ready_promise.get_future());
+
+    std::chrono::time_point&lt;std::chrono::high_resolution_clock&gt; start;
+
+    auto fun1 = [&amp;, ready_future]() -&gt; std::chrono::duration&lt;double, std::milli&gt;
+    {
+        t1_ready_promise.set_value();
+        ready_future.wait(); // attend le signal de main()
+        return std::chrono::high_resolution_clock::now() - start;
+    };
+
+    auto fun2 = [&amp;, ready_future]() -&gt; std::chrono::duration&lt;double, std::milli&gt;
+    {
+        t2_ready_promise.set_value();
+        ready_future.wait(); // attend le signal de main()
+        return std::chrono::high_resolution_clock::now() - start;
+    };
+
+    auto fut1 = t1_ready_promise.get_future();
+    auto fut2 = t2_ready_promise.get_future();
+
+    auto result1 = std::async(std::launch::async, fun1);
+    auto result2 = std::async(std::launch::async, fun2);
+
+    // attendre que les threads soient prêts
+    fut1.wait();
+    fut2.wait();
+
+    // les threads sont prêts, démarrer le chronomètre
+    start = std::chrono::high_resolution_clock::now();
+
+    // signaler aux threads de démarrer
+    ready_promise.set_value();
+
+    std::cout &lt;&lt; &quot;Thread 1 received the signal &quot;
+              &lt;&lt; result1.get().count() &lt;&lt; &quot; ms after start\n&quot;
+              &lt;&lt; &quot;Thread 2 received the signal &quot;
+              &lt;&lt; result2.get().count() &lt;&lt; &quot; ms after start\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Thread 1 received the signal 0.072 ms after start
+Thread 2 received the signal 0.041 ms after start
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="async.html">async</a> (C++11)</strong> — exécute une fonction de manière asynchrone (potentiellement dans un nouveau thread) et renvoie un <a href="future.html"><code>std::future</code></a> qui contiendra le résultat <em>(modèle de fonction)</em></li>
+<li><strong><a href="future.html">future</a> (C++11)</strong> — attend une valeur définie de manière asynchrone <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

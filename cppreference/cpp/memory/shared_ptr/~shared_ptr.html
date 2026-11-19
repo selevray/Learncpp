@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::shared_ptr&lt;T&gt;::~shared_ptr — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/shared_ptr.html">std::shared_ptr</a></nav>
+<h1 id="std-shared_ptr-t-shared_ptr"><code>std::shared_ptr&lt;T&gt;::~shared_ptr</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr/~shared_ptr">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">~shared_ptr();
+</code></pre>
+<p>Si <code>*this</code> possède un objet et qu'il est le dernier <code>shared_ptr</code> à le posséder, l'objet est détruit via le suppresseur possédé.</p>
+<p>Après la destruction, les pointeurs intelligents qui partageaient la propriété avec <code>*this</code>, le cas échéant, signaleront un <a href="use_count.html"><code>use_count()</code></a> inférieur d'une unité à sa valeur précédente.</p>
+<h2 id="Notes">Notes</h2>
+<p>Contrairement à <a href="../unique_ptr.html"><code>std::unique_ptr</code></a>, le suppresseur de <a href="../shared_ptr.html"><code>std::shared_ptr</code></a> est invoqué même si le pointeur géré est nul.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+struct S
+{
+    S() { std::cout &lt;&lt; &quot;S::S()\n&quot;; }
+    ~S() { std::cout &lt;&lt; &quot;S::~S()\n&quot;; }
+    struct Deleter
+    {
+        void operator()(S* s) const
+        {
+            std::cout &lt;&lt; &quot;S::Deleter()\n&quot;;
+            delete s;
+        }
+    };
+};
+
+int main()
+{
+    auto sp = std::shared_ptr&lt;S&gt;{new S, S::Deleter{}};
+
+    auto use_count = [&amp;sp](char c)
+    {
+        std::cout &lt;&lt; c &lt;&lt; &quot;) use_count(): &quot; &lt;&lt; sp.use_count() &lt;&lt; '\n';
+    };
+
+    use_count('A');
+    {
+        auto sp2 = sp;
+        use_count('B');
+        {
+            auto sp3 = sp;
+            use_count('C');
+        }
+        use_count('D');
+    }
+    use_count('E');
+
+//  sp.reset();
+//  use_count('F'); // afficherait &quot;F) use_count(): 0&quot;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">S::S()
+A) use_count(): 1
+B) use_count(): 2
+C) use_count(): 3
+D) use_count(): 2
+E) use_count(): 1
+S::Deleter()
+S::~S()
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../weak_ptr/~weak_ptr.html">(destructeur)</a></strong> — détruit un <code>weak_ptr</code> <em>(fonction membre publique de <code>std::weak_ptr&lt;T&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

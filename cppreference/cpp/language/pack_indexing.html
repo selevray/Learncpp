@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indexation de paquet (depuis C++26) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="indexation-de-paquet-depuis-c-26">Indexation de paquet (depuis C++26)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/pack_indexing">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Accède à l'élément d'un <a href="parameter_pack.html">paquet</a> à un indice spécifié.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>id-expression</code> <code>...[</code> <code>expression</code> <code>]</code> | (1) | |
+|
+| <code>typedef-name</code> <code>...[</code> <code>expression</code> <code>]</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Expression d'indexation de paquet</p>
+</li>
+<li>
+<p>Spécificateur d'indexation de paquet</p>
+</li>
+</ol>
+<ul>
+<li><code>typedef-name</code> — un <a href="name.html">identifiant</a> ou un <a href="templates.html#template-id">simple-template-id</a> qui désigne un paquet</li>
+<li><code>id-expression</code> — une <a href="expressions.html#Primary_expressions">id-expression</a> qui désigne un paquet</li>
+<li><code>expression</code> — une <a href="constant_expression.html">expression constante convertie</a> <code>I</code> de type <code>std::size_t</code> désignée comme indice où <code>I</code> est dans l'intervalle <code>[0,sizeof...(P))</code> pour un certain paquet <code>P</code> dans l'indexation de paquet</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>L'indexation de paquet est une <em>expansion de paquet</em> du paquet non étendu suivi d'une ellipse et d'un indice à l'intérieur de l'indice entre crochets. Il existe deux sortes d'indexation de paquet : l'expression d'indexation de paquet et le spécificateur d'indexation de paquet.</p>
+<p>Soit <code>P</code> un paquet non vide contenant <code>P0, P1, ..., Pn-1</code> et <code>I</code> un indice valide, l'instanciation de l'expansion <code>P...[I]</code> donne l'élément <code>PI</code> de <code>P</code>.</p>
+<p>L'indexation d'un paquet avec l'indice <code>I</code> qui n'est pas une expression constante n'est pas autorisée.</p>
+<pre><code class="language-cpp">int runtime_idx();
+
+void bar(auto... args)
+{
+    auto a = args...[0];
+    const int n = 1;
+    auto b = args...[n];
+    int m = 2;
+    auto c = args...[m]; // error: 'm' n'est pas une expression constante
+    auto d = args...[runtime_idx()]; // error: 'runtime_idx()' n'est pas une expression constante
+}
+</code></pre>
+<p>L'indexation d'un paquet de paramètres de modèle template n'est pas possible.</p>
+<pre><code class="language-cpp">template &lt;template &lt;typename...&gt; typename... Temps&gt;
+using A = Temps...[0]&lt;&gt;; // error: 'Temps' est un pack de paramètres de modèle de modèle
+
+template &lt;template &lt;typename...&gt; typename... Temps&gt;
+using B = Temps&lt;&gt;...[0]; // error: 'Temps&lt;&gt;' ne désigne pas un nom de pack
+                         // bien qu'il s'agisse d'un simple-template-id
+</code></pre>
+<h2 id="Pack_indexing_expression">Expression d'indexation de paquet</h2>
+<p>|
+| |
+| <code>id-expression</code> <code>...[</code> <code>expression</code> <code>]</code> | | |
+|</p>
+<p>L'expression d'indexation de paquet désigne l'<em>id-expression</em>, l'expression de l'élément de paquet <code>PI</code>. Le <code>id-expression</code> doit être introduit par la déclaration de :</p>
+<ul>
+<li><a href="parameter_pack.html">paquet de paramètres de modèle non de type</a>,</li>
+<li><a href="parameter_pack.html">paquet de paramètres de fonction</a>,</li>
+<li><a href="lambda.html#Lambda_capture">paquet de captures d'initialisation de lambda</a>, ou</li>
+<li><a href="structured_binding.html">paquet de liaisons structurées</a>.</li>
+</ul>
+<pre><code class="language-cpp">template &lt;std::size_t I, typename... Ts&gt;
+constexpr auto element_at(Ts... args)
+{
+    // 'args' introduit dans la déclaration du pack de paramètres de fonction
+    return args...[I];
+}
+
+static_assert(element_at&lt;0&gt;(3, 5, 9) == 3);
+static_assert(element_at&lt;2&gt;(3, 5, 9) == 9);
+static_assert(element_at&lt;3&gt;(3, 5, 9) == 4); // error:  hors limites
+static_assert(element_at&lt;0&gt;() == 1); // error: hors limites, pack vide
+
+template &lt;std::size_t I, typename Tup&gt;
+constexpr auto structured_binding_element_at(Tup tup)
+{
+    auto [...elems] = tup;
+    // 'elems' introduit dans la déclaration du pack de liaisons structurées
+    return elems...[I];
+}
+
+struct A { bool a; int b; };
+
+static_assert(structured_binding_element_at&lt;0&gt;(A {true, 4}) == true);
+static_assert(structured_binding_element_at&lt;1&gt;(A {true, 4}) == 4);
+
+// 'Vals' introduit dans la déclaration du pack de paramètres de modèle non typés
+template &lt;std::size_t I, std::size_t... Vals&gt;
+constexpr std::size_t double_at = Vals...[I] * 2; // OK
+
+template &lt;std::size_t I, typename... Args&gt;
+constexpr auto foo(Args... args)
+{
+    return [...members = args](Args...[I] op)
+    {
+        // 'members' introduit dans le pack de captures init de lambda
+        return members...[I] + op;
+    };
+}
+
+static_assert(foo&lt;0&gt;(4, &quot;Hello&quot;, true)(5) == 9);
+static_assert(foo&lt;1&gt;(3, std::string(&quot;C++&quot;))(&quot;26&quot;) == &quot;C++26&quot;);
+</code></pre>
+<p>L'indexation d'un paquet d'expressions complexes autres qu'une id-expression n'est pas autorisée.</p>
+<pre><code class="language-cpp">template &lt;std::size_t I, auto... Vals&gt;
+constexpr auto identity_at = (Vals)...[I]; // error
+// utilisez 'Vals...[I]' à la place
+
+template &lt;std::size_t I, std::size_t... Vals&gt;
+constexpr std::size_t triple_at = (Vals * 3)...[I]; // error
+// utilisez 'Vals...[I] * 3' à la place
+
+template &lt;std::size_t I, typename... Args&gt;
+constexpr decltype(auto) get(Args&amp;&amp;... args) noexcept
+{
+    return std::forward&lt;Args&gt;(args)...[I]; // error
+    // utilisez 'std::forward&lt;Args...[I]&gt;(args...[I])' à la place
+}
+</code></pre>
+<p>L'application de <a href="decltype.html"><code>decltype</code></a> à une expression d'indexation de paquet est identique à l'application de <a href="decltype.html"><code>decltype</code></a> à une id-expression.</p>
+<pre><code class="language-cpp">void f()
+{
+    [](auto... args)
+    {
+        using T0 = decltype(args...[0]);   // 'T0' est 'double'
+        using T1 = decltype((args...[0])); // 'T1' est 'double&amp;'
+    }(3.14);
+}
+</code></pre>
+<h2 id="Pack_indexing_specifier">Spécificateur d'indexation de paquet</h2>
+<p>|
+| |
+| <code>typedef-name</code> <code>...[</code> <code>expression</code> <code>]</code> | | |
+|</p>
+<p>Le spécificateur d'indexation de paquet désigne le <em>computed-type-specifier</em>, le type de l'élément de paquet <code>PI</code>. Le <code>typedef-name</code> doit être introduit par la déclaration de <a href="parameter_pack.html">paquet de paramètres de modèle de type</a>.</p>
+<pre><code class="language-cpp">template &lt;typename... Ts&gt;
+using last_type_t = Ts...[sizeof...(Ts) - 1];
+
+static_assert(std::is_same_v&lt;last_type_t&lt;&gt;, int&gt;); // error: hors limites
+static_assert(std::is_same_v&lt;last_type_t&lt;int&gt;, int&gt;);
+static_assert(std::is_same_v&lt;last_type_t&lt;bool, char&gt;, char&gt;);
+static_assert(std::is_same_v&lt;last_type_t&lt;float, int, bool*&gt;, bool*&gt;);
+</code></pre>
+<p>Le spécificateur d'indexation de paquet peut apparaître :</p>
+<ul>
+<li>un <a href="declarations.html#Specifiers">spécificateur de type simple</a>,</li>
+<li>un <a href="derived_class.html">spécificateur de classe de base</a>,</li>
+<li>un <a href="name.html#Qualified_identifiers">spécificateur de nom imbriqué</a>, ou</li>
+<li>le <a href="name.html#Unqualified_identifiers">type d'un appel explicite au destructeur</a>.</li>
+</ul>
+<p>Le spécificateur d'indexation de pack peut être utilisé dans la liste des paramètres d'une fonction ou d'un constructeur pour établir des <a href="template_argument_deduction.html#Non-deduced_contexts">contextes non déduits</a> dans la déduction d'arguments de modèle.</p>
+<pre><code class="language-cpp">template &lt;typename...&gt;
+struct type_seq {};
+
+template &lt;typename... Ts&gt;
+auto f(Ts...[0] arg, type_seq&lt;Ts...&gt;)
+{
+    return arg;
+}
+
+// OK: &quot;Hello&quot; est implicitement converti en 'std::string_view'
+std::same_as&lt;std::string_view&gt; auto a = f(&quot;Hello&quot;, type_seq&lt;std::string_view&gt;{});
+
+// Error: &quot;Ok&quot; n'est pas convertible en 'int'
+std::same_as&lt;int&gt; auto b = f(&quot;Ok&quot;, type_seq&lt;int, const char*&gt;{});
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Avant C++26, <code>Ts...[N]</code> était une syntaxe valide pour déclarer un pack de paramètres de fonction de tableaux sans nom de taille <code>N</code>, les types des paramètres étant ensuite ajustés en pointeurs. Depuis C++26, <code>Ts...[1]</code> est interprété comme un spécificateur d'indexation de pack, ce qui modifierait le comportement ci-dessous en #2. Pour préserver le premier comportement, le pack de paramètres de fonction doit être nommé, ou ajusté manuellement en un pack de types pointeurs.</p>
+<pre><code class="language-cpp">template &lt;typename... Ts&gt;
+void f(Ts... [1]);
+
+template &lt;typename... Ts&gt;
+void g(Ts... args[1]);
+
+template &lt;typename... Ts&gt;
+void h(Ts*...); // plus clair mais plus permissif : Ts... peut contenir des types void ou fonction qualifiés cv
+
+void foo()
+{
+    f&lt;char, bool&gt;(nullptr, nullptr);
+    // comportement #1 (avant C++26) :
+    //  appelle void 'f&lt;char, bool&gt;(char*, bool*)' (alias de 'f&lt;char, bool&gt;(char[1], bool[1])')
+    // comportement #2 (depuis C++26) :
+    //  error: appel supposé de 'void f&lt;char, bool&gt;(bool)'
+    //  mais fourni avec 2 arguments au lieu de 1
+
+    g&lt;char, bool&gt;(nullptr, nullptr);
+    // appelle 'g&lt;char, bool&gt;(char*, bool*)' (alias de 'g&lt;char, bool&gt;(char[1], bool[1])')
+
+    h&lt;char, bool&gt;(nullptr, nullptr);
+    // appelle 'h&lt;char, bool&gt;(char*, bool*)'
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_pack_indexing"><code>__cpp_pack_indexing</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_pack_indexing_202311L"><code>202311L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><a href="pack_indexing.html#top">Indexation de packs</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;tuple&gt;
+
+template &lt;std::size_t... Indices, typename Decomposable&gt;
+constexpr auto splice(Decomposable d)
+{
+    auto [...elems] = d;
+    return std::make_tuple(elems...[Indices]...);
+}
+
+struct Point
+{
+    int x;
+    int y;
+    int z;
+};
+
+int main()
+{
+    constexpr Point p { .x = 1, .y = 4, .z = 3 };
+    static_assert(splice&lt;2, 1, 0&gt;(p) == std::make_tuple(3, 4, 1));
+    static_assert(splice&lt;1, 1, 0, 0&gt;(p) == std::make_tuple(4, 4, 1, 1));
+}
+</code></pre>
+
+</main>
+</body>
+</html>

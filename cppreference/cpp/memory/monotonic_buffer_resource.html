@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::pmr::monotonic_buffer_resource — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-pmr-monotonic_buffer_resource"><code>std::pmr::monotonic_buffer_resource</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/monotonic_buffer_resource">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory_resource&gt;</strong></p>
+<pre><code class="language-cpp">class monotonic_buffer_resource : public std::pmr::memory_resource;  // (depuis C++17)
+</code></pre>
+<p>La classe <code>std::pmr::monotonic_buffer_resource</code> est une classe de ressource mémoire à usage spécifique qui ne libère la mémoire allouée qu'à la destruction de la ressource. Elle est destinée à des allocations mémoire très rapides dans les situations où la mémoire sert à construire quelques objets puis est libérée d'un seul coup.</p>
+<p><code>monotonic_buffer_resource</code> peut être construit avec un tampon initial. S'il n'y a pas de tampon initial, ou si le tampon est épuisé, des tampons supplémentaires sont obtenus auprès d'une <em>ressource mémoire amont</em> fournie à la construction. La taille des tampons obtenus suit une progression géométrique.</p>
+<p><code>monotonic_buffer_resource</code> n'est pas thread-safe.</p>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="monotonic_buffer_resource/monotonic_buffer_resource.html">(constructeur)</a></strong> — construit un <code>monotonic_buffer_resource</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="monotonic_buffer_resource/~monotonic_buffer_resource.html">(destructeur)</a> [virtuelle]</strong> — détruit un <code>monotonic_buffer_resource</code>, en libérant toute la mémoire allouée <em>(fonction membre publique virtuelle)</em></li>
+<li><strong>operator=[deleted]</strong> — L'opérateur d'affectation par copie est supprimé. <code>monotonic_buffer_resource</code> n'est pas affectable par copie <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Fonctions membres publiques {#Public_member_functions}</strong></p>
+<ul>
+<li><strong><a href="monotonic_buffer_resource/release.html">release</a></strong> — libère toute la mémoire allouée <em>(fonction membre publique)</em></li>
+<li><strong><a href="monotonic_buffer_resource/upstream_resource.html">upstream_resource</a></strong> — renvoie un pointeur vers la ressource mémoire amont <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Fonctions membres protégées {#Protected_member_functions}</strong></p>
+<ul>
+<li><strong><a href="monotonic_buffer_resource/do_allocate.html">do_allocate</a> [virtuelle]</strong> — alloue de la mémoire <em>(fonction membre protégée virtuelle)</em></li>
+<li><strong><a href="monotonic_buffer_resource/do_deallocate.html">do_deallocate</a> [virtuelle]</strong> — opération vide <em>(fonction membre protégée virtuelle)</em></li>
+<li><strong><a href="monotonic_buffer_resource/do_is_equal.html">do_is_equal</a> [virtuelle]</strong> — compare pour l'égalité avec un autre <a href="memory_resource.html"><code>std::pmr::memory_resource</code></a> <em>(fonction membre virtuelle protégée)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>Le programme mesure le temps de création de très longues listes doublement chaînées à l'aide des allocateurs suivants :</p>
+<ul>
+<li>allocateur standard par défaut,</li>
+<li>allocateur <code>pmr</code> par défaut,</li>
+<li>allocateur <code>pmr</code> avec ressource monotone mais sans tampon mémoire explicite,</li>
+<li>allocateur <code>pmr</code> avec ressource monotone et tampon mémoire externe (sur la pile).</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;chrono&gt;
+#include &lt;cstddef&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;list&gt;
+#include &lt;memory_resource&gt;
+
+template&lt;typename Func&gt;
+auto benchmark(Func test_func, int iterations)
+{
+    const auto start = std::chrono::system_clock::now();
+    while (iterations-- &gt; 0)
+        test_func();
+    const auto stop = std::chrono::system_clock::now();
+    const auto secs = std::chrono::duration&lt;double&gt;(stop - start);
+    return secs.count();
+}
+
+int main()
+{
+    constexpr int iterations{100};
+    constexpr int total_nodes{2'00'000};
+
+    auto default_std_alloc = [total_nodes]
+    {
+        std::list&lt;int&gt; list;
+        for (int i{}; i != total_nodes; ++i)
+            list.push_back(i);
+    };
+
+    auto default_pmr_alloc = [total_nodes]
+    {
+        std::pmr::list&lt;int&gt; list;
+        for (int i{}; i != total_nodes; ++i)
+            list.push_back(i);
+    };
+
+    auto pmr_alloc_no_buf = [total_nodes]
+    {
+        std::pmr::monotonic_buffer_resource mbr;
+        std::pmr::polymorphic_allocator&lt;int&gt; pa{&amp;mbr};
+        std::pmr::list&lt;int&gt; list{pa};
+        for (int i{}; i != total_nodes; ++i)
+            list.push_back(i);
+    };
+
+    auto pmr_alloc_and_buf = [total_nodes]
+    {
+        std::array&lt;std::byte, total_nodes * 32&gt; buffer; // suffisant pour contenir tous les nœuds
+        std::pmr::monotonic_buffer_resource mbr{buffer.data(), buffer.size()};
+        std::pmr::polymorphic_allocator&lt;int&gt; pa{&amp;mbr};
+        std::pmr::list&lt;int&gt; list{pa};
+        for (int i{}; i != total_nodes; ++i)
+            list.push_back(i);
+    };
+
+    const double t1 = benchmark(default_std_alloc, iterations);
+    const double t2 = benchmark(default_pmr_alloc, iterations);
+    const double t3 = benchmark(pmr_alloc_no_buf , iterations);
+    const double t4 = benchmark(pmr_alloc_and_buf, iterations);
+
+    std::cout &lt;&lt; std::fixed &lt;&lt; std::setprecision(3)
+              &lt;&lt; &quot;t1 (default std alloc): &quot; &lt;&lt; t1 &lt;&lt; &quot; sec; t1/t1: &quot; &lt;&lt; t1/t1 &lt;&lt; '\n'
+              &lt;&lt; &quot;t2 (default pmr alloc): &quot; &lt;&lt; t2 &lt;&lt; &quot; sec; t1/t2: &quot; &lt;&lt; t1/t2 &lt;&lt; '\n'
+              &lt;&lt; &quot;t3 (pmr alloc  no buf): &quot; &lt;&lt; t3 &lt;&lt; &quot; sec; t1/t3: &quot; &lt;&lt; t1/t3 &lt;&lt; '\n'
+              &lt;&lt; &quot;t4 (pmr alloc and buf): &quot; &lt;&lt; t4 &lt;&lt; &quot; sec; t1/t4: &quot; &lt;&lt; t1/t4 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">t1 (default std alloc): 0.720 sec; t1/t1: 1.000
+t2 (default pmr alloc): 0.915 sec; t1/t2: 0.787
+t3 (pmr alloc  no buf): 0.370 sec; t1/t3: 1.945
+t4 (pmr alloc and buf): 0.247 sec; t1/t4: 2.914
+</code></pre>
+
+</main>
+</body>
+</html>

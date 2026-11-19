@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::notify_all_at_thread_exit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-notify_all_at_thread_exit"><code>std::notify_all_at_thread_exit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/notify_all_at_thread_exit">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;condition_variable&gt;</strong></p>
+<pre><code class="language-cpp">void notify_all_at_thread_exit( std::condition_variable&amp; cond,
+                                std::unique_lock&lt;std::mutex&gt; lk );  // (depuis C++11)
+</code></pre>
+<p><code>notify_all_at_thread_exit</code> fournit un mécanisme pour notifier aux autres threads qu'un thread donné a complètement terminé, y compris la destruction de tous les objets <a href="../keyword/thread_local.html"><code>thread_local</code></a>. Il fonctionne comme suit :</p>
+<ul>
+<li>
+<p>La propriété du verrou <code>lk</code> précédemment acquis est transférée au stockage interne.</p>
+</li>
+<li>
+<p>L'environnement d'exécution est modifié de sorte que, lorsque le thread courant se termine, la variable de condition <code>cond</code> soit notifiée comme si par <code>lk.unlock();cond.notify_all();</code>.</p>
+</li>
+</ul>
+<p>Le <code>lk.unlock()</code> implicite est <a href="../atomic/memory_order.html">séquencé après</a> la destruction de tous les objets ayant une <a href="../keyword/thread_local.html">durée de stockage thread local</a> associés au thread courant.</p>
+<p>Si l'une des conditions suivantes est satisfaite, le comportement est indéfini :</p>
+<ul>
+<li><code>lk</code> n'est pas verrouillé par le thread appelant.</li>
+<li>Si d'autres threads attendent également sur <code>cond</code>, <code>lk.mutex()</code> est différent du mutex déverrouillé par les fonctions d'attente (<code>wait</code>, <code>wait_for</code> et <code>wait_until</code>) appelées sur <code>cond</code> par ces threads.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Un effet équivalent peut être obtenu avec les fonctionnalités fournies par <a href="promise.html"><code>std::promise</code></a> ou <a href="packaged_task.html"><code>std::packaged_task</code></a>.</p>
+<p>Le verrou <code>lk</code> fourni est maintenu jusqu'à la fin du thread. Une fois cette fonction appelée, aucun autre thread ne peut acquérir le même verrou afin d'attendre sur <code>cond</code>. Si certains threads attendent sur cette variable de condition, assurez-vous que la condition attendue est satisfaite pendant que le verrou sur <code>lk</code> est détenu, et que ce verrou n'est pas relâché puis réacquis avant d'appeler <code>notify_all_at_thread_exit</code>, afin d'éviter toute confusion due aux réveils parasites dans d'autres threads.</p>
+<p>Dans les cas d'utilisation typiques, cette fonction est la dernière appelée par un thread détaché.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>cond</code> — la variable de condition à notifier à la fin du thread</li>
+<li><code>lk</code> — le verrou associé à la variable de condition <code>cond</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Example">Exemple</h2>
+<p>Ce fragment de code partiel illustre comment <code>notify_all_at_thread_exit</code> peut être utilisé pour éviter d'accéder à des données dépendant de variables thread_local pendant que ces variables sont en cours de destruction :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;condition_variable&gt;
+#include &lt;mutex&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+
+std::mutex m;
+std::condition_variable cv;
+
+bool ready = false;
+std::string result; // un type quelconque
+
+void thread_func()
+{
+    thread_local std::string thread_local_data = &quot;42&quot;;
+
+    std::unique_lock&lt;std::mutex&gt; lk(m);
+
+    // affecte une valeur à result en utilisant des données thread_local
+    result = thread_local_data;
+    ready = true;
+
+    std::notify_all_at_thread_exit(cv, std::move(lk));
+
+}   // 1. destroy thread_locals ;
+    // 2. déverrouiller le mutex ;
+    // 3. notifier cv.
+
+int main()
+{
+    std::thread t(thread_func);
+    t.detach();
+
+    // effectuer d'autres tâches
+    // ...
+
+    // attendre le thread détaché
+    std::unique_lock&lt;std::mutex&gt; lk(m);
+    cv.wait(lk, []{ return ready; });
+
+    // result est prêt et les destructeurs de thread_local ont terminé, pas de comportement indéfini
+    assert(result == &quot;42&quot;);
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2140">LWG 2140</a></td>
+<td>C++11</td>
+<td>l'appel à <code>notify_all_at_thread_exit</code> synchronisé avec les appels aux fonctions attendant sur <code>cond</code></td>
+<td>exigence de synchronisation mise à jour</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="promise/set_value_at_thread_exit.html">set_value_at_thread_exit</a></strong> — définit le résultat à une valeur donnée tout en ne délivrant la notification qu'à la sortie du thread <em>(fonction membre publique de <code>std::promise&lt;R&gt;</code>)</em></li>
+<li><strong><a href="packaged_task/make_ready_at_thread_exit.html">make_ready_at_thread_exit</a></strong> — exécute la fonction en garantissant que le résultat n'est prêt qu'une fois le thread courant terminé <em>(fonction membre publique de <code>std::packaged_task&lt;R(Args...)&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

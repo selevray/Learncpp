@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::view_interface — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-view_interface"><code>std::ranges::view_interface</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/view_interface">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class D &gt;
+    requires std::is_class_v&lt;D&gt; &amp;&amp; std::same_as&lt;D, std::remove_cv_t&lt;D&gt;&gt;
+class view_interface;  // (depuis C++20)
+</code></pre>
+<p><code>std::ranges::view_interface</code> est un modèle de classe auxiliaire permettant de définir une interface de vue.</p>
+<p><code>view_interface</code> est typiquement utilisé avec <a href="../language/crtp.html">CRTP</a> :</p>
+<pre><code class="language-cpp">class my_view : public std::ranges::view_interface&lt;my_view&gt;
+{
+public:
+    auto begin() const { /*...*/ }
+    auto end() const { /*...*/ }
+    // empty() est fournie si begin() renvoie un itérateur d'avant
+    // et si end() renvoie une sentinelle pour celui-ci.
+};
+</code></pre>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="view_interface/empty.html">empty</a></strong> — renvoie si la vue dérivée est vide. Fournie si elle satisfait <a href="sized_range.html"><code>sized_range</code></a> ou <a href="forward_range.html"><code>forward_range</code></a>. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/cbegin.html">cbegin</a> (C++23)</strong> — renvoie un itérateur constant vers le début de l'intervalle. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/cend.html">cend</a> (C++23)</strong> — renvoie une sentinelle pour l'itérateur constant de l'intervalle. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/operator_bool.html">operator bool</a></strong> — renvoie si la vue dérivée n'est pas vide. Fournie si <a href="empty.html"><code>ranges::empty</code></a> lui est applicable. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/data.html">data</a></strong> — obtient l'adresse des données de la vue dérivée. Fournie si son type d'itérateur satisfait <a href="../iterator/contiguous_iterator.html"><code>contiguous_iterator</code></a>. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/size.html">size</a></strong> — renvoie le nombre d'éléments de la vue dérivée. Fournie si elle satisfait <a href="forward_range.html"><code>forward_range</code></a> et si ses types de sentinelle et d'itérateur satisfont <a href="../iterator/sized_sentinel_for.html"><code>sized_sentinel_for</code></a>. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/front.html">front</a></strong> — renvoie le premier élément de la vue dérivée. Fournie si elle satisfait <a href="forward_range.html"><code>forward_range</code></a>. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/back.html">back</a></strong> — renvoie le dernier élément de la vue dérivée. Fournie si elle satisfait <a href="bidirectional_range.html"><code>bidirectional_range</code></a> et <a href="common_range.html"><code>common_range</code></a>. <em>(fonction membre publique)</em></li>
+<li><strong><a href="view_interface/operator_at.html">operator[]</a></strong> — renvoie le <code>n</code>e élément de la vue dérivée. Fournie si elle satisfait <a href="random_access_range.html"><code>random_access_range</code></a>. <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;ranges&gt;
+#include &lt;vector&gt;
+
+template&lt;class T, class A&gt;
+class VectorView : public std::ranges::view_interface&lt;VectorView&lt;T, A&gt;&gt;
+{
+public:
+    VectorView() = default;
+
+    VectorView(const std::vector&lt;T, A&gt;&amp; vec) :
+        m_begin(vec.cbegin()), m_end(vec.cend())
+    {}
+
+    auto begin() const { return m_begin; }
+
+    auto end() const { return m_end; }
+
+private:
+    typename std::vector&lt;T, A&gt;::const_iterator m_begin{}, m_end{};
+};
+
+int main()
+{
+    std::vector&lt;int&gt; v = {1, 4, 9, 16};
+
+    VectorView view_over_v{v};
+
+    // Nous pouvons itérer avec begin() et end().
+    for (int n : view_over_v)
+        std::cout &lt;&lt; n &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    // Nous obtenons operator[] gratuitement en héritant de view_interface
+    // puisque nous satisfaisons le concept random_access_range.
+    for (std::ptrdiff_t i = 0; i != view_over_v.size(); ++i)
+        std::cout &lt;&lt; &quot;v[&quot; &lt;&lt; i &lt;&lt; &quot;] = &quot; &lt;&lt; view_over_v[i] &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1 4 9 16
+v[0] = 1
+v[1] = 4
+v[2] = 9
+v[3] = 16
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3549">LWG 3549</a></td>
+<td>C++20</td>
+<td><code>view_interface</code> devait dériver de <code>view_base</code>, , ce qui imposait parfois plusieurs sous-objets <code>view_base</code> dans une vue</td>
+<td>héritage supprimé</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="subrange.html">ranges::subrange</a> (C++20)</strong> — combine une paire itérateur-sentinelle en un <a href="view.html"><code>view</code></a> <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

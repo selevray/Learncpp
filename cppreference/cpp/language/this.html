@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le pointeur this — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="le-pointeur-this">Le pointeur this</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/this">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>this</code> | | |
+|</p>
+<p>L'expression <code>this</code> est une <a href="value_category.html#prvalue">prvalue</a> <a href="expressions.html">expression</a> dont la valeur est l'adresse du <a href="overload_resolution.html#Implicit_object_parameter">paramètre objet implicite</a> (objet sur lequel la fonction membre à objet implicite est appelée). Elle peut apparaître dans les contextes suivants :</p>
+<ol>
+<li>
+<p>Dans le corps de toute <a href="member_functions.html">fonction membre à objet implicite</a>, y compris la <a href="initializer_list.html">liste d'initialisation des membres</a>, et le <a href="lambda.html#closure_type_fun_operator">corps d'expression lambda</a> <em>(depuis C++11)</em>.</p>
+</li>
+<li>
+<p>Dans la <a href="function.html">déclaration</a> de toute fonction membre à objet implicite, n'importe où après la séquence de qualificateurs cv (optionnelle), y compris la <a href="exceptions.html">spécification d'exception</a>et le type de retour final <em>(depuis C++11)</em>.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="3">
+<li>
+<p>Dans un <a href="data_members.html#Member_initialization">initialiseur de membre par défaut</a>.</p>
+</li>
+<li>
+<p>Dans la <a href="lambda.html#Lambda_capture">liste de capture</a> d'une expression lambda.</p>
+</li>
+</ol>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Explanation">Explication</h2>
+<p><code>this</code> ne peut être associé qu'à la classe englobante la plus interne de son emplacement, même si cet emplacement est invalide dans le contexte :</p>
+<pre><code class="language-cpp">class Outer
+{
+    int a[sizeof(*this)];            // Erreur : pas à l'intérieur d'une fonction membre
+    unsigned int sz = sizeof(*this); // OK : dans l'initialiseur de membre par défaut
+
+    void f()
+    {
+        int b[sizeof(*this)];     // OK
+
+        struct Inner
+        {
+            int c[sizeof(*this)]; // Erreur : pas à l'intérieur d'une fonction membre de Inner
+                                  // « this » n'est pas associé à Outer
+                                  // même s'il se trouve à l'intérieur d'une fonction membre de Outer
+        };
+    }
+};
+</code></pre>
+<p>Le type de <code>this</code> dans une fonction membre de la classe <code>X</code> est <code>X*</code> (pointeur vers X). Si la fonction membre est <a href="member_functions.html#member_functions_with_cv-qualifiers">déclarée avec une séquence de qualificateurs cv</a> <em>cv</em>, le type de <code>this</code> est <code>cv X*</code> (pointeur vers X qualifié cv de manière identique). Comme les constructeurs et destructeurs ne peuvent pas être déclarés avec des qualificateurs cv, le type de <code>this</code> dans ceux-ci est toujours <code>X*</code>, même lors de la construction ou de la destruction d'un objet const.</p>
+<p>Dans les modèles de classe, <code>this</code> est une <a href="dependent_name.html">expression dépendante</a>, et un usage explicite de <code>this-&gt;</code> peut servir à rendre dépendante une autre expression.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct B
+{
+    int var;
+};
+
+template&lt;typename T&gt;
+struct D : B&lt;T&gt;
+{
+    D()
+    {
+        // var = 1;    // Erreur : « var » n'a pas été déclaré dans cette portée
+        this-&gt;var = 1; // OK
+    }
+};
+</code></pre>
+<p><a href="initializer_list.html">Pendant la construction</a> d'un objet, si la valeur de l'objet ou de l'un de ses sous-objets est accédée via un glvalue non obtenu, directement ou indirectement, à partir du pointeur <code>this</code> du constructeur, la valeur de l'objet ou du sous-objet ainsi obtenue est non spécifiée. En d'autres termes, le pointeur this ne peut pas être aliasé dans un constructeur :</p>
+<pre><code class="language-cpp">extern struct D d;
+
+struct D
+{
+    D(int a) : a(a), b(d.a) {} // b(a) ou b(this-&gt;a) serait correct
+    int a, b;
+};
+
+D d = D(1); // parce que b(d.a) n'a pas obtenu a via this, d.b est désormais non spécifié
+</code></pre>
+<p>Il est possible d'exécuter <code>delete this;</code> si le programme peut garantir que l'objet a été alloué par <code>new</code> ; cependant, cela rend invalide tout pointeur vers l'objet désalloué, y compris le pointeur <code>this</code> lui-même : après que <code>delete this;</code> est retourné, une telle fonction membre ne peut pas faire référence à un membre de la classe (puisque cela implique un déréférencement implicite de <code>this</code>) et aucune autre fonction membre ne peut être appelée.</p>
+<p>Ceci peut être utilisé dans la fonction membre du pointeur intelligent à comptage de références (par exemple, <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a>) <em>(depuis C++11)</em> chargé de décrémenter le compteur de références lorsque la dernière référence à l'objet géré sort de sa portée.</p>
+<pre><code class="language-cpp">class ref
+{
+    // ...
+    void incRef() { ++mnRef; }
+    void decRef() { if (--mnRef == 0) delete this; }
+};
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/this.html"><code>this</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">class T
+{
+    int x;
+
+    void foo()
+    {
+        x = 6;       // identique à this-&gt;x = 6;
+        this-&gt;x = 5; // utilisation explicite de this-&gt;
+    }
+
+    void foo() const
+    {
+    //  x = 7; // Erreur : *this est constant
+    }
+
+    void foo(int x) // le paramètre x masque le membre de même nom
+    {
+        this-&gt;x = x; // x non qualifié désigne le paramètre
+                     // « this-&gt; » est requis pour la désambiguïsation
+    }
+
+    int y;
+    T(int x) : x(x),      // utilise le paramètre x pour initialiser le membre x
+               y(this-&gt;x) // utilise le membre x pour initialiser le membre y
+    {}
+
+    T&amp; operator=(const T&amp; b)
+    {
+        x = b.x;
+        return *this; // de nombreux opérateurs surchargés renvoient *this
+    }
+};
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/760.html">CWG 760</a></td>
+<td>C++98</td>
+<td>lorsque <code>this</code> est utilisé dans une classe imbriquée, il était non spécifié s'il est associé à la classe imbriquée ou à la classe englobante</td>
+<td><code>this</code> est toujours associé à la classe imbriquée la plus interne, qu'il se trouve ou non dans une fonction membre non statique</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2271.html">CWG 2271</a></td>
+<td>C++98</td>
+<td><code>this</code> pouvait être aliasé lors de la construction d'un objet non const</td>
+<td>l'aliasing est également interdit dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2869.html">CWG 2869</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si <code>this</code> pouvait être utilisé dans une fonction membre statique d'une classe non associée</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::function&lt;R(Args...)&gt;::operator= — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../../assets/style.css">
+<script src="../../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../../cpp.html">Référence C++</a> › <a href="../../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../../cpp/utility/functional.html">Objets fonctions</a> › <a href="../../../../cpp/utility/functional/function.html">std::function</a></nav>
+<h1 id="std-function-r-args-operator"><code>std::function&lt;R(Args...)&gt;::operator=</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/functional/function/operator=">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">function&amp; operator=( const function&amp; other );  // (1) (depuis C++11)
+
+function&amp; operator=( function&amp;&amp; other );  // (2) (depuis C++11)
+
+function&amp; operator=( std::nullptr_t ) noexcept;  // (3) (depuis C++11)
+
+template&lt; class F &gt;
+function&amp; operator=( F&amp;&amp; f );  // (4) (depuis C++11)
+
+template&lt; class F &gt;
+function&amp; operator=( std::reference_wrapper&lt;F&gt; f ) noexcept;  // (5) (depuis C++11)
+</code></pre>
+<p>Affecte une nouvelle <em>cible</em> à <code>std::function</code>.</p>
+<ol>
+<li>
+<p>Affecte une copie de la <em>cible</em> de <code>other</code>, comme si l'on exécutait <code>function(other).swap(*this);</code></p>
+</li>
+<li>
+<p>Déplace la <em>cible</em> de <code>other</code> vers <code>*this</code>. <code>other</code> est dans un état valide avec une valeur non spécifiée.</p>
+</li>
+<li>
+<p>Supprime la <em>cible</em> courante. <code>*this</code> est <em>vide</em> après l'appel.</p>
+</li>
+<li>
+<p>Définit la <em>cible</em> de <code>*this</code> comme l'objet appelable <code>f</code>, comme si l'on exécutait <code>function(std::forward&lt;F&gt;(f)).swap(*this);</code>. Cet opérateur ne participe pas à la résolution de surcharge sauf si <code>f</code> est <a href="../../../named_req/Callable.html"><em>Callable</em></a> pour les types d'arguments <code>Args...</code> et le type de retour <code>R</code>.</p>
+</li>
+<li>
+<p>Affecte à la <em>cible</em> de <code>*this</code> une copie de <code>f</code>, comme si l'on exécutait <code>function(f).swap(*this);</code></p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — un autre objet <code>std::function</code> dont copier la cible</li>
+<li><code>f</code> — un objet appelable avec lequel initialiser la <em>cible</em></li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>F</code> doit satisfaire aux exigences de <a href="../../../named_req/Callable.html"><em>Callable</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Notes">Notes</h2>
+<p>Même avant la suppression du support des allocateurs de <code>std::function</code> en C++17, ces opérateurs d'affectation utilisent l'allocateur par défaut plutôt que l'allocateur de <code>*this</code> ou l'allocateur de <code>other</code> (voir <a href="https://cplusplus.github.io/LWG/issue2386">LWG issue 2386</a>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;functional&gt;
+#include &lt;utility&gt;
+
+int inc(int n) { return n + 1; }
+
+int main()
+{
+    std::function&lt;int(int)&gt; f1;
+    std::function&lt;int(int)&gt; f2(inc);
+    assert(f1 == nullptr and f2 != nullptr);
+
+    f1 = f2; // overload (1)
+    assert(f1 != nullptr and f1(1) == 2);
+
+    f1 = std::move(f2); // overload (2)
+    assert(f1 != nullptr and f1(1) == 2);
+    // f2 est dans un état valide mais non spécifié
+
+    f1 = nullptr; // overload (3)
+    assert(f1 == nullptr);
+
+    f1 = inc; // overload (4)
+    assert(f1 != nullptr and f1(1) == 2);
+
+    f1 = [](int n) { return n + n; }; // overload (4)
+    assert(f1 != nullptr and f1(2) == 4);
+
+    std::reference_wrapper&lt;int(int)&gt; ref1 = std::ref(inc);
+    f1 = ref1; // overload (5)
+    assert(f1 != nullptr and f1(1) == 2);
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2132">LWG 2132</a></td>
+<td>C++11</td>
+<td>la surcharge <code>(4)</code> prenant un objet <em>Callable</em> peut être ambiguë</td>
+<td>constrained</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2401">LWG 2401</a></td>
+<td>C++11</td>
+<td>l'opérateur d'affectation <code>(3)</code> depuis <code>std::nullptr_t</code> n'est pas tenu d'être noexcept</td>
+<td>required</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../move_only_function/operator%3D.html">operator=</a></strong> — remplace ou détruit la cible <em>(fonction membre publique de <code>std::move_only_function</code>)</em></li>
+<li><strong><a href="assign.html">assign</a> (removed in C++17)</strong> — affecte une nouvelle cible <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

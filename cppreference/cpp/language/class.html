@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de classe — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-de-classe">Déclaration de classe</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/class">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les classes sont des types définis par l'utilisateur, définis par un class-specifier, qui apparaît dans <code>decl-specifier-seq</code> de la syntaxe de <a href="declarations.html">déclaration</a>.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Le spécificateur de classe a la syntaxe suivante :</p>
+<p>|
+| |
+| <code>class-key</code> <code>attr</code> ﻿*(facultatif)* <code>class-head-name</code> <code>final</code><em>(facultatif)</em> <code>base-clause</code> ﻿*(facultatif)* <code>{</code> <code>member-specification</code> <code>}</code> | (1) | |
+|
+| <code>class-key</code> <code>attr</code> ﻿*(facultatif)* <code>base-clause</code> ﻿*(facultatif)* <code>{</code> <code>member-specification</code> <code>}</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Définition de classe nommée</p>
+</li>
+<li>
+<p>Définition de classe anonyme</p>
+</li>
+</ol>
+<ul>
+<li><code>class-key</code> — l'un de <a href="../keyword/class.html"><code>class</code></a>, <a href="../keyword/struct.html"><code>struct</code></a> et <a href="../keyword/union.html"><code>union</code></a>. Les mots-clés <code>class</code> et <code>struct</code> sont identiques, sauf pour l'<a href="access.html">accès aux membres</a> par défaut et l'<a href="derived_class.html">accès aux classes de base</a> par défaut. S'il s'agit de <code>union</code>, la déclaration introduit un <a href="union.html">type union</a>.</li>
+<li><code>attr</code> — (depuis C++11) un nombre quelconque d'<a href="attributes.html">attributs</a>, pouvant inclure un spécificateur <a href="alignas.html"><code>alignas</code></a></li>
+<li><code>class-head-name</code> — le nom de la classe en cours de définition, éventuellement <a href="name.html#Qualified_identifiers">qualifié</a></li>
+<li><code>final</code> — (depuis C++11) si présent, la classe <a href="final.html">ne peut pas être dérivée</a></li>
+<li><code>base-clause</code> — liste d'une ou plusieurs classes de base et le modèle d'héritage utilisé pour chacune (voir <a href="derived_class.html">classe dérivée</a>)</li>
+<li><code>member-specification</code> — liste de spécificateurs d'accès, de déclarations et définitions de membres de données et de fonctions membres (<a href="class.html#Member_specification">voir ci-dessous</a>)</li>
+</ul>
+<h2 id="Forward_declaration">Déclaration anticipée</h2>
+<p>Une déclaration de la forme suivante</p>
+<p>|
+| |
+| <code>class-key</code> <code>attr</code> <code>identifier</code> <code>;</code> | | |
+|</p>
+<p>Déclare un type classe qui sera défini plus loin dans cette portée. Tant que la définition n'apparaît pas, ce nom de classe a un <a href="incomplete_type.html">type incomplet</a>. Cela permet aux classes de se référencer mutuellement :</p>
+<pre><code class="language-cpp">class Vector; // déclaration anticipée
+
+class Matrix
+{
+    // ...
+    friend Vector operator*(const Matrix&amp;, const Vector&amp;);
+};
+
+class Vector
+{
+    // ...
+    friend Vector operator*(const Matrix&amp;, const Vector&amp;);
+};
+</code></pre>
+<p>et si un fichier source donné n'utilise que des pointeurs et des références vers la classe, cela permet de réduire les dépendances <code>#include</code> :</p>
+<pre><code class="language-cpp">// Dans MyStruct.h
+#include &lt;iosfwd&gt; // contains forward declaration of std::ostream
+
+struct MyStruct
+{
+    int value;
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const S&amp; s);
+    // définition fournie dans le fichier MyStruct.cpp qui utilise #include &lt;ostream&gt;
+};
+</code></pre>
+<p>Si la déclaration anticipée apparaît dans une portée locale, elle <em>masque</em> la classe, la variable, la fonction et toutes les autres déclarations de même nom pouvant apparaître dans les portées englobantes, déclarées précédemment :</p>
+<pre><code class="language-cpp">struct s { int a; };
+struct s; // ne fait rien (s est déjà définie dans cette portée)
+
+void g()
+{
+    struct s; // déclaration anticipée d'un nouveau struct local « s »
+              // cela masque la structure globale s jusqu'à la fin de ce bloc
+
+    s* p; // pointeur vers la structure locale s
+
+    struct s { char* p; }; // définitions de la structure locale s
+}
+</code></pre>
+<p>Notez qu'un nouveau nom de classe peut aussi être introduit par un <a href="elaborated_type_specifier.html">spécificateur de type elaboré</a> qui apparaît dans le cadre d'une autre déclaration, mais seulement si la <a href="lookup.html">recherche de nom</a> ne trouve pas de classe déclarée précédemment avec le même nom.</p>
+<pre><code class="language-cpp">class U;
+
+namespace ns
+{
+    class Y f(class T p); // déclare la fonction ns::f et déclare ns::T et ns::Y
+
+    class U f(); // U fait référence à ::U
+
+    // peut utiliser des pointeurs et des références vers T et Y
+    Y* p;
+    T* q;
+}
+</code></pre>
+<h2 id="Member_specification">Spécification des membres</h2>
+<p>La spécification des membres, ou le <em>corps</em> d'une définition de classe, est une suite entre accolades d'un nombre quelconque des éléments suivants :</p>
+<ol>
+<li>Déclarations de membres de la forme</li>
+</ol>
+<p>|
+| |
+| <code>attr</code> ﻿*(facultatif)* <code>decl-specifier-seq</code> ﻿*(facultatif)* <code>member-declarator-list</code> ﻿*(facultatif)* <code>;</code> | | |
+|</p>
+<ul>
+<li><code>attr</code> — (depuis C++11) un nombre quelconque d'<a href="attributes.html">attributs</a></li>
+<li><code>decl-specifier-seq</code> — suite de <a href="declarations.html#Specifiers">spécificateurs</a>. Elle n'est facultative que dans les déclarations de constructeurs, de destructeurs et de <a href="cast_operator.html">fonctions de conversion</a> de types définis par l'utilisateur</li>
+<li><code>member-declarator-list</code> — similaire à une <a href="declarations.html">init-declarator-list</a>, mais permettant en outre les <a href="bit_field.html">déclarations de champs de bits</a>, le <a href="abstract_class.html">pure-specifier</a>, et les virt-specifier (<code>override</code> ou <code>final</code>) <em>(depuis C++11)</em>, et n'autorise pas la <a href="direct_initialization.html">syntaxe d'initialisation directe sans liste</a>.</li>
+</ul>
+<p>Cette déclaration peut déclarer des <a href="data_members.html">membres de données</a> <a href="static.html">statiques</a> ou non statiques et des <a href="member_functions.html">fonctions membres</a>, des <a href="typedef.html">typedefs</a> membres, des <a href="enum.html">énumérations</a> membres et des <a href="nested_classes.html">classes imbriquées</a>. Elle peut aussi être une <a href="friend.html">déclaration friend</a>.</p>
+<pre><code class="language-cpp">class S
+{
+    int d1;             // membre de données non statique
+    int a[10] = {1, 2}; // membre de données non statique avec initialiseur (depuis C++11)
+
+    static const int d2 = 1; // membre de données statique avec initialiseur
+
+    virtual void f1(int) = 0; // fonction membre virtuelle pure
+
+    std::string d3, *d4, f2(int); // deux membres de données et une fonction membre
+
+    enum { NORTH, SOUTH, EAST, WEST };
+
+    struct NestedS
+    {
+        std::string s;
+    } d5, *d6;
+
+    typedef NestedS value_type, *pointer_type;
+};
+</code></pre>
+<ol start="2">
+<li>Définitions de fonctions, qui déclarent et définissent à la fois des <a href="member_functions.html">fonctions membres</a> ou des <a href="friend.html">fonctions amies</a>. Un point-virgule après une définition de fonction membre est facultatif. Toutes les fonctions définies dans le corps d'une classe sont automatiquement <a href="inline.html">inline</a>, sauf si elles sont rattachées à un <a href="modules.html">module nommé</a> <em>(depuis C++20)</em>.</li>
+</ol>
+<pre><code class="language-cpp">class M
+{
+    std::size_t C;
+    std::vector&lt;int&gt; data;
+public:
+    M(std::size_t R, std::size_t C) : C(C), data(R*C) {} // définition de constructeur
+
+    int operator()(std::size_t r, std::size_t c) const // définition de fonction membre
+    {
+        return data[r * C + c];
+    }
+
+    int&amp; operator()(std::size_t r, std::size_t c) // définition d'une autre fonction membre
+    {
+        return data[r * C + c];
+    }
+};
+</code></pre>
+<ol start="3">
+<li><a href="access.html">Spécificateurs d'accès</a> <code>public:</code>, <code>protected:</code> et <code>private:</code></li>
+</ol>
+<pre><code class="language-cpp">class S
+{
+public:
+    S();          // constructeur public
+    S(const S&amp;);  // constructeur de copie public
+    virtual ~S(); // destructeur virtuel public
+private:
+    int* ptr; // membre de données privé
+};
+</code></pre>
+<ol start="4">
+<li><a href="using_declaration.html">Déclarations using</a> :</li>
+</ol>
+<pre><code class="language-cpp">class Base
+{
+protected:
+    int d;
+};
+
+class Derived : public Base
+{
+public:
+    using Base::d;    // rend le membre protégé d de Base un membre public de Derived
+    using Base::Base; // hérite de tous les constructeurs des bases (depuis C++11)
+};
+</code></pre>
+<ol start="5">
+<li><a href="static_assert.html"><code>static_assert</code></a> declarations:</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct Foo
+{
+    static_assert(std::is_floating_point&lt;T&gt;::value, &quot;Foo&lt;T&gt;: T must be floating point&quot;);
+};
+</code></pre>
+<ol start="6">
+<li><a href="member_template.html">Déclarations de modèles membres</a> :</li>
+</ol>
+<pre><code class="language-cpp">struct S
+{
+    template&lt;typename T&gt;
+    void f(T&amp;&amp; n);
+
+    template&lt;class CharT&gt;
+    struct NestedS
+    {
+        std::basic_string&lt;CharT&gt; s;
+    };
+};
+</code></pre>
+<blockquote>
+<ol start="7">
+<li><a href="type_alias.html">Déclarations d'alias</a> :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct identity
+{
+    using type = T;
+};
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ol start="8">
+<li><a href="deduction_guide.html">Guides de déduction</a> des modèles de classes membres :</li>
+</ol>
+<pre><code class="language-cpp">struct S
+{
+    template&lt;class CharT&gt;
+    struct NestedS
+    {
+        std::basic_string&lt;CharT&gt; s;
+    };
+
+    template&lt;class CharT&gt;
+    NestedS(std::basic_string&lt;CharT&gt;) -&gt; NestedS&lt;CharT&gt;;
+};
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<ol start="9">
+<li><a href="enum.html#Using-enum-declaration">Déclarations using enum</a> :</li>
+</ol>
+<pre><code class="language-cpp">enum class color { red, orange, yellow };
+
+struct highlight
+{
+    using enum color;
+};
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Local_classes">Classes locales</h2>
+<p>Une déclaration de classe peut apparaître dans le corps d'une fonction, auquel cas elle définit une <em>classe locale</em>. Le nom d'une telle classe n'existe que dans la portée de la fonction et n'est pas accessible à l'extérieur.</p>
+<ul>
+<li>Les membres d'une classe locale ne peuvent être déclarés que dans la définition de cette classe, sauf que les membres qui sont des <a href="nested_classes.html">classes imbriquées</a> peuvent aussi être déclarés dans la <a href="scope.html#Block_scope">portée de bloc</a> englobante la plus proche de cette classe.</li>
+<li>Une classe imbriquée dans une classe locale est aussi une classe locale.</li>
+<li>Une classe locale ne peut pas avoir de membres de données statiques.</li>
+<li>Les fonctions membres d'une classe locale n'ont pas de liaison.</li>
+<li>Les fonctions membres d'une classe locale doivent être définies entièrement dans le corps de la classe.</li>
+<li>Les classes localesautres que les <a href="lambda.html">types de fermeture</a> <em>(depuis C++14)</em> ne peuvent pas avoir de modèles membres.</li>
+<li>Les classes locales ne peuvent pas avoir de <a href="friend.html#Template_friends">modèles d'amitié</a>.</li>
+<li>Les classes locales ne peuvent pas définir de <a href="friend.html">fonctions amies</a> dans la définition de la classe.</li>
+<li>Une classe locale définie dans une fonction (y compris une fonction membre) peut accéder aux mêmes noms que ceux auxquels la fonction englobante peut accéder.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Les classes locales ne pouvaient pas être utilisées comme arguments de modèle.</li>
+</ul>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v{1, 2, 3};
+
+    struct Local
+    {
+        bool operator()(int n, int m)
+        {
+            return n &gt; m;
+        }
+    };
+
+    std::sort(v.begin(), v.end(), Local()); // depuis C++11
+
+    for (int n : v)
+        std::cout &lt;&lt; n &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">3 2 1
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/class.html"><code>class</code></a>,
+<a href="../keyword/struct.html"><code>struct</code></a>,
+<a href="../keyword/union.html"><code>union</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1693.html">CWG 1693</a></td>
+<td>C++98</td>
+<td>les déclarations de membres ne pouvaient pas être vides</td>
+<td>déclaration vide autorisée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1930.html">CWG 1930</a></td>
+<td>C++98</td>
+<td><code>member-declarator-list</code> pouvait être vide lorsque <code>decl-specifier-seq</code> contenait un spécificateur de classe de stockage ou un qualificateur cv</td>
+<td>la liste ne devait pas être vide</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2890.html">CWG 2890</a></td>
+<td>C++98</td>
+<td>on ne savait pas clairement où les membres des classes imbriquées pouvaient être déclarés</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/language/struct.html">Documentation C</a> pour Déclaration de struct</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lancer des exceptions — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="lancer-des-exceptions">Lancer des exceptions</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/throw">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Lancer une <a href="exceptions.html">exception</a> transfère le contrôle à un <a href="catch.html">gestionnaire</a>.</p>
+<p>Une exception peut être levée depuis des <a href="throw.html#throw_expressions">expressions <code>throw</code></a>, les contextes suivants pouvant également lever des exceptions :</p>
+<ul>
+<li><a href="../memory/new/operator_new.html">fonctions d'allocation</a></li>
+<li><a href="dynamic_cast.html"><code>dynamic_cast</code></a></li>
+<li><a href="typeid.html"><code>typeid</code></a></li>
+<li><a href="new.html">expressions <code>new</code></a></li>
+<li><a href="../standard_library.html">fonctions de la bibliothèque standard</a></li>
+</ul>
+<h2 id="Exception_object">Objet exception</h2>
+<p>Lever une exception initialise un objet à <a href="storage_duration.html">durée de stockage</a> dynamique, appelé <em>objet exception</em>.</p>
+<p>Si le type de l'objet exception est l'un des types suivants, le programme est mal formé :</p>
+<ul>
+<li>un <a href="type-id.html#Incomplete_type">type incomplet</a></li>
+<li>un <a href="abstract_class.html">type classe abstraite</a></li>
+<li>un pointeur vers un type incomplet autre que (éventuellement qualifié cv) <code>void</code></li>
+</ul>
+<h3 id="Constructing_and_destructing_exception_objects">Construction et destruction des objets exception</h3>
+<p>Étant donné le type de l'objet exception comme <code>T</code> :</p>
+<ul>
+<li>Soit <code>obj</code> une lvalue de type <code>const T</code>, l'<a href="copy_initialization.html">initialisation par copie</a> d'un objet de type <code>T</code> à partir de <code>obj</code> doit être bien formée.</li>
+<li>Si <code>T</code> est un type classe :
+<ul>
+<li>Le <a href="initializer_list.html">constructeur</a> sélectionné est <a href="definition.html#ODR-use">odr-utilisé</a>.</li>
+<li>Le <a href="destructor.html">destructeur</a> de <code>T</code> est <a href="destructor.html#Potentially-invoked_constructor">potentiellement invoqué</a>.</li>
+</ul>
+</li>
+</ul>
+<p>La mémoire de l'objet exception est allouée de manière non spécifiée. La seule garantie est que le stockage ne sera jamais alloué par des <a href="../memory/new/operator_new.html">fonctions d'allocation</a> globales.</p>
+<p>Si un <a href="catch.html">gestionnaire</a> se termine par une <a href="throw.html#throw_expressions">relance</a>, le contrôle passe à un autre gestionnaire pour le même objet exception. L'objet exception n'est pas détruit dans ce cas.</p>
+<blockquote>
+<p>Lorsque le dernier gestionnaire actif de l'exception se termine par tout autre moyen que la relance, l'objet exception est détruit et l'implémentation peut désallouer la mémoire de l'objet temporaire de manière non spécifiée.</p>
+<p>La destruction a lieu immédiatement après la destruction de l'objet déclaré dans la « liste de paramètres » du gestionnaire.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Les points de destruction potentielle de l'objet exception sont :</p>
+<ul>
+<li>Lorsqu'un gestionnaire actif de l'exception se termine par tout autre moyen que la relance, immédiatement après la destruction de l'objet (le cas échéant) déclaré dans la « liste de paramètres » du gestionnaire.</li>
+<li>Lorsqu'un objet de type <a href="../error/exception_ptr.html"><code>std::exception_ptr</code></a> qui fait référence à l'objet exception est détruit, avant que le destructeur de <a href="../error/exception_ptr.html"><code>std::exception_ptr</code></a> ne retourne.</li>
+</ul>
+<p>Parmi tous les points de destruction potentielle de l'objet exception, il existe un dernier point non spécifié où l'objet exception est détruit. Tous les autres points <a href="multithread.html">se produisent avant</a> ce dernier. L'implémentation peut ensuite désallouer la mémoire de l'objet exception de manière non spécifiée.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="throw_expressions">expressions <code>throw</code></h2>
+<p>|
+| |
+| <code>throw</code> <code>expression</code> | (1) | |
+|
+| <code>throw</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Lève une nouvelle exception.</p>
+</li>
+<li>
+<p>Relance l'exception en cours de traitement.</p>
+</li>
+</ol>
+<ul>
+<li><code>expression</code> — l'expression utilisée pour construire l'objet exception</li>
+</ul>
+<p>Lorsqu'une nouvelle exception est levée, son objet exception est déterminé comme suit :</p>
+<ol>
+<li>Les conversions standard <a href="implicit_cast.html#Array-to-pointer_conversion">array-to-pointer</a> et <a href="implicit_cast.html#Function-to-pointer_conversion">function-to-pointer</a> sont effectuées sur <code>expression</code>.</li>
+<li>Soit <code>ex</code> le résultat de la conversion :
+<ul>
+<li>Le type de l'objet exception est déterminé en retirant les qualificateurs cv de premier niveau du type de <code>ex</code>.</li>
+<li>L'objet exception est <a href="copy_initialization.html">initialisé par copie</a> à partir de <code>ex</code>.</li>
+</ul>
+</li>
+</ol>
+<p>Si un programme tente de relancer une exception alors qu'aucune exception n'est en cours de traitement, <a href="../error/terminate.html"><code>std::terminate</code></a> sera invoqué. Sinon, l'exception est réactivée avec l'objet exception existant (aucun nouvel objet exception n'est créé), et l'exception n'est plus considérée comme capturée.</p>
+<pre><code class="language-cpp">try
+{
+    // lever une nouvelle exception 123
+    throw 123;
+}
+catch (...) // intercepter toutes les exceptions
+{
+    // répondre (partiellement) à l'exception 123
+    throw; // transmettre l'exception à un autre gestionnaire
+}
+</code></pre>
+<h2 id="Stack_unwinding">Déroulement de la pile</h2>
+<p>Une fois l'objet exception construit, le flux de contrôle remonte (vers le haut de la pile d'appels) jusqu'à atteindre le début d'un bloc <a href="try.html"><code>try</code></a>, moment où les paramètres de tous les gestionnaires associés sont comparés, dans l'ordre d'apparition, au type de l'objet exception afin de trouver une <a href="catch.html#Matching_exceptions">correspondance</a>. Si aucune correspondance n'est trouvée, le flux de contrôle continue de dérouler la pile jusqu'au prochain bloc <code>try</code>, et ainsi de suite. Si une correspondance est trouvée, le flux de contrôle saute au gestionnaire correspondant.</p>
+<p>Lorsque le flux de contrôle remonte la pile d'appels, les destructeurs sont invoqués pour tous les objets à <a href="storage_duration.html">durée de stockage automatique</a> qui ont été construits mais pas encore détruits depuis que le bloc <code>try</code> correspondant a été entré, dans l'ordre inverse de fin de leurs constructeurs. Si une exception est levée depuis le destructeur d'une variable locale ou d'un temporaire utilisé dans une instruction <a href="return.html">return</a>, le destructeur de l'objet retourné par la fonction est également invoqué.</p>
+<p>Si une exception est levée depuis un constructeur ou (rarement) depuis un destructeur d'un objet (quelle que soit sa durée de stockage), les destructeurs sont appelés pour tous les membres non statiques non variants entièrement construits et pour toutes les classes de base, dans l'ordre inverse de fin de leurs constructeurs. Les membres variants des <a href="union.html#Union-like_classes">classes de type union</a> ne sont détruits qu'en cas de déroulement depuis un constructeur ; si le membre actif a changé entre l'initialisation et la destruction, le comportement est indéfini.</p>
+<blockquote>
+<p>Si un constructeur délégant se termine par une exception après que le constructeur non délégant s'est terminé avec succès, le destructeur de cet objet est appelé.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si l'exception est levée depuis un constructeur invoqué par une <a href="new.html">expression new</a>, la <a href="../memory/new/operator_delete.html">fonction de désallocation</a> correspondante est appelée, si elle est disponible.</p>
+<p>Ce processus est appelé <em>déroulement de la pile</em>.</p>
+<p>Si une fonction appelée directement par le mécanisme de déroulement de la pile, après l'initialisation de l'objet exception et avant le début du gestionnaire d'exception, se termine par une exception, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelé. Ces fonctions incluent les <a href="destructor.html">destructeurs</a> des objets à durée de stockage automatique dont la portée est quittée, et le constructeur de copie de l'objet exception qui est appelé (s'il n'est pas <a href="copy_elision.html">élidé</a>) pour initialiser les arguments capturés par valeur.</p>
+<p>Si une exception est levée et non capturée, y compris les exceptions qui s'échappent de la fonction initiale de <a href="../thread/thread.html"><code>std::thread</code></a>, de la fonction main, ou du constructeur ou du destructeur d'un objet statique ou à durée de stockage thread_local, alors <a href="../error/terminate.html"><code>std::terminate</code></a> est appelé. Il est défini par l'implémentation de savoir si un déroulement de la pile a lieu pour les exceptions non capturées.</p>
+<h2 id="Notes">Notes</h2>
+<p>Lors de la relance d'exceptions, la seconde forme doit être utilisée pour éviter le découpage d'objet (object slicing) dans le cas (typique) où les objets exception utilisent l'héritage :</p>
+<pre><code class="language-cpp">try
+{
+    std::string(&quot;abc&quot;).substr(10); // lève std::out_of_range
+}
+catch (const std::exception&amp; e)
+{
+    std::cout &lt;&lt; e.what() &lt;&lt; '\n';
+//  throw e; // initialise par copie un nouvel objet exception de type std::exception
+    throw;   // relance l'objet exception de type std::out_of_range
+}
+</code></pre>
+<p>L'expression <code>throw</code> est classée comme <a href="value_category.html">expression prvalue</a> de type <code>void</code>. Comme toute autre expression, elle peut être une sous-expression d'une autre expression, le plus souvent dans l'<a href="operator_other.html#Conditional_operator">opérateur conditionnel</a> :</p>
+<pre><code class="language-cpp">double f(double d)
+{
+    return d &gt; 1e7 ? throw std::overflow_error(&quot;too big&quot;) : d;
+}
+
+int main()
+{
+    try
+    {
+        std::cout &lt;&lt; f(1e10) &lt;&lt; '\n';
+    }
+    catch (const std::overflow_error&amp; e)
+    {
+        std::cout &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+}
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/throw.html"><code>throw</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+
+struct A
+{
+    int n;
+
+    A(int n = 0): n(n) { std::cout &lt;&lt; &quot;A(&quot; &lt;&lt; n &lt;&lt; &quot;) constructed successfully\n&quot;; }
+    ~A() { std::cout &lt;&lt; &quot;A(&quot; &lt;&lt; n &lt;&lt; &quot;) destroyed\n&quot;; }
+};
+
+int foo()
+{
+    throw std::runtime_error(&quot;error&quot;);
+}
+
+struct B
+{
+    A a1, a2, a3;
+
+    B() try : a1(1), a2(foo()), a3(3)
+    {
+        std::cout &lt;&lt; &quot;B constructed successfully\n&quot;;
+    }
+    catch(...)
+    {
+        std::cout &lt;&lt; &quot;B::B() exiting with exception\n&quot;;
+    }
+
+    ~B() { std::cout &lt;&lt; &quot;B destroyed\n&quot;; }
+};
+
+struct C : A, B
+{
+    C() try
+    {
+        std::cout &lt;&lt; &quot;C::C() completed successfully\n&quot;;
+    }
+    catch(...)
+    {
+        std::cout &lt;&lt; &quot;C::C() exiting with exception\n&quot;;
+    }
+
+    ~C() { std::cout &lt;&lt; &quot;C destroyed\n&quot;; }
+};
+
+int main () try
+{
+    // crée le sous-objet de base A
+    // crée le membre a1 de B
+    // échoue à créer le membre a2 de B
+    // le déroulement détruit le membre a1 de B
+    // le déroulement détruit le sous-objet de base A
+    C c;
+}
+catch (const std::exception&amp; e)
+{
+    std::cout &lt;&lt; &quot;main() failed to create C with: &quot; &lt;&lt; e.what();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">A(0) constructed successfully
+A(1) constructed successfully
+A(1) destroyed
+B::B() exiting with exception
+A(0) destroyed
+C::C() exiting with exception
+main() failed to create C with: error
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/499.html">CWG 499</a></td>
+<td>C++98</td>
+<td>un tableau de borne inconnue ne pouvait pas être levé car son type est incomplet, mais un objet exception peut être créé à partir du pointeur dégradé sans aucun problème</td>
+<td>appliquer l'exigence de complétude du type à l' objet exception à la place</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/668.html">CWG 668</a></td>
+<td>C++98</td>
+<td><a href="../error/terminate.html"><code>std::terminate</code></a> n'était pas appelé si une exception est levée depuis le destructeur d'un objet local non automatique</td>
+<td>appeler <a href="../error/terminate.html"><code>std::terminate</code></a> dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1863.html">CWG 1863</a></td>
+<td>C++11</td>
+<td>le constructeur de copie n'était pas requis pour les objets exception à déplacement seul lorsqu'ils sont levés, mais la copie était autorisée ensuite</td>
+<td>constructeur de copie requis</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1866.html">CWG 1866</a></td>
+<td>C++98</td>
+<td>les membres de variant fuyaient lors du déroulement de la pile depuis le constructeur</td>
+<td>les membres de variant étaient détruits</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2176.html">CWG 2176</a></td>
+<td>C++98</td>
+<td>lever une exception depuis le destructeur d'une variable locale pouvait sauter le destructeur de la valeur de retour</td>
+<td>valeur de retour de la fonction ajoutée au déroulement</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2699.html">CWG 2699</a></td>
+<td>C++98</td>
+<td><code>throw &quot;EX&quot;</code> lèverait en réalité <code>char*</code> plutôt que <code>const char*</code></td>
+<td>corrected</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2711.html">CWG 2711</a></td>
+<td>C++98</td>
+<td>la source de l'initialisation par copie de l'objet exception n'était pas spécifiée</td>
+<td>initialisé par copie à partir de <code>expression</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2775.html">CWG 2775</a></td>
+<td>C++98</td>
+<td>l'exigence d'initialisation par copie de l'objet exception était peu claire</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2854.html">CWG 2854</a></td>
+<td>C++98</td>
+<td>la durée de stockage des objets exception était peu claire</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P1825R0">P1825R0</a></td>
+<td>C++11</td>
+<td>le déplacement implicite des paramètres était interdit dans <code>throw</code></td>
+<td>allowed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.6.18 Lever une exception [expr.throw]</li>
+<li>14.2 Lever une exception [except.throw]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.6.18 Lever une exception [expr.throw]</li>
+<li>14.2 Lever une exception [except.throw]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>8.17 Lever une exception [expr.throw]</li>
+<li>18.1 Lever une exception [except.throw]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>15.1 Lever une exception [except.throw]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>15.1 Lever une exception [except.throw]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>15.1 Lever une exception [except.throw]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>15.1 Lever une exception [except.throw]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="copy_elision.html">élision de copie</a></li>
+<li><a href="try.html">bloc <code>try</code></a></li>
+<li><a href="catch.html">handler</a></li>
+<li><a href="noexcept_spec.html">spécificateur <code>noexcept</code></a></li>
+<li><a href="../error.html#Exception_handling">Gestion des exceptions</a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="except_spec.html">spécifications d'exceptions dynamiques</a></li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+
+</main>
+</body>
+</html>

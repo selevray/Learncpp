@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmpnam, tmpnam_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/io.html">Entrées/sorties de fichiers</a></nav>
+<h1 id="tmpnam-tmpnam_s">tmpnam, tmpnam_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/io/tmpnam">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdio.h&gt;</strong></p>
+<pre><code class="language-c">char *tmpnam( char *filename );  // (1)
+
+errno_t tmpnam_s(char *filename_s, rsize_t maxsize);  // (2) (depuis C11)
+
+#define TMP_MAX        /*unspecified*/
+
+#define TMP_MAX_S      /*unspecified*/  // (depuis C11)
+
+#define L_tmpnam       /*unspecified*/
+
+#define L_tmpnam_s     /*unspecified*/  // (depuis C11)
+</code></pre>
+<ol>
+<li>
+<p>Crée un nom de fichier valide et unique (d'une longueur maximale de <a href="../io.html"><code>L_tmpnam</code></a>) et le stocke dans la chaîne de caractères pointée par <code>filename</code>. La fonction peut générer jusqu'à <a href="../io.html"><code>TMP_MAX</code></a> noms de fichiers uniques, mais certains ou la totalité d'entre eux peuvent être déjà utilisés dans le système de fichiers et donc ne pas constituer des valeurs de retour appropriées.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, sauf que jusqu'à <code>TMP_MAX_S</code> noms peuvent être générés, d'une longueur maximale de <code>L_tmpnam_s</code>, et les erreurs suivantes sont détectées à l'exécution et appellent la fonction <a href="../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</p>
+</li>
+</ol>
+<ul>
+<li><code>filename_s</code> est un pointeur nul</li>
+<li><code>maxsize</code> est supérieur à <code>RSIZE_MAX</code></li>
+<li><code>maxsize</code> est inférieur à la chaîne de nom de fichier générée
+Comme pour toutes les fonctions à vérification de bornes, <code>tmpnam_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../io.html"><code>&lt;stdio.h&gt;</code></a>.</li>
+</ul>
+<p><code>tmpnam</code> et <code>tmpnam_s</code> modifient un état statique (qui peut être partagé entre ces fonctions) et ne sont pas tenus d'être sûrs vis-à-vis des threads.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>filename</code> — pointeur vers le tableau de caractères pouvant contenir au moins <a href="../io.html"><code>L_tmpnam</code></a> octets, utilisé comme tampon de résultat. Si un pointeur nul est passé, un pointeur vers un tampon statique interne est renvoyé.</li>
+<li><code>filename_s</code> — pointeur vers le tableau de caractères pouvant contenir au moins <code>L_tmpnam_s</code> octets, utilisé comme tampon de résultat.</li>
+<li><code>maxsize</code> — nombre maximal de caractères que la fonction est autorisée à écrire (généralement la taille du tableau <code>filename_s</code>).</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p><code>filename</code> si <code>filename</code> n'était pas un pointeur nul. Sinon, un pointeur vers un tampon statique interne est renvoyé. Si aucun nom de fichier approprié ne peut être généré, un pointeur nul est renvoyé.</p>
+</li>
+<li>
+<p>Renvoie zéro et écrit le nom de fichier dans <code>filename_s</code> en cas de succès. En cas d'erreur, renvoie une valeur non nulle et écrit le caractère nul dans <code>filename_s[0]</code> (uniquement si <code>filename_s</code> n'est pas nul, que <code>maxsize</code> n'est pas nul et n'est pas supérieur à <code>RSIZE_MAX</code>).</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Bien que les noms générés par <code>tmpnam</code> soient difficiles à deviner, il est possible qu'un fichier portant ce nom soit créé par un autre processus entre le moment où <code>tmpnam</code> retourne et le moment où ce programme tente d'utiliser le nom retourné pour créer un fichier. La fonction standard <a href="tmpfile.html"><code>tmpfile</code></a> et la fonction POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdtemp.html"><code>mkstemp</code></a> n'ont pas ce problème (la création d'un répertoire unique en utilisant uniquement la bibliothèque standard C nécessite toujours l'utilisation de <code>tmpnam</code>).</p>
+<p>Les systèmes POSIX définissent en outre la fonction de nom similaire <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/tempnam.html"><code>tempnam</code></a>, qui offre le choix d'un répertoire (qui vaut par défaut la macro <a href="https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/stdio.h.html"><code>P_tmpdir</code></a>, si elle est définie).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    // Notez que le compilateur ou l'éditeur de liens peut émettre un avertissement de sécurité, par exemple GCC :
+    // &quot;warning: the use of `tmpnam' is dangerous, better use `mkstemp'&quot;
+    char* name1 = tmpnam(NULL);
+    printf(&quot;temporary file name: %s\n&quot;, name1);
+
+    char name2[L_tmpnam];
+    if (tmpnam(name2))
+        printf(&quot;temporary file name: %s\n&quot;, name2);
+
+    // POSIX propose mkstemp. La déclaration suivante pourrait être
+    // nécessaire, car mkstemp est absent de l'en-tête standard C &lt;stdlib.h&gt;.
+    int mkstemp(char*);
+
+    char name3[] = &quot;/tmp/fileXXXXXX&quot;; // au moins six 'X' requis ^_^
+    int file_descriptor = mkstemp(name3);
+    if (file_descriptor != -1)
+        printf(&quot;temporary file name: %s\n&quot;, name3);
+    else
+        perror(&quot;mkstemp&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">temporary file name: /tmp/file90dLlR
+temporary file name: /tmp/fileY9LWAg
+temporary file name: /tmp/filexgv8PF
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.21.4.4 La fonction tmpnam (p : TBD)</li>
+<li>K.3.5.1.2 La fonction tmpnam_s (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.21.4.4 La fonction tmpnam (p : 222)</li>
+<li>K.3.5.1.2 La fonction tmpnam_s (p : 427-428)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.21.4.4 La fonction tmpnam (p : 303-304)</li>
+<li>K.3.5.1.2 La fonction tmpnam_s (p : 587-588)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.19.4.4 La fonction tmpnam (p : 269-270)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.9.4.4 La fonction tmpnam</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="tmpfile.html">tmpfiletmpfile_s</a> (C11)</strong> — renvoie un pointeur vers un fichier temporaire <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/io/c/tmpnam.html">Documentation C++</a> pour tmpnam</strong></p>
+
+</main>
+</body>
+</html>

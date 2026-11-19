@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qualificateur de type restrict (depuis C99) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="qualificateur-de-type-restrict-depuis-c99">qualificateur de type restrict (depuis C99)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/restrict">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Chaque type individuel du <a href="compatible_type.html">système de types</a> du C possède plusieurs versions <em>qualifiées</em> de ce type, correspondant à un, deux ou aux trois qualificateurs <a href="const.html"><code>const</code></a>, <a href="volatile.html"><code>volatile</code></a> et, pour les pointeurs vers des types objets, <code>restrict</code>. Cette page décrit les effets du qualificateur <code>restrict</code>.</p>
+<p>Seul un pointeur vers un <a href="compatible_type.html">type objet</a> ou un tableau (éventuellement multidimensionnel) de tels types <em>(depuis C23)</em> peut être qualifié restrict ; en particulier, les éléments suivants sont <em>erronés</em> :</p>
+<ul>
+<li><code>int restrict *p</code></li>
+<li><code>float (* restrict f9)(void)</code></li>
+</ul>
+<p>La sémantique de restrict ne s'applique qu'aux expressions lvalue ; par exemple, un transtypage vers un pointeur qualifié restrict ou un appel de fonction renvoyant un pointeur qualifié restrict ne sont pas des lvalues et le qualificateur n'a aucun effet.</p>
+<p>Lors de chaque exécution d'un bloc dans lequel un pointeur restreint <code>P</code> est déclaré (typiquement chaque exécution d'un corps de fonction dans lequel <code>P</code> est un paramètre de fonction), si un objet accessible via <code>P</code> (directement ou indirectement) est modifié, par quelque moyen que ce soit, alors tous les accès à cet objet (lectures comme écritures) dans ce bloc doivent se faire via <code>P</code> (directement ou indirectement), sinon le comportement est indéfini :</p>
+<pre><code class="language-c">void f(int n, int * restrict p, int * restrict q)
+{
+    while (n-- &gt; 0)
+        *p++ = *q++; // aucun des objets modifiés via *p n'est le même
+                     // que l'un quelconque des objets lus via *q
+                     // le compilateur est libre d'optimiser, de vectoriser, de mapper les pages, etc.
+}
+
+void g(void)
+{
+    extern int d[100];
+    f(50, d + 50, d); // OK
+    f(50, d + 1, d);  // Comportement indéfini : d[1] est accédé à la fois via p et q dans f
+}
+</code></pre>
+<p>Si l'objet n'est jamais modifié, il peut être aliasé et accédé via différents pointeurs qualifiés restrict (notez que si les objets pointés par des pointeurs qualifiés restrict aliasés sont à leur tour des pointeurs, cet aliasing peut empêcher certaines optimisations).</p>
+<p>L'affectation d'un pointeur restreint à un autre pointeur restreint est un comportement indéfini, sauf lorsqu'on affecte un pointeur vers un objet d'un bloc externe à un pointeur d'un bloc interne (y compris en utilisant un argument pointeur restreint lors de l'appel d'une fonction ayant un paramètre pointeur restreint) ou lors d'un retour de fonction (et autrement lorsque le bloc du pointeur source s'est terminé) :</p>
+<pre><code class="language-c">int* restrict p1 = &amp;a;
+int* restrict p2 = &amp;b;
+p1 = p2; // comportement indéfini
+</code></pre>
+<p>Les pointeurs restreints peuvent être affectés librement à des pointeurs non restreints ; les possibilités d'optimisation demeurent tant que le compilateur est capable d'analyser le code :</p>
+<pre><code class="language-c">void f(int n, float * restrict r, float * restrict s)
+{
+    float *p = r, *q = s; // OK
+    while (n-- &gt; 0)
+        *p++ = *q++; // presque certainement optimisé exactement comme *r++ = *s++
+}
+</code></pre>
+<blockquote>
+<p>Si un type tableau est déclaré avec le qualificateur de type restrict (par l'intermédiaire de <a href="typedef.html">typedef</a>), le type tableau n'est pas qualifié restrict, mais son type d'élément l'est :</p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>Un type tableau et son type d'élément sont toujours considérés comme ayant le même qualificatif restrict :</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<pre><code class="language-c">typedef int *array_t[10];
+
+restrict array_t a; // le type de a est int *restrict[10]
+// Notes : clang et icc rejettent ceci au motif que array_t n'est pas un type pointeur
+
+void *unqual_ptr = &amp;a; // OK jusqu'à C23 ; erreur depuis C23
+// Notes : clang applique la règle en C++/C23 même en modes C89-C17
+</code></pre>
+<p>Dans une déclaration de fonction, le mot-clé <code>restrict</code> peut apparaître entre les crochets utilisés pour déclarer un type tableau d'un paramètre de fonction. Il qualifie le type pointeur vers lequel le type tableau est transformé :</p>
+<pre><code class="language-c">void f(int m, int n, float a[restrict m][n], float b[restrict m][n]);
+
+void g12(int n, float (*p)[n])
+{
+   f(10, n, p, p+10); // OK
+   f(20, n, p, p+10); // comportement éventuellement indéfini (selon ce que fait f)
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Le but de l'utilisation du qualificateur restrict (comme celui de la classe de stockage register) est de favoriser l'optimisation, et supprimer toutes les occurrences du qualificateur de toutes les unités de traduction prétraitées composant un programme conforme ne modifie pas sa signification (c'est-à-dire son comportement observable).</p>
+<p>Le compilateur est libre d'ignorer tout ou partie des implications d'aliasing des utilisations de <code>restrict</code>.</p>
+<p>Pour éviter un comportement indéfini, le programmeur doit s'assurer que les assertions d'aliasing faites par les pointeurs qualifiés restrict ne sont pas violées.</p>
+<p>De nombreux compilateurs fournissent, comme extension du langage, l'inverse de <code>restrict</code> : un attribut indiquant que des pointeurs peuvent être aliasés même si leurs types diffèrent : <a href="https://gcc.gnu.org/onlinedocs/gcc/Common-Type-Attributes.html#index-g_t_0040code_007bmay_005falias_007d-type-attribute-3667"><code>may_alias</code></a> (gcc),</p>
+<h2 id="Usage_patterns">Schémas d'utilisation</h2>
+<p>Il existe plusieurs schémas d'utilisation courants pour les pointeurs qualifiés restrict :</p>
+<h3 id="File_scope">Portée de fichier</h3>
+<p>Un pointeur qualifié restrict de portée fichier doit pointer vers un unique objet tableau pendant toute la durée du programme. Cet objet tableau ne peut pas être référencé à la fois via le pointeur restreint et via son nom déclaré (s'il en a un) ou via un autre pointeur restreint.</p>
+<p>Les pointeurs restreints de portée fichier sont utiles pour fournir un accès à des tableaux globaux alloués dynamiquement ; la sémantique de restrict permet d'optimiser les références via ce pointeur aussi efficacement que les références à un tableau statique via son nom déclaré :</p>
+<pre><code class="language-c">float *restrict a, *restrict b;
+float c[100];
+
+int init(int n)
+{
+   float * t = malloc(2*n*sizeof(float));
+   a = t;      // a désigne la première moitié
+   b = t + n;  // b désigne la seconde moitié
+}
+// le compilateur peut déduire des qualificateurs restrict que
+// il n'existe aucun aliasing potentiel entre les noms a, b et c
+</code></pre>
+<h3 id="Function_parameter">Paramètre de fonction</h3>
+<p>Le cas d'utilisation le plus courant des pointeurs qualifiés restrict est leur emploi comme paramètres de fonction.</p>
+<p>Dans l'exemple suivant, le compilateur peut déduire qu'il n'y a aucun aliasing d'objets modifiés, et donc optimiser agressivement la boucle. À l'entrée de <code>f</code>, le pointeur restreint a doit fournir un accès exclusif au tableau qui lui est associé. En particulier, dans <code>f</code>, ni <code>b</code> ni <code>c</code> ne peuvent pointer dans le tableau associé à <code>a</code>, car aucun des deux ne reçoit de valeur de pointeur basée sur <code>a</code>. Pour <code>b</code>, cela est évident grâce au qualificateur const dans sa déclaration, mais pour <code>c</code>, il faut examiner le corps de <code>f</code> :</p>
+<pre><code class="language-c">float x[100];
+float *c;
+
+void f(int n, float * restrict a, float * const b)
+{
+    int i;
+    for ( i=0; i&lt;n; i++ )
+       a[i] = b[i] + c[i];
+}
+
+void g3(void)
+{
+    float d[100], e[100];
+    c = x; f(100,   d,    e); // OK
+           f( 50,   d, d+50); // OK
+           f( 99, d+1,    d); // comportement indéfini
+    c = d; f( 99, d+1,    e); // comportement indéfini
+           f( 99,   e,  d+1); // OK
+}
+</code></pre>
+<p>Notez qu'il est permis à c de pointer dans le tableau associé à b. Notez également que, pour ces besoins, le « tableau » associé à un pointeur particulier désigne seulement la portion d'un objet tableau qui est effectivement référencée via ce pointeur.</p>
+<p>Notez que dans l'exemple ci-dessus, le compilateur peut déduire que a et b ne sont pas aliasés, car le caractère const de b garantit qu'il ne peut pas dépendre de a dans le corps de la fonction. De manière équivalente, le programmeur pourrait écrire <code>void f(int n, float * a, float const * restrict b)</code>, auquel cas le compilateur peut raisonner que les objets référencés via b ne peuvent pas être modifiés, et donc aucun objet modifié ne peut être référencé à la fois via b et a. Si le programmeur devait écrire <code>void f(int n, float * restrict a, float * b)</code>, le compilateur ne pourrait pas déduire l'absence d'aliasing entre a et b sans examiner le corps de la fonction.</p>
+<p>En général, il est préférable d'annoter explicitement tous les pointeurs sans aliasing dans le prototype d'une fonction avec <code>restrict</code>.</p>
+<h3 id="Block_scope">Portée de bloc</h3>
+<p>Un pointeur qualifié restrict de portée de bloc fait une assertion d'aliasing limitée à son bloc. Il permet des assertions locales ne s'appliquant qu'aux blocs importants, comme les boucles serrées. Il permet aussi de transformer une fonction prenant des pointeurs qualifiés restrict en macro :</p>
+<pre><code class="language-c">float x[100];
+float *c;
+
+#define f3(N, A, B)                                    \
+do                                                     \
+{   int n = (N);                                       \
+    float * restrict a = (A);                          \
+    float * const    b = (B);                          \
+    int i;                                             \
+    for ( i=0; i&lt;n; i++ )                              \
+        a[i] = b[i] + c[i];                            \
+} while(0)
+</code></pre>
+<h3 id="Struct_members">Membres de struct</h3>
+<p>La portée de l'assertion d'aliasing faite par un pointeur qualifié restrict membre d'une struct est la portée de l'identifiant utilisé pour accéder à la struct.</p>
+<p>Même si la struct est déclarée en portée fichier, lorsque l'identifiant utilisé pour accéder à la struct a une portée de bloc, les assertions d'aliasing de la struct ont aussi une portée de bloc ; les assertions d'aliasing ne sont en vigueur que pendant l'exécution d'un bloc ou un appel de fonction, selon la manière dont l'objet de ce type struct a été créé :</p>
+<pre><code class="language-c">struct t      // Les pointeurs restreints affirment que
+{
+   int n;     // les membres pointent vers des zones de stockage disjointes.
+   float * restrict p;
+   float * restrict q;
+};
+
+void ff(struct t r, struct t s)
+{
+   struct t u;
+   // r, s, u ont une portée de bloc
+   // r.p, r.q, s.p, s.q, u.p, u.q doivent tous pointer vers
+   // des zones de stockage disjointes pendant chaque exécution de ff.
+   // ...
+}
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/restrict.html"><code>restrict</code></a></p>
+<h2 id="Example">Exemple</h2>
+<p>exemple de génération de code ; compiler avec -S (gcc, clang, etc.) ou /FA (Visual Studio)</p>
+<pre><code class="language-c">int foo(int *a, int *b)
+{
+    *a = 5;
+    *b = 6;
+    return *a + *b;
+}
+
+int rfoo(int *restrict a, int *restrict b)
+{
+    *a = 5;
+    *b = 6;
+    return *a + *b;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">; generated code on 64bit Intel platform:
+foo:
+    movl    $5, (%rdi)    ; store 5 in *a
+    movl    $6, (%rsi)    ; store 6 in *b
+    movl    (%rdi), %eax  ; read back from *a in case previous store modified it
+    addl    $6, %eax      ; add 6 to the value read from *a
+    ret
+
+rfoo:
+    movl      $11, %eax   ; the result is 11, a compile-time constant
+    movl      $5, (%rdi)  ; store 5 in *a
+    movl      $6, (%rsi)  ; store 6 in *b
+    ret
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.3.1 Définition formelle de restrict (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.3.1 Définition formelle de restrict (p: 89-90)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.3.1 Définition formelle de restrict (p: 123-125)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.3.1 Définition formelle de restrict (p: 110-112)</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

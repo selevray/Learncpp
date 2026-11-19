@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::return_temporary_buffer — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-return_temporary_buffer"><code>std::return_temporary_buffer</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/return_temporary_buffer">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+void return_temporary_buffer( T* p );  // (obsolète en C++17) (supprimé en C++20)
+</code></pre>
+<p>Désalloue le stockage référencé par <code>p</code>.</p>
+<p>Si <code>p</code> n'est pas une valeur de pointeur renvoyée par un appel précédent à <a href="get_temporary_buffer.html"><code>std::get_temporary_buffer</code></a>, ou a été invalidé par un appel intermédiaire à <code>std::return_temporary_buffer</code>, le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — le pointeur faisant référence au stockage à désallouer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Ne lève aucune exception.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    const std::string s[] = {&quot;string&quot;, &quot;1&quot;, &quot;test&quot;, &quot;...&quot;};
+    const auto p = std::get_temporary_buffer&lt;std::string&gt;(4);
+    // exige que p.first soit passé à return_temporary_buffer
+    // (attention aux points de sortie anticipée et aux exceptions), ou mieux, utiliser :
+    std::unique_ptr&lt;std::string, void(*)(std::string*)&gt; on_exit(p.first,
+    [](std::string* p)
+    {
+        std::cout &lt;&lt; &quot;returning temporary buffer...\n&quot;;
+        std::return_temporary_buffer(p);
+    });
+
+    std::copy(s, s + p.second,
+              std::raw_storage_iterator&lt;std::string*, std::string&gt;(p.first));
+    // a le même effet que : std::uninitialized_copy(s, s + p.second, p.first);
+    // exige que chaque chaîne de p soit détruite individuellement
+    // (attention aux points de sortie anticipée et aux exceptions)
+
+    std::copy(p.first, p.first + p.second,
+              std::ostream_iterator&lt;std::string&gt;{std::cout, &quot;\n&quot;});
+
+    std::for_each(p.first, p.first + p.second, [](std::string&amp; e)
+    {
+        e.~basic_string&lt;char&gt;();
+    }); // identique à : std::destroy(p.first, p.first + p.second);
+
+    // libérer manuellement la mémoire si la technique de type unique_ptr n'est pas utilisée :
+    // std::return_temporary_buffer(p.first);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">string
+1
+test
+...
+returning temporary buffer...
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2072">LWG 2072</a></td>
+<td>C++98</td>
+<td>le stockage alloué par <a href="get_temporary_buffer.html"><code>std::get_temporary_buffer</code></a> pourrait être désalloué plusieurs fois</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="get_temporary_buffer.html">get_temporary_buffer</a><em>(deprecated in C++17)</em> (removed in C++20)</strong> — obtient un stockage non initialisé <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

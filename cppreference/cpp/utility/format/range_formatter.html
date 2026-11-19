@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::range_formatter — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/format.html">Bibliothèque de formatage (depuis C++20)</a></nav>
+<h1 id="std-range_formatter"><code>std::range_formatter</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/format/range_formatter">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;format&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class CharT = char &gt;
+    requires std::same_as&lt;std::remove_cvref_t&lt;T&gt;, T&gt; &amp;&amp; std::formattable&lt;T, CharT&gt;
+class range_formatter;  // (depuis C++23)
+</code></pre>
+<p><code>std::range_formatter</code> est un modèle de classe auxiliaire permettant d'implémenter les spécialisations de <a href="formatter.html"><code>std::formatter</code></a> pour les intervalles.</p>
+<h2 id="Range_format_specification">Spécificateur de format d'intervalle</h2>
+<p>La syntaxe de <code>range-format-spec</code> est :</p>
+<p>|
+| |
+| <code>range-fill-and-align</code> ﻿*(facultatif)* <code>width</code> ﻿*(facultatif)* <code>n</code><em>(facultatif)</em> <code>range-type</code> ﻿*(facultatif)* <code>range-underlying-spec</code> ﻿*(facultatif)* | | |
+|</p>
+<p><code>range-fill-and-align</code> est interprété de la même manière que <code>fill-and-align</code>, sauf que le <code>fill</code> dans <code>range-fill-and-align</code> est n'importe quel caractère autre que <code>{</code>, <code>}</code> ou <code>:</code>.</p>
+<p><code>width</code> est décrit dans <a href="spec.html#Width_and_precision">spécification de largeur de format standard</a>.</p>
+<p>L'option <code>n</code> provoque le formatage de la plage sans les crochets ouvrant et fermant.</p>
+<pre><code class="language-cpp">assert(std::format(&quot;{}&quot;, views::iota(1, 5)) == &quot;[1, 2, 3, 4]&quot;);
+assert(std::format(&quot;{:n}&quot;, views::iota(1, 5)) == &quot;1, 2, 3, 4&quot;);
+</code></pre>
+<p>Le <code>format-spec</code> dans un <code>range-underlying-spec</code> (sa syntaxe est équivalente à <code>:</code> <code>format-spec</code>), s'il est présent, est interprété par le formateur d'élément de plage <code>std::formatter&lt;T, CharT&gt;</code>.</p>
+<pre><code class="language-cpp">std::array ints{12, 10, 15, 14};
+
+assert(std::format(&quot;{}&quot;, ints) == &quot;[12, 10, 15, 14]&quot;);
+assert(std::format(&quot;{::X}&quot;, ints) == &quot;[C, A, F, E]&quot;);
+assert(std::format(&quot;{:n:_^4}&quot;, ints) == &quot;_12_, _10_, _15_, _14_&quot;);
+</code></pre>
+<p>Le <code>range-type</code> modifie la manière dont une plage est formatée, certaines options n'étant valables qu'avec certains types d'arguments.</p>
+<p>Les types de présentation d'intervalle disponibles sont :</p>
+<ul>
+<li><code>m</code> : indique que la parenthèse ouvrante doit être <code>&quot;{&quot;</code>, la parenthèse fermante doit être <code>&quot;}&quot;</code>, le séparateur doit être <code>&quot;, &quot;</code>, et chaque élément de la plage doit être formaté comme si <code>m</code> était spécifié pour son <code>tuple-type</code> (dans <a href="tuple_formatter.html#Format_specification"><code>tuple-format-spec</code></a>).
+<ul>
+<li>Si <code>m</code> est choisi comme <code>range-type</code>, le programme est mal formé à moins que <code>T</code> soit une spécialisation de :
+<ul>
+<li><a href="../pair.html"><code>std::pair</code></a>, or</li>
+<li><a href="../tuple.html"><code>std::tuple</code></a> tel que <code>std::tuple_size_v&lt;T&gt; == 2</code> soit <code>true</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-cpp">std::array char_pairs
+{
+    std::pair{'A', 5}, std::pair{'B', 10}, std::pair{'C', 12}
+};
+
+assert(std::format(&quot;{}&quot;, char_pairs) == &quot;[('A', 5), ('B', 10), ('C', 12)]&quot;);
+assert(std::format(&quot;{:m}&quot;, char_pairs) == &quot;{'A': 5, 'B': 10, 'C': 12}&quot;);
+</code></pre>
+<ul>
+<li><code>s</code> : indique que la plage doit être formatée comme une chaîne.</li>
+<li><code>?s</code> : indique que la plage doit être formatée comme une <a href="spec.html#Formatting_escaped_characters_and_strings">chaîne échappée</a>.
+<ul>
+<li>Si <code>s</code> ou <code>?s</code> est choisi comme <code>range-type</code>, l'option <code>n</code> et <code>range-underlying-spec</code> ne doivent pas être incluses dans le spécificateur de format, et</li>
+<li>le programme est mal formé à moins que <code>T</code> soit <code>CharT</code>.</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-cpp">std::array star{'S', 'T', 'A', 'R'};
+
+assert(std::format(&quot;{}&quot;, star) == &quot;['S', 'T', 'A', 'R']&quot;);
+assert(std::format(&quot;{:s}&quot;, star) == &quot;STAR&quot;);
+assert(std::format(&quot;{:?s}&quot;, star) == &quot;\&quot;STAR\&quot;&quot;);
+</code></pre>
+<h2 id="Data_members">Membres de données</h2>
+<p><strong>Nom du membre Définition</strong></p>
+<ul>
+<li><strong><code>std::formatter&lt;T, CharT&gt;</code> <code>underlying_</code> <em>(privé)</em></strong> — le formateur sous-jacent pour les éléments <em>(membre donnée exposition-only</em>)*</li>
+<li><strong><code>std::basic_string_view&lt;CharT&gt;</code> <code>separator_</code> <em>(privé)</em></strong> — une chaîne représentant le séparateur du résultat formaté de la plage. Le séparateur par défaut est <code>&quot;, &quot;</code>. <em>(membre donnée exposition-only</em>)*</li>
+<li><strong><code>std::basic_string_view&lt;CharT&gt;</code> <code>opening-bracket_</code> <em>(privé)</em></strong> — une chaîne représentant la parenthèse ouvrante du résultat formaté de la plage. La parenthèse ouvrante par défaut est <code>&quot;[&quot;</code>. <em>(membre donnée exposition-only</em>)*</li>
+<li><strong><code>std::basic_string_view&lt;CharT&gt;</code> <code>closing-bracket_</code> <em>(privé)</em></strong> — une chaîne représentant la parenthèse fermante du résultat formaté de la plage. La parenthèse fermante par défaut est <code>&quot;]&quot;</code>. <em>(membre donnée exposition-only</em>)*</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong>set_separator</strong> — définit un séparateur spécifié pour le résultat formaté de la plage <em>(fonction membre publique)</em></li>
+<li><strong>set_brackets</strong> — définit des parenthèses ouvrante et fermante spécifiées pour le résultat formaté de la plage <em>(fonction membre publique)</em></li>
+<li><strong>underlying</strong> — renvoie le formateur sous-jacent <em>(fonction membre publique)</em></li>
+<li><strong>parse</strong> — analyse le spécificateur de format tel que spécifié par <code>range-format-spec</code> <em>(fonction membre publique)</em></li>
+<li><strong>format</strong> — écrit la sortie formatée de l'intervalle telle que spécifiée par <code>range-format-spec</code> <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="std::range_formatter::set_separator">std::range_formatter::set_separator</h2>
+<pre><code class="language-cpp">constexpr void set_separator( std::basic_string_view&lt;CharT&gt; sep ) noexcept;
+</code></pre>
+<p>Affecte <code>sep</code> à <code>separator_</code>.</p>
+<h2 id="std::range_formatter::set_brackets">std::range_formatter::set_brackets</h2>
+<pre><code class="language-cpp">constexpr void set_brackets( std::basic_string_view&lt;CharT&gt; opening,
+                             std::basic_string_view&lt;CharT&gt; closing ) noexcept;
+</code></pre>
+<p>Affecte <code>opening</code> et <code>closing</code> à <code>opening-bracket_</code> et <code>closing-bracket_</code>, respectivement.</p>
+<h2 id="std::range_formatter::underlying">std::range_formatter::underlying</h2>
+<pre><code class="language-cpp">constexpr std::formatter&lt;T, CharT&gt;&amp; underlying();  // (1)
+
+constexpr const std::formatter&lt;T, CharT&gt;&amp; underlying() const;  // (2)
+</code></pre>
+<p>Renvoie <code>underlying_</code> (le formateur sous-jacent).</p>
+<h2 id="std::range_formatter::parse">std::range_formatter::parse</h2>
+<pre><code class="language-cpp">template&lt; class ParseContext &gt;
+constexpr auto parse( ParseContext&amp; ctx ) -&gt; ParseContext::iterator;
+</code></pre>
+<p>Analyse les spécificateurs de format comme un <code>range-format-spec</code> et stocke les spécificateurs analysés dans l'objet courant.</p>
+<p>Appelle <code>underlying_.parse(ctx)</code> pour analyser <code>format-spec</code> dans <code>range-format-spec</code> ou, si ce dernier n'est pas présent, un <code>format-spec</code> vide.</p>
+<p>Si <code>range-type</code> ou l'option <code>n</code> est présente, les valeurs de <code>opening-bracket_</code>, <code>closing-bracket_</code> et <code>separator_</code> sont modifiées selon les besoins.</p>
+<p>Il appelle <code>underlying_.set_debug_format()</code> si :</p>
+<ul>
+<li>le <code>range-type</code> n'est ni <code>s</code> ni <code>?s</code>,</li>
+<li><code>underlying_.set_debug_format()</code> est une expression valide, et</li>
+<li>il n'existe aucun <code>range-underlying-spec</code>.</li>
+</ul>
+<p>Renvoie un itérateur situé après la fin de la <code>range-format-spec</code>.</p>
+<h2 id="std::range_formatter::format">std::range_formatter::format</h2>
+<pre><code class="language-cpp">template&lt; ranges::input_range R, class FormatContext &gt;
+  requires std::formattable&lt;ranges::range_reference_t&lt;R&gt;, CharT&gt; &amp;&amp;
+           std::same_as&lt;std::remove_cvref_t&lt;ranges::range_reference_t&lt;R&gt;&gt;, T&gt;
+auto format( R&amp;&amp; r, FormatContext&amp; ctx ) const -&gt; FormatContext::iterator;
+</code></pre>
+<p>Si le <code>range-type</code> était soit <code>s</code>, soit <code>?s</code>, il écrit le <code>std::basic_string&lt;CharT&gt;(std::from_range, r)</code> formaté sous forme de chaîne ou de chaîne échappée, respectivement, dans <code>ctx.out()</code>.</p>
+<p>Sinon, il écrit ce qui suit dans <code>ctx.out()</code> comme spécifié par <code>range-format-spec</code>, dans l'ordre :</p>
+<ul>
+<li>
+<p><code>opening-bracket_</code>,</p>
+</li>
+<li>
+<p>pour chaque <code>e</code> formatable de l'intervalle <code>r</code> :</p>
+<ul>
+<li>le résultat de l'écriture de <code>e</code> via <code>underlying_</code>, et</li>
+<li><code>separator_</code>, sauf si <code>e</code> est le dernier élément de <code>r</code>, et</li>
+</ul>
+</li>
+<li>
+<p><code>closing-bracket_</code>.</p>
+</li>
+</ul>
+<p>Renvoie un itérateur situé après la fin de l'intervalle de sortie.</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3892">LWG 3892</a></td>
+<td>C++23</td>
+<td>le formatage des intervalles imbriqués était incorrect</td>
+<td>corrected</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="formatter.html">formatter</a> (C++20)</strong> — définit les règles de formatage pour un type donné <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

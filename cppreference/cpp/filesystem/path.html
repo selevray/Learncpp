@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::path — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-path"><code>std::filesystem::path</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/path">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">class path;  // (depuis C++17)
+</code></pre>
+<p>Les objets de type <code>path</code> représentent des chemins sur un système de fichiers. Seuls les aspects syntaxiques des chemins sont traités : le nom de chemin peut représenter un chemin inexistant, voire un chemin qui n'est pas autorisé à exister sur le système de fichiers ou le système d'exploitation actuel.</p>
+<p>La syntaxe du nom de chemin est la suivante :</p>
+<ol>
+<li><code>root-name</code><em>(facultatif)</em> : identifie la racine sur un système de fichiers possédant plusieurs racines (comme <code>&quot;C:&quot;</code> ou <code>&quot;//myserver&quot;</code>). En cas d'ambiguïté, la plus longue séquence de caractères formant un <code>root-name</code> valide est considérée comme le <code>root-name</code>. La bibliothèque standard peut définir des noms de racine supplémentaires, en plus de ceux reconnus par l'API du système d'exploitation.</li>
+<li><code>root-directory</code><em>(facultatif)</em> : un séparateur de répertoire qui, s'il est présent, marque ce chemin comme <em>absolu</em>. S'il est absent (et que le premier élément autre que le nom de racine est un nom de fichier), alors le chemin est <em>relatif</em> et nécessite un autre chemin comme emplacement de départ pour être résolu en nom de fichier.</li>
+<li>Zéro ou plusieurs des éléments suivants :
+<ul>
+<li><code>file-name</code> : suite de caractères qui ne sont ni des séparateurs de répertoire ni des séparateurs de répertoire préférés (le système d'exploitation ou le système de fichiers peut imposer des limitations supplémentaires). Ce nom peut désigner un fichier, un lien physique, un lien symbolique ou un répertoire. Deux <code>file-name</code> particuliers sont reconnus :
+<ul>
+<li><code>dot</code> : le nom de fichier constitué d'un seul caractère point <code>.</code> est un nom de répertoire qui désigne le répertoire courant.</li>
+<li><code>dot-dot</code> : le nom de fichier constitué de deux caractères point <code>..</code> est un nom de répertoire qui désigne le répertoire parent.</li>
+</ul>
+</li>
+<li><code>directory-separator</code> : le caractère barre oblique <code>/</code> ou le caractère alternatif fourni sous la forme <code>path::preferred_separator</code>. Si ce caractère est répété, il est traité comme un seul séparateur de répertoire : <code>/usr///////lib</code> est identique à <code>/usr/lib</code>.</li>
+</ul>
+</li>
+</ol>
+<p>Un chemin peut être <em>normalisé</em> en suivant cet algorithme :</p>
+<ol>
+<li>Si le chemin est vide, s'arrêter (la forme normale d'un chemin vide est un chemin vide).</li>
+<li>Remplacer chaque <code>directory-separator</code> (qui peut être composé de plusieurs barres obliques) par une seule <code>path::preferred_separator</code>.</li>
+<li>Remplacer chaque caractère barre oblique dans la <code>root-name</code> par <code>path::preferred_separator</code>.</li>
+<li>Supprimer chaque <code>dot</code> ainsi que toute <code>directory-separator</code> qui la suit immédiatement.</li>
+<li>Supprimer chaque nom de fichier qui n'est pas <code>dot-dot</code>, immédiatement suivi d'une <code>directory-separator</code> et d'un <code>dot-dot</code>, ainsi que toute <code>directory-separator</code> qui suit immédiatement.</li>
+<li>S'il existe une <code>root-directory</code>, supprimer toutes les <code>dot-dot</code> et toutes les <code>directory-separator</code> qui les suivent immédiatement.</li>
+<li>Si le dernier nom de fichier est <code>dot-dot</code>, supprimer toute <code>directory-separator</code> finale.</li>
+<li>Si le chemin est vide, ajouter un <code>dot</code> (la forme normale de <code>./</code> est <code>.</code>).</li>
+</ol>
+<p>Le chemin peut être parcouru élément par élément à l'aide des itérateurs renvoyés par les fonctions <a href="path/begin.html"><code>begin()</code></a> et <a href="path/begin.html"><code>end()</code></a>, qui voient le chemin au format générique et itèrent sur le nom de racine, le répertoire racine, puis les éléments de nom de fichier suivants (les séparateurs de répertoires sont ignorés, à l'exception de celui qui identifie le répertoire racine). Si le tout dernier élément du chemin est un séparateur de répertoires, le dernier itérateur déréférencera un élément vide.</p>
+<p>Appeler une fonction membre non constante de <code>path</code> invalide tous les itérateurs faisant référence aux éléments de cet objet.</p>
+<p>Si le système d'exploitation utilise une syntaxe <em>native</em> différente de la syntaxe <em>générique</em> portable décrite ci-dessus, les fonctions de la bibliothèque définies pour accepter un « format détecté » acceptent les noms de chemin dans les deux formats : un argument au format détecté est considéré comme étant au format générique si et seulement s'il correspond au format générique sans être acceptable par le système d'exploitation comme chemin natif. Sur les systèmes où le format natif diffère entre les chemins de répertoires et les chemins de fichiers, un chemin générique est traité comme un chemin de répertoire s'il se termine par un séparateur de répertoires, et comme un fichier ordinaire sinon.</p>
+<p>Dans tous les cas, la classe path se comporte comme si elle stockait un chemin au format natif et se convertissait automatiquement au format générique si nécessaire (chaque fonction membre précise le format dans lequel elle interprète le chemin).</p>
+<p>Sur les systèmes POSIX, le format générique est le format natif et il n'est pas nécessaire de les distinguer ni de les convertir.</p>
+<p>Les chemins sont implicitement convertibles vers et depuis les <a href="../string/basic_string.html"><code>std::basic_string</code></a>, ce qui permet de les utiliser avec d'autres API de fichiers.</p>
+<p>Les <a href="path/operator_ltltgtgt.html">opérateurs de flux</a> utilisent <a href="../io/manip/quoted.html"><code>std::quoted</code></a> afin que les espaces ne provoquent pas de troncature lors d'une lecture ultérieure par <a href="path/operator_ltltgtgt.html">l'opérateur d'extraction de flux</a>.</p>
+<p>Les <a href="path.html#Decomposition">fonctions membres de décomposition</a> (par ex. <a href="path/extension.html"><code>extension</code></a>) renvoient des objets <code>filesystem::path</code> au lieu d'objets string, contrairement à d'autres API.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li>
+<p><strong><code>value_type</code></strong> — type de caractère utilisé par l'encodage natif du système de fichiers : <code>char</code> sous POSIX, <code>wchar_t</code> sous Windows</p>
+</li>
+<li>
+<p><strong><code>string_type</code></strong> — <code>std::basic_string&lt;value_type&gt;</code></p>
+</li>
+<li>
+<p><strong><code>const_iterator</code></strong> — Une constante <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a> ayant un <code>value_type</code> de <code>path</code> qui satisfait toutes les exigences de <a href="../named_req/BidirectionalIterator.html"><em>LegacyBidirectionalIterator</em></a>, à l'exception du fait que, pour deux itérateurs déréférençables égaux <code>a</code> et <code>b</code> de type <code>const_iterator</code>, il n'est pas exigé que <code>*a</code> et <code>*b</code> désignent le même objet.</p>
+<p>Il n'est pas spécifié si <code>const_iterator</code> est effectivement un <a href="../named_req/BidirectionalIterator.html"><em>LegacyBidirectionalIterator</em></a></p>
+</li>
+<li>
+<p><strong><code>iterator</code></strong> — <code>const_iterator</code></p>
+</li>
+<li>
+<p><strong><a href="path/format.html">format</a></strong> — détermine comment interpréter les représentations sous forme de chaînes des noms de chemin.</p>
+<p>Les énumérateurs suivants sont également définis :</p>
+<p><strong>Nom Explication</strong></p>
+<ul>
+<li><strong><a href="path/format.html"><code>native_format</code></a></strong> — format de nom de chemin natif</li>
+<li><strong><a href="path/format.html"><code>generic_format</code></a></strong> — format de nom de chemin générique</li>
+<li><strong><a href="path/format.html"><code>auto_format</code></a></strong> — format défini par l'implémentation, détecté automatiquement lorsque c'est possible*(énumération membre publique)*</li>
+</ul>
+</li>
+</ul>
+<h2 id="Member_constants">Constantes membres</h2>
+<ul>
+<li><strong>constexpr value_type preferred_separator [statique]</strong> — séparateur de répertoire alternatif pouvant être utilisé en plus du séparateur portable <code>/</code>. Sous Windows, il s'agit de la barre oblique inverse <code>\</code>. Sous POSIX, il s'agit de la même barre oblique <code>/</code> que le séparateur portable <em>(constante membre statique publique)</em></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="path/path.html">(constructeur)</a></strong> — construit un <code>path</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/~path.html">(destructeur)</a></strong> — détruit un objet <code>path</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/operator%3D.html">operator=</a></strong> — affecte un autre chemin <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/assign.html">assign</a></strong> — assigne le contenu <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Concaténation {#Concatenation}</strong></p>
+<ul>
+<li><strong><a href="path/append.html">appendoperator/=</a></strong> — ajoute des éléments au chemin avec un séparateur de répertoire <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/concat.html">concatoperator+=</a></strong> — concatène deux chemins sans introduire de séparateur de répertoire <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Modificateurs {#Modifiers}</strong></p>
+<ul>
+<li><strong><a href="path/clear.html">clear</a></strong> — efface le contenu de <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/make_preferred.html">make_preferred</a></strong> — convertit les séparateurs de répertoire en séparateur de répertoire préféré <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/remove_filename.html">remove_filename</a></strong> — supprime le composant de nom de fichier <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/replace_filename.html">replace_filename</a></strong> — remplace le dernier composant du chemin par un autre chemin <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/replace_extension.html">replace_extension</a></strong> — remplace l'extension <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/swap.html">swap</a></strong> — échange deux chemins <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Observateurs de format {#Format_observers}</strong></p>
+<ul>
+<li><strong><a href="path/native.html">c_strnativeoperator string_type</a></strong> — renvoie la version native du chemin <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/string.html">stringwstringu8stringu16stringu32string</a></strong> — renvoie le chemin au format de nom de chemin natif converti en chaîne <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/generic_string.html">generic_stringgeneric_wstringgeneric_u8stringgeneric_u16stringgeneric_u32string</a></strong> — renvoie le chemin au format de nom de chemin générique converti en chaîne <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Comparaison {#Compare}</strong></p>
+<ul>
+<li><strong><a href="path/compare.html">compare</a></strong> — compare lexicographiquement les représentations lexicales de deux chemins <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Génération {#Generation}</strong></p>
+<ul>
+<li><strong><a href="path/lexically_normal.html">lexically_normallexically_relativelexically_proximate</a></strong> — convertit le chemin en forme normale convertit le chemin en forme relative convertit le chemin en forme proche <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Décomposition {#Decomposition}</strong></p>
+<ul>
+<li><strong><a href="path/root_name.html">root_name</a></strong> — renvoie le nom racine du chemin, s'il est présent <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/root_directory.html">root_directory</a></strong> — renvoie le répertoire racine du chemin, s'il est présent <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/root_path.html">root_path</a></strong> — renvoie le chemin racine du chemin, s'il est présent <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/relative_path.html">relative_path</a></strong> — renvoie le chemin relatif à la racine <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/parent_path.html">parent_path</a></strong> — renvoie le chemin du parent de <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/filename.html">filename</a></strong> — renvoie le composant nom de fichier du chemin <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/stem.html">stem</a></strong> — renvoie le composant de chemin radical (nom de fichier sans l'extension finale) <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/extension.html">extension</a></strong> — renvoie le composant extension de fichier du chemin <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Requêtes {#Queries}</strong></p>
+<ul>
+<li><strong><a href="path/empty.html">empty</a></strong> — vérifie si le chemin est vide <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/has_path.html">has_root_pathhas_root_namehas_root_directoryhas_relative_pathhas_parent_pathhas_filenamehas_stemhas_extension</a></strong> — vérifie si l'élément de chemin correspondant n'est pas vide <em>(fonction membre publique)</em></li>
+<li><strong><a href="path/is_absrel.html">is_absoluteis_relative</a></strong> — vérifie si <a href="path/root_path.html"><code>root_path()</code></a> identifie de manière unique l'emplacement du système de fichiers <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Itérateurs {#Iterators}</strong></p>
+<ul>
+<li><strong><a href="path/begin.html">beginend</a></strong> — accès par itérateur au chemin en tant que séquence d'éléments <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Non-member_functions">Fonctions non membres</h2>
+<p><strong>Défini dans l'espace de noms <code>std::filesystem</code></strong></p>
+<ul>
+<li><strong><a href="path/swap2.html">swap(std::filesystem::path)</a> (C++17)</strong> — spécialise l'algorithme <a href="../utility/swap.html"><code>std::swap</code></a> <em>(fonction)</em></li>
+<li><strong><a href="path/hash_value.html">hash_value</a> (C++17)</strong> — calcule une valeur de hachage pour un objet chemin <em>(fonction)</em></li>
+<li><strong><a href="path/operator_cmp.html">operator==operator!=operator&lt;operator&lt;=operator&gt;operator&gt;=operator&lt;=&gt;</a> (C++17) (C++17) (until C++20) (C++17) (until C++20) (C++17) (until C++20) (C++17) (until C++20) (C++17) (until C++20) (C++20)</strong> — compare lexicographiquement deux chemins <em>(fonction)</em></li>
+<li><strong><a href="path/operator_slash.html">operator/</a> (C++17)</strong> — concatène deux chemins avec un séparateur de répertoire <em>(fonction)</em></li>
+<li><strong><a href="path/operator_ltltgtgt.html">operator&lt;&lt;operator&gt;&gt;</a> (C++17)</strong> — effectue une entrée et une sortie de flux sur un chemin entre guillemets <em>(fonction)</em></li>
+<li><strong><a href="path/u8path.html">u8path</a> (C++17) (deprecated in C++20)</strong> — crée un <code>path</code> à partir d'une source encodée en UTF-8 <em>(fonction)</em></li>
+</ul>
+<h2 id="Helper_classes">Classes auxiliaires</h2>
+<p><strong>Défini dans l'espace de noms <code>std</code></strong></p>
+<ul>
+<li><strong><a href="path/hash.html">std::hash&lt;std::filesystem::path&gt;</a> (C++17)</strong> — prise en charge du hachage pour <strong><code>std::filesystem::path</code></strong> <em>(spécialisation de modèle de classe)</em></li>
+<li><strong><a href="path/formatter.html">std::formatter&lt;std::filesystem::path&gt;</a> (C++26)</strong> — prise en charge du formatage pour <code>filesystem::path</code> <em>(spécialisation de modèle de classe)</em></li>
+</ul>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3657">LWG 3657</a></td>
+<td>C++17</td>
+<td><a href="path/hash.html"><code>hash</code></a> pour <code>path</code> a été désactivé</td>
+<td>enabled</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

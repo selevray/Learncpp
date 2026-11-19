@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classes imbriquées — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="classes-imbriquées">Classes imbriquées</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/nested_classes">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Une déclaration de <a href="class.html">class/struct</a> ou de <a href="union.html">union</a> peut apparaître à l'intérieur d'une autre classe. Une telle déclaration déclare une <em>classe imbriquée</em>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Le nom de la classe imbriquée existe dans la portée de la classe englobante, et la recherche de noms depuis une fonction membre d'une classe imbriquée examine la portée de la classe englobante après celle de la classe imbriquée. Comme tout membre de sa classe englobante, la classe imbriquée a accès à tous les noms (privés, protégés, etc.) auxquels la classe englobante a accès, mais elle est par ailleurs indépendante et n'a aucun accès spécial au <a href="this.html">pointeur <code>this</code></a> de la classe englobante. Les déclarations d'une classe imbriquée peuvent utiliser tous les membres de la classe englobante, en suivant les <a href="data_members.html#Usage">règles d'usage habituelles</a> pour les membres non statiques.</p>
+<pre><code class="language-cpp">int x, y; // globals
+class enclose // classe englobante
+{
+    // note : membres privés
+    int x;
+    static int s;
+public:
+    struct inner // classe imbriquée
+    {
+        void f(int i)
+        {
+            x = i; // Error : impossible d'écrire dans enclose::x non statique sans instance
+            int a = sizeof x; // Error jusqu'à C++11,
+                              // OK depuis C++11 : l'opérande de sizeof n'est pas évalué,
+                              // cette utilisation de enclose::x non statique est autorisée.
+            s = i;   // OK : affectation possible à enclose::s statique
+            ::x = i; // OK : affectation possible à la variable globale x
+            y = i;   // OK : affectation possible à la variable globale y
+        }
+
+        void g(enclose* p, int i)
+        {
+            p-&gt;x = i; // OK : affectation à enclose::x
+        }
+    };
+};
+</code></pre>
+<p>Les fonctions <a href="friend.html">amies</a> définies dans une classe imbriquée n'ont aucun accès spécial aux membres de la classe englobante, même si la recherche de noms depuis le corps d'une fonction membre définie dans une classe imbriquée peut trouver les membres privés de la classe englobante.</p>
+<p>Les définitions hors de la classe des membres d'une classe imbriquée apparaissent dans l'espace de noms de la classe englobante :</p>
+<pre><code class="language-cpp">struct enclose
+{
+    struct inner
+    {
+        static int x;
+        void f(int i);
+    };
+};
+
+int enclose::inner::x = 1;       // definition
+void enclose::inner::f(int i) {} // definition
+</code></pre>
+<p>Les classes imbriquées peuvent être déclarées par anticipation puis définies plus tard, soit dans le même corps de la classe englobante, soit en dehors de celui-ci :</p>
+<pre><code class="language-cpp">class enclose
+{
+    class nested1;    // déclaration anticipée
+    class nested2;    // déclaration anticipée
+    class nested1 {}; // définition de la classe imbriquée
+};
+
+class enclose::nested2 {}; // définition de la classe imbriquée
+</code></pre>
+<p>Les déclarations de classes imbriquées respectent les spécificateurs d'<a href="access.html">accès aux membres</a> : une classe membre privée ne peut pas être désignée en dehors de la portée de la classe englobante, bien que des objets de cette classe puissent être manipulés :</p>
+<pre><code class="language-cpp">class enclose
+{
+    struct nested // membre privé
+    {
+        void g() {}
+    };
+public:
+    static nested f() { return nested{}; }
+};
+
+int main()
+{
+    //enclose::nested n1 = enclose::f(); // erreur : 'nested' est privé
+
+    enclose::f().g();       // OK : ne désigne pas 'nested'
+    auto n2 = enclose::f(); // OK : ne désigne pas 'nested'
+    n2.g();
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/45.html">CWG 45</a></td>
+<td>C++98</td>
+<td>les membres d'une classe imbriquée ne peuvent pas accéder à la classe englobante ni à ses amies</td>
+<td>ils ont les mêmes droits d'accès que les autres membres de la classe englobante (corrige aussi les problèmes CWG #8 et #10)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>11.4.12 Déclarations de classes imbriquées [class.nest]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>11.4.10 Déclarations de classes imbriquées [class.nest]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>12.2.5 Déclarations de classes imbriquées [class.nest]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>9.7 Déclarations de classes imbriquées [class.nest]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>9.7 Déclarations de classes imbriquées [class.nest]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>9.7 Déclarations de classes imbriquées [class.nest]</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

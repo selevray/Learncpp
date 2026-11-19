@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::pmr::polymorphic_allocator&lt;T&gt;::construct — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/polymorphic_allocator.html">std::pmr::polymorphic_allocator</a></nav>
+<h1 id="std-pmr-polymorphic_allocator-t-construct"><code>std::pmr::polymorphic_allocator&lt;T&gt;::construct</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/polymorphic_allocator/construct">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class U, class... Args &gt;
+void construct( U* p, Args&amp;&amp;... args );  // (1) (depuis C++17)
+
+template&lt; class T1, class T2, class... Args1, class... Args2 &gt;
+void construct( std::pair&lt;T1, T2&gt;* p,
+                std::piecewise_construct_t,
+                std::tuple&lt;Args1...&gt; x,
+                std::tuple&lt;Args2...&gt; y );  // (2) (depuis C++17) (jusqu'à C++20)
+
+template&lt; class T1, class T2 &gt;
+void construct( std::pair&lt;T1, T2&gt;* p );  // (3) (depuis C++17) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, U&amp;&amp; x, V&amp;&amp; y );  // (4) (depuis C++17) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, const std::pair&lt;U, V&gt;&amp; xy );  // (5) (depuis C++17) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, std::pair&lt;U, V&gt;&amp;&amp; xy );  // (6) (depuis C++17) (jusqu'à C++20)
+
+template&lt; class T1, class T2, class NonPair &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, NonPair&amp;&amp; non_pair );  // (7) (depuis C++17) (jusqu'à C++20)
+</code></pre>
+<p>Construit un objet dans un stockage alloué mais non initialisé pointé par <code>p</code> avec les arguments du constructeur fournis. Si l'objet est d'un type qui utilise lui-même des allocateurs, ou s'il s'agit de std::pair, transmet <code>*this</code> à l'objet construit.</p>
+<ol>
+<li>Crée un objet du type donné <code>U</code> au moyen de <a href="../uses_allocator.html#Uses-allocator_construction">construction avec propagation d'allocateur</a> à l'emplacement de mémoire non initialisé indiqué par <code>p</code>, en utilisant <code>*this</code> comme allocateur. Cette surcharge ne participe à la résolution de surcharge que si <code>U</code> n'est pas une spécialisation de <a href="../../utility/pair.html"><code>std::pair</code></a>. <em>(jusqu'à C++20)</em></li>
+</ol>
+<blockquote>
+<ol start="2">
+<li>Tout d'abord, si <code>T1</code> ou <code>T2</code> est sensible à l'allocateur, modifie les tuples <code>x</code> et <code>y</code> pour inclure <code>this-&gt;resource()</code>, ce qui donne deux nouveaux tuples <code>xprime</code> et <code>yprime</code>, selon les trois règles suivantes :</li>
+</ol>
+<p>2a) si <code>T1</code> n'est pas sensible à l'allocateur (<code>std::uses_allocator&lt;T1, polymorphic_allocator&gt;::value==false</code>) et <code>std::is_constructible&lt;T1, Args1...&gt;::value==true</code>, alors <code>xprime</code> vaut <code>x</code>, non modifié.</p>
+<p>2b) si <code>T1</code> est sensible à l'allocateur (<code>std::uses_allocator&lt;T1, polymorphic_allocator&gt;::value==true</code>) et que son constructeur prend une étiquette d'allocateur (<code>std::is_constructible&lt;T1, std::allocator_arg_t, polymorphic_allocator, Args1...&gt;::value==true</code>), alors <code>xprime</code> vaut <code>std::tuple_cat(std::make_tuple(std::allocator_arg, *this), std::move(x))</code>.</p>
+<p>2c) si <code>T1</code> est sensible à l'allocateur (<code>std::uses_allocator&lt;T1, polymorphic_allocator&gt;::value==true</code>) et que son constructeur prend l'allocateur comme dernier argument (<code>std::is_constructible&lt;T1, Args1..., polymorphic_allocator&gt;::value==true</code>), alors <code>xprime</code> vaut <code>std::tuple_cat(std::move(x), std::make_tuple(*this))</code>.</p>
+<p>2d) Sinon, le programme est mal formé.</p>
+<p>Les mêmes règles s'appliquent à <code>T2</code> et au remplacement de <code>y</code> par <code>yprime</code>.</p>
+<p>Une fois <code>xprime</code> et <code>yprime</code> construits, construit la paire <code>p</code> dans un espace alloué comme si par <code>::new((void *) p) pair&lt;T1, T2&gt;(std::piecewise_construct, std::move(xprime), std::move(yprime));</code>.</p>
+<ol start="3">
+<li>
+<p>Équivalent à <code>construct(p, std::piecewise_construct, std::tuple&lt;&gt;(), std::tuple&lt;&gt;())</code>, c'est-à-dire transmet la ressource mémoire aux types membres de la paire s'ils l'acceptent.</p>
+</li>
+<li>
+<p>Équivalent à</p>
+</li>
+</ol>
+<pre><code class="language-cpp">construct(p, std::piecewise_construct, std::forward_as_tuple(std::forward&lt;U&gt;(x)),
+                                       std::forward_as_tuple(std::forward&lt;V&gt;(y)))
+</code></pre>
+<ol start="5">
+<li>Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">construct(p, std::piecewise_construct, std::forward_as_tuple(xy.first),
+                                       std::forward_as_tuple(xy.second))
+</code></pre>
+<ol start="6">
+<li>Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">construct(p, std::piecewise_construct, std::forward_as_tuple(std::forward&lt;U&gt;(xy.first)),
+                                       std::forward_as_tuple(std::forward&lt;V&gt;(xy.second)))
+</code></pre>
+<ol start="7">
+<li>Cette surcharge ne participe à la résolution de surcharge que si le modèle de fonction exposition-only</li>
+</ol>
+<pre><code class="language-cpp">template&lt; class A, class B &gt;
+void /*deduce-as-pair*/( const std::pair&lt;A, B&gt;&amp; );
+</code></pre>
+<p>est donné</p>
+<p>, <code>/*deduce-as-pair*/(non_pair)</code> est mal formé lorsqu'il est considéré comme opérande non évalué. Équivalent à</p>
+<pre><code class="language-cpp">construct&lt;T1, T2, T1, T2&gt;(p, std::forward&lt;NonPair&gt;(non_pair));
+</code></pre>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur vers un stockage alloué mais non initialisé</li>
+<li><code>args...</code> — les arguments du constructeur à transmettre au constructeur de <code>T</code></li>
+<li><code>x</code> — les arguments du constructeur à transmettre au constructeur de <code>T1</code></li>
+<li><code>y</code> — les arguments du constructeur à transmettre au constructeur de <code>T2</code></li>
+<li><code>xy</code> — la paire dont les deux membres sont les arguments du constructeur pour <code>T1</code> et <code>T2</code></li>
+<li><code>non_pair</code> — argument non-<code>pair</code> à convertir en <code>pair</code> pour une construction ultérieure</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction est appelée (par l'intermédiaire de <a href="../allocator_traits.html"><code>std::allocator_traits</code></a>) par tout objet sensible à l'allocateur, tel que <a href="../../container/vector.html"><code>std::pmr::vector</code></a> (ou tout autre <a href="../../container/vector.html"><code>std::vector</code></a> auquel un <code>std::pmr::polymorphic_allocator</code> a été donné comme allocateur à utiliser).</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2969">LWG 2969</a></td>
+<td>C++17</td>
+<td>la construction avec propagation d'allocateur a transmis <code>resource()</code></td>
+<td>passe <code>*this</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2975">LWG 2975</a></td>
+<td>C++17</td>
+<td>la première surcharge est utilisée par erreur pour la construction de paire dans certains cas</td>
+<td>restreinte pour ne pas accepter de paires</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3525">LWG 3525</a></td>
+<td>C++17</td>
+<td>aucune surcharge ne pouvait gérer les types non-<code>pair</code> convertibles en <code>pair</code></td>
+<td>surcharge de reconstruction ajoutée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../allocator_traits/construct.html">construct</a> [statique]</strong> — construit un objet dans le stockage alloué <em>(modèle de fonction)</em></li>
+<li><strong><a href="../allocator/construct.html">construct</a> (until C++20)</strong> — construit un objet dans le stockage alloué <em>(fonction membre publique de <code>std::allocator&lt;T&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

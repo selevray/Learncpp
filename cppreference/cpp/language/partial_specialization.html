@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spécialisation partielle de modèle — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="spécialisation-partielle-de-modèle">Spécialisation partielle de modèle</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/partial_specialization">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet de personnaliser les modèles de classe et de variable <em>(depuis C++14)</em> pour une catégorie donnée d'arguments de modèle.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>class-key</code> <code>class-head-name</code> <code>&lt;</code> <code>argument-list</code> <code>&gt;</code> <code>declaration</code> | (1) | |
+|
+| <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>decl-specifier-seq</code> <code>declarator</code> <code>&lt;</code> <code>argument-list</code> <code>&gt;</code> <code>initializer</code> ﻿*(facultatif)* | (2) | (depuis C++14) |
+|</p>
+<p>où <code>class-head-name</code> identifie le nom d'un <a href="class_template.html">modèle de classe</a>précédemment déclaré et <code>declarator</code> identifie le nom d'un <a href="variable_template.html">modèle de variable</a> <em>(depuis C++14)</em> précédemment déclaré.</p>
+<p>Une spécialisation partielle peut être déclarée dans toute portée où son modèle primaire peut être défini (qui peut être différente de la portée où le modèle primaire est défini ; comme avec une spécialisation hors classe d'un <a href="member_template.html">modèle membre</a>). La spécialisation partielle doit apparaître après la déclaration du modèle non spécialisé.</p>
+<p>Par exemple,</p>
+<pre><code class="language-cpp">template&lt;class T1, class T2, int I&gt;
+class A {};             // modèle primaire
+
+template&lt;class T, int I&gt;
+class A&lt;T, T*, I&gt; {};   // #1 : spécialisation partielle où T2 est un pointeur vers T1
+
+template&lt;class T, class T2, int I&gt;
+class A&lt;T*, T2, I&gt; {};  // #2 : spécialisation partielle où T1 est un pointeur
+
+template&lt;class T&gt;
+class A&lt;int, T*, 5&gt; {}; // #3 : spécialisation partielle où
+                        //     T1 est int, I vaut 5, et T2 est un pointeur
+
+template&lt;class X, class T, int I&gt;
+class A&lt;X, T*, I&gt; {};   // #4 : spécialisation partielle où T2 est un pointeur
+</code></pre>
+<p>Parmi les exemples de spécialisations partielles de la bibliothèque standard figure <a href="../memory/unique_ptr.html"><code>std::unique_ptr</code></a>, qui possède une spécialisation partielle pour les types tableaux.</p>
+<h2 id="The_argument_list">La liste d'arguments</h2>
+<p>Les restrictions suivantes s'appliquent à <code>argument-list</code> d'une spécialisation partielle de modèle :</p>
+<ol>
+<li>La liste d'arguments ne peut pas être identique à la liste d'arguments non spécialisée (elle doit spécialiser quelque chose) :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T1, class T2, int I&gt; class B {};        // modèle primaire
+template&lt;class X, class Y, int N&gt; class B&lt;X, Y, N&gt; {}; // error
+</code></pre>
+<blockquote>
+<p>De plus, la spécialisation doit être plus spécialisée que le modèle primaire</p>
+<pre><code class="language-cpp">template&lt;int N, typename T1, typename... Ts&gt; struct B;
+template&lt;typename... Ts&gt; struct B&lt;0, Ts...&gt; {}; // Erreur : n'est pas plus spécialisé
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="2">
+<li>
+<p>Les arguments par défaut ne peuvent pas apparaître dans la liste d'arguments</p>
+</li>
+<li>
+<p>Si un argument est un développement de paquet, il doit être le dernier argument de la liste</p>
+</li>
+</ol>
+<p>4)Les expressions d'arguments non typés peuvent utiliser des paramètres de modèle tant que le paramètre apparaît au moins une fois en dehors d'un <a href="template_argument_deduction.html#Non-deduced_contexts">contexte non déductible</a> (notez que seuls clang et gcc 12 prennent actuellement en charge cette fonctionnalité) :</p>
+<pre><code class="language-cpp">template&lt;int I, int J&gt; struct A {};
+template&lt;int I&gt; struct A&lt;I + 5, I * 2&gt; {}; // erreur, I n'est pas déductible
+
+template&lt;int I, int J, int K&gt; struct B {};
+template&lt;int I&gt; struct B&lt;I, I * 2, 2&gt; {};  // OK : le premier paramètre est déductible
+</code></pre>
+<ol start="5">
+<li>Un argument de modèle non typé ne peut pas spécialiser un paramètre de modèle dont le type dépend d'un paramètre de la spécialisation :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T, T t&gt; struct C {}; // modèle primaire
+template&lt;class T&gt; struct C&lt;T, 1&gt;;   // erreur : le type de l'argument 1 est T,
+                                    // qui dépend du paramètre T
+
+template&lt;int X, int (*array_ptr)[X]&gt; class B {}; // modèle primaire
+int array[5];
+template&lt;int X&gt; class B&lt;X, &amp;array&gt; {}; // erreur : le type de l'argument &amp;array est
+                                       // int(*)[X], qui dépend du paramètre X
+</code></pre>
+<h2 id="Name_lookup">Recherche de noms</h2>
+<p>Les spécialisations partielles de modèle ne sont pas trouvées par recherche de nom. Seulement si le modèle primaire est trouvé par recherche de nom, ses spécialisations partielles sont prises en compte. En particulier, une déclaration using qui rend visible un modèle primaire rend également visibles ses spécialisations partielles :</p>
+<pre><code class="language-cpp">namespace N
+{
+    template&lt;class T1, class T2&gt; class Z {}; // modèle primaire
+}
+using N::Z; // fait référence au modèle primaire
+
+namespace N
+{
+    template&lt;class T&gt; class Z&lt;T, T*&gt; {};     // spécialisation partielle
+}
+Z&lt;int, int*&gt; z; // la recherche de nom trouve N::Z (le modèle primaire), la
+                // spécialisation partielle avec T = int est alors utilisée
+</code></pre>
+<h2 id="Partial_ordering">Ordre partiel</h2>
+<p>Lorsqu'un modèle de classe ou de variable <em>(depuis C++14)</em> est instancié, et que des spécialisations partielles sont disponibles, le compilateur doit décider si le modèle primaire sera utilisé ou l'une de ses spécialisations partielles.</p>
+<ol>
+<li>
+<p>Si une seule spécialisation correspond aux arguments de modèle, cette spécialisation est utilisée</p>
+</li>
+<li>
+<p>Si plusieurs spécialisations correspondent, les règles d'ordre partiel sont utilisées pour déterminer laquelle est la plus spécialisée. La spécialisation la plus spécialisée est utilisée, si elle est unique (si elle ne l'est pas, le programme ne peut pas être compilé)</p>
+</li>
+<li>
+<p>Si aucune spécialisation ne correspond, le modèle primaire est utilisé</p>
+</li>
+</ol>
+<pre><code class="language-cpp">// étant donné le modèle A tel que défini ci-dessus
+A&lt;int, int, 1&gt; a1;   // aucune spécialisation ne correspond, utilise le modèle primaire
+A&lt;int, int*, 1&gt; a2;  // utilise la spécialisation partielle #1 (T = int, I = 1)
+A&lt;int, char*, 5&gt; a3; // utilise la spécialisation partielle #3, (T = char)
+A&lt;int, char*, 1&gt; a4; // utilise la spécialisation partielle #4, (X = int, T = char, I = 1)
+A&lt;int*, int*, 2&gt; a5; // erreur : correspond à #2 (T = int, T2 = int*, I= 2)
+                     //        correspond à #4 (X = int*, T = int, I = 2)
+                     // aucune des deux n'est plus spécialisée que l'autre
+</code></pre>
+<p>Informellement, « A est plus spécialisé que B » signifie « A accepte un sous-ensemble des types que B accepte ».</p>
+<p>Formellement, pour établir la relation plus spécialisé que entre des spécialisations partielles, chacune est d'abord convertie en un modèle de fonction fictif comme suit :</p>
+<ul>
+<li>le premier modèle de fonction a les mêmes paramètres de modèle que la première spécialisation partielle et n'a qu'un seul paramètre de fonction, dont le type est une spécialisation de modèle de classe avec tous les arguments de modèle de la première spécialisation partielle</li>
+<li>le second modèle de fonction a les mêmes paramètres de modèle que la seconde spécialisation partielle et n'a qu'un seul paramètre de fonction, dont le type est une spécialisation de modèle de classe avec tous les arguments de modèle de la seconde spécialisation partielle.</li>
+</ul>
+<p>Les modèles de fonction sont ensuite classés comme pour la <a href="function_template.html#Function_template_overloading">surcharge de modèles de fonction</a>.</p>
+<pre><code class="language-cpp">template&lt;int I, int J, class T&gt; struct X {}; // modèle primaire
+template&lt;int I, int J&gt;          struct X&lt;I, J, int&gt;
+{
+    static const int s = 1;
+}; // spécialisation partielle #1
+// modèle de fonction fictif pour #1 est
+// template&lt;int I, int J&gt; void f(X&lt;I, J, int&gt;); #A
+
+template&lt;int I&gt;                 struct X&lt;I, I, int&gt;
+{
+    static const int s = 2;
+}; // spécialisation partielle #2
+// modèle de fonction fictif pour #2 est
+// template&lt;int I&gt;        void f(X&lt;I, I, int&gt;); #B
+
+int main()
+{
+    X&lt;2, 2, int&gt; x; // #1 et #2 correspondent tous deux
+// ordonnancement partiel pour les modèles de fonction :
+// #A à partir de #B : void(X&lt;I, J, int&gt;) à partir de void(X&lt;U1, U1, int&gt;) : déduction OK
+// #B à partir de #A : void(X&lt;I, I, int&gt;) à partir de void(X&lt;U1, U2, int&gt;) : la déduction échoue
+// #B est plus spécialisé
+// #2 est la spécialisation qui est instanciée
+    std::cout &lt;&lt; x.s &lt;&lt; '\n'; // prints 2
+}
+</code></pre>
+<h2 id="Members_of_partial_specializations">Membres des spécialisations partielles</h2>
+<p>La liste de paramètres de modèle et la liste d'arguments de modèle d'un membre d'une spécialisation partielle doivent correspondre à la liste de paramètres et à la liste d'arguments de la spécialisation partielle.</p>
+<p>Tout comme pour les membres des modèles primaires, ils n'ont besoin d'être définis que s'ils sont utilisés dans le programme.</p>
+<p>Les membres des spécialisations partielles ne sont pas liés aux membres du modèle primaire.</p>
+<p>La spécialisation explicite (complète) d'un membre d'une spécialisation partielle se déclare de la même manière qu'une spécialisation explicite du modèle primaire.</p>
+<pre><code class="language-cpp">template&lt;class T, int I&gt; // modèle primaire
+struct A
+{
+    void f(); // déclaration de membre
+};
+
+template&lt;class T, int I&gt;
+void A&lt;T, I&gt;::f() {}     // définition de membre du modèle primaire
+
+// spécialisation partielle
+template&lt;class T&gt;
+struct A&lt;T, 2&gt;
+{
+    void f();
+    void g();
+    void h();
+};
+
+// membre de la spécialisation partielle
+template&lt;class T&gt;
+void A&lt;T, 2&gt;::g() {}
+
+// spécialisation explicite (complète)
+// d'un membre de la spécialisation partielle
+template&lt;&gt;
+void A&lt;char, 2&gt;::h() {}
+
+int main()
+{
+    A&lt;char, 0&gt; a0;
+    A&lt;char, 2&gt; a2;
+    a0.f(); // OK, utilise la définition de membre du modèle primaire
+    a2.g(); // OK, utilise la définition de membre de la spécialisation partielle
+    a2.h(); // OK, utilise la définition entièrement spécialisée de
+            // le membre d'une spécialisation partielle
+    a2.f(); // erreur : aucune définition de f() dans la spécialisation
+            // partielle A&lt;T,2&gt; (le modèle primaire n'est pas utilisé)
+}
+</code></pre>
+<p>Si un modèle primaire est un membre d'un autre modèle de classe, ses spécialisations partielles sont membres du modèle de classe englobant. Si le modèle englobant est instancié, la déclaration de chaque spécialisation partielle membre est instanciée également (de la même manière que les déclarations, mais non les définitions, de tous les autres membres d'un modèle sont instanciées).</p>
+<p>Si le modèle membre primaire est explicitement (complètement) spécialisé pour une spécialisation (implicite) donnée du modèle de classe englobant, les spécialisations partielles du modèle membre sont ignorées pour cette spécialisation du modèle de classe englobant.</p>
+<p>Si une spécialisation partielle du modèle membre est explicitement spécialisée pour une spécialisation (implicite) donnée du modèle de classe englobant, le modèle membre primaire et ses autres spécialisations partielles sont toujours pris en compte pour cette spécialisation du modèle de classe englobant.</p>
+<pre><code class="language-cpp">template&lt;class T&gt; struct A // modèle de classe englobant
+{
+    template&lt;class T2&gt;
+    struct B {};      // modèle de membre primaire
+    template&lt;class T2&gt;
+    struct B&lt;T2*&gt; {}; // spécialisation partielle du modèle membre
+};
+
+template&lt;&gt;
+template&lt;class T2&gt;
+struct A&lt;short&gt;::B {}; // spécialisation complète du modèle membre primaire
+                       // (la partielle sera ignorée)
+
+A&lt;char&gt;::B&lt;int*&gt; abcip;  // utilise la spécialisation partielle T2=int
+A&lt;short&gt;::B&lt;int*&gt; absip; // utilise la spécialisation complète du primaire (ignore la partielle)
+A&lt;char&gt;::B&lt;int&gt; abci;    // utilise le primaire
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/727.html">CWG 727</a></td>
+<td>C++98</td>
+<td>spécialisations partielles et complètes non autorisées dans la portée de classe</td>
+<td>autorisées dans n'importe quelle portée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1315.html">CWG 1315</a></td>
+<td>C++98</td>
+<td>un paramètre de modèle ne pouvait pas être utilisé dans des arguments de modèle non typés autres que des expressions id</td>
+<td>expressions acceptées tant qu'elles sont déductibles</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1495.html">CWG 1495</a></td>
+<td>C++11</td>
+<td>la spécification était peu claire lorsqu'un paquet de paramètres était impliqué</td>
+<td>la spécialisation doit être plus spécialisée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1711.html">CWG 1711</a></td>
+<td>C++14</td>
+<td>spécification manquante pour les spécialisations partielles de modèles de variable</td>
+<td>ajout de la prise en charge des modèles de variable</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1819.html">CWG 1819</a></td>
+<td>C++98</td>
+<td>portées acceptables pour la définition d'une spécialisation partielle</td>
+<td>permettre de déclarer une spécialisation partielle dans la même portée que les modèles primaires</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2330.html">CWG 2330</a></td>
+<td>C++14</td>
+<td>références aux modèles de variable manquantes</td>
+<td>ajout de la prise en charge des modèles de variable</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="templates.html">templates</a></li>
+<li><a href="class_template.html">modèle de classe</a></li>
+<li><a href="function_template.html">modèle de fonction</a></li>
+<li><a href="template_specialization.html">spécialisation complète de modèle</a></li>
+</ul>
+
+</main>
+</body>
+</html>

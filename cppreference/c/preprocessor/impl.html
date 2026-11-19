@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contrôle du comportement défini par l&#x27;implémentation — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/preprocessor.html">Préprocesseur</a></nav>
+<h1 id="contrôle-du-comportement-défini-par-l-implémentation">Contrôle du comportement défini par l'implémentation</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/preprocessor/impl">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Le comportement défini par l'implémentation est contrôlé par la directive <code>#pragma</code>.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>#pragma</code> <code>pragma_params</code> | (1) | |
+|
+| <code>_Pragma</code> <code>(</code> <code>string-literal</code> <code>)</code> | (2) | (depuis C99) |
+|</p>
+<ol>
+<li>
+<p>Se comporte de manière définie par l'implémentation (sauf si <code>pragma_params</code> est l'un des pragmas standard présentés ci-dessous).</p>
+</li>
+<li>
+<p>Supprime le préfixe d'encodage (le cas échéant), les guillemets extérieurs et les espaces de début et de fin de <code>string-literal</code>, remplace chaque <code>\&quot;</code> par <code>&quot;</code> et chaque <code>\\</code> par <code>\</code>, puis découpe le résultat en unités lexicales (comme à la <a href="../language/translation_phases.html">phase de traduction 3</a>), puis utilise le résultat comme si c'était l'entrée de <code>#pragma</code> dans <code>(1)</code>.</p>
+</li>
+</ol>
+<h2 id="Explanation">Explication</h2>
+<p>La directive pragma contrôle le comportement spécifique à l'implémentation du compilateur, comme la désactivation des avertissements du compilateur ou la modification des exigences d'alignement. Tout pragma non reconnu est ignoré.</p>
+<h2 id="Standard_pragmas">Pragmas standard</h2>
+<p>Les trois pragmas suivants sont définis par la norme du langage :</p>
+<p>|
+| |
+| <code>#pragma STDC FENV_ACCESS</code> <code>arg</code> | (1) | (depuis C99) |
+|
+| <code>#pragma STDC FP_CONTRACT</code> <code>arg</code> | (2) | (depuis C99) |
+|
+| <code>#pragma STDC CX_LIMITED_RANGE</code> <code>arg</code> | (3) | (depuis C99) |
+|</p>
+<p>où <code>arg</code> est soit <code>ON</code>, soit <code>OFF</code>, soit <code>DEFAULT</code>.</p>
+<ol>
+<li>
+<p>Si défini à <code>ON</code>, informe le compilateur que le programme accédera à ou modifiera <a href="../numeric/fenv.html">l'environnement en virgule flottante</a>, ce qui signifie que les optimisations susceptibles de contourner les tests de drapeaux et les changements de mode (par exemple l'élimination globale des sous-expressions communes, le déplacement de code et le pliage de constantes) sont interdites. La valeur par défaut est définie par l'implémentation, généralement <code>OFF</code>.</p>
+</li>
+<li>
+<p>Autorise la <em>contraction</em> des expressions en virgule flottante, c'est-à-dire les optimisations qui omettent les erreurs d'arrondi et les exceptions en virgule flottante qui seraient observées si l'expression était évaluée exactement telle qu'écrite. Par exemple, permet l'implémentation de <code>(x * y) + z</code> avec une seule instruction processeur d'multiplication-addition fusionnée. La valeur par défaut est définie par l'implémentation, généralement <code>ON</code>.</p>
+</li>
+<li>
+<p>Informe le compilateur que la multiplication, la division et la valeur absolue de nombres complexes peuvent utiliser des formules mathématiques simplifiées (x+iy)×(u+iv) = (xu-yv)+i(yu+xv), (x+iy)/(u+iv) = [(xu+yv)+i(yu-xv)]/(u2<br />
++v2<br />
+) et |x+iy| = √x2<br />
++y2<br />
+, malgré la possibilité de dépassement de capacité intermédiaire. En d'autres termes, le programmeur garantit que l'intervalle des valeurs transmises à ces fonctions est limité. La valeur par défaut est <code>OFF</code></p>
+</li>
+</ol>
+<p>Remarque : les compilateurs qui ne prennent pas en charge ces pragmas peuvent fournir des options de compilation équivalentes, comme <code>-fcx-limited-range</code> et <code>-ffp-contract</code> de gcc.</p>
+<h2 id="Non-standard_pragmas">Pragmas non standard</h2>
+<h3 id=".23pragma_once"><code>#pragma once</code></h3>
+<p><code>#pragma once</code> est un pragma non standard pris en charge par la <a href="https://en.wikipedia.org/wiki/Pragma_once#Portability">grande majorité des compilateurs modernes</a>. S'il apparaît dans un fichier d'en-tête, il indique que celui-ci ne doit être analysé qu'une seule fois, même s'il est inclus (directement ou indirectement) plusieurs fois dans le même fichier source.</p>
+<p>L'approche standard pour empêcher l'inclusion multiple d'un même en-tête consiste à utiliser des <a href="https://en.wikipedia.org/wiki/Include_guard">gardes d'inclusion</a> :</p>
+<pre><code class="language-c">#ifndef LIBRARY_FILENAME_H
+#define LIBRARY_FILENAME_H
+// contenu de l'en-tête
+#endif /* LIBRARY_FILENAME_H */
+</code></pre>
+<p>Ainsi, toutes les inclusions de l'en-tête sauf la première dans une unité de traduction sont exclues de la compilation. Tous les compilateurs modernes enregistrent le fait qu'un fichier d'en-tête utilise une garde d'inclusion et ne le réanalysent pas lorsqu'ils le rencontrent à nouveau, tant que la garde est toujours définie (voir par exemple <a href="https://gcc.gnu.org/onlinedocs/cpp/Once-Only-Headers.html">gcc</a>).</p>
+<p>Avec <code>#pragma once</code>, le même en-tête apparaît comme</p>
+<pre><code class="language-c">#pragma once
+// contenu de l'en-tête
+</code></pre>
+<p>Contrairement aux gardes d'en-tête, ce pragma rend impossible l'utilisation par erreur d'un même nom de macro dans plusieurs fichiers. En revanche, comme avec <code>#pragma once</code> les fichiers sont exclus en fonction de leur identité au niveau du système de fichiers, cela ne protège pas contre une double inclusion d'un en-tête qui existe à plusieurs emplacements d'un projet.</p>
+<h3 id=".23pragma_pack"><code>#pragma pack</code></h3>
+<p>Cette famille de pragmas contrôle l'alignement maximal des membres de structures et d'unions définis ensuite.</p>
+<p>|
+| |
+| <code>#pragma pack(arg)</code> | (1) | |
+|
+| <code>#pragma pack()</code> | (2) | |
+|
+| <code>#pragma pack(push)</code> | (3) | |
+|
+| <code>#pragma pack(push, arg)</code> | (4) | |
+|
+| <code>#pragma pack(pop)</code> | (5) | |
+|</p>
+<p>où <code>arg</code> est une petite puissance de deux et indique le nouvel alignement en octets.</p>
+<ol>
+<li>
+<p>Définit l'alignement courant à la valeur <code>arg</code>.</p>
+</li>
+<li>
+<p>Définit l'alignement courant à la valeur par défaut (spécifiée par une option de ligne de commande).</p>
+</li>
+<li>
+<p>Empile la valeur de l'alignement courant sur une pile interne.</p>
+</li>
+<li>
+<p>Empile la valeur de l'alignement courant sur la pile interne, puis définit l'alignement courant à la valeur <code>arg</code>.</p>
+</li>
+<li>
+<p>Dépile l'élément au sommet de la pile interne, puis définit (restaure) l'alignement courant à cette valeur.</p>
+</li>
+</ol>
+<p><code>#pragma pack</code> peut réduire l'alignement d'une structure, mais ne peut pas la rendre suralignée.</p>
+<p>Voir aussi les détails spécifiques pour <a href="https://gcc.gnu.org/onlinedocs/gcc/Structure-Layout-Pragmas.html">GCC</a> et <a href="https://docs.microsoft.com/en-us/cpp/preprocessor/pack">MSVC</a>.</p>
+<p>Cette section est incomplète<br />
+Raison : expliquer les effets de ces pragmas sur les membres de données ainsi que les avantages et inconvénients de leur utilisation. Sources de référence :</p>
+<ul>
+<li><a href="https://stackoverflow.com/questions/3318410/pragma-pack-effect">Stack Overflow</a></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.10.6 Directive pragma (p : 127)</li>
+<li>6.10.9 Opérateur pragma (p : 129)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.10.6 Directive pragma (p : 174)</li>
+<li>6.10.9 Opérateur pragma (p : 178)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.10.6 Directive pragma (p : 159)</li>
+<li>6.10.9 Opérateur pragma (p : 161-162)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.8.6 Directive pragma</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/preprocessor/impl.html">Documentation C++</a> pour Contrôle du comportement défini par l'implémentation</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://docs.microsoft.com/en-us/cpp/preprocessor/pragma-directives-and-the-pragma-keyword?view=vs-2019">Pragmas C++ dans Visual Studio 2019</a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://gcc.gnu.org/onlinedocs/gcc/Pragmas.html">Pragmas</a> acceptés par GCC</td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://www.ibm.com/support/knowledgecenter/en/SSGH3R_16.1.0/com.ibm.xlcpp161.aix.doc/compiler_ref/pragma_descriptions.html">Descriptions individuelles des pragmas</a> et <a href="https://www.ibm.com/support/knowledgecenter/en/SSGH3R_16.1.0/com.ibm.xlcpp161.aix.doc/language_ref/std_pragmas.html">pragmas standard</a> dans IBM AIX XL C 16.1</td>
+</tr>
+<tr>
+<td>4.</td>
+<td><a href="http://download.oracle.com/docs/cd/E19422-01/819-3690/Pragmas_App.html#73499">Annexe B. Pragmas</a> dans Sun Studio 11 C++ User's Guide</td>
+</tr>
+<tr>
+<td>5.</td>
+<td><a href="https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/pragmas.html">Pragmas du compilateur C++ Intel</a></td>
+</tr>
+<tr>
+<td>6.</td>
+<td><a href="http://h21007.www2.hp.com/portal/download/files/unprot/aCxx/Online_Help/pragmas.htm">Pragmas du compilateur HP aCC</a></td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

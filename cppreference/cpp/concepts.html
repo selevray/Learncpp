@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bibliothèque des concepts (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../cpp.html">Référence C++</a></nav>
+<h1 id="bibliothèque-des-concepts-depuis-c-20">Bibliothèque des concepts (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/concepts">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>La bibliothèque des concepts fournit les définitions des concepts fondamentaux de la bibliothèque standard, utilisables pour valider à la compilation les arguments de modèle et réaliser une distribution de fonctions fondée sur les propriétés des types. Ces concepts fournissent une base pour le raisonnement équationnel dans les programmes.</p>
+<p>La plupart des concepts de la bibliothèque standard imposent à la fois des exigences syntaxiques et sémantiques. On dit qu'un concept standard est <em>satisfait</em> si ses exigences syntaxiques sont respectées, et qu'il est <em>modélisé</em> s'il est satisfait et que ses exigences sémantiques (le cas échéant) le sont également.</p>
+<p>En général, seules les exigences syntaxiques peuvent être vérifiées par le compilateur. Si la validité ou la signification d'un programme dépend du fait qu'une suite d'arguments de modèle modélise un concept, et que ce concept est satisfait mais non modélisé, ou si une exigence sémantique n'est pas respectée au point d'utilisation, le programme est mal formé, <a href="language/ndr.html">aucun diagnostic requis</a>.</p>
+<h2 id="Equality_preservation">Préservation de l'égalité</h2>
+<p>Une expression est <em>préservant l'égalité</em> si elle produit des sorties égales pour des entrées égales, où</p>
+<ul>
+<li>les entrées sont constituées de ses opérandes (ne rendant pas nécessairement l'expression sémantiquement valide), et</li>
+<li>les sorties sont constituées de son résultat et de toutes les modifications apportées aux opérandes par l'expression, le cas échéant</li>
+</ul>
+<p>où, pour la commodité de la formulation, ses « opérandes » désignent ses plus grandes sous-expressions constituées d'un <a href="language/expressions.html#Primary_expressions">id-expression</a> ou d'appels de <a href="utility/move.html"><code>std::move</code></a>, <a href="utility/forward.html"><code>std::forward</code></a> et <a href="utility/declval.html"><code>std::declval</code></a>.</p>
+<p>La qualification cv et la catégorie de valeur de chaque opérande sont déterminées en supposant que chaque paramètre de modèle de type dans son type désigne un type d'objet complet non-tableau et non qualifié cv.</p>
+<p>Toute expression devant préserver l'égalité doit en outre être stable, c'est-à-dire que deux évaluations de celle-ci avec les mêmes objets d'entrée doivent produire des sorties égales, sans aucune modification explicite intermédiaire de ces objets d'entrée.</p>
+<p>Sauf indication contraire, toute expression utilisée dans une <a href="language/requires.html"><code>requires</code> expression</a> des <a href="concepts.html#Standard_library_concepts">concepts de la bibliothèque standard</a> doit préserver l'égalité, et l'évaluation de l'expression ne peut modifier que ses opérandes non constants. Les opérandes constants ne doivent pas être modifiés.</p>
+<p>Dans la bibliothèque standard, les concepts suivants peuvent avoir des expressions <code>requires</code> ne préservant pas l'égalité :</p>
+<ul>
+<li><a href="iterator/output_iterator.html"><code>output_iterator</code></a></li>
+<li><a href="iterator/indirectly_writable.html"><code>indirectly_writable</code></a></li>
+<li><a href="concepts/invocable.html"><code>invocable</code></a></li>
+<li><a href="iterator/weakly_incrementable.html"><code>weakly_incrementable</code></a></li>
+<li><a href="ranges/range.html"><code>range</code></a></li>
+</ul>
+<h2 id="Implicit_expression_variations">Variations d'expressions implicites</h2>
+<p>Une <a href="language/requires.html"><code>requires</code> expression</a> qui utilise une expression non modifiante pour un opérande lvalue constant exige aussi implicitement des variantes supplémentaires de cette expression acceptant un opérande lvalue non constant ou rvalue (éventuellement constant) pour l'opérande donné, à moins qu'une telle variante ne soit explicitement exigée avec une sémantique différente.</p>
+<p>Ces <em>variantes d'expression implicites</em> doivent satisfaire les mêmes exigences sémantiques que l'expression déclarée. La mesure dans laquelle une implémentation valide la syntaxe des variantes est non spécifiée.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+concept C = requires(T a, T b, const T c, const T d)
+{
+    c == d;           // expression #1 : ne modifie pas les opérandes
+    a = std::move(b); // expression #2 : modifie les deux opérandes
+    a = c;            // expression #3 : modifie l'opérande de gauche `a`
+};
+
+// L'expression #1 exige implicitement des variantes d'expression supplémentaires qui
+// satisfont aux exigences de c == d (y compris la non-modification),
+// comme si les expressions suivantes avaient également été déclarées :
+
+// ------ const == const ------- ------ const == non-const ---
+//                                         c  ==           b;
+//            c == std::move(d);           c  == std::move(b);
+// std::move(c) ==           d;  std::move(c) ==           b;
+// std::move(c) == std::move(d); std::move(c) == std::move(b);
+
+// -- non-const == const ------- -- non-const == non-const ---
+//           a  ==           d;            a  ==           b;
+//           a  == std::move(d);           a  == std::move(b);
+// std::move(a) ==           d;  std::move(a) ==           b;
+// std::move(a) == std::move(d); std::move(a) == std::move(b);
+
+// L'expression #3 exige implicitement des variantes d'expression supplémentaires qui
+// satisfont aux exigences de a = c
+// (y compris la non-modification du second opérande),
+// comme si les expressions a = b (variante lvalue non constante)
+// et a = std::move(c) (variante rvalue constante) avaient été déclarées.
+
+// Note : puisque l'expression #2 exige déjà explicitement la variante rvalue non constante
+// (a == std::move(b)), l'expression #3 n'exige plus implicitement celle-ci.
+
+// Le type T satisfait aux exigences syntaxiques explicitement énoncées du
+// concept C ci-dessus, mais ne satisfait pas aux exigences implicites supplémentaires
+// (c'est-à-dire que T satisfait mais ne modélise pas C) :
+// un programme qui exige C&lt;T&gt; est mal formé (aucun diagnostic requis).
+struct T
+{
+    bool operator==(const T&amp;) const { return true; }
+    bool operator==(T&amp;) = delete;
+};
+</code></pre>
+<h2 id="Standard_library_concepts">Concepts de la bibliothèque standard</h2>
+<p><strong>Défini dans l'espace de noms <code>std</code></strong></p>
+<p><strong>##### Concepts du langage de base {#Core_language_concepts}</strong></p>
+<p><strong>Défini dans l'en-tête <code>&lt;concepts&gt;</code></strong></p>
+<ul>
+<li><strong><a href="concepts/same_as.html">same_as</a> (C++20)</strong> — spécifie qu'un type est identique à un autre type <em>(concept)</em></li>
+<li><strong><a href="concepts/derived_from.html">derived_from</a> (C++20)</strong> — spécifie qu'un type dérive d'un autre type <em>(concept)</em></li>
+<li><strong><a href="concepts/convertible_to.html">convertible_to</a> (C++20)</strong> — spécifie qu'un type est implicitement convertible en un autre type <em>(concept)</em></li>
+<li><strong><a href="concepts/common_reference_with.html">common_reference_with</a> (C++20)</strong> — spécifie que deux types partagent un type de référence commun <em>(concept)</em></li>
+<li><strong><a href="concepts/common_with.html">common_with</a> (C++20)</strong> — spécifie que deux types partagent un type commun <em>(concept)</em></li>
+<li><strong><a href="concepts/integral.html">integral</a> (C++20)</strong> — spécifie qu'un type est un type entier <em>(concept)</em></li>
+<li><strong><a href="concepts/signed_integral.html">signed_integral</a> (C++20)</strong> — spécifie qu'un type est un type entier signé <em>(concept)</em></li>
+<li><strong><a href="concepts/unsigned_integral.html">unsigned_integral</a> (C++20)</strong> — spécifie qu'un type est un type entier non signé <em>(concept)</em></li>
+<li><strong><a href="concepts/floating_point.html">floating_point</a> (C++20)</strong> — spécifie qu'un type est un type à virgule flottante <em>(concept)</em></li>
+<li><strong><a href="concepts/assignable_from.html">assignable_from</a> (C++20)</strong> — spécifie qu'un type est affectable à partir d'un autre type <em>(concept)</em></li>
+<li><strong><a href="concepts/swappable.html">swappableswappable_with</a> (C++20)</strong> — spécifie qu'un type peut être échangé, ou que deux types peuvent être échangés entre eux <em>(concept)</em></li>
+<li><strong><a href="concepts/destructible.html">destructible</a> (C++20)</strong> — spécifie qu'un objet du type peut être détruit <em>(concept)</em></li>
+<li><strong><a href="concepts/constructible_from.html">constructible_from</a> (C++20)</strong> — spécifie qu'une variable du type peut être construite à partir de, ou liée à, un ensemble de types d'arguments <em>(concept)</em></li>
+<li><strong><a href="concepts/default_initializable.html">default_initializable</a> (C++20)</strong> — spécifie qu'un objet d'un type peut être construit par défaut <em>(concept)</em></li>
+<li><strong><a href="concepts/move_constructible.html">move_constructible</a> (C++20)</strong> — spécifie qu'un objet d'un type peut être construit par déplacement <em>(concept)</em></li>
+<li><strong><a href="concepts/copy_constructible.html">copy_constructible</a> (C++20)</strong> — spécifie qu'un objet d'un type peut être construit par copie et construit par déplacement <em>(concept)</em></li>
+</ul>
+<p><strong>##### Concepts de comparaison {#Comparison_concepts}</strong></p>
+<p><strong>Défini dans l'en-tête <code>&lt;concepts&gt;</code></strong></p>
+<ul>
+<li><strong><a href="concepts/boolean-testable.html"><em>boolean-testable</em></a> ﻿ (C++20)</strong> — spécifie qu'un type peut être utilisé dans des contextes booléens <em>(concept exposé uniquement</em>)*</li>
+<li><strong><a href="concepts/equality_comparable.html">equality_comparableequality_comparable_with</a> (C++20)</strong> — spécifie que l'opérateur <code>==</code> est une relation d'équivalence <em>(concept)</em></li>
+<li><strong><a href="concepts/totally_ordered.html">totally_orderedtotally_ordered_with</a> (C++20)</strong> — spécifie que les opérateurs de comparaison du type définissent un ordre total <em>(concept)</em></li>
+</ul>
+<p><strong>Défini dans l'en-tête <code>&lt;compare&gt;</code></strong></p>
+<ul>
+<li><strong><a href="utility/compare/three_way_comparable.html">three_way_comparablethree_way_comparable_with</a> (C++20)</strong> — spécifie que l'opérateur <code>&lt;=&gt;</code> produit un résultat cohérent sur les types donnés <em>(concept)</em></li>
+</ul>
+<p><strong>##### Concepts d'objet {#Object_concepts}</strong></p>
+<p><strong>Défini dans l'en-tête <code>&lt;concepts&gt;</code></strong></p>
+<ul>
+<li><strong><a href="concepts/movable.html">movable</a> (C++20)</strong> — spécifie qu'un objet d'un type peut être déplacé et échangé <em>(concept)</em></li>
+<li><strong><a href="concepts/copyable.html">copyable</a> (C++20)</strong> — spécifie qu'un objet d'un type peut être copié, déplacé et échangé <em>(concept)</em></li>
+<li><strong><a href="concepts/semiregular.html">semiregular</a> (C++20)</strong> — spécifie qu'un objet d'un type peut être copié, déplacé, échangé et construit par défaut <em>(concept)</em></li>
+<li><strong><a href="concepts/regular.html">regular</a> (C++20)</strong> — spécifie qu'un type est régulier, c'est-à-dire qu'il est à la fois <a href="concepts/semiregular.html"><code>semiregular</code></a> et <a href="concepts/equality_comparable.html"><code>equality_comparable</code></a> <em>(concept)</em></li>
+</ul>
+<p><strong>##### Concepts d'objets appelables {#Callable_concepts}</strong></p>
+<p><strong>Défini dans l'en-tête <code>&lt;concepts&gt;</code></strong></p>
+<ul>
+<li><strong><a href="concepts/invocable.html">invocableregular_invocable</a> (C++20)</strong> — spécifie qu'un type appelable peut être invoqué avec un ensemble donné de types d'arguments <em>(concept)</em></li>
+<li><strong><a href="concepts/predicate.html">predicate</a> (C++20)</strong> — spécifie qu'un type appelable est un prédicat booléen <em>(concept)</em></li>
+<li><strong><a href="concepts/relation.html">relation</a> (C++20)</strong> — spécifie qu'un type appelable est une relation binaire <em>(concept)</em></li>
+<li><strong><a href="concepts/equivalence_relation.html">equivalence_relation</a> (C++20)</strong> — spécifie qu'un <a href="concepts/relation.html"><code>relation</code></a> impose une relation d'équivalence <em>(concept)</em></li>
+<li><strong><a href="concepts/strict_weak_order.html">strict_weak_order</a> (C++20)</strong> — spécifie qu'un <a href="concepts/relation.html"><code>relation</code></a> impose un ordre faible strict <em>(concept)</em></li>
+</ul>
+<p>Des concepts supplémentaires se trouvent dans <a href="iterator.html#C.2B.2B20_iterator_concepts">la bibliothèque des itérateurs</a>, <a href="iterator.html#Algorithm_concepts_and_utilities">la bibliothèque des algorithmes</a> et <a href="ranges.html#Range_concepts">la bibliothèque des plages</a>.</p>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="named_req.html">Exigences nommées</a></li>
+</ul>
+
+</main>
+</body>
+</html>

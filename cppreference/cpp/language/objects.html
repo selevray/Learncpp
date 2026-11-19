@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Objet — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="objet"><code>Objet</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/objects">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les programmes C++ créent, détruisent, font référence à, accèdent et manipulent des <em>objets</em>.</p>
+<p>Un objet, en C++, possède</p>
+<ul>
+<li>taille (déterminable avec <a href="sizeof.html"><code>sizeof</code></a>) ;</li>
+<li>exigence d'alignement (déterminable avec <a href="alignof.html"><code>alignof</code></a>) ;</li>
+<li><a href="storage_duration.html">durée de stockage</a> (automatique, statique, dynamique, thread-local) ;</li>
+<li><a href="lifetime.html">durée de vie</a> (bornée par la durée de stockage ou temporaire) ;</li>
+<li><a href="type-id.html">type</a>;</li>
+<li>valeur (qui peut être indéterminée, par exemple pour les types non classes <a href="default_initialization.html">initialisés par défaut</a>) ;</li>
+<li>éventuellement, un <a href="name.html">nom</a>.</li>
+</ul>
+<p>Les entités suivantes ne sont pas des objets : valeur, référence, fonction, énumérateur, type, membre de classe non statique, modèle, spécialisation de modèle de classe ou de fonction, espace de noms, pack de paramètres et <code>this</code>.</p>
+<p>Une <em>variable</em> est un objet ou une référence qui n'est pas un membre de données non statique, introduit par une <a href="declarations.html">déclaration</a>.</p>
+<h2 id="Object_creation">Création d'objets</h2>
+<p>Des objets peuvent être créés explicitement par des <a href="definition.html">définitions</a>, des expressions <a href="new.html"><code>new</code></a>, des expressions <a href="throw.html"><code>throw</code></a>, par changement du membre actif d'une <a href="union.html">union</a> et par l'évaluation d'expressions qui nécessitent des <a href="lifetime.html#Temporary_object_lifetime">objets temporaires</a>. L'objet créé est défini de manière unique lors de la création explicite d'objet.</p>
+<p>Des objets de <a href="type-id.html#Implicit-lifetime_type">types à durée de vie implicite</a> peuvent aussi être créés implicitement par</p>
+<ul>
+<li>sauf pendant l'évaluation constante, les opérations qui commencent la durée de vie d'un tableau de type <code>unsigned char</code>ou <a href="../types/byte.html"><code>std::byte</code></a> <em>(depuis C++17)</em>, auquel cas ces objets sont créés dans le tableau,</li>
+<li>appel aux fonctions d'allocation suivantes, auquel cas ces objets sont créés dans le stockage alloué :
+<ul>
+<li><a href="../memory/new/operator_new.html"><code>operator new</code></a> (sauf pendant l'évaluation constante)</li>
+<li><a href="../memory/new/operator_new.html"><code>operator new[]</code></a> (sauf pendant l'évaluation constante)</li>
+<li><a href="../memory/c/malloc.html"><code>std::malloc</code></a></li>
+<li><a href="../memory/c/calloc.html"><code>std::calloc</code></a></li>
+<li><a href="../memory/c/realloc.html"><code>std::realloc</code></a></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="../memory/c/aligned_alloc.html"><code>std::aligned_alloc</code></a></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>appel aux fonctions suivantes de copie de <a href="objects.html#Object_representation_and_value_representation">représentation d'objet</a>, auquel cas ces objets sont créés dans la région de destination du stockage ou dans le résultat :
+<ul>
+<li><a href="../string/byte/memcpy.html"><code>std::memcpy</code></a></li>
+<li><a href="../string/byte/memmove.html"><code>std::memmove</code></a></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="../numeric/bit_cast.html"><code>std::bit_cast</code></a></li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>appel aux fonctions spécifiques suivantes, auquel cas ces objets sont créés dans la région de stockage spécifiée :</li>
+<li><code>std::start_lifetime_as</code></li>
+<li><code>std::start_lifetime_as_array</code></li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Zéro ou plusieurs objets peuvent être créés dans la même région de stockage, tant que cela donne au programme un comportement défini. Si une telle création est impossible, par exemple à cause d'opérations en conflit, le comportement du programme est indéfini. Si plusieurs ensembles d'objets créés implicitement donneraient au programme un comportement défini, l'ensemble qui est créé n'est pas spécifié. En d'autres termes, les objets créés implicitement ne sont pas tenus d'être définis de manière unique.</p>
+<p>Après la création implicite d'objets dans une région de stockage spécifiée, certaines opérations produisent un pointeur vers un <em>objet créé approprié</em>. L'objet créé approprié a la même adresse que la région de stockage. De même, le comportement est indéfini si et seulement si aucune valeur de pointeur de ce type ne peut donner au programme un comportement défini, et la valeur de pointeur produite n'est pas spécifiée s'il existe plusieurs valeurs donnant un comportement défini.</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+
+struct X { int a, b; };
+
+X* MakeX()
+{
+    // L'un des comportements définis possibles :
+    // l'appel à std::malloc crée implicitement un objet de type X
+    // et ses sous-objets a et b, et renvoie un pointeur vers cet objet X
+    X* p = static_cast&lt;X*&gt;(std::malloc(sizeof(X)));
+    p-&gt;a = 1;
+    p-&gt;b = 2;
+    return p;
+}
+</code></pre>
+<p>L'appel à <a href="../memory/allocator/allocate.html"><code>std::allocator::allocate</code></a> ou aux fonctions membres spéciales de copie et de déplacement implicitement définies des types <a href="union.html">union</a> peut aussi créer des objets.</p>
+<h2 id="Object_representation_and_value_representation">Représentation d'objet et représentation de valeur</h2>
+<p>Certains types et objets ont des <em>représentations d'objet</em> et des <em>représentations de valeur</em>, définies dans le tableau ci-dessous :</p>
+<table>
+<thead>
+<tr>
+<th>Entité</th>
+<th>Représentation d'objet</th>
+<th>Représentation de valeur</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>un type objet complet <code>T</code></td>
+<td>la séquence des <code>N</code> <code>unsigned char</code> objets occupés par un objet complet non <a href="bit_field.html">champ de bits</a> de type <code>T</code>, où <code>N</code> vaut <code>sizeof(T)</code></td>
+<td>l'ensemble des bits de la représentation d'objet de <code>T</code> qui participent à la représentation d'une valeur de type <code>T</code></td>
+</tr>
+<tr>
+<td>un objet complet <code>obj</code> qui n'est pas un champ de bits, de type <code>T</code></td>
+<td>les octets de <code>obj</code> correspondant à la représentation d'objet de <code>T</code></td>
+<td>les bits de <code>obj</code> correspondant à la représentation de valeur de <code>T</code></td>
+</tr>
+<tr>
+<td>un objet <code>bf</code> de type champ de bits</td>
+<td>la séquence de bits <code>N</code> occupée par <code>bf</code>, où <code>N</code> est la largeur du champ de bits</td>
+<td>l'ensemble des bits de la représentation d'objet de <code>bf</code> qui participent à la représentation de la valeur de <code>bf</code></td>
+</tr>
+</tbody>
+</table>
+<p>Les bits de la représentation d'objet d'un type ou d'un objet qui ne font pas partie de la représentation de valeur sont des <em>bits de remplissage</em>.</p>
+<p>Pour les types <a href="../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a>, la représentation de valeur fait partie de la représentation d'objet, ce qui signifie que copier les octets occupés par l'objet en mémoire suffit à produire un autre objet de même valeur (sauf si l'objet est un sous-objet potentiellement chevauchant, ou si la valeur est une <em>représentation piège</em> de son type et que son chargement dans le processeur lève une exception matérielle, comme les valeurs à virgule flottante SNaN (« signalling not-a-number ») ou les entiers NaT (« not-a-thing »)).</p>
+<p>Bien que la plupart des implémentations n'autorisent ni représentations pièges, ni bits de remplissage, ni représentations multiples pour les types entiers, il existe des exceptions ; par exemple, une valeur d'un type entier sur Itanium <a href="https://web.archive.org/web/20170830125905/https://blogs.msdn.microsoft.com/oldnewthing/20040119-00/?p=41003">peut être une représentation piège</a>.</p>
+<p>L'inverse n'est pas nécessairement vrai : deux objets de type <a href="../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a> ayant des représentations d'objet différentes peuvent représenter la même valeur. Par exemple, plusieurs motifs de bits à virgule flottante représentent la même valeur spéciale <a href="../numeric/math/NAN.html">NaN</a>. Plus couramment, des bits de remplissage peuvent être introduits pour satisfaire les <a href="objects.html#Alignment">exigences d'alignement</a>, les tailles des <a href="bit_field.html">champs de bits</a>, etc.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+
+struct S
+{
+    char c;  // valeur de 1 octet
+             // 3 octets de bits de remplissage (en supposant alignof(float) == 4)
+    float f; // valeur de 4 octets (en supposant sizeof(float) == 4)
+
+    bool operator==(const S&amp; arg) const // égalité fondée sur la valeur
+    {
+        return c == arg.c &amp;&amp; f == arg.f;
+    }
+};
+
+void f()
+{
+    assert(sizeof(S) == 8);
+    S s1 = {'a', 3.14};
+    S s2 = s1;
+    reinterpret_cast&lt;unsigned char*&gt;(&amp;s1)[2] = 'b'; // modifier certains bits de remplissage
+    assert(s1 == s2); // la valeur n'a pas changé
+}
+</code></pre>
+<p>Pour les objets de type <code>char</code>, <code>signed char</code> et <code>unsigned char</code> (sauf s'ils sont des <a href="bit_field.html">champs de bits</a> surdimensionnés), chaque bit de la représentation d'objet doit participer à la représentation de valeur, et chaque motif de bits possible représente une valeur distincte (aucun bit de remplissage, bit piège ou représentation multiple n'est autorisé).</p>
+<h2 id="Subobjects">Sous-objets</h2>
+<p>Un objet peut avoir des <em>sous-objets</em>. Ceux-ci comprennent</p>
+<ul>
+<li>les objets membres</li>
+<li>les sous-objets de classes de base</li>
+<li>les éléments de tableau</li>
+</ul>
+<p>Un objet qui n'est le sous-objet d'aucun autre objet est appelé <em>objet complet</em>.</p>
+<p>Les objets complets, les objets membres et les éléments de tableau sont aussi appelés <em>objets les plus dérivés</em>, pour les distinguer des sous-objets de classes de base.</p>
+<p>Pour une classe,</p>
+<ul>
+<li>ses <a href="data_members.html">membres de données</a> non statiques,</li>
+<li>ses <a href="derived_class.html">classes de base</a> directes non virtuelles et,</li>
+<li>si la classe n'est pas <a href="abstract_class.html">abstraite</a>, ses <a href="derived_class.html#Virtual_base_classes">classes de base virtuelles</a></li>
+</ul>
+<p>sont appelés ses <em>sous-objets potentiellement construits</em>.</p>
+<h2 id="Size">Taille</h2>
+<p>Un sous-objet est un <em>sous-objet potentiellement chevauchant</em> s'il s'agit d'un sous-objet de classe de baseou d'un membre de données non statique déclaré avec l'attribut <code>[[no_unique_address]]</code> <em>(depuis C++20)</em>.</p>
+<p>Un objet <code>obj</code> ne peut avoir une taille nulle que si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li><code>obj</code> est un sous-objet potentiellement chevauchant.</li>
+<li><code>obj</code> est d'un type classe sans fonctions membres virtuelles ni classes de base virtuelles.</li>
+<li><code>obj</code> ne possède aucun sous-objet de taille non nulle ni aucun <a href="bit_field.html">champ de bits</a> sans nom de longueur non nulle.</li>
+</ul>
+<p>Pour un objet <code>obj</code> satisfaisant toutes les conditions ci-dessus :</p>
+<ul>
+<li>Si <code>obj</code> est un sous-objet de classe de base d'un type classe <a href="data_members.html#Standard-layout">à disposition standard</a> <em>(depuis C++11)</em> sans membre de données non statique, sa taille est nulle.</li>
+<li>Sinon, les circonstances dans lesquelles <code>obj</code> a une taille nulle sont définies par l'implémentation.</li>
+</ul>
+<p>Voir <a href="ebo.html">optimisation de la base vide</a> pour plus de détails.</p>
+<p>Tout objet qui n'est pas un champ de bits et dont la taille est non nulle doit occuper un ou plusieurs octets de stockage, y compris chaque octet occupé (en totalité ou en partie) par l'un de ses sous-objets. Le stockage occupé doit être contigu si l'objet est de type trivialement copiableou à disposition standard <em>(depuis C++11)</em>.</p>
+<h2 id="Address">Adresse</h2>
+<p>Sauf si un objet est un champ de bits ou un sous-objet de taille nulle, l'<em>adresse</em> de cet objet est l'adresse du premier <a href="memory_model.html#Byte">octet</a> qu'il occupe.</p>
+<p>Un objet peut en contenir d'autres, auquel cas les objets contenus sont <em>imbriqués dans</em> le premier objet. Un objet <code>a</code> est imbriqué dans un autre objet <code>b</code> si l'une quelconque des conditions suivantes est satisfaite :</p>
+<ul>
+<li><code>a</code> est un sous-objet de <code>b</code>.</li>
+<li><code>b</code> <a href="lifetime.html#Providing_storage">fournit le stockage</a> de <code>a</code>.</li>
+<li>Il existe un objet <code>c</code> tel que <code>a</code> est imbriqué dans <code>c</code>, et <code>c</code> est imbriqué dans <code>b</code>.</li>
+</ul>
+<p>Un objet est un <em>objet potentiellement non unique</em> s'il s'agit de l'un des objets suivants :</p>
+<ul>
+<li>Un objet <a href="string_literal.html">littéral de chaîne</a>.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Le <a href="list_initialization.html#List-initializing_std::initializer_list">tableau de support</a> d'une liste d'initialisation.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>Un sous-objet d'un objet potentiellement non unique.</li>
+</ul>
+<p>Pour deux objets quelconques qui ne sont pas des champs de bits et dont les <a href="lifetime.html">durées de vie</a> se chevauchent :</p>
+<ul>
+<li>
+<p>Si l'une quelconque des conditions suivantes est satisfaite, ils peuvent avoir la même adresse :</p>
+<ul>
+<li>L'un d'eux est imbriqué dans l'autre.</li>
+<li>L'un d'eux est un sous-objet de taille nulle, et leurs types ne sont pas <a href="implicit_cast.html#Similar_types">similaires</a>.</li>
+<li>Ils sont tous deux des objets potentiellement non uniques.</li>
+</ul>
+</li>
+<li>
+<p>Sinon, ils ont toujours des adresses distinctes et occupent des octets de stockage disjoints.</p>
+</li>
+</ul>
+<pre><code class="language-cpp">// les littéraux de caractère sont toujours uniques
+static const char test1 = 'x';
+static const char test2 = 'x';
+const bool b = &amp;test1 != &amp;test2;      // toujours vrai
+
+// le caractère 'x' accédé depuis « r », « s » et « il »
+// peuvent avoir la même adresse (c'est-à-dire que ces objets peuvent partager le stockage)
+static const char (&amp;r) [] = &quot;x&quot;;
+static const char *s = &quot;x&quot;;
+static std::initializer_list&lt;char&gt; il = {'x'};
+const bool b2 = r != il.begin();      // résultat non spécifié
+const bool b3 = r != s;               // résultat non spécifié
+const bool b4 = il.begin() != &amp;test1; // toujours vrai
+const bool b5 = r != &amp;test1;          // toujours vrai
+</code></pre>
+<h2 id="Polymorphic_objects">Objets polymorphes</h2>
+<p>Les objets d'un type classe qui déclare ou hérite d'au moins une fonction virtuelle sont des objets polymorphes. Au sein de chaque objet polymorphe, l'implémentation stocke des informations supplémentaires (dans toutes les implémentations existantes, il s'agit d'un pointeur, sauf s'il est optimisé), utilisées lors des appels de <a href="virtual.html">fonctions virtuelles</a> et par les fonctionnalités RTTI (<a href="dynamic_cast.html"><code>dynamic_cast</code></a> et <a href="typeid.html"><code>typeid</code></a>) pour déterminer, à l'exécution, le type avec lequel l'objet a été créé, quelle que soit l'expression dans laquelle il est utilisé.</p>
+<p>Pour les objets non polymorphes, l'interprétation de la valeur est déterminée par l'expression dans laquelle l'objet est utilisé, et elle est décidée à la compilation.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;typeinfo&gt;
+
+struct Base1
+{
+    // type polymorphe : déclare un membre virtuel
+    virtual ~Base1() {}
+};
+
+struct Derived1 : Base1
+{
+     // type polymorphe : hérite d'un membre virtuel
+};
+
+struct Base2
+{
+     // type non polymorphe
+};
+
+struct Derived2 : Base2
+{
+     // type non polymorphe
+};
+
+int main()
+{
+    Derived1 obj1; // object1 créé avec le type Derived1
+    Derived2 obj2; // object2 créé avec le type Derived2
+
+    Base1&amp; b1 = obj1; // b1 fait référence à l'objet obj1
+    Base2&amp; b2 = obj2; // b2 fait référence à l'objet obj2
+
+    std::cout &lt;&lt; &quot;Expression type of b1: &quot; &lt;&lt; typeid(decltype(b1)).name() &lt;&lt; '\n'
+              &lt;&lt; &quot;Expression type of b2: &quot; &lt;&lt; typeid(decltype(b2)).name() &lt;&lt; '\n'
+              &lt;&lt; &quot;Object type of b1: &quot; &lt;&lt; typeid(b1).name() &lt;&lt; '\n'
+              &lt;&lt; &quot;Object type of b2: &quot; &lt;&lt; typeid(b2).name() &lt;&lt; '\n'
+              &lt;&lt; &quot;Size of b1: &quot; &lt;&lt; sizeof b1 &lt;&lt; '\n'
+              &lt;&lt; &quot;Size of b2: &quot; &lt;&lt; sizeof b2 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Expression type of b1: Base1
+Expression type of b2: Base2
+Object type of b1: Derived1
+Object type of b2: Base2
+Size of b1: 8
+Size of b2: 1
+</code></pre>
+<h2 id="Strict_aliasing">Alias strict</h2>
+<p>Accéder à un objet à l'aide d'une expression d'un type autre que le type avec lequel il a été créé constitue, dans de nombreux cas, un comportement indéfini, voir <a href="reinterpret_cast.html#Type_aliasing"><code>reinterpret_cast</code></a> pour la liste des exceptions et des exemples.</p>
+<h2 id="Alignment">Alignement</h2>
+<p>Chaque <a href="type-id.html">type d'objet</a> possède la propriété appelée <em>exigence d'alignement</em>, qui est une valeur entière non négative (de type <a href="../types/size_t.html"><code>std::size_t</code></a>, et toujours une puissance de deux) représentant le nombre d'octets entre des adresses successives auxquelles des objets de ce type peuvent être alloués.</p>
+<blockquote>
+<p>L'exigence d'alignement d'un type peut être obtenue avec <a href="alignof.html"><code>alignof</code></a> ou <a href="../types/alignment_of.html"><code>std::alignment_of</code></a>. La fonction d'alignement de pointeur <a href="../memory/align.html"><code>std::align</code></a> peut être utilisée pour obtenir un pointeur convenablement aligné dans un tampon, et <a href="../types/aligned_storage.html"><code>std::aligned_storage</code></a> peut être utilisée pour obtenir un stockage convenablement aligné.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Chaque type d'objet impose son exigence d'alignement à chaque objet de ce type; un alignement plus strict (à exigence d'alignement plus grande) peut être demandé à l'aide de <a href="alignas.html"><code>alignas</code></a> <em>(depuis C++11)</em>. Tenter de créer un objet dans un stockage qui ne satisfait pas l'exigence d'alignement du type de l'objet est un comportement indéfini.</p>
+<p>Afin de satisfaire les exigences d'alignement de tous les membres non statiques d'une <a href="class.html">classe</a>, des <a href="objects.html#Object_representation_and_value_representation">bits de remplissage</a> peuvent être insérés après certains de ses membres.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// les objets de type S peuvent être alloués à n'importe quelle adresse
+// car S.a et S.b peuvent tous deux être alloués à n'importe quelle adresse
+struct S
+{
+    char a; // size: 1, alignment: 1
+    char b; // size: 1, alignment: 1
+}; // size: 2, alignment: 1
+
+// les objets de type X doivent être alloués sur des frontières de 4 octets
+// car X.n doit être alloué sur des frontières de 4 octets
+// car l'exigence d'alignement de int est (généralement) 4
+struct X
+{
+    int n;  // size: 4, alignment: 4
+    char c; // size: 1, alignment: 1
+    // trois octets de bits de remplissage
+}; // size: 8, alignment: 4
+
+int main()
+{
+    std::cout &lt;&lt; &quot;alignof(S) = &quot; &lt;&lt; alignof(S) &lt;&lt; '\n'
+              &lt;&lt; &quot;sizeof(S)  = &quot; &lt;&lt; sizeof(S) &lt;&lt; '\n'
+              &lt;&lt; &quot;alignof(X) = &quot; &lt;&lt; alignof(X) &lt;&lt; '\n'
+              &lt;&lt; &quot;sizeof(X)  = &quot; &lt;&lt; sizeof(X) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">alignof(S) = 1
+sizeof(S)  = 2
+alignof(X) = 4
+sizeof(X)  = 8
+</code></pre>
+<p>L'alignement le plus faible (la plus petite exigence d'alignement) est celui de <code>char</code>, <code>signed char</code> et <code>unsigned char</code>, qui vaut <code>1</code> ; le plus grand <em>alignement fondamental</em> de tout type est défini par l'implémentationet égal à l'alignement de <a href="../types/max_align_t.html"><code>std::max_align_t</code></a> <em>(depuis C++11)</em>.</p>
+<p>Les alignements fondamentaux sont pris en charge pour les objets de tous les types de durées de stockage.</p>
+<blockquote>
+<p>Si l'alignement d'un type est rendu plus strict (plus grand) que <a href="../types/max_align_t.html"><code>std::max_align_t</code></a> à l'aide de <a href="alignas.html"><code>alignas</code></a>, on parle d'un type à exigence d'<em>alignement étendu</em>. Un type dont l'alignement est étendu, ou un type classe dont un membre de données non statique a un alignement étendu, est un <em>type sur-aligné</em>.</p>
+<p>Les types <a href="../named_req/Allocator.html"><em>Allocator</em></a> doivent gérer correctement les types sur-alignés.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Il est défini par l'implémentation si les <a href="new.html">expressions <code>new</code></a> et <em>(jusqu'à C++17)</em> <a href="../memory/get_temporary_buffer.html"><code>std::get_temporary_buffer</code></a> prennent en charge les types sur-alignés.</p>
+<p><em>(depuis C++11) (jusqu'à C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Les objets en C++ ont une signification différente de celle des objets en <a href="https://en.wikipedia.org/wiki/Object-oriented_programming">programmation orientée objet (POO)</a> :</p>
+<table>
+<thead>
+<tr>
+<th>Objets en C++</th>
+<th>Objets en POO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>peuvent avoir n'importe quel type d'objet (voir <a href="../types/is_object.html"><code>std::is_object</code></a>)</td>
+<td>doivent avoir un type classe</td>
+</tr>
+<tr>
+<td>aucune notion d'« instance »</td>
+<td>ont la notion d'« instance » (et il existe des mécanismes comme <code>instanceof</code> pour détecter la relation « instance-de »)</td>
+</tr>
+<tr>
+<td>aucune notion d'« interface »</td>
+<td>ont la notion d'« interface » (et il existe des mécanismes comme <code>instanceof</code> pour détecter si une interface est implémentée)</td>
+</tr>
+<tr>
+<td>le polymorphisme doit être explicitement activé via des membres virtuels</td>
+<td>le polymorphisme est toujours activé</td>
+</tr>
+</tbody>
+</table>
+<p>Dans le rapport de défaut <a href="https://wg21.link/P0593R6">P0593R6</a>, la création implicite d'objets était considérée comme se produisant lors de la création d'un tableau d'octets ou lors de l'appel d'une <a href="../memory/new/operator_new.html">fonction d'allocation</a> (éventuellement définie par l'utilisateur et <a href="constexpr.html"><code>constexpr</code></a>) pendant l'évaluation constante. Cependant, une telle permission provoquait un indéterminisme dans l'évaluation constante, indésirable et non implémentable sur certains aspects. En conséquence, <a href="https://wg21.link/P2747R2">P2747R2</a> a interdit une telle création implicite d'objets dans l'évaluation constante. Nous considérons volontairement ce changement comme un rapport de défaut, bien que l'article entier ne le soit pas.</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/633.html">CWG 633</a></td>
+<td>C++98</td>
+<td>les variables ne pouvaient être que des objets</td>
+<td>elles peuvent aussi être des références</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/734.html">CWG 734</a></td>
+<td>C++98</td>
+<td>il n'était pas spécifié si des variables définies dans la même portée et garanties d'avoir la même valeur peuvent avoir la même adresse</td>
+<td>l'adresse est garantie d'être différente si leurs durées de vie se chevauchent, quelles que soient leurs valeurs</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1189.html">CWG 1189</a></td>
+<td>C++98</td>
+<td>deux sous-objets de classe de base du même type pouvaient avoir la même adresse</td>
+<td>ils ont toujours des adresses distinctes</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1861.html">CWG 1861</a></td>
+<td>C++98</td>
+<td>pour les champs de bits de taille excessive de types caractères étroits , tous les bits de la représentation de l'objet participaient encore à la représentation de la valeur</td>
+<td>autorise les bits de remplissage</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2489.html">CWG 2489</a></td>
+<td>C++98</td>
+<td><code>char[]</code> ne peut pas fournir de stockage, mais des objets pouvaient être implicitement créés dans son stockage</td>
+<td>les objets ne peuvent pas être créés implicitement dans le stockage de <code>char[]</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2519.html">CWG 2519</a></td>
+<td>C++98</td>
+<td>la définition de la représentation de l'objet ne traitait pas les champs de bits</td>
+<td>traite les champs de bits</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2719.html">CWG 2719</a></td>
+<td>C++98</td>
+<td>le comportement de la création d'un objet dans un stockage mal aligné n'était pas clair</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2753.html">CWG 2753</a></td>
+<td>C++11</td>
+<td>il n'était pas clair si un tableau de support d'une liste d'initialisation pouvait partager le stockage avec un littéral de chaîne</td>
+<td>ils peuvent partager le stockage</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2795.html">CWG 2795</a></td>
+<td>C++98</td>
+<td>pour déterminer si deux objets dont les durées de vie se chevauchent peuvent avoir la même adresse, si l'un d'eux est un sous-objet de taille nulle, ils pouvaient avoir des types distincts mais similaires</td>
+<td>n'autorise que des types non similaires</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0593R6">P0593R6</a></td>
+<td>C++98</td>
+<td>le modèle d'objet précédent ne prenait pas en charge de nombreux idiomes utiles requis par la bibliothèque standard et n'était pas compatible avec les types effectifs du C</td>
+<td>création implicite d'objets ajoutée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/language/object.html">Documentation C</a> pour Object</strong></p>
+
+</main>
+</body>
+</html>

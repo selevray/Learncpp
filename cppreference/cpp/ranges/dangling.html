@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::dangling — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-dangling"><code>std::ranges::dangling</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/dangling">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">struct dangling;  // (depuis C++20)
+</code></pre>
+<p><code>dangling</code> est un type de substitution et une classe vide, utilisé avec les alias de modèles <a href="borrowed_iterator_t.html"><code>ranges::borrowed_iterator_t</code></a> et <a href="borrowed_iterator_t.html"><code>ranges::borrowed_subrange_t</code></a>.</p>
+<p>Lorsque certains <a href="../algorithm/ranges.html">algorithmes contraints</a> qui renvoient habituellement un itérateur ou un sous-intervalle d'un <a href="range.html"><code>range</code></a> reçoivent un argument rvalue <code>range</code> particulier qui ne modélise pas <a href="borrowed_range.html"><code>borrowed_range</code></a>, <code>dangling</code> est renvoyé à la place afin d'éviter de renvoyer des résultats potentiellement pendants.</p>
+<h2 id="Member_functions">Fonctions membres</h2>
+<h2 id="std::ranges::dangling::dangling">std::ranges::dangling::dangling</h2>
+<pre><code class="language-cpp">constexpr dangling() noexcept = default;  // (1)
+
+template&lt;class... Args&gt;
+constexpr dangling(Args&amp;&amp;...) noexcept { }  // (2)
+</code></pre>
+<ol>
+<li>
+<p><code>dangling</code> est trivialement constructible par défaut.</p>
+</li>
+<li>
+<p><code>dangling</code> peut être construit à partir d'un nombre quelconque d'arguments de type quelconque non void. La construction n'a elle-même aucun effet de bord.</p>
+</li>
+</ol>
+<p>Autrement dit, après remplacement du type (par exemple un type d'itérateur) dans une initialisation bien formée non agrégat par <code>dangling</code>, l'initialisation résultante est également bien formée.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;ranges&gt;
+#include &lt;type_traits&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+    auto get_array_by_value = [] { return std::array{0, 1, 0, 1}; };
+    auto dangling_iter = std::ranges::max_element(get_array_by_value());
+    static_assert(std::is_same_v&lt;std::ranges::dangling, decltype(dangling_iter)&gt;);
+//  std::cout &lt;&lt; *dangling_iter &lt;&lt; '\n'; // erreur de compilation : aucune correspondance pour 'operator*'
+                                         // (le type de l'opérande est 'std::ranges::dangling')
+
+    auto get_persistent_array = []() -&gt; const std::array&lt;int, 4&gt;&amp; {
+        static constexpr std::array a{0, 1, 0, 1};
+        return a;
+    };
+    auto valid_iter = std::ranges::max_element(get_persistent_array());
+    static_assert(!std::is_same_v&lt;std::ranges::dangling, decltype(valid_iter)&gt;);
+    std::cout &lt;&lt; *valid_iter &lt;&lt; ' '; // 1
+
+    auto get_string_view = [] { return std::string_view{&quot;alpha&quot;}; };
+    auto valid_iter2 = std::ranges::min_element(get_string_view());
+        // OK : std::basic_string_view modélise borrowed_range
+    static_assert(!std::is_same_v&lt;std::ranges::dangling, decltype(valid_iter2)&gt;);
+    std::cout &lt;&lt; '\'' &lt;&lt; *valid_iter2 &lt;&lt; '\'' &lt;&lt; '\n'; // 'a'
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1 'a'
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="borrowed_iterator_t.html">ranges::borrowed_iterator_tranges::borrowed_subrange_t</a> (C++20)</strong> — obtient le type d'itérateur ou de <code>subrange</code> d'un <a href="borrowed_range.html"><code>borrowed_range</code></a> <em>(modèle d'alias)</em></li>
+<li><strong><a href="borrowed_range.html">ranges::borrowed_range</a> (C++20)</strong> — spécifie qu'un type est un <a href="range.html"><code>range</code></a> et que les itérateurs obtenus à partir d'une expression de ce type peuvent être renvoyés en toute sécurité sans risque de pendantes <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

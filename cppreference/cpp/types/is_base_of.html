@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::is_base_of — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-is_base_of"><code>std::is_base_of</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/is_base_of">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Base, class Derived &gt;
+struct is_base_of;  // (depuis C++11)
+</code></pre>
+<p><code>std::is_base_of</code> est un <a href="../named_req/BinaryTypeTrait.html"><em>BinaryTypeTrait</em></a>.</p>
+<p>Si <code>Derived</code> est <a href="../language/derived_class.html">dérivé</a> de <code>Base</code> ou si les deux sont la même classe non union (dans les deux cas en ignorant la qualification cv), fournit la constante membre <code>value</code> égale à <code>true</code>. Sinon <code>value</code> vaut <code>false</code>.</p>
+<p>Si <code>Base</code> et <code>Derived</code> sont tous deux des types classe non union, et qu'ils ne sont pas le même type (en ignorant la qualification cv), <code>Derived</code> doit être un <a href="../language/incomplete_type.html">type complet</a> ; sinon le comportement est indéfini.</p>
+<p>Si le programme ajoute des spécialisations pour <code>std::is_base_of</code>ou <code>std::is_base_of_v</code> <em>(depuis C++17)</em>, le comportement est indéfini.</p>
+<h2 id="Helper_variable_template">Modèle de variable auxiliaire</h2>
+<pre><code class="language-cpp">template&lt; class Base, class Derived &gt;
+constexpr bool is_base_of_v = is_base_of&lt;Base, Derived&gt;::value;  // (depuis C++17)
+</code></pre>
+<h2 id="Inherited_from_std::integral_constant">Hérité de <a href="integral_constant.html">std::integral_constant</a></h2>
+<h2 id="Member_constants">Constantes membres</h2>
+<ul>
+<li><strong>value [statique]</strong> — <code>true</code> si <code>Derived</code> dérive de <code>Base</code> ou si les deux sont la même classe non union (dans les deux cas en ignorant la qualification cv), <code>false</code> sinon <em>(constante membre statique publique)</em></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong>operator bool</strong> — convertit l'objet en <code>bool</code>, renvoie <code>value</code> <em>(fonction membre publique)</em></li>
+<li><strong>operator() (C++14)</strong> — renvoie <code>value</code> <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>value_type</code></strong> — <code>bool</code></li>
+<li><strong><code>type</code></strong> — <code>std::integral_constant&lt;bool, value&gt;</code></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><code>std::is_base_of&lt;A, B&gt;::value</code> est <code>true</code> même si <code>A</code> est une classe de base privée, protégée ou ambiguë de <code>B</code>. Dans de nombreuses situations, <code>std::is_convertible&lt;B*, A*&gt;</code> est le test le plus approprié.</p>
+<p>Bien qu'aucune classe ne soit sa propre base, <code>std::is_base_of&lt;T, T&gt;::value</code> vaut vrai car l'intention du trait est de modéliser la relation « est-un », et <code>T</code> est un <code>T</code>. Malgré cela, <code>std::is_base_of&lt;int, int&gt;::value</code> vaut <code>false</code> car seules les classes participent à la relation que ce trait modélise.</p>
+<h2 id="Possible_Implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace details
+{
+    template&lt;typename B&gt;
+    std::true_type test_ptr_conv(const volatile B*);
+    template&lt;typename&gt;
+    std::false_type test_ptr_conv(const volatile void*);
+
+    template&lt;typename B, typename D&gt;
+    auto test_is_base_of(int) -&gt; decltype(test_ptr_conv&lt;B&gt;(static_cast&lt;D*&gt;(nullptr)));
+    template&lt;typename, typename&gt;
+    auto test_is_base_of(...) -&gt; std::true_type; // base privée ou ambiguë
+}
+
+template&lt;typename Base, typename Derived&gt;
+struct is_base_of :
+    std::integral_constant&lt;
+        bool,
+        std::is_class&lt;Base&gt;::value &amp;&amp;
+        std::is_class&lt;Derived&gt;::value &amp;&amp;
+        decltype(details::test_is_base_of&lt;Base, Derived&gt;(0))::value
+    &gt; {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;type_traits&gt;
+
+class A {};
+class B : A {};
+class C : B {};
+class D {};
+union E {};
+using I = int;
+
+static_assert
+(
+    std::is_base_of_v&lt;A, A&gt; == true &amp;&amp;
+    std::is_base_of_v&lt;A, B&gt; == true &amp;&amp;
+    std::is_base_of_v&lt;A, C&gt; == true &amp;&amp;
+    std::is_base_of_v&lt;A, D&gt; != true &amp;&amp;
+    std::is_base_of_v&lt;B, A&gt; != true &amp;&amp;
+    std::is_base_of_v&lt;E, E&gt; != true &amp;&amp;
+    std::is_base_of_v&lt;I, I&gt; != true
+);
+
+int main() {}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2015">LWG 2015</a></td>
+<td>C++11</td>
+<td>le comportement peut être indéfini si <code>Derived</code> est un type union incomplet</td>
+<td>la caractéristique de base vaut <a href="integral_constant.html"><code>std::false_type</code></a> dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="is_virtual_base_of.html">is_virtual_base_of</a> (C++26)</strong> — vérifie si un type est une base virtuelle de l'autre type <em>(modèle de classe)</em></li>
+<li><strong><a href="is_convertible.html">is_convertibleis_nothrow_convertible</a> (C++11) (C++20)</strong> — vérifie si un type peut être converti en un autre type <em>(modèle de classe)</em></li>
+<li><strong><a href="../concepts/derived_from.html">derived_from</a> (C++20)</strong> — spécifie qu'un type dérive d'un autre type <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

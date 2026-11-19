@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::borrowed_range, std::ranges::enable_borrowed_range — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-borrowed_range-std-ranges-enable_borrowed_range"><code>std::ranges::borrowed_range, std::ranges::enable_borrowed_range</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/borrowed_range">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class R &gt;
+concept borrowed_range =
+    ranges::range&lt;R&gt; &amp;&amp;
+    (std::is_lvalue_reference_v&lt;R&gt; ||
+     ranges::enable_borrowed_range&lt;std::remove_cvref_t&lt;R&gt;&gt;);  // (1) (depuis C++20)
+
+template&lt; class R &gt;
+constexpr bool enable_borrowed_range = false;  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Le concept <code>borrowed_range</code> définit les exigences d'un intervalle tel qu'une fonction peut le prendre par valeur et renvoyer des itérateurs obtenus à partir de celui-ci sans danger de référence pendante.</p>
+</li>
+<li>
+<p>Le modèle de variable <code>enable_borrowed_range</code> sert à indiquer si un <a href="range.html"><code>range</code></a> est un <code>borrowed_range</code>. Le modèle primaire est défini comme <code>false</code>.</p>
+</li>
+</ol>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Soit <code>U</code> égal à <code>std::remove_reference_t&lt;T&gt;</code> si <code>T</code> est un type référence rvalue, et à <code>T</code> sinon. Étant donné une variable <code>u</code> de type <code>U</code>, <code>T</code> modélise <code>borrowed_range</code> uniquement si la validité des itérateurs obtenus à partir de <code>u</code> n'est pas liée à la durée de vie de cette variable.</p>
+<h2 id="Specializations">Spécialisations</h2>
+<p>Les spécialisations de <code>enable_borrowed_range</code> pour toutes les spécialisations des modèles standard suivants sont définies comme <code>true</code> :</p>
+<ul>
+<li><a href="../string/basic_string_view.html"><code>std::basic_string_view</code></a></li>
+<li><a href="../container/span.html"><code>std::span</code></a></li>
+<li><a href="subrange.html"><code>std::ranges::subrange</code></a></li>
+<li><a href="ref_view.html"><code>std::ranges::ref_view</code></a></li>
+<li><a href="empty_view.html"><code>std::ranges::empty_view</code></a></li>
+<li><a href="iota_view.html"><code>std::ranges::iota_view</code></a></li>
+</ul>
+<p>La spécialisation de <code>enable_borrowed_range</code> pour les adaptateurs d'intervalles standard suivants est définie comme <code>true</code> si et seulement si <code>std::ranges::enable_borrowed_range&lt;V&gt;</code> est <code>true</code>, où <code>V</code> est le type de vue sous-jacent :</p>
+<ul>
+<li><a href="owning_view.html"><code>std::ranges::owning_view</code></a></li>
+<li><a href="take_view.html"><code>std::ranges::take_view</code></a></li>
+<li><a href="drop_view.html"><code>std::ranges::drop_view</code></a></li>
+<li><a href="drop_while_view.html"><code>std::ranges::drop_while_view</code></a></li>
+<li><a href="common_view.html"><code>std::ranges::common_view</code></a></li>
+<li><a href="reverse_view.html"><code>std::ranges::reverse_view</code></a></li>
+<li><a href="elements_view.html"><code>std::ranges::elements_view</code></a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="adjacent_view.html"><code>std::ranges::adjacent_view</code></a></li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>La spécialisation pour <a href="zip_view.html"><code>std::ranges::zip_view</code></a> est définie comme <code>true</code> si et seulement si <code>(std::ranges::enable_borrowed_range&lt;Vs&gt; &amp;&amp; ...)</code> est <code>true</code>, où <code>Vs...</code> désignent tous les types de vue qu'elle adapte.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Un programme peut spécialiser <code>enable_borrowed_range</code> en <code>true</code> pour les <a href="../language/type-id.html#Program-defined_type">types définis par le programme</a> non qualifiés cv qui modélisent <code>borrowed_range</code>, et en <code>false</code> pour les types qui ne le font pas. De telles spécialisations doivent pouvoir être utilisées dans une <a href="../language/constant_expression.html">expression constante</a> et avoir le type <code>const bool</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Démontre les spécialisations de <code>enable_borrowed_range</code> pour les types définis par le programme. De telles spécialisations protègent contre des résultats potentiellement pendants.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;ranges&gt;
+#include &lt;span&gt;
+#include &lt;type_traits&gt;
+
+template&lt;typename T, std::size_t N&gt;
+struct MyRange : std::array&lt;T, N&gt; {};
+
+template&lt;typename T, std::size_t N&gt;
+constexpr bool std::ranges::enable_borrowed_range&lt;MyRange&lt;T, N&gt;&gt; = false;
+
+template&lt;typename T, std::size_t N&gt;
+struct MyBorrowedRange : std::span&lt;T, N&gt; {};
+
+template&lt;typename T, std::size_t N&gt;
+constexpr bool std::ranges::enable_borrowed_range&lt;MyBorrowedRange&lt;T, N&gt;&gt; = true;
+
+int main()
+{
+    static_assert(std::ranges::range&lt;MyRange&lt;int, 8&gt;&gt;);
+    static_assert(std::ranges::borrowed_range&lt;MyRange&lt;int, 8&gt;&gt; == false);
+    static_assert(std::ranges::range&lt;MyBorrowedRange&lt;int, 8&gt;&gt;);
+    static_assert(std::ranges::borrowed_range&lt;MyBorrowedRange&lt;int, 8&gt;&gt; == true);
+
+    auto getMyRangeByValue = []{ return MyRange&lt;int, 4&gt;{{1, 2, 42, 3}}; };
+    auto dangling_iter = std::ranges::max_element(getMyRangeByValue());
+    static_assert(std::is_same_v&lt;std::ranges::dangling, decltype(dangling_iter)&gt;);
+    // *dangling_iter; // erreur de compilation (c'est-à-dire que la protection contre les références pendantes fonctionne.)
+
+    auto my = MyRange&lt;int, 4&gt;{{1, 2, 42, 3}};
+    auto valid_iter = std::ranges::max_element(my);
+    std::cout &lt;&lt; *valid_iter &lt;&lt; ' '; // OK: 42
+
+    auto getMyBorrowedRangeByValue = []
+    {
+        static int sa[4]{1, 2, 42, 3};
+        return MyBorrowedRange&lt;int, std::size(sa)&gt;{sa};
+    };
+    auto valid_iter2 = std::ranges::max_element(getMyBorrowedRangeByValue());
+    std::cout &lt;&lt; *valid_iter2 &lt;&lt; '\n'; // OK: 42
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">42 42
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="dangling.html">ranges::dangling</a> (C++20)</strong> — un type substitut indiquant qu'un itérateur ou un <code>subrange</code> ne doit pas être renvoyé car il serait pendant <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

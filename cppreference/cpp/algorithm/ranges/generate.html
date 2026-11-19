@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::generate — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-generate"><code>std::ranges::generate</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/generate">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_or_output_iterator O, std::sentinel_for&lt;O&gt; S,
+          std::copy_constructible F &gt;
+requires std::invocable&lt;F&amp;&gt; &amp;&amp; std::indirectly_writable&lt;O, std::invoke_result_t&lt;F&amp;&gt;&gt;
+constexpr O
+    generate( O first, S last, F gen );  // (1) (depuis C++20)
+
+template&lt; class R, std::copy_constructible F &gt;
+requires std::invocable&lt;F&amp;&gt; &amp;&amp; ranges::output_range&lt;R, std::invoke_result_t&lt;F&amp;&gt;&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt;
+    generate( R&amp;&amp; r, F gen );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Affecte le résultat des appels <em>successifs</em> de l'objet fonction <code>gen</code> à chaque élément de l'intervalle <code>[first,last)</code>.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle des éléments à modifier</li>
+<li><code>r</code> — l'intervalle des éléments à modifier</li>
+<li><code>gen</code> — l'objet fonction générateur</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur de sortie égal à <code>last</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>ranges::distance(first, last)</code> invocations de <code>gen()</code> et affectations.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct generate_fn
+{
+    template&lt;std::input_or_output_iterator O, std::sentinel_for&lt;O&gt; S,
+             std::copy_constructible F&gt;
+    requires std::invocable&lt;F&amp;&gt; &amp;&amp; std::indirectly_writable&lt;O, std::invoke_result_t&lt;F&amp;&gt;&gt;
+    constexpr O operator()(O first, S last, F gen) const
+    {
+        for (; first != last; *first = std::invoke(gen), ++first)
+        {}
+        return first;
+    }
+
+    template&lt;class R, std::copy_constructible F&gt;
+    requires std::invocable&lt;F&amp;&gt; &amp;&amp; ranges::output_range&lt;R, std::invoke_result_t&lt;F&amp;&gt;&gt;
+    constexpr ranges::borrowed_iterator_t&lt;R&gt; operator()(R&amp;&amp; r, F gen) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::move(gen));
+    }
+};
+
+inline constexpr generate_fn generate {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;random&gt;
+#include &lt;string_view&gt;
+
+auto dice()
+{
+    static std::uniform_int_distribution&lt;int&gt; distr{1, 6};
+    static std::random_device device;
+    static std::mt19937 engine {device()};
+    return distr(engine);
+}
+
+void iota(auto&amp; r, int init)
+{
+    std::ranges::generate(r, [init] mutable { return init++; });
+}
+
+void print(std::string_view comment, const auto&amp; v)
+{
+    for (std::cout &lt;&lt; comment; int i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::array&lt;int, 8&gt; v;
+
+    std::ranges::generate(v.begin(), v.end(), dice);
+    print(&quot;dice: &quot;, v);
+    std::ranges::generate(v, dice);
+    print(&quot;dice: &quot;, v);
+
+    iota(v, 1);
+    print(&quot;iota: &quot;, v);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">dice: 4 3 1 6 6 4 5 5
+dice: 4 2 5 3 6 2 6 2
+iota: 1 2 3 4 5 6 7 8
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="generate_n.html">ranges::generate_n</a> (C++20)</strong> — enregistre le résultat de N applications d'une fonction <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="fill.html">ranges::fill</a> (C++20)</strong> — affecte une certaine valeur à un intervalle d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="fill_n.html">ranges::fill_n</a> (C++20)</strong> — affecte une valeur à un certain nombre d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="transform.html">ranges::transform</a> (C++20)</strong> — applique une fonction à un intervalle d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="generate_random.html">ranges::generate_random</a> (C++26)</strong> — remplit un intervalle avec des nombres aléatoires provenant d'un générateur de bits aléatoires uniforme <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../generate.html">generate</a></strong> — affecte les résultats d'appels successifs de fonction à chaque élément d'un intervalle <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

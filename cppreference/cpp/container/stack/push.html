@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::stack&lt;T,Container&gt;::push — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/stack.html">std::stack</a></nav>
+<h1 id="std-stack-t-container-push"><code>std::stack&lt;T,Container&gt;::push</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/stack/push">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void push( const value_type&amp; value );  // (1)
+
+void push( value_type&amp;&amp; value );  // (2) (depuis C++11)
+</code></pre>
+<p>Ajoute l'élément donné <code>value</code> au sommet de la pile.</p>
+<ol>
+<li>
+<p>Équivalent à : <code>c.push_back(value)</code>.</p>
+</li>
+<li>
+<p>Équivalent à : <code>c.push_back(std::move(value))</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>value</code> — la valeur de l'élément à ajouter</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Égale à la complexité de <code>Container::push_back</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Ce programme implémente le <a href="https://en.wikipedia.org/wiki/Brainfuck">BrainHack</a> <a href="https://en.wikipedia.org/wiki/Domain-specific_language">DSL</a>, où l'utilisation de <a href="../stack.html"><code>std::stack</code></a> est une manière idiomatique de traiter les parenthèses appariées.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+#include &lt;map&gt;
+#include &lt;stack&gt;
+#include &lt;stdexcept&gt;
+#include &lt;string_view&gt;
+
+class BrainHackInterpreter
+{
+    std::map&lt;unsigned, unsigned&gt; open_brackets, close_brackets;
+    std::array&lt;std::uint8_t, 32768&gt; data_{0};
+    unsigned program_{0};
+    int pos_{0};
+
+    void collect_brackets(const std::string_view program)
+    {
+        std::stack&lt;unsigned&gt; brackets_stack;
+
+        for (auto pos{0U}; pos != program.length(); ++pos)
+        {
+            if (const char c{program[pos]}; '[' == c)
+                brackets_stack.push(pos);
+            else if (']' == c)
+            {
+                if (brackets_stack.empty())
+                    throw std::runtime_error(&quot;Brackets [] do not match!&quot;);
+                else
+                {
+                    open_brackets[brackets_stack.top()] = pos;
+                    close_brackets[pos] = brackets_stack.top();
+                    brackets_stack.pop();
+                }
+            }
+        }
+
+        if (!brackets_stack.empty())
+            throw std::runtime_error(&quot;Brackets [] do not match!&quot;);
+    }
+
+    void check_data_pos(int pos)
+    {
+        if (pos &lt; 0 or static_cast&lt;int&gt;(data_.size()) &lt;= pos)
+            throw std::out_of_range{&quot;Data pointer out of bound!&quot;};
+    }
+
+public:
+    BrainHackInterpreter(const std::string_view program)
+    {
+        for (collect_brackets(program); program_ &lt; program.length(); ++program_)
+            switch (program[program_])
+            {
+                case '&lt;':
+                    check_data_pos(--pos_);
+                    break;
+                case '&gt;':
+                    check_data_pos(++pos_);
+                    break;
+                case '-':
+                    --data_[pos_];
+                    break;
+                case '+':
+                    ++data_[pos_];
+                    break;
+                case '.':
+                    std::cout &lt;&lt; data_[pos_];
+                    break;
+                case ',':
+                    std::cin &gt;&gt; data_[pos_];
+                    break;
+                case '[':
+                    if (data_[pos_] == 0)
+                        program_ = open_brackets[program_];
+                    break;
+                case ']':
+                    if (data_[pos_] != 0)
+                        program_ = close_brackets[program_];
+                    break;
+            }
+    }
+};
+
+int main()
+{
+    BrainHackInterpreter
+    {
+        &quot;++++++++[&gt;++&gt;&gt;++&gt;++++&gt;++++&lt;&lt;&lt;&lt;&lt;-]&gt;[&lt;+++&gt;&gt;+++&lt;-]&gt;[&lt;+&quot;
+        &quot;+&gt;&gt;&gt;+&lt;&lt;-]&lt;[&gt;+&gt;+&lt;&lt;-]&gt;&gt;&gt;--------.&lt;&lt;+++++++++.&lt;&lt;----.&gt;&quot;
+        &quot;&gt;&gt;&gt;&gt;.&lt;&lt;&lt;------.&gt;..++.&lt;++.+.-.&gt;.&lt;.&gt;----.&lt;--.++.&gt;&gt;&gt;+.&quot;
+    };
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Hi, cppreference!
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="emplace.html">emplace</a> (C++11)</strong> — construit un élément sur place au sommet <em>(fonction membre publique)</em></li>
+<li><strong><a href="pop.html">pop</a></strong> — supprime l'élément de tête <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

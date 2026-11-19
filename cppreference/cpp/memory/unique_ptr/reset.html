@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::unique_ptr&lt;T,Deleter&gt;::reset — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/unique_ptr.html">std::unique_ptr</a></nav>
+<h1 id="std-unique_ptr-t-deleter-reset"><code>std::unique_ptr&lt;T,Deleter&gt;::reset</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr/reset">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>membres du modèle primaire, unique_ptr&lt;T&gt;</strong></p>
+<pre><code class="language-cpp">void reset( pointer ptr = pointer() ) noexcept;  // (1) (constexpr depuis C++23)
+</code></pre>
+<p><strong>membres de la spécialisation unique_ptr&lt;T[]&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class U &gt;
+void reset( U ptr ) noexcept;  // (2) (constexpr depuis C++23)
+
+void reset( std::nullptr_t = nullptr ) noexcept;  // (3) (constexpr depuis C++23)
+</code></pre>
+<p>Remplace l'objet géré.</p>
+<p>1,2) Équivalent à <code>auto old_ptr = get();/* affecte « ptr » au pointeur stocké */if (old_ptr) get_deleter()(old_ptr);</code>.</p>
+<p>Si <code>get_deleter()(old_ptr)</code> lève une exception, le comportement est indéfini.</p>
+<ol start="2">
+<li>Cette surcharge ne participe à la résolution de surcharge que si <code>U</code> est le même type que <code>pointer</code>, ou si toutes les conditions suivantes sont satisfaites :</li>
+</ol>
+<ul>
+<li><code>pointer</code> est le même type que <code>element_type*</code>.</li>
+<li><code>U</code> est un type pointeur <code>V*</code> tel que <code>V(*)[]</code> est convertible en <code>element_type(*)[]</code>.</li>
+</ul>
+<ol start="3">
+<li>Équivalent à <code>reset(pointer())</code>.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ptr</code> — pointeur vers un nouvel objet à gérer</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Pour remplacer l'objet géré tout en fournissant également un nouveau suppresseur, l'opérateur d'affectation par déplacement peut être utilisé.</p>
+<p>Aucun test d'auto-réinitialisation, c'est-à-dire de vérification que <code>ptr</code> pointe vers un objet déjà géré par <code>*this</code>, n'est effectué, sauf lorsqu'il est fourni comme extension du compilateur ou comme assertion de débogage. Notez que du code tel que <code>p.reset(p.release())</code> n'implique pas d'auto-réinitialisation, seul du code comme <code>p.reset(p.get())</code> en implique une.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+struct Foo // objet à gérer
+{
+    Foo() { std::cout &lt;&lt; &quot;Foo...\n&quot;; }
+    ~Foo() { std::cout &lt;&lt; &quot;~Foo...\n&quot;; }
+};
+
+struct D // deleter
+{
+    void operator() (Foo* p)
+    {
+        std::cout &lt;&lt; &quot;Calling delete for Foo object... \n&quot;;
+        delete p;
+    }
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Creating new Foo...\n&quot;;
+    std::unique_ptr&lt;Foo, D&gt; up(new Foo(), D()); // up possède le pointeur Foo (suppresseur D)
+
+    std::cout &lt;&lt; &quot;Replace owned Foo with a new Foo...\n&quot;;
+    up.reset(new Foo());  // appelle le suppresseur pour l'ancien
+
+    std::cout &lt;&lt; &quot;Release and delete the owned Foo...\n&quot;;
+    up.reset(nullptr);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Creating new Foo...
+Foo...
+Replace owned Foo with a new Foo...
+Foo...
+Calling delete for Foo object...
+~Foo...
+Release and delete the owned Foo...
+Calling delete for Foo object...
+~Foo...
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2118">LWG 2118</a></td>
+<td>C++11</td>
+<td><code>unique_ptr&lt;T[]&gt;::reset</code> a rejeté les conversions de qualification</td>
+<td>accepts</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2169">LWG 2169</a></td>
+<td>C++11</td>
+<td>la surcharge <code>unique_ptr&lt;T[]&gt;::reset(pointer)</code> existait</td>
+<td>surcharge supprimée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="release.html">release</a></strong> — renvoie un pointeur vers l'objet géré et libère la propriété <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

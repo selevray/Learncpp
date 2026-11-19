@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remplacement de macros textuelles — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/preprocessor.html">Préprocesseur</a></nav>
+<h1 id="remplacement-de-macros-textuelles">Remplacement de macros textuelles</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/preprocessor/replace">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Le préprocesseur prend en charge le remplacement de macros textuelles. Le remplacement de macros textuelles de type fonction est également pris en charge.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>#define</code> <code>identifier replacement-list</code> ﻿*(facultatif)* | (1) | |
+|
+| <code>#define</code> <code>identifier</code> ﻿<code>(parameters</code> ﻿<code>)</code> <code>replacement-list</code> ﻿*(facultatif)* | (2) | |
+|
+| <code>#define</code> <code>identifier</code> ﻿<code>(parameters</code> ﻿<code>, ...)</code> <code>replacement-list</code> ﻿*(facultatif)* | (3) | (depuis C++11) |
+|
+| <code>#define</code> <code>identifier</code> ﻿<code>(...)</code> <code>replacement-list</code> ﻿*(facultatif)* | (4) | (depuis C++11) |
+|
+| <code>#undef</code> <code>identifier</code> | (5) | |
+|</p>
+<h2 id="Explanation">Explication</h2>
+<h3 id=".23define_directives">directives <code>#define</code></h3>
+<p>Les directives <code>#define</code> définissent <code>identifier</code> comme macro, c'est-à-dire qu'elles demandent au compilateur de remplacer la plupart des occurrences successives de <code>identifier</code> par <code>replacement-list</code>, qui sera ensuite également traité. Des exceptions découlent des règles de <a href="replace.html#Scanning_and_Replacement">analyse et de remplacement</a>. Si l'identifiant est déjà défini comme macro de quelque type que ce soit, le programme est mal formé, sauf si les définitions sont identiques.</p>
+<h4 id="Object-like_macros">Macros de type objet</h4>
+<p>Les macros de type objet remplacent chaque occurrence de <code>identifier</code> définie par <code>replacement-list</code>. La version (1) de la directive <code>#define</code> se comporte exactement ainsi.</p>
+<h4 id="Function-like_macros">Macros de type fonction</h4>
+<p>Les macros de type fonction remplacent chaque occurrence de <code>identifier</code> définie par <code>replacement-list</code>, en prenant en plus un certain nombre d'arguments, qui remplacent alors les occurrences correspondantes de l'un quelconque des <code>parameters</code> dans <code>replacement-list</code>.</p>
+<p>La syntaxe d'un appel de macro de type fonction est similaire à celle d'un appel de fonction : chaque occurrence du nom de la macro suivi d'une <code>(</code> comme jeton de prétraitement suivant introduit la suite de jetons qui est remplacée par <code>replacement-list</code>. La suite se termine par le jeton <code>)</code> correspondant, en ignorant les paires de parenthèses gauches et droites imbriquées.</p>
+<p>Pour la version (2), le nombre d'arguments doit être égal au nombre de paramètres de la définition de macro. Pour les versions (3,4), le nombre d'arguments ne doit pas être inférieur au nombre de paramètres (ne <em>(depuis C++20)</em> compte pas <code>...</code>). Sinon, le programme est mal formé. Si l'identifiant n'est pas en notation fonctionnelle, c'est-à-dire s'il n'est pas suivi de parenthèses, il n'est pas du tout remplacé.</p>
+<p>La version (2) de la directive <code>#define</code> définit une macro de type fonction simple.</p>
+<p>La version (3) de la directive <code>#define</code> définit une macro de type fonction à nombre variable d'arguments. Les arguments supplémentaires (appelés <em>arguments variables</em>) peuvent être accessibles à l'aide de l'identifiant <code>__VA_ARGS__</code>, qui est alors remplacé par les arguments fournis avec l'identifiant à remplacer.</p>
+<p>La version (4) de la directive <code>#define</code> définit une macro de type fonction à nombre variable d'arguments, mais sans arguments ordinaires. Les arguments (appelés <em>arguments variables</em>) ne sont accessibles qu'à l'aide de l'identifiant <code>__VA_ARGS__</code>, qui est alors remplacé par les arguments fournis avec l'identifiant à remplacer.</p>
+<blockquote>
+<p>Pour les versions (3,4), <code>replacement-list</code> peut contenir la suite de jetons <code>__VA_OPT__(content</code> ﻿<code>)</code>, qui est remplacée par <code>content</code> si <code>__VA_ARGS__</code> n'est pas vide, et se développe en rien dans le cas contraire.</p>
+<pre><code class="language-cpp">#define F(...) f(0 __VA_OPT__(,) __VA_ARGS__)
+F(a, b, c) // remplacé par f(0, a, b, c)
+F()        // remplacé par f(0)
+
+#define G(X, ...) f(0, X __VA_OPT__(,) __VA_ARGS__)
+G(a, b, c) // remplacé par f(0, a, b, c)
+G(a, )     // remplacé par f(0, a)
+G(a)       // remplacé par f(0, a)
+
+#define SDEF(sname, ...) S sname __VA_OPT__(= { __VA_ARGS__ })
+SDEF(foo);       // remplacé par S foo;
+SDEF(bar, 1, 2); // remplacé par S bar = { 1, 2 };
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Remarque : si un argument d'une macro de type fonction contient des virgules qui ne sont pas protégées par des paires de parenthèses gauches et droites correspondantes (cas le plus courant dans les listes d'arguments de modèle, comme <code>assert(std::is_same_v&lt;int, int&gt;);</code> ou <code>BOOST_FOREACH(std::pair&lt;int, int&gt; p, m)</code>), la virgule est interprétée comme séparateur d'arguments de macro, ce qui provoque une erreur de compilation due à un nombre d'arguments incorrect.</p>
+<h4 id="Scanning_and_Replacement">Analyse et remplacement</h4>
+<ul>
+<li>L'analyse garde la trace des macros qu'elle a remplacées. Si l'analyse trouve un texte correspondant à une telle macro, elle le marque « à ignorer » (toutes les analyses l'ignoreront). Cela empêche la récursion.</li>
+<li>Si l'analyse a trouvé une macro de type fonction, les arguments sont analysés avant d'être placés dans <code>replacement-list</code>. Sauf les opérateurs <code>#</code> et <code>##</code>, qui prennent l'argument sans l'analyser.</li>
+<li>Une fois la macro remplacée, le texte résultant est analysé.</li>
+</ul>
+<p>Remarque : il est possible de définir une macro pseudo-récursive :</p>
+<pre><code class="language-cpp">#define EMPTY
+#define SCAN(x)     x
+#define EXAMPLE_()  EXAMPLE
+#define EXAMPLE(n)  EXAMPLE_ EMPTY()(n-1) (n)
+EXAMPLE(5)
+SCAN(EXAMPLE(5))
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">EXAMPLE_ ()(5 -1) (5)
+EXAMPLE_ ()(5 -1 -1) (5 -1) (5)
+</code></pre>
+<h3 id="Reserved_macro_names">Noms de macros réservés</h3>
+<p>Une unité de traduction qui <a href="../standard_library.html#Including_headers">inclut un en-tête de la bibliothèque standard</a> ne doit pas <code>#define</code> ni <code>#undef</code> des noms déclarés dans un <a href="../headers.html">en-tête de la bibliothèque standard</a>.</p>
+<p>Une unité de traduction qui utilise une partie quelconque de la bibliothèque standard ne doit pas <code>#define</code> ni <code>#undef</code> des noms lexicalement identiques à :</p>
+<ul>
+<li><a href="../keywords.html">keywords</a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="../keywords.html">identifiants ayant une signification particulière</a></li>
+<li><a href="../language/attributes.html#Standard_attributes">tout jeton d'attribut standard</a>, à l'exception de <a href="../language/attributes/likely.html"><code>likely</code></a> et <a href="../language/attributes/likely.html"><code>unlikely</code></a> qui peuvent être définis comme macros de type fonction <em>(depuis C++20)</em></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Dans le cas contraire, le comportement est indéfini.</p>
+<h3 id=".23_and_.23.23_operators">Opérateurs <code>#</code> et <code>##</code></h3>
+<p>Dans les macros de type fonction, un opérateur <code>#</code> placé devant un identifiant de <code>replacement-list</code> applique le remplacement de paramètre à cet identifiant, puis entoure le résultat de guillemets, ce qui crée en pratique un littéral de chaîne. En outre, le préprocesseur ajoute des barres obliques inverses pour échapper les guillemets entourant les littéraux de chaîne éventuellement inclus, et double les barres obliques inverses à l'intérieur de la chaîne si nécessaire. Tous les espaces en début et en fin de texte sont supprimés, et toute suite d'espaces au milieu du texte (mais pas à l'intérieur des littéraux de chaîne inclus) est réduite à un seul espace. Cette opération est appelée « transformation en chaîne ». Si le résultat de la transformation n'est pas un littéral de chaîne valide, le comportement est indéfini.</p>
+<blockquote>
+<p>Lorsque <code>#</code> apparaît devant <code>__VA_ARGS__</code>, l'intégralité de <code>__VA_ARGS__</code> développé est entourée de guillemets :</p>
+<pre><code class="language-cpp">#define showlist(...) puts(#__VA_ARGS__)
+showlist();            // se développe en puts(&quot;&quot;)
+showlist(1, &quot;x&quot;, int); // se développe en puts(&quot;1, \&quot;x\&quot;, int&quot;)
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Un opérateur <code>##</code> placé entre deux identifiants successifs de <code>replacement-list</code> applique le remplacement de paramètre à ces deux identifiants (qui ne sont pas d'abord développés comme macros), puis concatène le résultat. Cette opération est appelée « concaténation » ou « collage de jetons ». Seuls les jetons qui forment ensemble un jeton valide peuvent être collés : des identifiants formant un identifiant plus long, des chiffres formant un nombre, ou les opérateurs <code>+</code> et <code>=</code> formant un <code>+=</code>. Un commentaire ne peut pas être créé en collant <code>/</code> et <code>*</code>, car les commentaires sont supprimés du texte avant que la substitution de macros ne soit considérée. Si le résultat de la concaténation n'est pas un jeton valide, le comportement est indéfini.</p>
+<p>Remarque : certains compilateurs offrent une extension permettant à <code>##</code> d'apparaître après une virgule et avant <code>__VA_ARGS__</code>, auquel cas <code>##</code> ne fait rien lorsque les arguments variables sont présents, mais supprime la virgule lorsqu'ils ne le sont pas : cela permet de définir des macros telles que <code>fprintf (stderr, format, ##__VA_ARGS__)</code>. Ceci peut aussi être obtenu de manière standard en utilisant <code>__VA_OPT__</code>, comme <code>fprintf (stderr, format __VA_OPT__(, ) __VA_ARGS__)</code>. <em>(depuis C++20)</em></p>
+<h3 id=".23undef_directive">directive <code>#undef</code></h3>
+<p>La directive <code>#undef</code> annule la définition de <code>identifier</code>, c'est-à-dire supprime la définition précédente de <code>identifier</code> faite par la directive <code>#define</code>. Si l'identifiant n'a pas de macro associée, la directive est ignorée.</p>
+<h2 id="Predefined_macros">Macros prédéfinies</h2>
+<p>Les noms de macros suivants sont prédéfinis dans chaque unité de traduction :</p>
+<ul>
+<li><strong>__cplusplus</strong> — désigne la version de la norme C++ utilisée, se développe en la valeur
+<ul>
+<li><code>199711L</code> (jusqu'à C++11) ,</li>
+<li><code>201103L</code> (C++11) ,</li>
+<li><code>201402L</code> (C++14) ,</li>
+<li><code>201703L</code> (C++17) ,</li>
+<li><code>202002L</code> (C++20) , ou</li>
+<li><code>202302L</code> (C++23) <em>(constante de macro)</em></li>
+</ul>
+</li>
+<li><strong><strong>STDC_HOSTED</strong> (C++11)</strong> — se développe en la constante entière <code>1</code> si l'implémentation est hébergée (fonctionne sous un système d'exploitation), <code>0</code> si elle est autonome (fonctionne sans système d'exploitation) <em>(constante de macro)</em></li>
+<li><strong><strong>FILE</strong></strong> — se développe en le nom du fichier courant, sous forme de littéral de chaîne de caractères ; peut être modifié par la directive <a href="line.html"><code>#line</code></a> <em>(constante de macro)</em></li>
+<li><strong><strong>LINE</strong></strong> — se développe en le numéro de ligne de la <a href="../language/translation_phases.html#Phase_2">ligne physique</a> courante du code source, sous forme de constante entière ; peut être modifié par la directive <a href="line.html"><code>#line</code></a> <em>(constante de macro)</em></li>
+<li><strong><strong>DATE</strong></strong> — se développe en la date de traduction, sous forme de littéral de chaîne de caractères de la forme <code>&quot;Mmm dd yyyy&quot;</code>. Le premier caractère de <code>&quot;dd&quot;</code> est un espace si le jour du mois est inférieur à 10. Le nom du mois est celui généré comme par <code>std::asctime()</code> <em>(constante de macro)</em></li>
+<li><strong><strong>TIME</strong></strong> — se développe en l'heure de traduction, sous forme de littéral de chaîne de caractères de la forme <code>&quot;hh:mm:ss&quot;</code> <em>(constante de macro)</em></li>
+<li><strong><strong>STDCPP_DEFAULT_NEW_ALIGNMENT</strong> (C++17)</strong> — se développe en un littéral <a href="../types/size_t.html"><code>std::size_t</code></a> dont la valeur est l'alignement garanti par un appel à l'opérateur <a href="../memory/new/operator_new.html">operator new</a> non conscient de l'alignement (les alignements plus grands seront transmis à la surcharge consciente de l'alignement, telle que <code>operator new(std::size_t, std::align_val_t)</code>) <em>(constante de macro)</em></li>
+<li><strong><strong>STDCPP_­BFLOAT16_­T____STDCPP_­FLOAT16_­T____STDCPP_FLOAT32_T____STDCPP_FLOAT64_T____STDCPP_FLOAT128_T</strong> (C++23)</strong> — se développe en <code>1</code> si et seulement si l'implémentation prend en charge le <a href="../types/floating-point.html">type de virgule flottante étendu</a> correspondant <em>(constante de macro)</em></li>
+</ul>
+<p>Les noms de macros supplémentaires suivants peuvent être prédéfinis par les implémentations :</p>
+<ul>
+<li>
+<p><strong><strong>STDC</strong></strong> — valeur définie par l'implémentation, si présente, généralement utilisée pour indiquer la conformité au C <em>(constante de macro)</em></p>
+</li>
+<li>
+<p><strong><strong>STDC_VERSION</strong> (C++11)</strong> — valeur définie par l'implémentation, si présente <em>(constante de macro)</em></p>
+</li>
+<li>
+<p><strong><strong>STDC_ISO_10646</strong> (C++11)</strong> —</p>
+<blockquote>
+<p>se développe en une constante entière de la forme <code>yyyymmL</code>, si <code>wchar_t</code> utilise Unicode, la date indique la dernière révision d'Unicode prise en charge</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>valeur définie par l'implémentation, si présente</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p><em>(constante de macro)</em></p>
+</li>
+<li>
+<p><strong><strong>STDC_MB_MIGHT_NEQ_WC</strong> (C++11)</strong> — se développe en <code>1</code> si <code>'x' == L'x'</code> peut être faux pour un membre de l'ensemble de caractères de base, comme sur les systèmes basés sur EBCDIC qui utilisent Unicode pour <code>wchar_t</code> <em>(constante de macro)</em></p>
+</li>
+<li>
+<p><strong><strong>STDCPP_THREADS</strong> (C++11)</strong> — se développe en <code>1</code> si le programme peut avoir plus d'un fil d'exécution <em>(constante de macro)</em></p>
+</li>
+<li>
+<p><strong><strong>STDCPP_STRICT_POINTER_SAFETY</strong> (C++11) (removed in C++23)</strong> — se développe en <code>1</code> si l'implémentation a une <a href="../memory/gc/pointer_safety.html"><code>std::pointer_safety</code></a> stricte <em>(constante de macro)</em></p>
+</li>
+</ul>
+<p>Les valeurs de ces macros (sauf pour <code>__FILE__</code> et <code>__LINE__</code>) restent constantes dans toute l'unité de traduction. Toute tentative de redéfinir ou d'annuler ces macros entraîne un comportement indéfini.</p>
+<blockquote>
+<h4 id="Language_feature-testing_macros">Macros de test des fonctionnalités du langage</h4>
+<p>La norme définit un ensemble de macros de préprocesseur correspondant aux fonctionnalités du langage C++ introduites en C++11 ou ultérieurement. Elles permettent de détecter de manière simple et portable la présence de ces fonctionnalités.</p>
+<p>Voir <a href="../feature_test.html">Test des fonctionnalités</a> pour plus de détails.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<blockquote>
+<h3 id="Notes">Notes</h3>
+<p>La <a href="../language/function.html#func">variable prédéfinie locale à la fonction <code>__func__</code></a> n'est pas une macro prédéfinie, mais elle est généralement utilisée avec <code>__FILE__</code> et <code>__LINE__</code>, par exemple par <a href="../error/assert.html"><code>assert</code></a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Créer une fabrique de fonctions et l'utiliser
+#define FUNCTION(name, a) int fun_##name() { return a; }
+
+FUNCTION(abcd, 12)
+FUNCTION(fff, 2)
+FUNCTION(qqq, 23)
+
+#undef FUNCTION
+#define FUNCTION 34
+#define OUTPUT(a) std::cout &lt;&lt; &quot;output: &quot; #a &lt;&lt; '\n'
+
+// Utilisation d'une macro dans la définition d'une macro ultérieure
+#define WORD &quot;Hello &quot;
+#define OUTER(...) WORD #__VA_ARGS__
+
+int main()
+{
+    std::cout &lt;&lt; &quot;abcd: &quot; &lt;&lt; fun_abcd() &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;fff: &quot; &lt;&lt; fun_fff() &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;qqq: &quot; &lt;&lt; fun_qqq() &lt;&lt; '\n';
+
+    std::cout &lt;&lt; FUNCTION &lt;&lt; '\n';
+    OUTPUT(million); //remarquer l'absence de guillemets
+
+    std::cout &lt;&lt; OUTER(World) &lt;&lt; '\n';
+    std::cout &lt;&lt; OUTER(WORD World) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">abcd: 12
+fff: 2
+qqq: 23
+34
+output: million
+Hello World
+Hello WORD World
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2908.html">CWG 2908</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si <code>__LINE__</code> se développe en le numéro de ligne physique courant ou en le numéro de ligne logique courant</td>
+<td>se développe en le numéro de ligne physique courant</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue294">LWG 294</a></td>
+<td>C++98</td>
+<td>une unité de traduction qui inclut un en-tête de la bibliothèque standard pouvait contenir des macros définissant des noms déclarés dans d'autres en-têtes de la bibliothèque standard</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2621R2">P2621R2</a></td>
+<td>C++23</td>
+<td>les noms universels de caractères n'étaient pas autorisés à être formés par collage de jetons</td>
+<td>allowed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../symbol_index/macro.html">Documentation C++</a> pour Index des symboles de macros</strong></p>
+<p><strong><a href="../../c/preprocessor/replace.html">Documentation C</a> pour Remplacement de macros textuelles</strong></p>
+
+</main>
+</body>
+</html>

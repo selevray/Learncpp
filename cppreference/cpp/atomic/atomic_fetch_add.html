@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic_fetch_add, std::atomic_fetch_add_explicit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-atomic_fetch_add-std-atomic_fetch_add_explicit"><code>std::atomic_fetch_add, std::atomic_fetch_add_explicit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic_fetch_add">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+T atomic_fetch_add( std::atomic&lt;T&gt;* obj,
+                    typename std::atomic&lt;T&gt;::difference_type arg ) noexcept;  // (1) (depuis C++11)
+
+template&lt; class T &gt;
+T atomic_fetch_add( volatile std::atomic&lt;T&gt;* obj,
+                    typename std::atomic&lt;T&gt;::difference_type arg ) noexcept;  // (2) (depuis C++11)
+
+template&lt; class T &gt;
+T atomic_fetch_add_explicit( std::atomic&lt;T&gt;* obj,
+                             typename std::atomic&lt;T&gt;::difference_type arg,
+                             std::memory_order order ) noexcept;  // (3) (depuis C++11)
+
+template&lt; class T &gt;
+T atomic_fetch_add_explicit( volatile std::atomic&lt;T&gt;* obj,
+                             typename std::atomic&lt;T&gt;::difference_type arg,
+                             std::memory_order order ) noexcept;  // (4) (depuis C++11)
+</code></pre>
+<p>Effectue une addition atomique. Ajoute atomiquement <code>arg</code> à la valeur pointée par <code>obj</code> et retourne la valeur <code>obj</code> détenue précédemment. L'opération est effectuée comme si la suite suivante était exécutée :</p>
+<p>1,2) <code>obj-&gt;fetch_add(arg)</code></p>
+<p>3,4) <code>obj-&gt;fetch_add(arg, order)</code></p>
+<p>Si <code>std::atomic&lt;T&gt;</code> n'a pas de membre <code>fetch_add</code> (ce membre n'est fourni que pour les types <a href="atomic.html#Specializations_for_integral_types">entiers</a>, <a href="atomic.html#Specializations_for_floating-point_types">à virgule flottante</a> <em>(depuis C++20)</em> et <a href="atomic.html#Partial_specializations">pointeurs</a> à l'exception de <code>bool</code>), le programme est mal formé.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>obj</code> — pointeur vers l'objet atomique à modifier</li>
+<li><code>arg</code> — la valeur à ajouter à la valeur stockée dans l'objet atomique</li>
+<li><code>order</code> — l'ordre de synchronisation mémoire</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur immédiatement antérieure aux effets de cette fonction dans l'<a href="memory_order.html#Modification_order">ordre de modification</a> de <code>*obj</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Un verrou à écrivain unique et lecteurs multiples peut être réalisé avec <code>std::atomic_fetch_add</code>. Notez que cette implémentation simpliste n'est pas exempte de blocage (lockout-free).</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+using namespace std::chrono_literals;
+
+// signification de cnt :
+//  5 : lecteurs et écrivain sont en concurrence. Il n'y a aucun lecteur ou écrivain actif.
+//  4...0 : il y a 1...5 lecteurs actifs, l'écrivain est bloqué.
+// -1 : l'écrivain a gagné la course et les lecteurs sont bloqués.
+
+const int N = 5; // quatre lecteurs concurrents sont autorisés
+std::atomic&lt;int&gt; cnt(N);
+
+std::vector&lt;int&gt; data;
+
+void reader(int id)
+{
+    for (;;)
+    {
+        // lock
+        while (std::atomic_fetch_sub(&amp;cnt, 1) &lt;= 0)
+            std::atomic_fetch_add(&amp;cnt, 1);
+
+        // read
+        if (!data.empty())
+            std::cout &lt;&lt; (&quot;reader &quot; + std::to_string(id) +
+                          &quot; sees &quot; + std::to_string(*data.rbegin()) + '\n');
+        if (data.size() == 25)
+            break;
+
+        // unlock
+        std::atomic_fetch_add(&amp;cnt, 1);
+
+        // pause
+        std::this_thread::sleep_for(1ms);
+    }
+}
+
+void writer()
+{
+    for (int n = 0; n &lt; 25; ++n)
+    {
+        // lock
+        while (std::atomic_fetch_sub(&amp;cnt, N + 1) != N)
+            std::atomic_fetch_add(&amp;cnt, N + 1);
+
+        // write
+        data.push_back(n);
+        std::cout &lt;&lt; &quot;writer pushed back &quot; &lt;&lt; n &lt;&lt; '\n';
+
+        // unlock
+        std::atomic_fetch_add(&amp;cnt, N + 1);
+
+        // pause
+        std::this_thread::sleep_for(1ms);
+    }
+}
+
+int main()
+{
+    std::vector&lt;std::thread&gt; v;
+    for (int n = 0; n &lt; N; ++n)
+        v.emplace_back(reader, n);
+    v.emplace_back(writer);
+
+    for (auto&amp; t : v)
+        t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">writer pushed back 0
+reader 2 sees 0
+reader 3 sees 0
+reader 1 sees 0
+&lt;...&gt;
+reader 2 sees 24
+reader 4 sees 24
+reader 1 sees 24
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P0558R1">P0558R1</a></td>
+<td>C++11</td>
+<td>une correspondance exacte de type était requise car <code>T</code> a été déduit à partir de plusieurs arguments</td>
+<td><code>T</code> n'est déduit qu'à partir de <code>obj</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="atomic/fetch_add.html">fetch_add</a></strong> — ajoute atomiquement l'argument à la valeur stockée dans l'objet atomique et obtient la valeur détenue précédemment <em>(fonction membre publique de <code>std::atomic&lt;T&gt;</code>)</em></li>
+<li><strong><a href="atomic_fetch_sub.html">atomic_fetch_subatomic_fetch_sub_explicit</a> (C++11) (C++11)</strong> — soustrait une valeur non atomique d'un objet atomique et obtient la valeur précédente de l'atomique <em>(modèle de fonction)</em></li>
+</ul>
+<p><strong><a href="../../c/atomic/atomic_fetch_add.html">Documentation C</a> pour atomic_fetch_add, atomic_fetch_add_explicit</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>membres static — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="membres-static">membres static</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/static">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Dans une définition de classe, le mot-clé <a href="../keywords/static.html"><code>static</code></a> déclare des membres qui ne sont pas liés aux instances de classe.</p>
+<p>En dehors d'une définition de classe, il a une signification différente : voir <a href="storage_duration.html">durée de stockage</a>.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Une déclaration d'un membre statique est une <a href="class.html#Member_specification">déclaration de membre</a> dont les spécificateurs de déclaration contiennent le mot-clé <code>static</code>. Le mot-clé <code>static</code> apparaît généralement avant les autres spécificateurs (c'est pourquoi la syntaxe est souvent décrite informellement comme <code>static</code> <code>data-member</code> ou <code>static</code> <code>member-function</code>), mais il peut apparaître n'importe où dans la séquence de spécificateurs.</p>
+<p>Le nom de tout membre de données statique et de toute fonction membre statique doit être différent du nom de la classe englobante.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les membres statiques d'une classe ne sont pas associés aux objets de la classe : ce sont des variables indépendantes à durée de stockage statique ou thread <em>(depuis C++11)</em> <a href="storage_duration.html">durée de stockage</a> ou des fonctions ordinaires.</p>
+<p>Le mot-clé <code>static</code> n'est utilisé qu'avec la déclaration d'un membre statique, dans la définition de classe, mais pas avec la définition de ce membre statique :</p>
+<pre><code class="language-cpp">class X { static int n; }; // déclaration (utilise « static »)
+int X::n = 1;              // définition (n'utilise pas « static »)
+</code></pre>
+<p>La déclaration dans le corps de la classe n'est pas une définition et peut déclarer le membre comme étant de <a href="incomplete_type.html">type incomplet</a> (autre que <code>void</code>), y compris le type dans lequel le membre est déclaré :</p>
+<pre><code class="language-cpp">struct Foo;
+
+struct S
+{
+    static int a[]; // déclaration, type incomplet
+    static Foo x;   // déclaration, type incomplet
+    static S s;     // déclaration, type incomplet (à l'intérieur de sa propre définition)
+};
+
+int S::a[10]; // définition, type complet
+struct Foo {};
+Foo S::x;     // définition, type complet
+S S::s;       // définition, type complet
+</code></pre>
+<blockquote>
+<p>Cependant, si la déclaration utilise le spécificateur <a href="constexpr.html"><code>constexpr</code></a>ou <a href="inline.html"><code>inline</code></a> <em>(depuis C++17)</em>, le membre doit être déclaré de type complet.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Pour désigner un membre statique <code>m</code> de la classe <code>T</code>, deux formes peuvent être utilisées : le nom qualifié <code>T::m</code> ou l'expression d'accès au membre <code>E.m</code> ou <code>E-&gt;m</code>, où <code>E</code> est une expression qui s'évalue en <code>T</code> ou <code>T*</code> respectivement. Lorsqu'on se trouve dans la même portée de classe, la qualification est inutile :</p>
+<pre><code class="language-cpp">struct X
+{
+    static void f(); // declaration
+    static int n;    // declaration
+};
+
+X g() { return X(); } // une fonction quelconque renvoyant X
+
+void f()
+{
+    X::f();  // X::f est un nom qualifié de fonction membre statique
+    g().f(); // g().f est une expression d'accès membre désignant une fonction membre statique
+}
+
+int X::n = 7; // definition
+
+void X::f() // definition
+{
+    n = 1; // X::n est accessible simplement sous le nom n dans cette portée
+}
+</code></pre>
+<p>Les membres statiques obéissent aux <a href="access.html">règles d'accès aux membres de classe (private, protected, public)</a>.</p>
+<h3 id="Static_member_functions">Fonctions membres statiques</h3>
+<p>Les fonctions membres statiques ne sont associées à aucun objet. Lorsqu'elles sont appelées, elles n'ont pas de pointeur <code>this</code>.</p>
+<p>Les fonctions membres statiques ne peuvent pas être <code>virtual</code>, <code>const</code>, <code>volatile</code> ni <a href="member_functions.html#ref-qualified_member_functions">qualifiées ref</a>.</p>
+<p>L'adresse d'une fonction membre statique peut être stockée dans un <a href="pointer.html#Pointers_to_functions">pointeur de fonction</a> ordinaire, mais pas dans un <a href="pointer.html#Pointers_to_member_functions">pointeur de fonction membre</a>.</p>
+<h3 id="Static_data_members">Membres de données statiques</h3>
+<p>Les membres de données statiques ne sont associés à aucun objet. Ils existent même si aucun objet de la classe n'a été défini. Il n'existe qu'une seule instance du membre de données statique dans tout le programme, à <a href="storage_duration.html">durée de stockage</a>statique, sauf si le mot-clé <a href="../keyword/thread_local.html"><code>thread_local</code></a> est utilisé, auquel cas il existe un tel objet par thread, à durée de stockage thread <em>(depuis C++11)</em>.</p>
+<p>Les membres de données statiques ne peuvent pas être <code>mutable</code>.</p>
+<p>Les membres de données statiques d'une classe dans une portée d'espace de noms ont une <a href="storage_duration.html">liaison externe</a> si la classe elle-même a une liaison externe (n'est pas membre d'un <a href="namespace.html#Unnamed_namespaces">espace de noms anonyme</a>). Les classes locales (classes définies dans des fonctions) et les classes anonymes, y compris les classes membres de classes anonymes, ne peuvent pas avoir de membres de données statiques.</p>
+<blockquote>
+<p>Un membre de données statique peut être déclaré <a href="inline.html"><code>inline</code></a>. Un membre de données statique inline peut être défini dans la définition de classe et peut spécifier un initialiseur. Il n'a pas besoin de définition hors de la classe :</p>
+<pre><code class="language-cpp">struct X
+{
+    inline static int fully_usable = 1; // Aucune définition hors de la classe n'est requise, utilisable en ODR
+    inline static const std::string class_name{&quot;X&quot;}; // De même
+
+    static const int non_addressable = 1; // Cf. constantes non inline, utilisables
+                                          // pour leur valeur, mais non utilisables en ODR
+    // static const std::string class_name{&quot;X&quot;}; // Déclaration non intégrale de ceci
+                                                 // la forme est totalement interdite
+};
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h3 id="Constant_static_members">Membres statiques constants</h3>
+<p>Si un membre de données statique de type entier ou énumération est déclaré <code>const</code> (et non <code>volatile</code>), il peut être initialisé avec un <a href="initialization.html">initialiseur</a> dont chaque expression est une <a href="constexpr.html">expression constante</a>, directement dans la définition de classe :</p>
+<pre><code class="language-cpp">struct X
+{
+    const static int n = 1;
+    const static int m{2}; // depuis C++11
+    const static int k;
+};
+const int X::k = 3;
+</code></pre>
+<blockquote>
+<p>Si un membre de données statique de <a href="../named_req/LiteralType.html"><em>LiteralType</em></a> est déclaré <code>constexpr</code>, il doit être initialisé avec un initialiseur dont chaque expression est une expression constante, directement dans la définition de classe :</p>
+<pre><code class="language-cpp">struct X
+{
+    constexpr static int arr[] = { 1, 2, 3 };        // OK
+    constexpr static std::complex&lt;double&gt; n = {1,2}; // OK
+    constexpr static int k; // Error: constexpr static nécessite un initialiseur
+};
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si un membre de données statique non inline <em>(depuis C++17)</em> de type const ou un membre de données statique constexpr <em>(depuis C++11)</em> <em>(jusqu'à C++17)</em> est <a href="definition.html#ODR-use">ODR-utilisé</a>, une définition dans la portée d'espace de noms reste requise, mais elle ne peut pas avoir d'initialiseur.</p>
+<blockquote>
+<p>Un membre de données statique <code>constexpr</code> est implicitement <code>inline</code> et n'a pas besoin d'être redéclaré dans la portée d'espace de noms. Cette redéclaration sans initialiseur (autrefois requise) reste permise, mais elle est obsolète.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<pre><code class="language-cpp">struct X
+{
+    static const int n = 1;
+    static constexpr int m = 4;
+};
+
+const int *p = &amp;X::n, *q = &amp;X::m; // X::n et X::m sont utilisés en ODR
+const int X::n;             // … donc une définition est nécessaire
+constexpr int X::m;         // … (sauf pour X::m en C++17)
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keywords/static.html"><code>static</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/194.html">CWG 194</a></td>
+<td>C++98</td>
+<td>Les noms de fonctions membres (statiques) peuvent être identiques au nom de la classe</td>
+<td>restriction de nommage ajoutée (y compris <a href="member_functions.html#Defect_report">fonctions membres non statiques</a>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>11.4.9 Membres statiques [class.static]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>11.4.8 Membres statiques [class.static]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>12.2.3 Membres statiques [class.static]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>9.4 Membres statiques [class.static]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>9.4 Membres statiques [class.static]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>9.4 Membres statiques [class.static]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="storage_duration.html"><code>static</code> spécificateur de stockage</a></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::make_heap — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-make_heap"><code>std::ranges::make_heap</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/make_heap">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::random_access_iterator I, std::sentinel_for&lt;I&gt; S,
+          class Comp = ranges::less, class Proj = std::identity &gt;
+    requires std::sortable&lt;I, Comp, Proj&gt;
+constexpr I make_heap( I first, S last, Comp comp = {}, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; ranges::random_access_range R,
+          class Comp = ranges::less, class Proj = std::identity &gt;
+    requires std::sortable&lt;ranges::iterator_t&lt;R&gt;, Comp, Proj&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt;
+    make_heap( R&amp;&amp; r, Comp comp = {}, Proj proj = {} );  // (2) (depuis C++20)
+</code></pre>
+<p>Construit un <a href="../../algorithm.html#Heap_operations">tas</a> par rapport à <code>comp</code> et <code>proj</code> à partir des éléments de l'intervalle spécifié.</p>
+<ol>
+<li>
+<p>L'intervalle spécifié est <code>[first,last)</code>.</p>
+</li>
+<li>
+<p>L'intervalle spécifié est <code>r</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'itérateur et le sentinelle désignant l'intervalle d'éléments à modifier</li>
+<li><code>r</code> — l'intervalle des éléments à modifier</li>
+<li><code>comp</code> — comparateur à appliquer aux éléments projetés</li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p><code>last</code></p>
+</li>
+<li>
+<p><code>ranges::end(r)</code></p>
+</li>
+</ol>
+<h2 id="Complexity">Complexité</h2>
+<p>Au plus (\scriptsize 3\cdot N)3·N applications de <code>comp</code> et (\scriptsize 6\cdot N)6·N applications de <code>proj</code>, où (\scriptsize N )N est :</p>
+<ol>
+<li>
+<p><code>ranges::distance(first, last)</code></p>
+</li>
+<li>
+<p><code>ranges::distance(r)</code></p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cmath&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+void out(const auto&amp; what, int n = 1)
+{
+    while (n-- &gt; 0)
+        std::cout &lt;&lt; what;
+}
+
+void print(auto rem, const auto&amp; v)
+{
+    out(rem);
+    for (auto e : v)
+        out(e), out(' ');
+    out('\n');
+}
+
+void draw_heap(const auto&amp; v)
+{
+    auto bails = [](int n, int w)
+    {
+        auto b = [](int w) { out(&quot;┌&quot;), out(&quot;─&quot;, w), out(&quot;┴&quot;), out(&quot;─&quot;, w), out(&quot;┐&quot;); };
+        if (!(n /= 2))
+            return;
+        for (out(' ', w); n-- &gt; 0;)
+            b(w), out(' ', w + w + 1);
+        out('\n');
+    };
+
+    auto data = [](int n, int w, auto&amp; first, auto last)
+    {
+        for (out(' ', w); n-- &gt; 0 &amp;&amp; first != last; ++first)
+            out(*first), out(' ', w + w + 1);
+        out('\n');
+    };
+
+    auto tier = [&amp;](int t, int m, auto&amp; first, auto last)
+    {
+        const int n{1 &lt;&lt; t};
+        const int w{(1 &lt;&lt; (m - t - 1)) - 1};
+        bails(n, w), data(n, w, first, last);
+    };
+
+    const int m{static_cast&lt;int&gt;(std::ceil(std::log2(1 + v.size())))};
+    auto first{v.cbegin()};
+    for (int i{}; i != m; ++i)
+        tier(i, m, first, v.cend());
+}
+
+int main()
+{
+    std::vector h{1, 6, 1, 8, 0, 3, 3, 9, 8, 8, 7, 4, 9, 8, 9};
+    print(&quot;source: &quot;, h);
+
+    std::ranges::make_heap(h);
+    print(&quot;\n&quot; &quot;max-heap: &quot;, h);
+    draw_heap(h);
+
+    std::ranges::make_heap(h, std::greater{});
+    print(&quot;\n&quot; &quot;min-heap: &quot;, h);
+    draw_heap(h);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">source: 1 6 1 8 0 3 3 9 8 8 7 4 9 8 9
+
+max-heap: 9 8 9 8 8 4 9 6 1 0 7 1 3 8 3
+       9
+   ┌───┴───┐
+   8       9
+ ┌─┴─┐   ┌─┴─┐
+ 8   8   4   9
+┌┴┐ ┌┴┐ ┌┴┐ ┌┴┐
+6 1 0 7 1 3 8 3
+
+min-heap: 0 1 1 8 6 3 3 9 8 8 7 4 9 8 9
+       0
+   ┌───┴───┐
+   1       1
+ ┌─┴─┐   ┌─┴─┐
+ 8   6   3   3
+┌┴┐ ┌┴┐ ┌┴┐ ┌┴┐
+9 8 8 7 4 9 8 9
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="is_heap.html">ranges::is_heap</a> (C++20)</strong> — vérifie si l'intervalle donné est un tas max <em>(objet fonction algorithme)</em></li>
+<li><strong><a href="is_heap_until.html">ranges::is_heap_until</a> (C++20)</strong> — trouve le plus grand sous-intervalle qui est un tas max <em>(objet fonction algorithme)</em></li>
+<li><strong><a href="push_heap.html">ranges::push_heap</a> (C++20)</strong> — ajoute un élément à un tas max <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="pop_heap.html">ranges::pop_heap</a> (C++20)</strong> — retire le plus grand élément d'un tas max <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="sort_heap.html">ranges::sort_heap</a> (C++20)</strong> — transforme un tas max en un intervalle d'éléments triés par ordre croissant <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../make_heap.html">make_heap</a></strong> — crée un tas max à partir d'un intervalle d'éléments <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::wcsrtombs — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="std-wcsrtombs"><code>std::wcsrtombs</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/multibyte/wcsrtombs">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cwchar&gt;</strong></p>
+<pre><code class="language-cpp">std::size_t wcsrtombs( char* dst,
+                       const wchar_t** src,
+                       std::size_t len,
+                       std::mbstate_t* ps );
+</code></pre>
+<p>Convertit une séquence de caractères larges, depuis le tableau dont le premier élément est pointé par <code>*src</code>, vers sa représentation multioctet étroite commençant dans l'état de conversion décrit par <code>*ps</code>. Si <code>dst</code> n'est pas nul, les caractères convertis sont stockés dans les éléments successifs du tableau char pointé par <code>dst</code>. Au plus <code>len</code> octets sont écrits dans le tableau de destination.</p>
+<p>Chaque caractère est converti comme par un appel à <a href="wcrtomb.html"><code>std::wcrtomb</code></a>. La conversion s'arrête si :</p>
+<ul>
+<li>Le caractère nul a été converti et stocké. <code>src</code> est mis à un pointeur nul et <code>*ps</code> représente l'état de décalage initial.</li>
+<li>Un <code>wchar_t</code> a été trouvé qui ne correspond à aucun caractère valide dans la locale C courante. <code>src</code> est mis à pointer vers le premier caractère large non converti.</li>
+<li>Le prochain caractère multioctet à stocker dépasserait <code>len</code>. <code>src</code> est mis à pointer vers le premier caractère large non converti. Cette condition n'est pas vérifiée si <code>dst</code> est un pointeur nul.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>dst</code> — pointeur vers le tableau de caractères étroits où les caractères multioctets seront stockés</li>
+<li><code>src</code> — pointeur vers un pointeur sur le premier élément d'une chaîne large terminée par un caractère nul</li>
+<li><code>len</code> — nombre d'octets disponibles dans le tableau pointé par dst</li>
+<li><code>ps</code> — pointeur vers l'objet d'état de conversion</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, retourne le nombre d'octets (séquences de décalage comprises, mais à l'exclusion du <code>'\0'</code> terminal) écrits dans le tableau de caractères dont le premier élément est pointé par <code>dst</code>. Si <code>dst</code> est un pointeur nul, retourne le nombre d'octets qui auraient été écrits (là encore, à l'exclusion du caractère nul terminal <code>'\0'</code>).</p>
+<p>En cas d'erreur de conversion (si un caractère large invalide a été rencontré), retourne <code>static_cast&lt;std::size_t&gt;(-1)</code>, stocke <a href="../../error/errno_macros.html"><code>EILSEQ</code></a> dans <a href="../../error/errno.html"><code>errno</code></a> et laisse <code>*ps</code> dans un état non spécifié.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;clocale&gt;
+#include &lt;cwchar&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+void print_wide(const wchar_t* wstr)
+{
+    std::mbstate_t state = std::mbstate_t();
+    std::size_t len = 1 + std::wcsrtombs(nullptr, &amp;wstr, 0, &amp;state);
+    std::vector&lt;char&gt; mbstr(len);
+    std::wcsrtombs(&amp;mbstr[0], &amp;wstr, mbstr.size(), &amp;state);
+    std::cout &lt;&lt; &quot;multibyte string: &quot; &lt;&lt; &amp;mbstr[0] &lt;&lt; '\n'
+              &lt;&lt; &quot;Length, including '\\0': &quot; &lt;&lt; mbstr.size() &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    // encodage multioctet étroit UTF-8
+    const wchar_t* wstr = L&quot;z\u00df\u6c34\U0001d10b&quot;; // ou L&quot;zß水𝄋&quot;
+    print_wide(wstr);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">multibyte string: zß水𝄋
+Length, including '\0': 11
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="wcrtomb.html">wcrtomb</a></strong> — convertit un caractère large en sa représentation multioctet, étant donné l'état <em>(fonction)</em></li>
+<li><strong><a href="mbsrtowcs.html">mbsrtowcs</a></strong> — convertit une chaîne de caractères multioctets étroits en chaîne de caractères larges, étant donné l'état <em>(fonction)</em></li>
+<li><strong><a href="../../locale/codecvt/out.html">do_out</a> [virtuelle]</strong> — convertit une chaîne de <code>InternT</code> vers <code>ExternT</code>, par exemple lors de l'écriture dans le fichier <em>(fonction membre virtuelle protégée de <code>std::codecvt&lt;InternT,ExternT,StateT&gt;</code>)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/multibyte/wcsrtombs.html">Documentation C</a> pour wcsrtombs</strong></p>
+
+</main>
+</body>
+</html>

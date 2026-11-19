@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catégories de valeurs — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="catégories-de-valeurs">Catégories de valeurs</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/value_category">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Chaque <a href="expressions.html">expression</a> C++ (un opérateur avec ses opérandes, un littéral, un nom de variable, etc.) est caractérisée par deux propriétés indépendantes : un <em><a href="type-id.html">type</a></em> et une <em>catégorie de valeur</em>. Chaque expression a un type qui n'est pas une référence, et chaque expression appartient à exactement une des trois catégories de valeurs primaires : <a href="value_category.html#prvalue"><em>prvalue</em></a>, <a href="value_category.html#xvalue"><em>xvalue</em></a> et <a href="value_category.html#lvalue"><em>lvalue</em></a>.</p>
+<ul>
+<li>
+<p>une <a href="value_category.html#glvalue">glvalue</a> (lvalue « généralisée ») est une expression dont l'évaluation détermine l'identité d'un objet ou d'une fonction ;</p>
+</li>
+<li>
+<p>une <a href="value_category.html#prvalue">prvalue</a> (rvalue « pure ») est une expression dont l'évaluation</p>
+<ul>
+<li>calcule la valeur d'un opérande d'un opérateur intégré (une telle prvalue n'a pas d'<em>objet résultat</em>), ou</li>
+<li>initialise un objet (une telle prvalue est dite avoir un <em>objet résultat</em>). L'objet résultat peut être une variable, un objet créé par une <a href="new.html">expression new</a>, un temporaire créé par <a href="implicit_cast.html#Temporary_materialization">matérialisation temporaire</a>, ou un membre de celui-ci. Notez que les expressions <a href="expressions.html#Discarded-value_expressions">à valeur ignorée</a> non <code>void</code> ont un objet résultat (le temporaire matérialisé). De plus, toute prvalue de classe ou de tableau a un objet résultat, sauf lorsqu'elle est l'opérande de <a href="decltype.html"><code>decltype</code></a> ;</li>
+</ul>
+</li>
+<li>
+<p>une <a href="value_category.html#xvalue">xvalue</a> (valeur « expirante ») est une glvalue qui désigne un objet dont les ressources peuvent être réutilisées ;</p>
+</li>
+<li>
+<p>une <a href="value_category.html#lvalue">lvalue</a> est une glvalue qui n'est pas une xvalue ;</p>
+</li>
+</ul>
+<p><strong>Contenu étendu</strong></p>
+<p>Ainsi nommée historiquement, car les lvalues pouvaient apparaître à gauche d'une expression d'affectation. En général, ce n'est pas toujours le cas :</p>
+<pre><code class="language-cpp">void foo();
+
+void baz()
+{
+    int a; // L'expression `a` est une lvalue
+    a = 4; // OK, peut apparaître à gauche d'une expression d'affectation
+
+    int &amp;b{a}; // L'expression `b` est une lvalue
+    b = 5; // OK, peut apparaître à gauche d'une expression d'affectation
+
+    const int &amp;c{a}; // L'expression `c` est une lvalue
+    c = 6;           // mal formé, affectation d'une référence en lecture seule
+
+    // L'expression `foo` est une lvalue
+    // l'adresse peut être prise par l'opérateur d'adresse intégré
+    void (*p)() = &amp;foo;
+
+    foo = baz; // mal formé, affectation d'une fonction
+}
+</code></pre>
+<ul>
+<li>une <a href="value_category.html#rvalue">rvalue</a> est une prvalue ou une xvalue ;</li>
+</ul>
+<p><strong>Contenu étendu</strong></p>
+<p>Ainsi nommée historiquement, car les rvalues pouvaient apparaître à droite d'une expression d'affectation. En général, ce n'est pas toujours le cas :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct S
+{
+    S() : m{42} {}
+    S(int a) : m{a} {}
+    int m;
+};
+
+int main()
+{
+    S s;
+
+    // L'expression `S{}` est une prvalue
+    // Peut apparaître à droite d'une expression d'affectation
+    s = S{};
+
+    std::cout &lt;&lt; s.m &lt;&lt; '\n';
+
+    // L'expression `S{}` est une prvalue
+    // Peut aussi être utilisée à gauche
+    std::cout &lt;&lt; (S{} = S{7}).m &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">42
+7
+</code></pre>
+<p>Remarque : cette taxonomie a subi des changements importants au fil des révisions de la norme C++, voir <a href="value_category.html#History">Historique</a> ci-dessous pour plus de détails.</p>
+<p><strong>Contenu étendu</strong></p>
+<p>Malgré leurs noms, ces termes classent des expressions, et non des valeurs.</p>
+<pre><code class="language-cpp">#include &lt;type_traits&gt;
+#include &lt;utility&gt;
+
+template &lt;class T&gt; struct is_prvalue : std::true_type {};
+template &lt;class T&gt; struct is_prvalue&lt;T&amp;&gt; : std::false_type {};
+template &lt;class T&gt; struct is_prvalue&lt;T&amp;&amp;&gt; : std::false_type {};
+
+template &lt;class T&gt; struct is_lvalue : std::false_type {};
+template &lt;class T&gt; struct is_lvalue&lt;T&amp;&gt; : std::true_type {};
+template &lt;class T&gt; struct is_lvalue&lt;T&amp;&amp;&gt; : std::false_type {};
+
+template &lt;class T&gt; struct is_xvalue : std::false_type {};
+template &lt;class T&gt; struct is_xvalue&lt;T&amp;&gt; : std::false_type {};
+template &lt;class T&gt; struct is_xvalue&lt;T&amp;&amp;&gt; : std::true_type {};
+
+int main()
+{
+    int a{42};
+    int&amp; b{a};
+    int&amp;&amp; r{std::move(a)};
+
+    // L'expression `42` est une prvalue
+    static_assert(is_prvalue&lt;decltype((42))&gt;::value);
+
+    // L'expression `a` est une lvalue
+    static_assert(is_lvalue&lt;decltype((a))&gt;::value);
+
+    // L'expression `b` est une lvalue
+    static_assert(is_lvalue&lt;decltype((b))&gt;::value);
+
+    // L'expression `std::move(a)` est une xvalue
+    static_assert(is_xvalue&lt;decltype((std::move(a)))&gt;::value);
+
+    // Le type de la variable `r` est une référence rvalue
+    static_assert(std::is_rvalue_reference&lt;decltype(r)&gt;::value);
+
+    // Le type de la variable `b` est une référence lvalue
+    static_assert(std::is_lvalue_reference&lt;decltype(b)&gt;::value);
+
+    // L'expression `r` est une lvalue
+    static_assert(is_lvalue&lt;decltype((r))&gt;::value);
+}
+</code></pre>
+<h2 id="Primary_categories">Catégories principales</h2>
+<h3 id="lvalue">lvalue</h3>
+<p>Les expressions suivantes sont des <em>expressions lvalue</em> :</p>
+<ul>
+<li>le nom d'une variable, d'une fonction, d'un <a href="template_parameters.html#Non-type_template_parameter">objet de paramètre de modèle</a> <em>(depuis C++20)</em>, ou d'un membre de données, quel que soit son type, comme <code>std::cin</code> ou <code>std::endl</code>. Même si le type de la variable est une référence rvalue, l'expression constituée de son nom est une expression lvalue (voir toutefois <a href="value_category.html#Move-eligible_expressions">Expressions éligibles au déplacement</a>) ;</li>
+</ul>
+<p><strong>Contenu étendu</strong></p>
+<pre><code class="language-cpp">void foo() {}
+
+void baz()
+{
+    // `foo` est une lvalue
+    // l'adresse peut être prise par l'opérateur d'adresse intégré
+    void (*p)() = &amp;foo;
+}
+</code></pre>
+<pre><code class="language-cpp">struct foo {};
+
+template &lt;foo a&gt;
+void baz()
+{
+    const foo* obj = &amp;a;  // `a` est une lvalue, objet de paramètre de modèle
+}
+</code></pre>
+<ul>
+<li>un appel de fonction ou une expression d'opérateur surchargé, dont le type de retour est une référence lvalue, comme <code>std::getline(std::cin, str)</code>, <code>std::cout &lt;&lt; 1</code>, <code>str1 = str2</code> ou <code>++it</code> ;</li>
+</ul>
+<p><strong>Contenu étendu</strong></p>
+<pre><code class="language-cpp">int&amp; a_ref()
+{
+    static int a{3};
+    return a;
+}
+
+void foo()
+{
+    a_ref() = 5;  // `a_ref()` est une lvalue, appel de fonction dont le type de retour est une référence lvalue
+}
+</code></pre>
+<ul>
+<li><code>a = b</code>, <code>a += b</code>, <code>a %= b</code>, et toutes les autres expressions d'<a href="operator_assignment.html">affectation et d'affectation composée</a> intégrées ;</li>
+<li><code>++a</code> et <code>--a</code>, les expressions d'<a href="operator_incdec.html#Built-in_prefix_operators">incrémentation et de décrémentation préfixes</a> intégrées ;</li>
+<li><code>*p</code>, l'expression d'<a href="operator_member_access.html#Built-in_indirection_operator">indirection</a> intégrée ;</li>
+<li><code>a[n]</code> et <code>p[n]</code>, les expressions d'<a href="operator_member_access.html#Built-in_subscript_operator">indexation</a> intégrées, où l'un des opérandes de <code>a[n]</code> est une lvalue de tableau <em>(depuis C++11)</em> ;</li>
+<li><code>a.m</code>, l'expression d'<a href="operator_member_access.html#Built-in_member_access_operators">membre d'objet</a>, sauf lorsque <code>m</code> est un énumérateur de membre ou une fonction membre non statique, ou lorsque <code>a</code> est une rvalue et <code>m</code> est un membre de données non statique de type objet ;</li>
+</ul>
+<p><strong>Contenu étendu</strong></p>
+<pre><code class="language-cpp">struct foo
+{
+    enum bar
+    {
+        m // énumérateur membre
+    };
+};
+
+void baz()
+{
+    foo a;
+    a.m = 42; // mal formé, une lvalue est requise comme opérande de gauche de l'affectation
+}
+</code></pre>
+<pre><code class="language-cpp">struct foo
+{
+    void m() {} // fonction membre non statique
+};
+
+void baz()
+{
+    foo a;
+
+    // `a.m` est une prvalue, donc l'adresse ne peut pas être prise par l'opérateur intégré
+    // opérateur d'adresse
+    void (foo::*p1)() = &amp;a.m; // mal formé
+
+    void (foo::*p2)() = &amp;foo::m; // OK : pointeur vers fonction membre
+}
+</code></pre>
+<pre><code class="language-cpp">struct foo
+{
+    static void m() {} // fonction membre statique
+};
+
+void baz()
+{
+    foo a;
+    void (*p1)() = &amp;a.m;     // `a.m` est une lvalue
+    void (*p2)() = &amp;foo::m;  // idem
+}
+</code></pre>
+<ul>
+<li><code>p-&gt;m</code>, l'expression intégrée de <a href="operator_member_access.html#Built-in_member_access_operators">membre de pointeur</a>, sauf lorsque <code>m</code> est un énumérateur de membre ou une fonction membre non statique ;</li>
+<li><code>a.*mp</code>, l'expression de <a href="operator_member_access.html#Built-in_pointer-to-member_access_operators">pointeur vers membre d'objet</a>, où <code>a</code> est une lvalue et <code>mp</code> est un pointeur vers membre de données ;</li>
+<li><code>p-&gt;*mp</code>, l'expression intégrée de <a href="operator_member_access.html#Built-in_pointer-to-member_access_operators">pointeur vers membre de pointeur</a>, où <code>mp</code> est un pointeur vers membre de données ;</li>
+<li><code>a, b</code>, l'expression intégrée d'<a href="operator_other.html#Built-in_comma_operator">opérateur virgule</a>, où <code>b</code> est une lvalue ;</li>
+<li><code>a ? b : c</code>, l'expression <a href="operator_other.html#Conditional_operator">conditionnelle ternaire</a> pour certains <code>b</code> et <code>c</code> (par exemple lorsque les deux sont des lvalues de même type, mais voir <a href="operator_other.html#Conditional_operator">la définition</a> pour plus de détails) ;</li>
+<li>un <a href="string_literal.html">littéral de chaîne</a>, comme <code>&quot;Hello, world!&quot;</code> ;</li>
+<li>une expression de conversion vers un type référence lvalue, comme <code>static_cast&lt;int&amp;&gt;(x)</code> ou <code>static_cast&lt;void(&amp;)(int)&gt;(x)</code> ;</li>
+<li>un <a href="template_parameters.html">paramètre de modèle</a> non de type, de type référence lvalue ;</li>
+</ul>
+<pre><code class="language-cpp">template &lt;int&amp; v&gt;
+void set()
+{
+    v = 5; // le paramètre de modèle est une lvalue
+}
+
+int a{3}; // variable statique, adresse fixe connue à la compilation
+
+void foo()
+{
+    set&lt;a&gt;();
+}
+</code></pre>
+<blockquote>
+<ul>
+<li>un appel de fonction ou une expression d'opérateur surchargé, dont le type de retour est une référence rvalue vers fonction ;</li>
+<li>une expression de conversion vers un type référence rvalue vers fonction, comme <code>static_cast&lt;void(&amp;&amp;)(int)&gt;(x)</code>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Properties:</p>
+<ul>
+<li>Identique à <a href="value_category.html#glvalue">glvalue</a> (ci-dessous).</li>
+<li>L'adresse d'une lvalue peut être obtenue par l'opérateur d'adresse intégré : <code>&amp;++i</code><a href="value_category.html#cite_note-1">[1]</a> et <code>&amp;std::endl</code> sont des expressions valides.</li>
+<li>Une lvalue modifiable peut être utilisée comme opérande gauche des opérateurs d'affectation et d'affectation composée intégrés.</li>
+<li>Une lvalue peut être utilisée pour <a href="reference_initialization.html">initialiser une référence lvalue</a> ; cela associe un nouveau nom à l'objet identifié par l'expression.</li>
+</ul>
+<h3 id="prvalue">prvalue</h3>
+<p>Les expressions suivantes sont des <em>expressions prvalue</em> :</p>
+<ul>
+<li>un <a href="expressions.html#Literals">littéral</a> (à l'exception du <a href="string_literal.html">littéral de chaîne</a>), comme <code>42</code>, <code>true</code> ou <code>nullptr</code> ;</li>
+<li>un appel de fonction ou une expression d'opérateur surchargé, dont le type de retour n'est pas une référence, comme <code>str.substr(1, 2)</code>, <code>str1 + str2</code> ou <code>it++</code> ;</li>
+<li><code>a++</code> et <code>a--</code>, les expressions d'<a href="operator_incdec.html#Built-in_postfix_operators">incrémentation et de décrémentation postfixes</a> intégrées ;</li>
+<li><code>a + b</code>, <code>a % b</code>, <code>a &amp; b</code>, <code>a &lt;&lt; b</code>, et toutes les autres expressions <a href="operator_arithmetic.html">arithmétiques</a> intégrées ;</li>
+<li><code>a &amp;&amp; b</code>, <code>a || b</code>, <code>!a</code>, les expressions <a href="operator_logical.html">logiques</a> intégrées ;</li>
+<li><code>a &lt; b</code>, <code>a == b</code>, <code>a &gt;= b</code>, et toutes les autres expressions de <a href="operator_comparison.html">comparaison</a> intégrées ;</li>
+<li><code>&amp;a</code>, l'expression d'<a href="operator_member_access.html#Built-in_address-of_operator">adresse de</a> intégrée ;</li>
+<li><code>a.m</code>, l'expression de <a href="operator_member_access.html#Built-in_member_access_operators">membre d'objet</a>, où <code>m</code> est un énumérateur de membre ou une fonction membre non statique<a href="value_category.html#cite_note-pmfc-2">[2]</a> ;</li>
+<li><code>p-&gt;m</code>, l'expression intégrée de <a href="operator_member_access.html#Built-in_member_access_operators">membre de pointeur</a>, où <code>m</code> est un énumérateur de membre ou une fonction membre non statique<a href="value_category.html#cite_note-pmfc-2">[2]</a> ;</li>
+<li><code>a.*mp</code>, l'expression de <a href="operator_member_access.html#Built-in_pointer-to-member_access_operators">pointeur vers membre d'objet</a>, où <code>mp</code> est un pointeur vers fonction membre<a href="value_category.html#cite_note-pmfc-2">[2]</a> ;</li>
+<li><code>p-&gt;*mp</code>, l'expression intégrée de <a href="operator_member_access.html#Built-in_pointer-to-member_access_operators">pointeur vers membre de pointeur</a>, où <code>mp</code> est un pointeur vers fonction membre<a href="value_category.html#cite_note-pmfc-2">[2]</a> ;</li>
+<li><code>a, b</code>, l'expression intégrée d'<a href="operator_other.html#Built-in_comma_operator">opérateur virgule</a>, où <code>b</code> est une prvalue ;</li>
+<li><code>a ? b : c</code>, l'expression <a href="operator_other.html#Conditional_operator">conditionnelle ternaire</a> pour certains <code>b</code> et <code>c</code> (voir <a href="operator_other.html#Conditional_operator">la définition</a> pour plus de détails) ;</li>
+<li>une expression de conversion vers un type non référence, comme <code>static_cast&lt;double&gt;(x)</code>, <code>std::string{}</code> ou <code>(int)42</code> ;</li>
+<li>le pointeur <a href="this.html"><code>this</code></a> ;</li>
+<li>un <a href="enum.html">énumérateur</a> ;</li>
+<li>un <a href="template_parameters.html">paramètre de modèle</a> non de type, de type scalaire ;</li>
+</ul>
+<pre><code class="language-cpp">template &lt;int v&gt;
+void foo()
+{
+    // pas une lvalue, `v` est un paramètre de modèle de type scalaire int
+    const int* a = &amp;v; // mal formé
+
+    v = 3; // mal formé : une lvalue est requise comme opérande de gauche de l'affectation
+}
+</code></pre>
+<blockquote>
+<ul>
+<li>une <a href="lambda.html">expression lambda</a>, comme <code>[](int x){ return x * x; }</code> ;</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>une <a href="constraints.html">expression requires</a>, comme <code>requires (T i) { typename T::type; }</code> ;</li>
+<li>une spécialisation d'un <a href="constraints.html">concept</a>, comme <code>std::equality_comparable&lt;int&gt;</code>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Properties:</p>
+<ul>
+<li>Identique à <a href="value_category.html#rvalue">rvalue</a> (ci-dessous).</li>
+<li>Une prvalue ne peut pas être <a href="objects.html#Polymorphic_objects">polymorphe</a> : le <a href="type-id.html#Dynamic_type">type dynamique</a> de l'objet qu'elle désigne est toujours le type de l'expression.</li>
+<li>Une prvalue qui n'est ni de type classe ni de type tableau ne peut pas être <a href="cv.html">qualifiée cv</a>, sauf si elle est <a href="implicit_cast.html#Temporary_materialization">matérialisée</a> afin d'être <a href="reference_initialization.html">liée à une référence</a> vers un type qualifié cv <em>(depuis C++17)</em>. (Remarque : un appel de fonction ou une expression de conversion peut produire une prvalue de type non classe qualifiée cv, mais le qualificateur cv est généralement supprimé immédiatement.)</li>
+<li>Une prvalue ne peut pas avoir de <a href="type-id.html#Incomplete_type">type incomplet</a> (sauf pour le type <code>void</code>, voir ci-dessous, ou lorsqu'elle est utilisée dans le spécificateur <a href="decltype.html"><code>decltype</code></a>).</li>
+<li>Une prvalue ne peut pas avoir un <a href="abstract_class.html">type classe abstrait</a> ni un tableau de tels types.</li>
+</ul>
+<h3 id="xvalue">xvalue</h3>
+<p>Les expressions suivantes sont des <em>expressions xvalue</em> :</p>
+<ul>
+<li><code>a.m</code>, l'expression de <a href="operator_member_access.html#Built-in_member_access_operators">membre d'objet</a>, où <code>a</code> est une rvalue et <code>m</code> est un membre de données non statique de type objet ;</li>
+<li><code>a.*mp</code>, l'expression de <a href="operator_member_access.html#Built-in_pointer-to-member_access_operators">pointeur vers membre d'objet</a>, où <code>a</code> est une rvalue et <code>mp</code> est un pointeur vers membre de données ;</li>
+<li><code>a, b</code>, l'expression intégrée d'<a href="operator_other.html#Built-in_comma_operator">opérateur virgule</a>, où <code>b</code> est une xvalue ;</li>
+<li><code>a ? b : c</code>, l'expression <a href="operator_other.html#Conditional_operator">conditionnelle ternaire</a> pour certains <code>b</code> et <code>c</code> (voir <a href="operator_other.html#Conditional_operator">la définition</a> pour plus de détails) ;</li>
+</ul>
+<blockquote>
+<ul>
+<li>un appel de fonction ou une expression d'opérateur surchargé, dont le type de retour est une référence rvalue vers objet, comme <code>std::move(x)</code> ;</li>
+<li><code>a[n]</code>, l'expression <a href="operator_member_access.html#Built-in_subscript_operator">d'indexation</a> intégrée, où l'un des opérandes est une rvalue de tableau ;</li>
+<li>une expression de conversion vers un type référence rvalue vers type objet, comme <code>static_cast&lt;char&amp;&amp;&gt;(x)</code> ;</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>toute expression désignant un objet temporaire, après <a href="implicit_cast.html#Temporary_materialization">matérialisation temporaire</a> ;</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>une <a href="value_category.html#Move-eligible_expressions">expression éligible au déplacement</a>.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Properties:</p>
+<ul>
+<li>Identique à rvalue (ci-dessous).</li>
+<li>Identique à glvalue (ci-dessous).</li>
+</ul>
+<p>En particulier, comme toutes les rvalues, les xvalues se lient aux références rvalue, et comme toutes les glvalues, les xvalues peuvent être <a href="objects.html#Polymorphic_objects">polymorphes</a>, et les xvalues de type non classe peuvent être <a href="cv.html">qualifiées cv</a>.</p>
+<p><strong>Contenu étendu</strong></p>
+<pre><code class="language-cpp">#include &lt;type_traits&gt;
+
+template &lt;class T&gt; struct is_prvalue : std::true_type {};
+template &lt;class T&gt; struct is_prvalue&lt;T&amp;&gt; : std::false_type {};
+template &lt;class T&gt; struct is_prvalue&lt;T&amp;&amp;&gt; : std::false_type {};
+
+template &lt;class T&gt; struct is_lvalue : std::false_type {};
+template &lt;class T&gt; struct is_lvalue&lt;T&amp;&gt; : std::true_type {};
+template &lt;class T&gt; struct is_lvalue&lt;T&amp;&amp;&gt; : std::false_type {};
+
+template &lt;class T&gt; struct is_xvalue : std::false_type {};
+template &lt;class T&gt; struct is_xvalue&lt;T&amp;&gt; : std::false_type {};
+template &lt;class T&gt; struct is_xvalue&lt;T&amp;&amp;&gt; : std::true_type {};
+
+// Exemple tiré de la norme C++23 : 7.2.1 Catégorie de valeur [basic.lval]
+struct A
+{
+    int m;
+};
+
+A&amp;&amp; operator+(A, A);
+A&amp;&amp; f();
+
+int main()
+{
+    A a;
+    A&amp;&amp; ar = static_cast&lt;A&amp;&amp;&gt;(a);
+
+    // Un appel de fonction dont le type de retour est une référence rvalue est une xvalue
+    static_assert(is_xvalue&lt;decltype( (f()) )&gt;::value);
+
+    // Membre d'une expression objet, l'objet est une xvalue, `m` est un membre de donnée non statique
+    static_assert(is_xvalue&lt;decltype( (f().m) )&gt;::value);
+
+    // Une expression de conversion vers une référence rvalue
+    static_assert(is_xvalue&lt;decltype( (static_cast&lt;A&amp;&amp;&gt;(a)) )&gt;::value);
+
+    // Expression d'opérateur, dont le type de retour est une référence rvalue vers un objet
+    static_assert(is_xvalue&lt;decltype( (a + a) )&gt;::value);
+
+    // L'expression `ar` est une lvalue, `&amp;ar` est valide
+    static_assert(is_lvalue&lt;decltype( (ar) )&gt;::value);
+    [[maybe_unused]] A* ap = &amp;ar;
+}
+</code></pre>
+<h2 id="Mixed_categories">Catégories mixtes</h2>
+<h3 id="glvalue">glvalue</h3>
+<p>Une <em>expression glvalue</em> est soit une lvalue, soit une xvalue.</p>
+<p>Properties:</p>
+<ul>
+<li>Une glvalue peut être implicitement convertie en prvalue par une <a href="implicit_cast.html">conversion implicite</a> lvalue-vers-rvalue, tableau-vers-pointeur ou fonction-vers-pointeur.</li>
+<li>Une glvalue peut être <a href="objects.html#Polymorphic_objects">polymorphe</a> : le <a href="type-id.html#Dynamic_type">type dynamique</a> de l'objet qu'elle identifie n'est pas nécessairement le type statique de l'expression.</li>
+<li>Une glvalue peut avoir un <a href="type-id.html#Incomplete_type">type incomplet</a>, lorsque l'expression le permet.</li>
+</ul>
+<h3 id="rvalue">rvalue</h3>
+<p>Une <em>expression rvalue</em> est soit une prvalue, soit une xvalue.</p>
+<p>Properties:</p>
+<ul>
+<li>L'adresse d'une rvalue ne peut pas être obtenue par l'opérateur d'adresse intégré : <code>&amp;int()</code>, <code>&amp;i++</code><a href="value_category.html#cite_note-3">[3]</a>, <code>&amp;42</code> et <code>&amp;std::move(x)</code> sont invalides.</li>
+<li>Une rvalue ne peut pas être utilisée comme opérande gauche des opérateurs d'affectation et d'affectation composée intégrés.</li>
+<li>Une rvalue peut être utilisée pour <a href="reference_initialization.html">initialiser une référence lvalue const</a>, auquel cas la durée de vie de l'objet temporaire identifié par la rvalue est <a href="reference_initialization.html#Lifetime_of_a_temporary">prolongée</a> jusqu'à la fin de la portée de la référence.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Une rvalue peut être utilisée pour <a href="reference_initialization.html">initialiser une référence rvalue</a>, auquel cas la durée de vie de l'objet temporaire identifié par la rvalue est <a href="reference_initialization.html#Lifetime_of_a_temporary">prolongée</a> jusqu'à la fin de la portée de la référence.</li>
+<li>Lorsqu'elle est utilisée comme argument de fonction et que <a href="overload_resolution.html">deux surcharges</a> de la fonction sont disponibles, l'une prenant un paramètre référence rvalue et l'autre un paramètre référence lvalue vers const, une rvalue se lie à la surcharge à référence rvalue (ainsi, si les constructeurs de copie et de déplacement sont tous deux disponibles, un argument rvalue invoque le <a href="move_constructor.html">constructeur de déplacement</a>, et de même avec les opérateurs d'affectation par copie et par déplacement).</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Special_categories">Catégories spéciales</h2>
+<h3 id="Pending_member_function_call">Appel de fonction membre en attente</h3>
+<p>Les expressions <code>a.mf</code> et <code>p-&gt;mf</code>, où <code>mf</code> est une <a href="member_functions.html">fonction membre non statique</a>, ainsi que les expressions <code>a.*pmf</code> et <code>p-&gt;*pmf</code>, où <code>pmf</code> est un <a href="pointer.html#Pointers_to_member_functions">pointeur vers fonction membre</a>, sont classées comme expressions prvalues, mais elles ne peuvent pas servir à initialiser des références, comme arguments de fonction, ni à aucune autre fin, sauf comme argument de gauche de l'opérateur d'appel de fonction, par exemple <code>(p-&gt;*pmf)(args)</code>.</p>
+<h3 id="Void_expressions">Expressions void</h3>
+<p>Les expressions d'appel de fonction renvoyant <code>void</code>, les expressions de conversion vers <code>void</code> et les <a href="throw.html">expressions throw</a> sont classées comme expressions prvalues, mais elles ne peuvent pas servir à initialiser des références ni comme arguments de fonction. Elles peuvent être utilisées dans des contextes de valeur ignorée (par exemple seules sur une ligne, comme opérande de gauche de l'opérateur virgule, etc.) et dans l'instruction <code>return</code> d'une fonction renvoyant <code>void</code>. De plus, les expressions throw peuvent être utilisées comme deuxième et troisième opérandes de l'<a href="operator_other.html">opérateur conditionnel ?:</a>.</p>
+<blockquote>
+<p>Les expressions void n'ont pas d'<em>objet résultat</em>.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h3 id="Bit-fields">Champs de bits</h3>
+<p>Une expression désignant un <a href="bit_field.html">champ de bits</a> (par exemple <code>a.m</code>, où <code>a</code> est une lvalue de type <code>struct A { int m: 3; }</code>) est une expression glvalue : elle peut être utilisée comme opérande de gauche de l'opérateur d'affectation, mais son adresse ne peut pas être prise et une référence lvalue non const ne peut pas lui être liée. Une référence lvalue const ou une référence rvalue peut être initialisée à partir d'un glvalue de champ de bits, mais une copie temporaire du champ de bits sera créée : elle ne se lie pas directement au champ de bits.</p>
+<blockquote>
+<h4 id="Move-eligible_expressions">Expressions éligibles au déplacement</h4>
+<p>Bien qu'une expression constituée du nom d'une variable quelconque soit une expression lvalue, une telle expression peut être éligible au déplacement si elle apparaît comme opérande de</p>
+<ul>
+<li>une instruction <a href="return.html"><code>return</code></a></li>
+<li>une instruction <a href="coroutines.html"><code>co_return</code></a> (depuis C++20)</li>
+<li>une expression <a href="throw.html"><code>throw</code></a> (depuis C++17)</li>
+</ul>
+<p>Si une expression est éligible au déplacement, elle est traitée [soit comme une rvalue, soit comme une lvalue <em>(jusqu'à C++23)</em> | comme une rvalue <em>(depuis C++23)</em>] pour les besoins de la <a href="overload_resolution.html">résolution de surcharge</a> (elle peut ainsi sélectionner le <a href="move_constructor.html">constructeur de déplacement</a>). Voir <a href="return.html#Automatic_move_from_local_variables_and_parameters">Déplacement automatique des variables locales et des paramètres</a> pour plus de détails.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="History">Historique</h2>
+<h3 id="CPL">CPL</h3>
+<p>Le langage de programmation <a href="https://en.wikipedia.org/wiki/CPL_(programming_language)">CPL</a> a été le premier à introduire les catégories de valeurs pour les expressions : toutes les expressions CPL peuvent être évaluées en « mode droit », mais seuls certains types d'expressions ont un sens en « mode gauche ». En mode droit, une expression est considérée comme une règle de calcul d'une valeur (la valeur droite, ou <em>rvalue</em>). En mode gauche, une expression donne effectivement une adresse (la valeur gauche, ou <em>lvalue</em>). « Gauche » et « droit » désignaient ici « à gauche de l'affectation » et « à droite de l'affectation ».</p>
+<h3 id="C">C</h3>
+<p>Le langage de programmation C a suivi une taxonomie similaire, à ceci près que le rôle de l'affectation n'était plus significatif : les expressions C se répartissent entre « expressions lvalue » et les autres (fonctions et valeurs non objets), où « lvalue » désigne une expression qui identifie un objet, une « valeur de localisation »<a href="value_category.html#cite_note-4">[4]</a>.</p>
+<h3 id="C.2B.2B98">C++98</h3>
+<p>Le C++ antérieur à 2011 suivait le modèle du C, mais rétablissait le nom « rvalue » pour les expressions non lvalue, faisait des fonctions des lvalues, et ajoutait la règle selon laquelle les références peuvent se lier à des lvalues, mais seules les références const peuvent se lier à des rvalues. Plusieurs expressions C non lvalue sont devenues des expressions lvalue en C++.</p>
+<h3 id="C.2B.2B11">C++11</h3>
+<p>Avec l'introduction de la sémantique de déplacement en C++11, les catégories de valeurs ont été redéfinies pour caractériser deux propriétés indépendantes des expressions<a href="value_category.html#cite_note-5">[5]</a> :</p>
+<ul>
+<li><em>possède une identité</em> : il est possible de déterminer si l'expression désigne la même entité qu'une autre expression, par exemple en comparant les adresses des objets ou des fonctions qu'elles identifient (obtenues directement ou indirectement) ;</li>
+<li><em>peut être déplacée</em> : un <a href="move_constructor.html">constructeur de déplacement</a>, un <a href="move_operator.html">opérateur d'affectation par déplacement</a>, ou une autre surcharge de fonction implémentant la sémantique de déplacement peut se lier à l'expression.</li>
+</ul>
+<p>En C++11, les expressions qui :</p>
+<ul>
+<li>possèdent une identité et ne peuvent pas être déplacées sont appelées expressions <em>lvalue</em> ;</li>
+<li>possèdent une identité et peuvent être déplacées sont appelées expressions <em>xvalue</em> ;</li>
+<li>ne possèdent pas d'identité et peuvent être déplacées sont appelées expressions <em>prvalue</em> (« rvalue pure ») ;</li>
+<li>ne possèdent pas d'identité et ne peuvent pas être déplacées ne sont pas utilisées<a href="value_category.html#cite_note-6">[6]</a>.</li>
+</ul>
+<p>Les expressions qui possèdent une identité sont appelées « expressions glvalue » (glvalue signifie « lvalue généralisée »). Les lvalues et les xvalues sont toutes deux des expressions glvalue.</p>
+<p>Les expressions dont on peut déplacer la valeur sont appelées « expressions rvalue ». Les prvalues et les xvalues sont toutes deux des expressions rvalue.</p>
+<h3 id="C.2B.2B17">C++17</h3>
+<p>En C++17, l'<a href="copy_elision.html">élision de copie</a> est devenue obligatoire dans certaines situations, ce qui a nécessité de séparer les expressions prvalues des objets temporaires qu'elles initialisent, aboutissant au système actuel. Notons que, contrairement au schéma C++11, les prvalues ne sont plus déplacées.</p>
+<h2 id="Footnotes">Notes de bas de page</h2>
+<ol>
+<li><a href="value_category.html#cite_ref-1">↑</a> En supposant que <code>i</code> ait un type intégré ou que l'opérateur de pré-incrémentation soit <a href="operators.html">surchargé</a> pour renvoyer par référence lvalue.</li>
+<li>↑ <a href="value_category.html#cite_ref-pmfc_2-0">2.0</a> <a href="value_category.html#cite_ref-pmfc_2-1">2.1</a> <a href="value_category.html#cite_ref-pmfc_2-2">2.2</a> <a href="value_category.html#cite_ref-pmfc_2-3">2.3</a> Catégorie rvalue particulière, voir <a href="value_category.html#Pending_member_function_call">appel de fonction membre en attente</a>.</li>
+<li><a href="value_category.html#cite_ref-3">↑</a> En supposant que <code>i</code> ait un type intégré ou que l'opérateur de post-incrémentation ne soit pas <a href="operators.html">surchargé</a> pour renvoyer par référence lvalue.</li>
+<li><a href="value_category.html#cite_ref-4">↑</a> « Un désaccord au sein de la communauté C portait sur la signification de lvalue : certains considéraient qu'une lvalue est tout type de localisateur d'objet, d'autres qu'une lvalue a un sens à gauche d'un opérateur d'affectation. Le comité C89 a adopté la définition de lvalue comme localisateur d'objet. » -- ANSI C Rationale, 6.3.2.1/10.</li>
+<li><a href="value_category.html#cite_ref-5">↑</a> <a href="https://www.stroustrup.com/terminology.pdf">Terminologie « New » de la valeur</a> de Bjarne Stroustrup, 2010.</li>
+<li><a href="value_category.html#cite_ref-6">↑</a> Les prvalues const (autorisées uniquement pour les types classe) et les xvalues const ne se lient pas aux surcharges <code>T&amp;&amp;</code>, mais se lient aux surcharges <code>const T&amp;&amp;</code>, qui sont également classées par la norme comme « constructeur de déplacement » et « opérateur d'affectation par déplacement », satisfaisant ainsi la définition de « peut être déplacée » pour les besoins de cette classification. Toutefois, ces surcharges ne peuvent pas modifier leurs arguments et ne sont pas utilisées en pratique ; en leur absence, les prvalues const et les xvalues const se lient aux surcharges <code>const T&amp;</code>.</li>
+</ol>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.2.1 Catégorie de valeur [basic.lval]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.2.1 Catégorie de valeur [basic.lval]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>6.10 Lvalues et rvalues [basic.lval]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>3.10 Lvalues et rvalues [basic.lval]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>3.10 Lvalues et rvalues [basic.lval]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>3.10 Lvalues et rvalues [basic.lval]</li>
+</ul>
+</li>
+</ul>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/616.html">CWG 616</a></td>
+<td>C++11</td>
+<td>l'accès à un membre et l'accès à un membre via un pointeur vers membre d'une rvalue donnent une prvalue</td>
+<td>reclassée en xvalue</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1059.html">CWG 1059</a></td>
+<td>C++11</td>
+<td>les prvalues de tableau ne pouvaient pas être qualifiées cv</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1213.html">CWG 1213</a></td>
+<td>C++11</td>
+<td>l'indexation d'une rvalue de tableau produisait une lvalue</td>
+<td>reclassée en xvalue</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/language/value_category.html">Documentation C</a> sur les catégories de valeurs</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://www.scs.stanford.edu/~dm/blog/decltype.html">Les catégories de valeurs C++ et decltype démystifiées</a> — David Mazières, 2021</td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://stackoverflow.com/a/16638081">Déterminer empiriquement la catégorie de valeur d'une expression</a> — StackOverflow</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

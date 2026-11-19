@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::chrono::duration_cast — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/chrono.html">Utilitaires de date et d&#x27;heure</a> › <a href="../../../cpp/chrono/duration.html">std::chrono::duration</a></nav>
+<h1 id="std-chrono-duration_cast"><code>std::chrono::duration_cast</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/chrono/duration/duration_cast">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;chrono&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class ToDuration, class Rep, class Period &gt;
+constexpr ToDuration duration_cast( const std::chrono::duration&lt;Rep, Period&gt;&amp; d );  // (depuis C++11)
+</code></pre>
+<p>Convertit une <a href="../duration.html"><code>std::chrono::duration</code></a> en une durée d'un type différent <code>ToDuration</code>.</p>
+<p>La fonction ne participe à la résolution de surcharge que si <code>ToDuration</code> est une spécialisation de <a href="../duration.html"><code>std::chrono::duration</code></a>.</p>
+<p>Soit</p>
+<ul>
+<li><code>ToRep</code> be <code>typename ToDuration::rep</code>,</li>
+<li><code>ToPeriod</code> be <code>typename ToDuration::period</code>,</li>
+<li><code>CF</code> be <code>std::ratio_divide&lt;Period, ToPeriod&gt;</code>,</li>
+<li><code>CR</code> be <code>std::common_type&lt;Rep, ToRep, std::intmax_t&gt;::type</code>,</li>
+<li><code>cr_count</code> be <code>static_cast&lt;CR&gt;(d.count())</code>,</li>
+<li><code>cr_num</code> doit être <code>static_cast&lt;CR&gt;(CF::num)</code>, et</li>
+<li><code>cr_den</code> be <code>static_cast&lt;CR&gt;(CF::den)</code>,</li>
+</ul>
+<p>le résultat est :</p>
+<p><strong><code>CF::num</code></strong></p>
+<p><strong><code>1</code></strong> | <strong>not <code>1</code></strong></p>
+<p><strong><code>CF::den</code></strong> | <strong><code>1</code></strong> | <code>ToDuration(static_cast&lt;ToRep&gt; (d.count()))</code>
+| <code>ToDuration(static_cast&lt;ToRep&gt; (cr_count * cr_num))</code></p>
+<p><strong>not <code>1</code></strong> | <code>ToDuration(static_cast&lt;ToRep&gt; (cr_count / cr_den))</code>
+| <code>ToDuration(static_cast&lt;ToRep&gt; (cr_count * cr_num / cr_den))</code></p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>d</code> — durée à convertir</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>d</code> converti en une durée de type <code>ToDuration</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Aucune conversion implicite n'est utilisée. Les multiplications et divisions sont évitées autant que possible, s'il est connu à la compilation qu'un ou plusieurs paramètres valent <code>1</code>. Les calculs sont effectués dans le type le plus large disponible, puis convertis, comme avec <a href="../../language/static_cast.html"><code>static_cast</code></a>, vers le type du résultat uniquement une fois terminés.</p>
+<p>La conversion entre durées entières dont la période source est exactement divisible par la période cible (par exemple heures vers minutes) ou entre durées à virgule flottante peut être effectuée avec des transtypages ordinaires ou implicitement via <a href="duration.html">constructeurs <code>std::chrono::duration</code></a>, sans qu'il soit nécessaire de <code>duration_cast</code>.</p>
+<p>La conversion d'une durée à virgule flottante en une durée entière est <a href="../../language/implicit_cast.html#Floating-integral_conversions">soumise à un comportement indéfini</a> lorsque la valeur à virgule flottante est NaN, infinie, ou trop grande pour être représentée par le type entier cible. Sinon, la conversion vers une durée entière est soumise à une troncature, comme toute <code>static_cast</code> vers un type entier.</p>
+<h2 id="Example">Exemple</h2>
+<p>Cet exemple mesure le temps d'exécution d'une fonction.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;ratio&gt;
+#include &lt;thread&gt;
+
+void f()
+{
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+
+int main()
+{
+    const auto t1 = std::chrono::high_resolution_clock::now();
+    f();
+    const auto t2 = std::chrono::high_resolution_clock::now();
+
+    // durée à virgule flottante : pas besoin de duration_cast
+    const std::chrono::duration&lt;double, std::milli&gt; fp_ms = t2 - t1;
+
+    // durée entière : nécessite duration_cast
+    const auto int_ms = std::chrono::duration_cast&lt;std::chrono::milliseconds&gt;(t2 - t1);
+
+    // conversion d'une durée entière en une durée entière de
+    // unité de temps divisible plus courte : pas besoin de duration_cast
+    const std::chrono::duration&lt;long, std::micro&gt; int_usec = int_ms;
+
+    std::cout &lt;&lt; &quot;f() took &quot; &lt;&lt; fp_ms &lt;&lt; &quot;, or &quot;
+              &lt;&lt; int_ms &lt;&lt; &quot; (whole milliseconds), or &quot;
+              &lt;&lt; int_usec &lt;&lt; &quot; (whole microseconds)\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">f() took 1000.14ms, or 1000ms (whole milliseconds), or 1000000us (whole microseconds)
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../duration.html">duration</a> (C++11)</strong> — un intervalle de temps <em>(modèle de classe)</em></li>
+<li><strong><a href="../time_point/time_point_cast.html">time_point_cast</a> (C++11)</strong> — convertit un point temporel en un autre point temporel de la même horloge, avec une durée différente <em>(modèle de fonction)</em></li>
+<li><strong><a href="floor.html">floor(std::chrono::duration)</a> (C++17)</strong> — convertit une durée en une autre, en arrondissant par défaut <em>(modèle de fonction)</em></li>
+<li><strong><a href="ceil.html">ceil(std::chrono::duration)</a> (C++17)</strong> — convertit une durée en une autre, en arrondissant par excès <em>(modèle de fonction)</em></li>
+<li><strong><a href="round.html">round(std::chrono::duration)</a> (C++17)</strong> — convertit une durée en une autre, en arrondissant au plus proche, à égalité vers le pair <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

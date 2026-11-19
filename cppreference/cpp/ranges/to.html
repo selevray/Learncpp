@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::to — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-to"><code>std::ranges::to</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/to">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class C, ranges::input_range R, class... Args &gt;
+    requires (!ranges::view&lt;C&gt;)
+constexpr C to( R&amp;&amp; r, Args&amp;&amp;... args );  // (1) (depuis C++23)
+
+template&lt; template&lt; class... &gt; class C,
+          ranges::input_range R, class... Args &gt;
+constexpr auto to( R&amp;&amp; r, Args&amp;&amp;... args );  // (2) (depuis C++23)
+
+template&lt; class C, class... Args &gt;
+    requires (!ranges::view&lt;C&gt;)
+constexpr /*fermeture d'adaptateur d'intervalle*/ to( Args&amp;&amp;... args );  // (3) (depuis C++23)
+
+template&lt; template&lt; class... &gt; class C, class... Args &gt;
+constexpr /*fermeture d'adaptateur d'intervalle*/ to( Args&amp;&amp;... args );  // (4) (depuis C++23)
+</code></pre>
+<p><strong>Modèles auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class Container &gt;
+constexpr bool /*reservable-container*/ =
+    ranges::sized_range&lt;Container&gt; &amp;&amp;
+    requires (Container&amp; c, ranges::range_size_t&lt;Container&gt; n)
+    {
+        c.reserve(n);
+        { c.capacity() } -&gt; std::same_as&lt;decltype(n)&gt;;
+        { c.max_size() } -&gt; std::same_as&lt;decltype(n)&gt;;
+    };  // (5) ( exposition uniquement* )
+
+template&lt; class Container, class Reference &gt;
+constexpr bool /*container-appendable*/ =
+    requires (Container&amp; c, Reference&amp;&amp; ref)
+    {
+        requires
+        (
+            requires { c.emplace_back(std::forward&lt;Reference&gt;(ref)); }     ||
+            requires { c.push_back(std::forward&lt;Reference&gt;(ref)); }        ||
+            requires { c.emplace(c.end(), std::forward&lt;Reference&gt;(ref)); } ||
+            requires { c.insert(c.end(), std::forward&lt;Reference&gt;(ref)); }
+        );
+    };  // (6) ( exposition uniquement* )
+
+template&lt; class Reference, class C &gt;
+constexpr auto /*container-appender*/( C&amp; c );  // (7) ( exposition uniquement* )
+
+template&lt; class R, class T &gt;
+concept /*intervalle compatible avec le conteneur*/ =
+    ranges::input_range&lt;R&gt; &amp;&amp;
+    std::convertible_to&lt;ranges::range_reference_t&lt;R&gt;, T&gt;;  // (8) ( exposition uniquement* )
+</code></pre>
+<p>Les surcharges de la fonction de conversion d'intervalle construisent un nouvel objet non vue à partir d'un intervalle source passé en premier argument, en appelant un constructeur prenant un intervalle, un constructeur à étiquette <code>std::from_range_t</code> de type ranged, un constructeur prenant une paire itérateur-sentinelle, ou en insérant par la fin chaque élément de l'intervalle source dans l'objet construit à partir des arguments.</p>
+<ol>
+<li>Construit un objet de type <code>C</code> à partir des éléments de <code>r</code>, de la manière suivante :</li>
+</ol>
+<p>a) Si <code>C</code> ne satisfait pas <a href="input_range.html"><code>input_range</code></a> ou si <code>std::convertible_to&lt;ranges::range_reference_t&lt;R&gt;, ranges::range_value_t&lt;C&gt;&gt;</code> vaut <code>true</code> :</p>
+<ol>
+<li>
+<p>Construction d'un objet non vue comme si l'on effectuait une <a href="../language/direct_initialization.html">initialisation directe</a> (mais pas une initialisation directe par liste) d'un objet de type <code>C</code> à partir de l'intervalle source <code>std::forward&lt;R&gt;(r)</code> et du reste des arguments fonctionnels <code>std::forward&lt;Args&gt;(args)...</code>, si <code>std::constructible_from&lt;C, R, Args...&gt;</code> vaut <code>true</code>.</p>
+</li>
+<li>
+<p>Sinon, construction d'un objet non vue comme si l'on effectuait une <a href="../language/direct_initialization.html">initialisation directe</a> (mais pas une initialisation directe par liste) d'un objet de type <code>C</code> à partir de l'étiquette de désambiguïsation supplémentaire <code>std::from_range</code>, de l'intervalle source <code>std::forward&lt;R&gt;(r)</code> et du reste des arguments fonctionnels <code>std::forward&lt;Args&gt;(args)...</code>, si <code>std::constructible_from&lt;C, std::from_range_t, R, Args...&gt;</code> vaut <code>true</code>.</p>
+</li>
+<li>
+<p>Sinon, construction d'un objet non vue comme si l'on effectuait une <a href="../language/direct_initialization.html">initialisation directe</a> (mais pas une initialisation directe par liste) d'un objet de type <code>C</code> à partir de la paire itérateur-sentinelle (<code>ranges::begin(r)</code> comme itérateur et <code>ranges::end(r)</code> comme sentinelle, où l'itérateur et la sentinelle ont le même type ; autrement dit, l'intervalle source doit être un intervalle commun), et du reste des arguments fonctionnels <code>std::forward&lt;Args&gt;(args)...</code>, si toutes les conditions ci-dessous sont <code>true</code> :</p>
+</li>
+</ol>
+<ul>
+<li><code>ranges::common_range&lt;R&gt;</code></li>
+<li>Si <code>std::iterator_traits&lt;ranges::iterator_t&lt;R&gt;&gt;::iterator_category</code> est valide et désigne un type qui satisfait <code>std::derived_from&lt;std::input_iterator_tag&gt;</code></li>
+<li><code>std::constructible_from&lt;C, ranges::iterator_t&lt;R&gt;, ranges::sentinel_t&lt;R&gt;, Args...&gt;</code></li>
+</ul>
+<ol start="4">
+<li>Sinon, construction d'un objet intervalle non vue comme si l'on effectuait une <a href="../language/direct_initialization.html">initialisation directe</a> (mais pas une initialisation directe par liste) d'un objet de type <code>C</code> à partir du reste des arguments fonctionnels <code>std::forward&lt;Args&gt;(args)...</code>, avec l'appel équivalent suivant après la construction :</li>
+</ol>
+<p><code>if constexpr (ranges::sized_range&lt;R&gt; &amp;&amp; /*reservable-container*/&lt;C&gt;) c.reserve(static_cast&lt;ranges::range_size_t&lt;C&gt;&gt;(ranges::size(r))); ranges::for_each(r, /*container-appender*/(c));</code><br />
+Si <code>R</code> satisfait <a href="sized_range.html"><code>sized_range</code></a> et que <code>C</code> satisfait <code>reservable-container</code>, l'objet construit <code>c</code> de type <code>C</code> peut réserver de l'espace de stockage avec la taille initiale <code>ranges::size(r)</code> afin d'éviter des allocations supplémentaires lors de l'insertion de nouveaux éléments. Chaque élément de <code>r</code> est ajouté à la fin de <code>c</code>. Les opérations ci-dessus sont valides si les deux conditions ci-dessous sont <code>true</code> :</p>
+<ul>
+<li><code>std::constructible_from&lt;C, Args...&gt;</code></li>
+<li><code>container-appendable&lt;C, ranges::range_reference_t&lt;R&gt;&gt;</code></li>
+</ul>
+<p>b) Sinon, l'expression de retour est équivalente à :</p>
+<p><code>to&lt;C&gt;(ranges::ref_view(r) | views::transform([](auto&amp;&amp; elem){ return to&lt;ranges::range_value_t&lt;C&gt;&gt;(std::forward&lt;decltype(elem)&gt;(elem));}), std::forward&lt;Args&gt;(args)...)</code><br />
+Ceci permet les constructions d'intervalles imbriquées à l'intérieur de l'intervalle si <code>ranges::input_range&lt;ranges::range_reference_t&lt;C&gt;&gt;</code> est <code>true</code>.</p>
+<p>Sinon, le programme est mal formé.</p>
+<ol start="2">
+<li>Construit un objet de type déduit à partir des éléments de <code>r</code>.</li>
+</ol>
+<p>Soit <code>/*input-iterator*/</code> un type fictif à des fins d'exposition qui satisfait <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a> :</p>
+<pre><code class="language-cpp">struct /*input-iterator*/
+{
+    using iterator_category = std::input_iterator_tag;
+    using value_type = ranges::range_value_t&lt;R&gt;;
+    using difference_type = std::ptrdiff_t;
+    using pointer = std::add_pointer_t&lt;ranges::range_reference_t&lt;R&gt;&gt;;
+    using reference = ranges::range_reference_t&lt;R&gt;;
+    reference operator*() const;                      // non défini
+    pointer operator-&gt;() const;                       // non défini
+    /*input-iterator*/&amp; operator++();                 // non défini
+    /*input-iterator*/ operator++(int);               // non défini
+    bool operator==(const /*input-iterator*/&amp;) const; // non défini
+};  // ( exposition uniquement* )
+</code></pre>
+<p>Soit <code>/*DEDUCE-EXPR*/</code> défini comme suit :</p>
+<ul>
+<li><code>C(std::declval&lt;R&gt;(), std::declval&lt;Args&gt;()...)</code>, si cette expression est valide.</li>
+<li>Sinon, <code>C(std::from_range, std::declval&lt;R&gt;(), std::declval&lt;Args&gt;()...)</code>, si cette expression est valide.</li>
+<li>Sinon, <code>C(std::declval&lt;/*input-iterator*/&gt;(), std::declval&lt;/*input-iterator*/&gt;(), std::declval&lt;Args&gt;()...)</code>, si cette expression est valide.</li>
+<li>Sinon, le programme est mal formé.</li>
+</ul>
+<p>L'appel est équivalent à <code>to&lt;decltype(/*DEDUCE-EXPR*/)&gt; (std::forward&lt;R&gt;(r), std::forward&lt;Args&gt;(args)...)</code>.</p>
+<p>3,4) Renvoie un wrapper d'appel à transmission parfaite qui est aussi un <a href="../named_req/RangeAdaptorClosureObject.html"><em>RangeAdaptorClosureObject</em></a>.</p>
+<ol start="5">
+<li>
+<p>Vaut <code>true</code> s'il satisfait <code>ranges::sized_range</code> et peut être réservable.</p>
+</li>
+<li>
+<p>Vaut <code>true</code> si un élément de type <code>Reference</code> peut être ajouté à <code>Container</code> par un appel de fonction membre <code>emplace_back</code>, <code>push_back</code>, <code>emplace</code> ou <code>insert</code>.</p>
+</li>
+<li>
+<p>Renvoie un objet fonction dont l'appel est équivalent, en termes d'expression, à l'ajout d'un élément à un conteneur. L'expression de retour est équivalente à :</p>
+</li>
+</ol>
+<p><code>return [&amp;c]&lt;class Reference&gt;(Reference&amp;&amp; ref) { if constexpr (requires { c.emplace_back(std::declval&lt;Reference&gt;()); }) c.emplace_back(std::forward&lt;Reference&gt;(ref)); else if constexpr (requires { c.push_back(std::declval&lt;Reference&gt;()); }) c.push_back(std::forward&lt;Reference&gt;(ref)); else if constexpr (requires { c.emplace(c.end(), std::declval&lt;Reference&gt;()); }) c.emplace(c.end(), std::forward&lt;Reference&gt;(ref)); else c.insert(c.end(), std::forward&lt;Reference&gt;(ref)); };</code></p>
+<ol start="8">
+<li>Est utilisé dans la définition des conteneurs lors de la construction d'un intervalle d'entrée <code>R</code> dont le type de référence d'intervalle doit être convertible en <code>T</code>.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>r</code> — un objet intervalle source</li>
+<li><code>args</code> — liste des arguments de <code>(1,2)</code> pour construire un intervalle, ou <code>(3,4)</code> pour lier aux derniers paramètres de l'objet fermeture d'adaptateur d'intervalle</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>C</code> doit être un type classe non qualifié cv <code>(1,3)</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1,2) Un objet non vue construit.</p>
+<p>3,4) Un objet fermeture d'adaptateur d'intervalle de type non spécifié, ayant les propriétés suivantes :</p>
+<h2 id="ranges::to_return_type">ranges::to type de retour</h2>
+<h3 id="Member_objects">Objets membres</h3>
+<p>L'objet renvoyé se comporte comme s'il n'avait pas d'objet cible, et comme un objet <a href="../utility/tuple.html"><code>std::tuple</code></a> <code>tup</code> construit avec <code>std::tuple&lt;std::decay_t&lt;Args&gt;...&gt;(std::forward&lt;Args&gt;(args)...)</code>, sauf que le comportement d'affectation de l'objet renvoyé est non spécifié et que les noms ne servent qu'à l'exposition.</p>
+<h3 id="Constructors">Constructeurs</h3>
+<p>Le type de retour de <code>ranges::to</code> <code>(3,4)</code> se comporte comme si ses constructeurs de copie/déplacement effectuaient une copie/déplacement membre à membre. Il est <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a> si tous ses objets membres (spécifiés ci-dessus) sont <em>CopyConstructible</em>, et <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a> sinon.</p>
+<h3 id="Member_function_operator.28.29">Fonction membre <code>operator()</code></h3>
+<p>Étant donné un objet <code>G</code> obtenu lors d'un appel antérieur à <code>range::to&lt;/* voir ci-dessous */&gt;(args...)</code>, lorsqu'un glvalue <code>g</code> désignant <code>G</code> est invoqué dans une expression d'appel de fonction <code>g(r)</code>, l'invocation de l'objet stocké a lieu, comme si l'on effectuait</p>
+<ul>
+<li><code>ranges::to&lt;/* voir ci-dessous */&gt;(r, std::get&lt;Ns&gt;(g.tup)...)</code>, où
+<ul>
+<li><code>r</code> est un objet intervalle source qui doit satisfaire <a href="input_range.html"><code>input_range</code></a>.</li>
+<li><code>Ns</code> est un paquet d'entiers <code>0, 1, ..., (sizeof...(Args) - 1)</code>.</li>
+<li><code>g</code> est une lvalue dans l'expression d'appel si elle est une lvalue dans l'expression d'appel, et une rvalue sinon. Ainsi <code>std::move(g)(r)</code> peut déplacer les arguments liés dans l'appel, alors que <code>g(r)</code> les copierait.</li>
+<li>L'argument de modèle spécifié est <code>(3)</code> <code>C</code> ou <code>(4)</code> le type déduit d'un modèle de classe <code>C</code> qui ne doit pas satisfaire <a href="view.html"><code>view</code></a>.</li>
+</ul>
+</li>
+</ul>
+<p>Le programme est mal formé si <code>g</code> a un type qualifié volatile.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Ne lève une exception que si la construction d'un objet non vue lève une exception.</p>
+<h2 id="Notes">Notes</h2>
+<p>L'insertion d'éléments dans le conteneur peut impliquer une copie, moins efficace qu'un déplacement, car des références lvalue sont produites lors de l'appel d'indirection. Les utilisateurs peuvent choisir d'utiliser <code>views::as_rvalue</code> pour adapter l'intervalle afin que leurs éléments produisent toujours une référence rvalue lors de l'appel d'indirection, ce qui implique un déplacement.</p>
+<p>Les parenthèses sont obligatoires lors de l'utilisation de la syntaxe par tuyau.</p>
+<pre><code class="language-cpp">auto vec = r | std::ranges::to&lt;std::vector&gt;;   // Erreur
+auto vec = r | std::ranges::to&lt;std::vector&gt;(); // OK
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_ranges_to_container"><code>__cpp_lib_ranges_to_container</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_lib_ranges_to_container_202202L"><code>202202L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><code>std::ranges::to</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<p>Un lien de prévisualisation : <a href="https://godbolt.org/z/s4E3n8ed5">Compiler Explorer</a></p>
+<pre><code class="language-cpp">#include &lt;boost/container/devector.hpp&gt;
+#include &lt;concepts&gt;
+#include &lt;list&gt;
+#include &lt;initializer_list&gt;
+#include &lt;iostream&gt;
+#include &lt;print&gt;
+#include &lt;ranges&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    auto vec = std::views::iota(1, 5)
+             | std::views::transform([](int v){ return v * 2; })
+             | std::ranges::to&lt;std::vector&gt;();
+
+    static_assert(std::same_as&lt;decltype(vec), std::vector&lt;int&gt;&gt;);
+    std::println(&quot;{}&quot;, vec);
+
+    auto list = vec | std::views::take(3) | std::ranges::to&lt;std::list&lt;double&gt;&gt;();
+    std::println(&quot;{}&quot;, list);
+}
+
+void ctor_demos()
+{
+    // 1.a.1) Initialisation directe
+    {
+        char array[]{'a', 'b', '\0', 'c'};
+
+        // Le type de l'argument est convertible en type de valeur du résultat :
+        auto str_to = std::ranges::to&lt;std::string&gt;(array);
+        // Équivalent à
+        std::string str(array);
+
+        // Le type du résultat n'est pas un intervalle d'entrée :
+        auto re_to = std::ranges::to&lt;std::regex&gt;(array);
+        // Équivalent à
+        std::regex re(array);
+    }
+
+    // 1.a.2) constructeur from_range
+    {
+        auto list = {'a', 'b', '\0', 'c'};
+
+        // Le type de l'argument est convertible en type de valeur du résultat :
+        auto str_to = std::ranges::to&lt;std::string&gt;(list);
+        // Équivalent à
+        std::string str(std::from_range, list);
+
+        // Le type du résultat n'est pas un intervalle d'entrée :
+        auto pair_to = std::ranges::to&lt;std::pair&lt;std::from_range_t, bool&gt;&gt;(true);
+        // Équivalent à
+        std::pair&lt;std::from_range_t, bool&gt; pair(std::from_range, true);
+    }
+
+    // 1.a.3) constructeur à partir d'une paire d'itérateurs
+    {
+        auto list = {'a', 'b', '\0', 'c'};
+
+        // Le type de l'argument est convertible en type de valeur du résultat :
+        auto devector_to = std::ranges::to&lt;boost::container::devector&lt;char&gt;&gt;(list);
+        // Équivalent à
+        boost::container::devector&lt;char&gt; devector(std::ranges::begin(list),
+                                                  std::ranges::end(list));
+
+        // Le type du résultat n'est pas un intervalle d'entrée :
+        std::regex re;
+        auto it_to = std::ranges::to&lt;std::cregex_iterator&gt;(list, re);
+        // Équivalent à
+        std::cregex_iterator it(std::ranges::begin(list), std::ranges::end(list), re);
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">[2, 4, 6, 8]
+[2, 4, 6]
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3984">LWG 3984</a></td>
+<td>C++23</td>
+<td>la branche de construction imbriquée de <code>ranges::to</code> conduisait à un programme mal formé si <code>R&amp;</code> ne modélise pas <a href="viewable_range.html"><code>viewable_range</code></a></td>
+<td>rendue bien formée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue4016">LWG 4016</a></td>
+<td>C++23</td>
+<td>la branche d'insertion dans le conteneur de <code>ranges::to</code> utilisait des itérateurs d'insertion</td>
+<td>remplacée par l'ajout direct d'éléments au conteneur</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>Norme C++23 (ISO/IEC 14882:2024) :
+<ul>
+<li>26.5.7 Conversions d'intervalles [range.utility.conv]</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

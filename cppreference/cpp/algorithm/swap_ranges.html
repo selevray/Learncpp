@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::swap_ranges — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-swap_ranges"><code>std::swap_ranges</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/swap_ranges">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class ForwardIt1, class ForwardIt2 &gt;
+ForwardIt2 swap_ranges( ForwardIt1 first1, ForwardIt1 last1,
+                        ForwardIt2 first2 );  // (1) (constexpr depuis C++20)
+
+template&lt; class ExecutionPolicy,
+          class ForwardIt1, class ForwardIt2 &gt;
+ForwardIt2 swap_ranges( ExecutionPolicy&amp;&amp; policy,
+                        ForwardIt1 first1, ForwardIt1 last1,
+                        ForwardIt2 first2 );  // (2) (depuis C++17)
+</code></pre>
+<ol>
+<li>
+<p>Échange des éléments entre l'intervalle <code>[first1,last1)</code> et un autre intervalle de <code>std::distance(first1, last1)</code> éléments commençant à <code>first2</code>.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais exécuté selon <code>policy</code>.</p>
+</li>
+</ol>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</p>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::decay_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::remove_cvref_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Si l'une des conditions suivantes est satisfaite, le comportement est indéfini :</p>
+<ul>
+<li>Les deux intervalles se chevauchent.</li>
+<li>Il existe une paire d'itérateurs correspondants <code>iter1</code> et <code>iter2</code> dans les deux intervalles tels que <code>*iter1</code> n'est pas <a href="../named_req/Swappable.html"><em>Swappable</em></a> avec <code>*iter2</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first1, last1</code> — le premier intervalle d'éléments à échanger</li>
+<li><code>first2</code> — début du second intervalle d'éléments à échanger</li>
+<li><code>policy</code> — la <a href="execution_policy_tag_t.html">politique d'exécution</a> à utiliser</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>ForwardIt1, ForwardIt2</code> doit satisfaire aux exigences de <a href="../named_req/ForwardIterator.html"><em>LegacyForwardIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Itérateur vers l'élément qui suit le dernier élément échangé dans l'intervalle commençant par <code>first2</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>std::distance(first1, last1)</code> échanges.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge avec un paramètre de modèle nommé <code>ExecutionPolicy</code> signale les erreurs comme suit :</p>
+<ul>
+<li>Si l'exécution d'une fonction invoquée dans le cadre de l'algorithme lève une exception et <code>ExecutionPolicy</code> est l'une des <a href="execution_policy_tag_t.html">politiques standard</a>, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée. Pour toute autre <code>ExecutionPolicy</code>, le comportement est défini par l'implémentation.</li>
+<li>Si l'algorithme échoue à allouer de la mémoire, <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> est levée.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Les implémentations (par ex. <a href="https://github.com/microsoft/STL/blob/main/stl/src/vector_algorithms.cpp">MSVC STL</a>) peuvent activer la vectorisation lorsque le type d'itérateur satisfait <a href="../named_req/ContiguousIterator.html"><em>LegacyContiguousIterator</em></a> et que l'échange de sa valeur n'appelle ni fonction membre spéciale non triviale ni une <code>swap</code> trouvée par <a href="../language/adl.html">ADL</a>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class ForwardIt1, class ForwardIt2&gt;
+constexpr //&lt; depuis C++20
+ForwardIt2 swap_ranges(ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2)
+{
+    for (; first1 != last1; ++first1, ++first2)
+        std::iter_swap(first1, first2);
+
+    return first2;
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>Démontre l'échange de sous-intervalles provenant de conteneurs différents.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;list&gt;
+#include &lt;vector&gt;
+
+auto print = [](auto comment, auto const&amp; seq)
+{
+    std::cout &lt;&lt; comment;
+    for (const auto&amp; e : seq)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+};
+
+int main()
+{
+    std::vector&lt;char&gt; v{'a', 'b', 'c', 'd', 'e'};
+    std::list&lt;char&gt; l{'1', '2', '3', '4', '5'};
+
+    print(&quot;Before swap_ranges:\n&quot; &quot;v: &quot;, v);
+    print(&quot;l: &quot;, l);
+
+    std::swap_ranges(v.begin(), v.begin() + 3, l.begin());
+
+    print(&quot;After swap_ranges:\n&quot; &quot;v: &quot;, v);
+    print(&quot;l: &quot;, l);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Before swap_ranges:
+v: a b c d e
+l: 1 2 3 4 5
+After swap_ranges:
+v: 1 2 3 d e
+l: a b c 4 5
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="iter_swap.html">iter_swap</a></strong> — échange les éléments pointés par deux itérateurs <em>(modèle de fonction)</em></li>
+<li><strong><a href="../utility/swap.html">swap</a></strong> — échange les valeurs de deux objets <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/swap_ranges.html">ranges::swap_ranges</a> (C++20)</strong> — échange deux intervalles d'éléments <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

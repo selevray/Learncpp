@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qualificateur de type const — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="qualificateur-de-type-const">qualificateur de type const</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/const">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Chaque type individuel du <a href="compatible_type.html">système de types</a> C possède plusieurs versions <em>qualifiées</em> de ce type, correspondant à un, deux ou aux trois qualificateurs <code>const</code>, <a href="volatile.html"><code>volatile</code></a> et, pour les pointeurs vers des types objets, <a href="restrict.html"><code>restrict</code></a>. Cette page décrit les effets du qualificateur <code>const</code>.</p>
+<p>Les objets <a href="declarations.html">déclarés</a> avec des types qualifiés const peuvent être placés par le compilateur en mémoire en lecture seule, et si l'adresse d'un objet const n'est jamais prise dans un programme, il peut ne pas être stocké du tout.</p>
+<p>Toute tentative de modification d'un objet dont le type est qualifié const entraîne un comportement indéfini.</p>
+<pre><code class="language-c">const int n = 1; // objet de type qualifié const
+int* p = (int*)&amp;n;
+*p = 2; // comportement indéfini
+</code></pre>
+<p>La sémantique de <code>const</code> ne s'applique qu'aux expressions <a href="value_category.html">lvalue</a> ; chaque fois qu'une expression lvalue const est utilisée dans un contexte ne nécessitant pas une lvalue, son qualificateur <code>const</code> est perdu (notez que le qualificateur volatile, s'il est présent, n'est pas perdu).</p>
+<p>Les expressions lvalue désignant des objets de type qualifié const, ainsi que les expressions lvalue désignant des objets de type struct ou union comportant au moins un membre de type qualifié const (y compris les membres des agrégats ou unions contenus récursivement), ne sont pas des <em>lvalues modifiables</em>. En particulier, elles ne sont pas affectables :</p>
+<pre><code class="language-c">const int n = 1; // objet de type const
+n = 2; // erreur : le type de n est qualifié const
+
+int x = 2; // objet de type non qualifié
+const int* p = &amp;x;
+*p = 3; // erreur : le type de la lvalue *p est qualifié const
+
+struct {int a; const int b; } s1 = {.b=1}, s2 = {.b=2};
+s1 = s2; // erreur : le type de s1 est non qualifié, mais il possède un membre const
+</code></pre>
+<p>Un membre d'un type structure ou union qualifié const acquiert la qualification du type auquel il appartient (que l'accès se fasse avec l'opérateur <code>.</code> ou avec l'opérateur <code>-&gt;</code>).</p>
+<pre><code class="language-c">struct s { int i; const int ci; } s;
+// le type de s.i est int, le type de s.ci est const int
+const struct s cs;
+// les types de cs.i et cs.ci sont tous deux const int
+</code></pre>
+<blockquote>
+<p>Si un type tableau est déclaré avec le qualificateur de type const (par l'intermédiaire de <a href="typedef.html">typedef</a>), le type tableau n'est pas qualifié const, mais son type d'élément l'est.</p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>Un type tableau et son type d'élément sont toujours considérés comme ayant la même qualification const.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<pre><code class="language-c">typedef int A[2][3];
+const A a = {{4, 5, 6}, {7, 8, 9}}; // tableau de tableaux de const int
+int* pi = a[0]; // Erreur : a[0] a le type const int*
+void *unqual_ptr = a; // OK jusqu'à C23 ; erreur depuis C23
+// Notes : clang applique la règle en C++/C23 même en modes C89-C17
+</code></pre>
+<p>Si un type fonction est déclaré avec le qualificateur de type const (par l'intermédiaire de <a href="typedef.html">typedef</a>), le comportement est indéfini.</p>
+<blockquote>
+<p>Dans une déclaration de fonction, le mot-clé <code>const</code> peut apparaître à l'intérieur des crochets utilisés pour déclarer un type tableau d'un paramètre de fonction. Il qualifie le type pointeur vers lequel le type tableau est transformé.</p>
+<p>Les deux déclarations suivantes déclarent la même fonction :</p>
+<pre><code class="language-c">void f(double x[const], const double y[const]);
+void f(double * const x, const double * const y);
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<blockquote>
+<p>Les littéraux composés qualifiés const ne désignent pas nécessairement des objets distincts ; ils peuvent partager le stockage avec d'autres littéraux composés et avec des littéraux de chaîne qui ont par hasard la même représentation ou une représentation qui se chevauche.</p>
+<pre><code class="language-c">const int* p1 = (const int[]){1, 2, 3};
+const int* p2 = (const int[]){2, 3, 4}; // la valeur de p2 peut être égale à p1+1
+_Bool b = &quot;foobar&quot; + 3 == (const char[]){&quot;bar&quot;}; // la valeur de b peut être 1
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Un pointeur vers un type non const peut être implicitement converti en un pointeur vers la version qualifiée const du même type ou d'un type <a href="compatible_type.html">compatible</a>. La conversion inverse nécessite une expression de transtypage.</p>
+<pre><code class="language-c">int* p = 0;
+const int* cp = p; // OK : ajoute des qualificateurs (int vers const int)
+p = cp; // Erreur : supprime des qualificateurs (const int vers int)
+p = (int*)cp; // OK : transtypage
+</code></pre>
+<p>Notez qu'un pointeur vers un pointeur vers <code>T</code> n'est pas convertible en un pointeur vers un pointeur vers <code>const T</code> ; pour que deux types soient compatibles, leurs qualificateurs doivent être identiques.</p>
+<pre><code class="language-c">char *p = 0;
+const char **cpp = &amp;p; // Erreur : char* et const char* ne sont pas des types compatibles
+char * const *pcp = &amp;p; // OK, ajoute des qualificateurs (char* vers char*const)
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../../cpp/keyword/const.html"><code>const</code></a></p>
+<h2 id="Notes">Notes</h2>
+<p>C a repris le qualificateur <em>const</em> de C++, mais contrairement à C++, les expressions de type qualifié const en C ne sont pas des <a href="constant_expression.html">expressions constantes</a> ; elles ne peuvent pas être utilisées comme étiquettes <a href="switch.html">case</a> ni pour initialiser des objets à durée de stockage <a href="static_storage_duration.html">static</a> et <a href="thread_storage_duration.html">thread</a>, des <a href="enum.html">énumérateurs</a> ou des tailles de <a href="bit_field.html">champs de bits</a>. Lorsqu'elles sont utilisées comme tailles de <a href="array.html">tableaux</a>, les tableaux obtenus sont des VLA.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.3 Qualificateurs de type (p : 87-90)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.3 Qualificateurs de type (p : 121-123)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.3 Qualificateurs de type (p : 108-110)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>6.5.3 Qualificateurs de type</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/cv.html">Documentation C++</a> pour qualificateurs de type cv (<code>const</code> et <code>volatile</code>)</strong></p>
+
+</main>
+</body>
+</html>

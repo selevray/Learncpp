@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comportement indéfini — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="comportement-indéfini">Comportement indéfini</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/behavior">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>La norme du langage C spécifie précisément le <a href="as_if.html">comportement observable</a> des programmes en langage C, à l'exception de ceux appartenant aux catégories suivantes :</p>
+<ul>
+<li>
+<p><em>comportement indéfini</em> - il n'existe aucune restriction sur le comportement du programme. Exemples de comportement indéfini : accès mémoire en dehors des bornes d'un tableau, dépassement de capacité d'un entier signé, déréférencement d'un pointeur nul, modification d'un même scalaire <a href="eval_order.html">plus d'une fois</a> dans une expression sans points de séquence, accès à un objet via un pointeur d'un type différent, etc. Les compilateurs ne sont pas tenus de diagnostiquer un comportement indéfini (bien que de nombreuses situations simples soient diagnostiquées), et le programme compilé n'est pas tenu de faire quoi que ce soit de significatif.</p>
+</li>
+<li>
+<p><em>comportement non spécifié</em> - deux comportements ou plus sont permis et l'implémentation n'est pas tenue de documenter les effets de chacun. Par exemple, <a href="eval_order.html">l'ordre d'évaluation</a>, le fait que des <a href="string_literal.html">littéraux de chaîne</a> identiques soient distincts, etc. Chaque comportement non spécifié produit l'un d'un ensemble de résultats valides et peut produire un résultat différent lorsqu'il est répété dans le même programme.</p>
+</li>
+<li>
+<p><em>comportement défini par l'implémentation</em> - comportement non spécifié pour lequel chaque implémentation documente la manière dont le choix est effectué. Par exemple, le nombre de bits dans un octet, ou le fait qu'un décalage à droite d'un entier signé soit arithmétique ou logique.</p>
+</li>
+<li>
+<p><em>comportement propre aux paramètres régionaux</em> - comportement défini par l'implémentation qui dépend de la <a href="../locale/setlocale.html">locale actuellement choisie</a>. Par exemple, le fait que <a href="../string/byte/islower.html"><code>islower</code></a> renvoie true pour tout caractère autre que les 26 lettres latines minuscules.</p>
+</li>
+</ul>
+<p>(Note : les programmes <a href="conformance.html">strictement conformes</a> ne dépendent d'aucun comportement non spécifié, indéfini ou défini par l'implémentation)</p>
+<p>Les compilateurs sont tenus d'émettre des messages de diagnostic (erreurs ou avertissements) pour tout programme qui viole une règle de syntaxe C ou une contrainte sémantique, même si son comportement est spécifié comme indéfini ou défini par l'implémentation, ou si le compilateur fournit une extension du langage qui lui permet d'accepter un tel programme. Les diagnostics pour un comportement indéfini ne sont pas exigés par ailleurs.</p>
+<h2 id="UB_and_optimization">UB et optimisation</h2>
+<p>Parce que les programmes C corrects sont exempts de comportement indéfini, les compilateurs peuvent produire des résultats inattendus lorsqu'un programme qui contient effectivement un comportement indéfini est compilé avec l'optimisation activée :</p>
+<p>Par exemple,</p>
+<h3 id="Signed_overflow">Dépassement de capacité signé</h3>
+<pre><code class="language-c">int foo(int x)
+{
+    return x + 1 &gt; x; // soit vrai, soit UB dû au dépassement de capacité signé
+}
+</code></pre>
+<p>peut être compilé comme (<a href="https://godbolt.org/z/9dh7b71TK">démo</a>)</p>
+<pre><code class="language-c">foo:
+        mov     eax, 1
+        ret
+</code></pre>
+<h3 id="Access_out_of_bounds">Accès hors bornes</h3>
+<pre><code class="language-c">int table[4] = {0};
+int exists_in_table(int v)
+{
+    // return 1 lors d'une des 4 premières itérations, ou comportement indéfini dû à un accès hors limites
+    for (int i = 0; i &lt;= 4; i++)
+        if (table[i] == v)
+            return 1;
+    return 0;
+}
+</code></pre>
+<p>Peut être compilé comme (<a href="https://godbolt.org/z/48bn19Tsb">démo</a>)</p>
+<pre><code class="language-c">exists_in_table:
+        mov     eax, 1
+        ret
+</code></pre>
+<h3 id="Uninitialized_scalar">Scalaire non initialisé</h3>
+<pre><code class="language-c">_Bool p; // variable locale non initialisée
+if (p) // accès UB à un scalaire non initialisé
+    puts(&quot;p is true&quot;);
+if (!p) // accès UB à un scalaire non initialisé
+    puts(&quot;p is false&quot;);
+</code></pre>
+<p>Peut produire la sortie suivante (observée avec une version ancienne de gcc) :</p>
+<pre><code class="language-c">p is true
+p is false
+</code></pre>
+<pre><code class="language-c">size_t f(int x)
+{
+    size_t a;
+    if (x) // soit x non nul, soit UB
+        a = 42;
+    return a;
+}
+</code></pre>
+<p>Peut être compilé comme (<a href="https://godbolt.org/z/9nz6EMPTG">démo</a>)</p>
+<pre><code class="language-c">f:
+        mov     eax, 42
+        ret
+</code></pre>
+<h3 id="Invalid_scalar">Scalaire invalide</h3>
+<pre><code class="language-c">int f(void)
+{
+    _Bool b = 0;
+    unsigned char* p = (unsigned char*)&amp;b;
+    *p = 10;
+    // la lecture de b est désormais UB
+    return b == 0;
+}
+</code></pre>
+<p>Peut être compilé comme (<a href="https://godbolt.org/z/rjx77bjoh">démo</a>)</p>
+<pre><code class="language-c">f:
+        mov     eax, 11
+        ret
+</code></pre>
+<h3 id="Null_pointer_dereference">Déréférencement d'un pointeur nul</h3>
+<pre><code class="language-c">int foo(int* p)
+{
+    int x = *p;
+    if (!p)
+        return x; // Soit UB ci-dessus, soit cette branche n'est jamais prise
+    else
+        return 0;
+}
+
+int bar()
+{
+    int* p = NULL;
+    return *p;    // UB inconditionnel
+}
+</code></pre>
+<p>peut être compilé comme (<a href="https://godbolt.org/z/8jnjMjcPz">démo</a>)</p>
+<pre><code class="language-c">foo:
+        xor     eax, eax
+        ret
+bar:
+        ret
+</code></pre>
+<h3 id="Access_to_pointer_passed_to_realloc">Accès à un pointeur passé à <a href="../memory/realloc.html"><code>realloc</code></a></h3>
+<p>Choisissez clang pour observer la sortie présentée</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void)
+{
+    int *p = (int*)malloc(sizeof(int));
+    int *q = (int*)realloc(p, sizeof(int));
+    *p = 1; // accès UB à un pointeur qui a été passé à realloc
+    *q = 2;
+    if (p == q) // accès UB à un pointeur qui a été passé à realloc
+        printf(&quot;%d%d\n&quot;, *p, *q);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">12
+</code></pre>
+<h3 id="Infinite_loop_without_side-effects">Boucle infinie sans effets de bord</h3>
+<p>Choisissez clang pour observer la sortie présentée</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int fermat()
+{
+    const int MAX = 1000;
+    // Une boucle infinie sans effets de bord est un comportement indéfini
+    for (int a = 1, b = 1, c = 1; 1;)
+    {
+        if (((a * a * a) == ((b * b * b) + (c * c * c))))
+            return 1;
+        ++a;
+        if (a &gt; MAX)
+        {
+            a = 1;
+            ++b;
+        }
+        if (b &gt; MAX)
+        {
+            b = 1;
+            ++c;
+        }
+        if (c &gt; MAX)
+            c = 1;
+    }
+    return 0;
+}
+
+int main(void)
+{
+    if (fermat())
+        puts(&quot;Fermat's Last Theorem has been disproved.&quot;);
+    else
+        puts(&quot;Fermat's Last Theorem has not been disproved.&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Fermat's Last Theorem has been disproved.
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>3.4 Comportement (p : TBD)</li>
+<li>4 Conformité (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>3.4 Comportement (p : 3-4)</li>
+<li>4 Conformité (p : 8)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>3.4 Comportement (p : 3-4)</li>
+<li>4/2 Comportement indéfini (p : 8)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>3.4 Comportement (p : 3-4)</li>
+<li>4/2 Comportement indéfini (p : 7)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>1.6 DÉFINITIONS DES TERMES</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/ub.html">Documentation C++</a> pour Comportement indéfini</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://blog.llvm.org/2011/05/what-every-c-programmer-should-know.html">Ce que tout programmeur C devrait savoir sur le comportement indéfini #1/3</a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://blog.llvm.org/2011/05/what-every-c-programmer-should-know_14.html">Ce que tout programmeur C devrait savoir sur le comportement indéfini #2/3</a></td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://blog.llvm.org/2011/05/what-every-c-programmer-should-know_21.html">Ce que tout programmeur C devrait savoir sur le comportement indéfini #3/3</a></td>
+</tr>
+<tr>
+<td>4.</td>
+<td><a href="https://devblogs.microsoft.com/oldnewthing/20140627-00/?p=633">Le comportement indéfini peut entraîner un voyage dans le temps (entre autres, mais le voyage dans le temps est le plus farfelu)</a></td>
+</tr>
+<tr>
+<td>5.</td>
+<td><a href="https://www.cs.utah.edu/~regehr/papers/overflow12.pdf">Comprendre le dépassement de capacité des entiers en C/C++</a></td>
+</tr>
+<tr>
+<td>6.</td>
+<td><a href="https://web.archive.org/web/20201108094235/https://kukuruku.co/post/undefined-behavior-and-fermats-last-theorem/">Comportement indéfini et le dernier théorème de Fermat</a></td>
+</tr>
+<tr>
+<td>7.</td>
+<td><a href="https://lwn.net/Articles/342330/">Fun with NULL pointers, part 1</a> (exploit local dans Linux 2.6.30 causé par un UB dû au déréférencement d'un pointeur nul)</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

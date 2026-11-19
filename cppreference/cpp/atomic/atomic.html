@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-atomic"><code>std::atomic</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+struct atomic;  // (1) (depuis C++11)
+
+template&lt; class U &gt;
+struct atomic&lt;U*&gt;;  // (2) (depuis C++11)
+</code></pre>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class U &gt;
+struct atomic&lt;std::shared_ptr&lt;U&gt;&gt;;  // (3) (depuis C++20)
+
+template&lt; class U &gt;
+struct atomic&lt;std::weak_ptr&lt;U&gt;&gt;;  // (4) (depuis C++20)
+</code></pre>
+<p><strong>Défini dans l'en-tête &lt;stdatomic.h&gt;</strong></p>
+<pre><code class="language-cpp">#define _Atomic(T) /* see below */  // (5) (depuis C++23)
+</code></pre>
+<p>Chaque instanciation et spécialisation complète du modèle <code>std::atomic</code> définit un type atomique. Si un thread écrit dans un objet atomique pendant qu'un autre thread le lit, le comportement est bien défini (voir <a href="../language/memory_model.html">modèle mémoire</a> pour les détails sur les courses de données).</p>
+<p>En outre, les accès aux objets atomiques peuvent établir une synchronisation entre threads et ordonner les accès mémoire non atomiques comme spécifié par <a href="memory_order.html"><code>std::memory_order</code></a>.</p>
+<p><code>std::atomic</code> n'est ni copiable ni déplaçable.</p>
+<blockquote>
+<p>La macro de compatibilité <code>_Atomic</code> est fournie dans <a href="../header/stdatomic.h.html"><code>&lt;stdatomic.h&gt;</code></a> de sorte que <code>_Atomic(T)</code> soit identique à <code>std::atomic&lt;T&gt;</code> tant que les deux sont bien formés.</p>
+<p>Il n'est pas spécifié si une déclaration de l'espace de noms <code>std</code> est disponible lorsque <a href="../header/stdatomic.h.html"><code>&lt;stdatomic.h&gt;</code></a> est inclus.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Specializations">Spécialisations</h2>
+<h3 id="Primary_template">Modèle primaire</h3>
+<p>Le modèle primaire <code>std::atomic</code> peut être instancié avec tout type <a href="../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a> <code>T</code> satisfaisant à la fois <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a> et <a href="../named_req/CopyAssignable.html"><em>CopyAssignable</em></a>. Le programme est mal formé si l'une des valeurs suivantes est <code>false</code> :</p>
+<ul>
+<li><code>std::is_trivially_copyable&lt;T&gt;::value</code></li>
+<li><code>std::is_copy_constructible&lt;T&gt;::value</code></li>
+<li><code>std::is_move_constructible&lt;T&gt;::value</code></li>
+<li><code>std::is_copy_assignable&lt;T&gt;::value</code></li>
+<li><code>std::is_move_assignable&lt;T&gt;::value</code></li>
+<li><code>std::is_same&lt;T, typename std::remove_cv&lt;T&gt;::type&gt;::value</code></li>
+</ul>
+<pre><code class="language-cpp">struct Counters { int a; int b; }; // type trivialement copiable défini par l'utilisateur
+std::atomic&lt;Counters&gt; cnt;         // spécialisation pour le type défini par l'utilisateur
+</code></pre>
+<p><code>std::atomic&lt;bool&gt;</code> utilise le modèle primaire. Il est garanti d'être une <a href="../language/classes.html#Standard-layout_class">structure de disposition standard</a> et possède un <a href="../language/destructor.html#Trivial_destructor">destructeur trivial</a>.</p>
+<h3 id="Partial_specializations">Spécialisations partielles</h3>
+<p>La bibliothèque standard fournit des spécialisations partielles du modèle <code>std::atomic</code> pour les types suivants, possédant des propriétés supplémentaires que le modèle primaire n'a pas :</p>
+<ol start="2">
+<li>Spécialisations partielles <code>std::atomic&lt;U*&gt;</code> pour tous les types pointeurs. Ces spécialisations ont une disposition standard, des constructeurs par défaut triviaux, <em>(jusqu'à C++20)</em> et des destructeurs triviaux. Outre les opérations fournies pour tous les types atomiques, ces spécialisations prennent en charge des opérations arithmétiques atomiques appropriées aux types pointeurs, telles que <a href="atomic/fetch_add.html"><code>fetch_add</code></a>, <a href="atomic/fetch_sub.html"><code>fetch_sub</code></a>.</li>
+</ol>
+<blockquote>
+<p>3,4) Spécialisations partielles <code>std::atomic&lt;std::shared_ptr&lt;U&gt;&gt;</code> et <code>std::atomic&lt;std::weak_ptr&lt;U&gt;&gt;</code> sont fournies pour <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> et <a href="../memory/weak_ptr.html"><code>std::weak_ptr</code></a>.</p>
+<p>Voir <a href="../memory/shared_ptr/atomic2.html"><code>std::atomic&lt;std::shared_ptr&gt;</code></a> et <a href="../memory/weak_ptr/atomic2.html"><code>std::atomic&lt;std::weak_ptr&gt;</code></a> pour plus de détails.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Specializations_for_integral_types">Spécialisations pour les types entiers</h3>
+<p>Lorsqu'elle est instanciée avec l'un des types entiers suivants, <code>std::atomic</code> fournit des opérations atomiques supplémentaires appropriées aux types entiers, telles que <a href="atomic/fetch_add.html"><code>fetch_add</code></a>, <a href="atomic/fetch_sub.html"><code>fetch_sub</code></a>, <a href="atomic/fetch_and.html"><code>fetch_and</code></a>, <a href="atomic/fetch_or.html"><code>fetch_or</code></a>, <a href="atomic/fetch_xor.html"><code>fetch_xor</code></a> :</p>
+<ul>
+<li>Les types caractères <code>char</code>, <code>char8_t</code> <em>(depuis C++20)</em>, <code>char16_t</code>, <code>char32_t</code> et <code>wchar_t</code> ;</li>
+<li>Les types entiers signés standard : <code>signed char</code>, <code>short</code>, <code>int</code>, <code>long</code> et <code>long long</code> ;</li>
+<li>Les types entiers non signés standard : <code>unsigned char</code>, <code>unsigned short</code>, <code>unsigned int</code>, <code>unsigned long</code> et <code>unsigned long long</code> ;</li>
+<li>Tous les types entiers supplémentaires nécessaires aux typedefs de l'en-tête <a href="../header/cstdint.html"><code>&lt;cstdint&gt;</code></a>.</li>
+</ul>
+<p>De plus, la spécialisation <code>std::atomic&lt;Integral&gt;</code> obtenue a une disposition standard, un constructeur par défaut trivial, <em>(jusqu'à C++20)</em> et un destructeur trivial. L'arithmétique des entiers signés est définie en complément à deux ; il n'existe aucun résultat indéfini.</p>
+<blockquote>
+<h4 id="Specializations_for_floating-point_types">Spécialisations pour les types à virgule flottante</h4>
+<p>Lorsqu'elle est instanciée avec l'un des types à virgule flottante non qualifiés cv (<code>float</code>, <code>double</code>, <code>long double</code>et <a href="../language/types.html#Extended_floating-point_types">types à virgule flottante étendus</a> <em>(depuis C++23)</em>), <code>std::atomic</code> fournit des opérations atomiques supplémentaires appropriées aux types à virgule flottante, telles que <a href="atomic/fetch_add.html"><code>fetch_add</code></a> et <a href="atomic/fetch_sub.html"><code>fetch_sub</code></a>.</p>
+<p>De plus, la spécialisation <code>std::atomic&lt;Floating&gt;</code> obtenue a une disposition standard et un destructeur trivial.</p>
+<p>Aucune opération ne provoque de comportement indéfini même si le résultat n'est pas représentable dans le type à virgule flottante. L'<a href="../numeric/fenv.html">environnement à virgule flottante</a> en vigueur peut être différent de celui du thread appelant.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li>
+<p><strong><code>value_type</code></strong> — <code>T</code> <em>(indépendamment de la spécialisation)</em></p>
+</li>
+<li>
+<p><strong><code>difference_type</code><a href="atomic.html#cite_note-1">[1]</a></strong> —</p>
+<blockquote>
+<p><code>value_type</code> <em>(uniquement pour les spécialisations <code>atomic&lt;Integral&gt;</code>et <code>atomic&lt;Floating&gt;</code> <em>(depuis C++20)</em>)</em></p>
+</blockquote>
+<blockquote>
+<p><a href="../types/ptrdiff_t.html"><code>std::ptrdiff_t</code></a> <em>(uniquement pour les spécialisations <code>std::atomic&lt;U*&gt;</code>)</em></p>
+</blockquote>
+</li>
+</ul>
+<ol>
+<li><a href="atomic.html#cite_ref-1">↑</a> <code>difference_type</code> n'est pas défini dans le modèle primaire <code>std::atomic</code> ni dans les spécialisations partielles pour <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> et <a href="../memory/weak_ptr.html"><code>std::weak_ptr</code></a>.</li>
+</ol>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="atomic/atomic.html">(constructeur)</a></strong> — construit un objet atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/operator%3D.html">operator=</a></strong> — stocke une valeur dans un objet atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/is_lock_free.html">is_lock_free</a></strong> — vérifie si l'objet atomique est sans verrou <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/store.html">store</a></strong> — remplace atomiquement la valeur de l'objet atomique par un argument non atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/load.html">load</a></strong> — obtient atomiquement la valeur de l'objet atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/operator_T.html">operator T</a></strong> — charge une valeur depuis un objet atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/exchange.html">exchange</a></strong> — remplace atomiquement la valeur de l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/compare_exchange.html">compare_exchange_weakcompare_exchange_strong</a></strong> — compare atomiquement la valeur de l'objet atomique à un argument non atomique et effectue un échange atomique si elles sont égales, ou un chargement atomique sinon <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/wait.html">wait</a> (C++20)</strong> — bloque le thread jusqu'à notification et changement de la valeur atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/notify_one.html">notify_one</a> (C++20)</strong> — notifie au moins un thread en attente sur l'objet atomique <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/notify_all.html">notify_all</a> (C++20)</strong> — notifie tous les threads bloqués en attente sur l'objet atomique <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>### Constantes {#Constants}</strong></p>
+<ul>
+<li><strong><a href="atomic/is_always_lock_free.html">is_always_lock_free</a> [statique] (C++17)</strong> — indique que le type est toujours sans verrou <em>(constante statique membre publique)</em></li>
+</ul>
+<h2 id="Specialized_member_functions">Fonctions membres spécialisées</h2>
+<p><strong>##### Spécialisé pour les types entiers, à virgule flottante <em>(depuis C++20)</em> et pointeurs {#Specialized_for_integral.2C_floating-point.28since_C.2B.2B20.29_and_pointer_types}</strong></p>
+<ul>
+<li><strong><a href="atomic/fetch_add.html">fetch_add</a></strong> — ajoute atomiquement l'argument à la valeur stockée dans l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/fetch_sub.html">fetch_sub</a></strong> — soustrait atomiquement l'argument de la valeur stockée dans l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/operator_arith2.html">operator+=operator-=</a></strong> — ajoute à la valeur atomique ou en soustrait <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Spécialisé uniquement pour les types entiers et pointeurs {#Specialized_for_integral_and_pointer_types_only}</strong></p>
+<ul>
+<li><strong><a href="atomic/fetch_max.html">fetch_max</a> (C++26)</strong> — effectue atomiquement <a href="../algorithm/max.html"><code>std::max</code></a> entre l'argument et la valeur de l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/fetch_min.html">fetch_min</a> (C++26)</strong> — effectue atomiquement <a href="../algorithm/min.html"><code>std::min</code></a> entre l'argument et la valeur de l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/operator_arith.html">operator++operator++(int)operator--operator--(int)</a></strong> — incrémente ou décrémente la valeur atomique d'une unité <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Spécialisé uniquement pour les types entiers {#Specialized_for_integral_types_only}</strong></p>
+<ul>
+<li><strong><a href="atomic/fetch_and.html">fetch_and</a></strong> — effectue atomiquement un ET bit à bit entre l'argument et la valeur de l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/fetch_or.html">fetch_or</a></strong> — effectue atomiquement un OU bit à bit entre l'argument et la valeur de l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/fetch_xor.html">fetch_xor</a></strong> — effectue atomiquement un OU exclusif bit à bit entre l'argument et la valeur de l'objet atomique et obtient la valeur précédemment détenue <em>(fonction membre publique)</em></li>
+<li><strong><a href="atomic/operator_arith3.html">operator&amp;=operator|=operator^=</a></strong> — effectue un ET, un OU ou un OU exclusif bit à bit avec la valeur atomique <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Type_aliases">Alias de types</h2>
+<p>Des alias de types sont fournis pour <code>bool</code> et pour tous les types entiers listés ci-dessus, comme suit :</p>
+<p><strong>##### Alias pour tous les <code>std::atomic&lt;Integral&gt;</code> {#Aliases_for_all_std::atomic.3CIntegral.3E}</strong></p>
+<ul>
+<li><strong><strong>atomic_bool</strong> (C++11)</strong> — <code>std::atomic&lt;bool&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_char</strong> (C++11)</strong> — <code>std::atomic&lt;char&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_schar</strong> (C++11)</strong> — <code>std::atomic&lt;signed char&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uchar</strong> (C++11)</strong> — <code>std::atomic&lt;unsigned char&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_short</strong> (C++11)</strong> — <code>std::atomic&lt;short&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_ushort</strong> (C++11)</strong> — <code>std::atomic&lt;unsigned short&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int</strong> (C++11)</strong> — <code>std::atomic&lt;int&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint</strong> (C++11)</strong> — <code>std::atomic&lt;unsigned int&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_long</strong> (C++11)</strong> — <code>std::atomic&lt;long&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_ulong</strong> (C++11)</strong> — <code>std::atomic&lt;unsigned long&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_llong</strong> (C++11)</strong> — <code>std::atomic&lt;long long&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_ullong</strong> (C++11)</strong> — <code>std::atomic&lt;unsigned long long&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_char8_t</strong> (C++20)</strong> — <code>std::atomic&lt;char8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_char16_t</strong> (C++11)</strong> — <code>std::atomic&lt;char16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_char32_t</strong> (C++11)</strong> — <code>std::atomic&lt;char32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_wchar_t</strong> (C++11)</strong> — <code>std::atomic&lt;wchar_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int8_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::int8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint8_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::uint8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int16_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::int16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint16_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::uint16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int32_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::int32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint32_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::uint32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int64_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::int64_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint64_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::uint64_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_least8_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_least8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_least8_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_least8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_least16_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_least16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_least16_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_least16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_least32_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_least32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_least32_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_least32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_least64_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_least64_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_least64_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_least64_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_fast8_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_fast8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_fast8_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_fast8_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_fast16_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_fast16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_fast16_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_fast16_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_fast32_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_fast32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_fast32_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_fast32_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_int_fast64_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::int_fast64_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uint_fast64_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uint_fast64_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_intptr_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::intptr_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uintptr_t</strong> (C++11) <em>(optional)</em></strong> — <code>std::atomic&lt;std::uintptr_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_size_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::size_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_ptrdiff_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::ptrdiff_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_intmax_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::intmax_t&gt;</code> <em>(typedef)</em></li>
+<li><strong><strong>atomic_uintmax_t</strong> (C++11)</strong> — <code>std::atomic&lt;std::uintmax_t&gt;</code> <em>(typedef)</em></li>
+</ul>
+<p><strong>##### Alias pour les types à usage spécifique {#Aliases_for_special-purpose_types}</strong></p>
+<ul>
+<li><strong><strong>atomic_signed_lock_free</strong> (C++20)</strong> — un type atomique entier signé, sans verrou, pour lequel l'attente et la notification sont les plus efficaces <em>(typedef)</em></li>
+<li><strong><strong>atomic_unsigned_lock_free</strong> (C++20)</strong> — un type atomique entier non signé, sans verrou, pour lequel l'attente et la notification sont les plus efficaces <em>(typedef)</em></li>
+</ul>
+<p>Note : <code>std::atomic_intN_t</code>, <code>std::atomic_uintN_t</code>, <code>std::atomic_intptr_t</code> et <code>std::atomic_uintptr_t</code> sont définis si et seulement si <code>std::intN_t</code>, <code>std::uintN_t</code>, <a href="../types/integer.html"><code>std::intptr_t</code></a> et <a href="../types/integer.html"><code>std::uintptr_t</code></a> sont définis, respectivement.</p>
+<blockquote>
+<p><code>std::atomic_signed_lock_free</code> et <code>std::atomic_unsigned_lock_free</code> sont facultatifs dans les implémentations autonomes.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Il existe des équivalents sous forme de modèles de fonctions non membres pour toutes les fonctions membres de <code>std::atomic</code>. Ces fonctions non membres peuvent en outre être surchargées pour des types qui ne sont pas des spécialisations de <code>std::atomic</code>, mais qui sont capables de garantir l'atomicité. Le seul type de ce genre dans la bibliothèque standard est <code>std::shared_ptr&lt;U&gt;</code>.</p>
+<p><code>_Atomic</code> est un <a href="../../c/keyword/_Atomic.html">mot-clé</a> et sert à fournir des <a href="../../c/language/atomic.html">types atomiques</a> en C.</p>
+<p>Il est recommandé aux implémentations de garantir que la représentation de <code>_Atomic(T)</code> en C est identique à celle de <code>std::atomic&lt;T&gt;</code> en C++ pour tout type possible <code>T</code>. Les mécanismes utilisés pour garantir l'atomicité et l'ordonnancement mémoire doivent être compatibles.</p>
+<p>Sur GCC et Clang, une partie des fonctionnalités décrites ici nécessite une édition de liens avec <code>-latomic</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_atomic_ref"><code>__cpp_lib_atomic_ref</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_atomic_ref_201806L"><code>201806L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><code>std::atomic_ref</code></td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_constexpr_atomic"><code>__cpp_lib_constexpr_atomic</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_constexpr_atomic_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> <code>std::atomic</code> and <code>std::atomic_ref</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+std::atomic_int acnt;
+int cnt;
+
+void f()
+{
+    for (auto n{10000}; n; --n)
+    {
+        ++acnt;
+        ++cnt;
+        // Remarque : pour cet exemple, l'ordre mémoire relaxed suffit,
+        // par ex. acnt.fetch_add(1, std::memory_order_relaxed);
+    }
+}
+
+int main()
+{
+    {
+        std::vector&lt;std::jthread&gt; pool;
+        for (int n = 0; n &lt; 10; ++n)
+            pool.emplace_back(f);
+    }
+
+    std::cout &lt;&lt; &quot;The atomic counter is &quot; &lt;&lt; acnt &lt;&lt; '\n'
+              &lt;&lt; &quot;The non-atomic counter is &quot; &lt;&lt; cnt &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">The atomic counter is 100000
+The non-atomic counter is 69696
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2441">LWG 2441</a></td>
+<td>C++11</td>
+<td>les typedefs pour les versions atomiques des <a href="../types/integer.html">types entiers de largeur fixe</a> optionnels étaient manquants</td>
+<td>added</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3012">LWG 3012</a></td>
+<td>C++11</td>
+<td><code>std::atomic&lt;T&gt;</code> était autorisé pour tout <code>T</code> trivialement copiable mais non copiable</td>
+<td>de telles spécialisations sont interdites</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3949">LWG 3949</a></td>
+<td>C++17</td>
+<td>l'exigence imposant à <code>std::atomic&lt;bool&gt;</code> d'avoir un destructeur trivial a été involontairement supprimée en C++17</td>
+<td>rétablie</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue4069">LWG 4069</a> (<a href="https://wg21.link/P3323R1">P3323R1</a>)</td>
+<td>C++11</td>
+<td>la prise en charge de <code>T</code> qualifié cv était discutable</td>
+<td>interdire que <code>T</code> soit qualifié cv</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0558R1">P0558R1</a></td>
+<td>C++11</td>
+<td>la déduction d'argument de modèle pour certaines fonctions des types atomiques pouvait accidentellement échouer ; des opérations sur pointeurs invalides étaient fournies</td>
+<td>la spécification a été substantiellement réécrite : des types membres <code>value_type</code> et <code>difference_type</code> ont été ajoutés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="atomic_flag.html">atomic_flag</a> (C++11)</strong> — le type booléen atomique sans verrou <em>(classe)</em></li>
+<li><strong><a href="../memory/shared_ptr/atomic2.html">std::atomic&lt;std::shared_ptr&gt;</a> (C++20)</strong> — pointeur intelligent partagé atomique <em>(spécialisation de modèle de classe)</em></li>
+<li><strong><a href="../memory/weak_ptr/atomic2.html">std::atomic&lt;std::weak_ptr&gt;</a> (C++20)</strong> — pointeur intelligent faible atomique <em>(spécialisation de modèle de classe)</em></li>
+</ul>
+<p><strong><a href="../../c/language/atomic.html">Documentation C</a> pour Types atomiques</strong></p>
+
+</main>
+</body>
+</html>

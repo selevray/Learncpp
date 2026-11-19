@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>memcpy, memcpy_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="memcpy-memcpy_s">memcpy, memcpy_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/byte/memcpy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;string.h&gt;</strong></p>
+<pre><code class="language-c">void* memcpy( void *dest, const void *src, size_t count );  // (jusqu'à C99)
+
+void* memcpy( void *restrict dest, const void *restrict src, size_t count );  // (depuis C99)
+
+errno_t memcpy_s( void *restrict dest, rsize_t destsz,
+                  const void *restrict src, rsize_t count );  // (2) (depuis C11)
+</code></pre>
+<ol>
+<li>Copie <code>count</code> caractères de l'objet pointé par <code>src</code> vers l'objet pointé par <code>dest</code>. Les deux objets sont interprétés comme des tableaux de <code>unsigned char</code>.</li>
+</ol>
+<p>Le comportement est indéfini si un accès a lieu au-delà de la fin du tableau <code>dest</code>. Si les objets se chevauchent(ce qui viole le contrat de <a href="../../language/restrict.html"><code>restrict</code></a>) <em>(depuis C99)</em>, le comportement est indéfini. Le comportement est indéfini si <code>dest</code> ou <code>src</code> est un pointeur invalide ou nul.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, sauf que les erreurs suivantes sont détectées à l'exécution et entraînent la mise à zéro de toute la plage de destination <code>[dest, dest+destsz)</code> (si <code>dest</code> et <code>destsz</code> sont valides), ainsi que l'appel de la fonction <a href="../../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</li>
+</ol>
+<ul>
+<li><code>dest</code> ou <code>src</code> est un pointeur nul</li>
+<li><code>destsz</code> ou <code>count</code> est supérieur à <code>RSIZE_MAX</code></li>
+<li><code>count</code> est supérieur à <code>destsz</code> (un dépassement de tampon se produirait)</li>
+<li>la source et la destination se chevauchent</li>
+</ul>
+<p>Le comportement est indéfini si la taille du tableau de caractères pointé par <code>dest</code> &lt; <code>count</code> &lt;= <code>destsz</code> ; autrement dit, une valeur erronée de <code>destsz</code> n'expose pas le dépassement de tampon imminent.Comme pour toutes les fonctions à vérification de bornes, <code>memcpy_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../byte.html"><code>&lt;string.h&gt;</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>dest</code> — pointeur vers l'objet de destination de la copie</li>
+<li><code>destsz</code> — nombre maximal d'octets à modifier dans la destination (généralement la taille de l'objet de destination)</li>
+<li><code>src</code> — pointeur vers l'objet source de la copie</li>
+<li><code>count</code> — nombre d'octets à copier</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>Renvoie une copie de <code>dest</code></p>
+</li>
+<li>
+<p>Renvoie zéro en cas de succès et une valeur non nulle en cas d'erreur. Également en cas d'erreur, si <code>dest</code> n'est pas un pointeur nul et que <code>destsz</code> est valide, écrit <code>destsz</code> octets nuls dans le tableau de destination.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p><code>memcpy</code> peut être utilisé pour définir le <a href="../../language/object.html#Effective_type">type effectif</a> d'un objet obtenu par une fonction d'allocation.</p>
+<p><code>memcpy</code> est la routine de bibliothèque la plus rapide pour la copie de mémoire à mémoire. Elle est généralement plus efficace que <a href="strcpy.html"><code>strcpy</code></a>, qui doit parcourir les données qu'elle copie, ou que <a href="memmove.html"><code>memmove</code></a>, qui doit prendre des précautions pour gérer les entrées qui se chevauchent.</p>
+<p>Plusieurs compilateurs C transforment les boucles appropriées de copie mémoire en appels à <code>memcpy</code>.</p>
+<p>Lorsque le <a href="../../language/object.html#Strict_aliasing">crénelage strict (strict aliasing)</a> interdit d'examiner la même mémoire comme valeurs de deux types différents, <code>memcpy</code> peut être utilisée pour convertir les valeurs.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define __STDC_WANT_LIB_EXT1__ 1
+#include &lt;stdio.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;inttypes.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void)
+{
+    // utilisation simple
+    char source[] = &quot;once upon a midnight dreary...&quot;, dest[4];
+    memcpy(dest, source, sizeof dest);
+    for(size_t n = 0; n &lt; sizeof dest; ++n)
+        putchar(dest[n]);
+
+    // définition du type effectif de la mémoire allouée comme int
+    int *p = malloc(3*sizeof(int));   // la mémoire allouée n'a pas de type effectif
+    int arr[3] = {1,2,3};
+    memcpy(p,arr,3*sizeof(int));      // la mémoire allouée a désormais un type effectif
+
+    // réinterprétation des données
+    double d = 0.1;
+//    int64_t n = *(int64_t*)(&amp;d); // violation de l'aliasing strict
+    int64_t n;
+    memcpy(&amp;n, &amp;d, sizeof d); // OK
+    printf(&quot;\n%a is %&quot; PRIx64 &quot; as an int64_t\n&quot;, d, n);
+
+#ifdef __STDC_LIB_EXT1__
+    set_constraint_handler_s(ignore_handler_s);
+    char src[] = &quot;aaaaaaaaaa&quot;;
+    char dst[] = &quot;xyxyxyxyxy&quot;;
+    int r = memcpy_s(dst,sizeof dst,src,5);
+    printf(&quot;dst = \&quot;%s\&quot;, r = %d\n&quot;, dst,r);
+    r = memcpy_s(dst,5,src,10);            //  count est supérieur à destsz
+    printf(&quot;dst = \&quot;&quot;);
+    for(size_t ndx=0; ndx&lt;sizeof dst; ++ndx) {
+        char c = dst[ndx];
+        c ? printf(&quot;%c&quot;, c) : printf(&quot;\\0&quot;);
+    }
+    printf(&quot;\&quot;, r = %d\n&quot;, r);
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">once
+0x1.999999999999ap-4 is 3fb999999999999a as an int64_t
+dst = &quot;aaaaayxyxy&quot;, r = 0
+dst = &quot;\0\0\0\0\0yxyxy&quot;, r = 22
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.24.2.1 La fonction memcpy (p: 362)</li>
+<li>K.3.7.1.1 La fonction memcpy_s (p: 614)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.21.2.1 La fonction memcpy (p: 325)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.11.2.1 La fonction memcpy</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="memccpy.html">memccpy</a> (C23)</strong> — copie un tampon vers un autre, en s'arrêtant après le délimiteur spécifié <em>(fonction)</em></li>
+<li><strong><a href="memmove.html">memmovememmove_s</a> (C11)</strong> — déplace un tampon vers un autre <em>(fonction)</em></li>
+<li><strong><a href="../wide/wmemcpy.html">wmemcpywmemcpy_s</a> (C95) (C11)</strong> — copie un certain nombre de caractères larges entre deux tableaux sans recouvrement <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/byte/memcpy.html">Documentation C++</a> pour memcpy</strong></p>
+
+</main>
+</body>
+</html>

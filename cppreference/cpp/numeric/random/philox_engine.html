@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::philox_engine — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/numeric.html">Bibliothèque numérique</a> › <a href="../../../cpp/numeric/random.html">Génération de nombres pseudo-aléatoires</a></nav>
+<h1 id="std-philox_engine"><code>std::philox_engine</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/numeric/random/philox_engine">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;random&gt;</strong></p>
+<pre><code class="language-cpp">template&lt;
+    class UIntType, std::size_t w, std::size_t n, std::size_t r,
+    UIntType... consts
+&gt;
+class philox_engine;  // (depuis C++26)
+</code></pre>
+<p><code>std::philox_engine</code> est un moteur de nombres aléatoires basé sur un compteur.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>UIntType</code> — Le type de résultat généré par le générateur. Le comportement est indéfini si ce n'est pas l'un de <code>unsigned short</code>, <code>unsigned int</code>, <code>unsigned long</code> ou <code>unsigned long long</code>.</li>
+<li><code>w</code> — la taille du mot en bits</li>
+<li><code>n</code> — le nombre de mots</li>
+<li><code>r</code> — le nombre de tours</li>
+<li><code>consts</code> — la séquence de multiplicateurs et de constantes de tour utilisée pour générer les nombres aléatoires</li>
+</ul>
+<p>Si l'une des valeurs suivantes n'est pas <code>true</code>, le programme est mal formé :</p>
+<ul>
+<li><code>sizeof...(consts) == n</code></li>
+<li><code>n == 2 || n == 4 || n == 8 || n == 16</code></li>
+<li><code>0 &lt; r</code></li>
+<li><code>0 &lt; w &amp;&amp; w &lt;= std::numeric_limits&lt;UIntType&gt;::digits</code></li>
+</ul>
+<h2 id="Generator_properties">Propriétés du générateur</h2>
+<p>Dans la description suivante, soit (\scriptsize Q_i )Qi désignant le <code>i</code>-ième élément de la séquence <code>Q</code>, l'indice commençant à zéro.</p>
+<p>La <a href="../random.html#Random_number_engines">taille</a> des états de <code>philox_engine</code> est (\scriptsize O(n))O(n), chacun est composé de quatre parties :</p>
+<ul>
+<li>
+<p>Une séquence <code>X</code> de <code>n</code> valeurs entières, où chaque valeur est dans <code>[0,2w)</code>.</p>
+<ul>
+<li>Cette séquence représente une grande valeur de compteur entier non signé (\scriptsize Z=\sum_{j=0}^{n-1} X \cdot 2^{wj} )Z=∑n-1<br />
+j=0X⋅2wj<br />
+de (\scriptsize n \cdot w )n⋅w bits.</li>
+</ul>
+</li>
+<li>
+<p>Une séquence <code>K</code> de <code>n / 2</code> clés de type <code>UIntType</code>.</p>
+</li>
+<li>
+<p>Un tampon <code>Y</code> de <code>n</code> valeurs produites de type <code>UIntType</code>.</p>
+</li>
+<li>
+<p>Un index <code>j</code> dans le tampon <code>Y</code>.</p>
+</li>
+</ul>
+<p>L'<a href="../random.html#Random_number_engines">algorithme de transition</a> de <code>philox_engine</code> ((\scriptsize TA(X_i) )TA(Xi)) est défini comme suit :</p>
+<ul>
+<li>Si <code>j</code> n'est pas <code>n - 1</code>, incrémente <code>j</code> de <code>1</code>.<a href="philox_engine.html#cite_note-1">[1]</a></li>
+<li>Si <code>j</code> est <code>n - 1</code>, effectue les opérations suivantes :<a href="philox_engine.html#cite_note-2">[2]</a></li>
+</ul>
+<ol>
+<li>Génère une nouvelle séquence de <code>n</code> valeurs aléatoires (voir ci-dessous) et la stocke dans <code>Y</code>.</li>
+<li>Incrémente le compteur <code>Z</code> de <code>1</code>.</li>
+<li>Remet <code>j</code> à <code>0</code>.</li>
+</ol>
+<p>L'<a href="../random.html#Random_number_engines">algorithme de génération</a> de <code>philox_engine</code> est (\scriptsize GA(X_i)=Y_j )GA(Xi)=Yj.</p>
+<ol>
+<li><a href="philox_engine.html#cite_ref-1">↑</a> Dans ce cas, l'appel suivant de l'algorithme de génération renvoie la valeur suivante générée dans le tampon.</li>
+<li><a href="philox_engine.html#cite_ref-2">↑</a> Dans ce cas, le tampon est rafraîchi, et l'appel suivant de l'algorithme de génération renvoie la première valeur du nouveau tampon.</li>
+</ol>
+<h3 id="Generating_random_values">Génération de valeurs aléatoires</h3>
+<p>Les valeurs aléatoires sont générées à partir des paramètres suivants :</p>
+<ul>
+<li>le nombre de tours <code>r</code></li>
+<li>la séquence de compteur courante <code>X</code></li>
+<li>la séquence de clés <code>K</code></li>
+<li>la séquence de multiplicateurs <code>M</code></li>
+<li>la séquence de constantes de tour <code>C</code></li>
+</ul>
+<p>Les séquences <code>M</code> et <code>C</code> sont formées à partir des valeurs du pack de paramètres de modèle <code>consts</code>, qui représente les constantes (\scriptsize M_k )Mk et (\scriptsize C_k )Ck sous la forme <code>[</code>(\scriptsize M_0 )M0<code>,</code>(\scriptsize C_0 )C0<code>,</code>(\scriptsize M_1 )M1<code>,</code>(\scriptsize C_1 )C1<code>,... , ...,</code>(\scriptsize M_{n/2-1} )Mn/2-1<code>,</code>(\scriptsize C_{n/2-1} )Cn/2-1<code>]</code>.</p>
+<p>Les nombres aléatoires sont générés par le processus suivant :</p>
+<ol>
+<li>Initialise la séquence de sortie <code>S</code> avec les éléments de <code>X</code>.</li>
+<li>Met à jour les éléments de <code>S</code> pendant <code>r</code> tours.</li>
+<li>Remplace les valeurs du tampon <code>Y</code> par les valeurs de <code>S</code>.</li>
+</ol>
+<h3 id="Updating_the_output_sequence">Mise à jour de la séquence de sortie</h3>
+<p>Pour chaque tour de mise à jour, une séquence intermédiaire <code>V</code> est initialisée avec les éléments de <code>S</code> dans un ordre spécifié :</p>
+<p><strong><code>n</code></strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_0 )V0 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_1 )V1 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_2 )V2 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_3 )V3 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_4 )V4 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_5 )V5 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_6 )V6 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_7 )V7 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_8 )V8 ﻿ ﻿ ﻿</strong> | <strong>﻿ ﻿ ﻿(\scriptsize V_9 )V9 ﻿ ﻿ ﻿</strong> | <strong>(\scriptsize V_{10} )V10</strong> | <strong>(\scriptsize V_{11} )V11</strong> | <strong>(\scriptsize V_{12} )V12</strong> | <strong>(\scriptsize V_{13} )V13</strong> | <strong>(\scriptsize V_{14} )V14</strong> | <strong>(\scriptsize V_{15} )V15</strong></p>
+<p><code>2</code>
+| (\scriptsize S_0 )S0 | (\scriptsize S_1 )S1 | N/A</p>
+<p><code>4</code>
+| (\scriptsize S_0 )S0 | (\scriptsize S_3 )S3 | (\scriptsize S_2 )S2 | (\scriptsize S_1 )S1 | N/A</p>
+<p><code>8</code>
+| (\scriptsize S_2 )S2 | (\scriptsize S_1 )S1 | (\scriptsize S_4 )S4 | (\scriptsize S_7 )S7 | (\scriptsize S_6 )S6 | (\scriptsize S_5 )S5 | (\scriptsize S_0 )S0 | (\scriptsize S_3 )S3 | N/A</p>
+<p><code>16</code>
+| (\scriptsize S_0 )S0 | (\scriptsize S_9 )S9 | (\scriptsize S_2 )S2 | (\scriptsize S_{13} )S13 | (\scriptsize S_6 )S6 | (\scriptsize S_{11} )S11 | (\scriptsize S_4 )S4 | (\scriptsize S_{15} )S15 | (\scriptsize S_{10} )S10 | (\scriptsize S_7 )S7 | (\scriptsize S_{12} )S12 | (\scriptsize S_3 )S3 | (\scriptsize S_{14} )S14 | (\scriptsize S_5 )S5 | (\scriptsize S_8 )S8 | (\scriptsize S_1 )S1</p>
+<p>Étant donné les notations d'opérations suivantes :</p>
+<ul>
+<li>(\scriptsize \mathsf{xor} )xor, <a href="../../language/operator_arithmetic.html#Bitwise_logic_operators">XOR bit à bit</a> intégré.</li>
+<li>(\scriptsize \mathsf{mullo} )mullo, il calcule la moitié basse de la multiplication modulaire et est défini comme (\scriptsize \mathsf{mullo}(a,b,w)=(a \cdot b) \mod 2^w )mullo(a,b,w)=(a⋅b) mod 2w<br />
+.</li>
+<li>(\scriptsize \mathsf{mulhi} )mulhi, il calcule la moitié haute de la multiplication et est défini comme (\scriptsize \mathsf{mulhi}(a,b,w)=\left\lfloor (a \cdot b)/2^w \right\rfloor )mulhi(a,b,w)=⌊(a⋅b)/2w<br />
+⌋.</li>
+</ul>
+<p>Soit <code>q</code> le numéro du tour courant (en partant de zéro). Pour chaque entier <code>k</code> dans <code>[0,n / 2)</code>, les éléments de la séquence de sortie <code>S</code> sont mis à jour comme suit :</p>
+<ul>
+<li>(\scriptsize X_{2 \cdot k}=\mathsf{mullo}(V_{2 \cdot k+1},M_k,w) )X2⋅k=mullo(V2⋅k+1,Mk,w)</li>
+<li>(\scriptsize X_{2 \cdot k+1}=\mathsf{mulhi}(V_{2 \cdot k+1},M_k,w)\ \mathsf{xor}\ ((K_k+q \cdot C_k) \mod 2^w)\ \mathsf{xor}\ V_{2 \cdot k} )X2⋅k+1=mulhi(V2⋅k+1,Mk,w) xor ((Kk+q⋅Ck) mod 2w<br />
+) xor V2⋅k</li>
+</ul>
+<h2 id="Predefined_specializations">Spécialisations prédéfinies</h2>
+<p>Les spécialisations suivantes définissent le moteur de nombres pseudo-aléatoires avec deux jeux de paramètres couramment utilisés :</p>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>philox4x32</code> (C++26)</strong> — <code>std::philox_engine&lt;std::uint_fast32_t, 32, 4, 10,</code> <code>0xD2511F53, 0x9E3779B9,</code> <code>0xCD9E8D57, 0xBB67AE85&gt;</code></li>
+<li><strong><code>philox4x64</code> (C++26)</strong> — <code>std::philox_engine&lt;std::uint_fast64_t, 64, 4, 10,</code> <code>0xD2E7470EE14C6C93, 0x9E3779B97F4A7C15,</code> <code>0xCA5A826395121157, 0xBB67AE8584CAA73B&gt;</code></li>
+</ul>
+<h2 id="Nested_types">Types imbriqués</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>result_type</code></strong> — <code>UIntType</code></li>
+</ul>
+<h2 id="Data_members">Membres de données</h2>
+<ul>
+<li><strong>constexpr <a href="../../types/size_t.html"><code>std::size_t</code></a> word_size [statique]</strong> — <code>w</code> <em>(constante membre statique publique)</em></li>
+<li><strong>constexpr <a href="../../types/size_t.html"><code>std::size_t</code></a> word_count [statique]</strong> — <code>n</code> <em>(constante membre statique publique)</em></li>
+<li><strong>constexpr <a href="../../types/size_t.html"><code>std::size_t</code></a> round_count [statique]</strong> — <code>r</code> <em>(constante membre statique publique)</em></li>
+<li><strong>constexpr <code>std::array&lt;result_type, word_count / 2&gt;</code> multipliers [statique]</strong> — la <a href="philox_engine.html#Generating_random_values">suite des multiplicateurs</a> <code>M</code> <em>(constante membre statique publique)</em></li>
+<li><strong>constexpr <code>std::array&lt;result_type, word_count / 2&gt;</code> round_consts [statique]</strong> — la <a href="philox_engine.html#Generating_random_values">suite des constantes de tour</a> <code>C</code> <em>(constante membre statique publique)</em></li>
+<li><strong>constexpr <a href="../../types/integer.html"><code>std::uint_least32_t</code></a> default_seed [statique]</strong> — <code>20111115u</code> <em>(constante membre statique publique)</em></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<p><strong>##### Construction et initialisation {#Construction_and_Seeding}</strong></p>
+<ul>
+<li><strong><a href="philox_engine/philox_engine.html">(constructeur)</a></strong> — construit le moteur <em>(fonction membre publique)</em></li>
+<li><strong><a href="philox_engine/seed.html">seed</a></strong> — définit l'état courant du moteur <em>(fonction membre publique)</em></li>
+<li><strong><a href="philox_engine/set_counter.html">set_counter</a></strong> — définit le compteur courant du moteur <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Génération {#Generation}</strong></p>
+<ul>
+<li><strong><a href="philox_engine/operator%28%29.html">operator()</a></strong> — fait avancer l'état du moteur et renvoie la valeur générée <em>(fonction membre publique)</em></li>
+<li><strong><a href="philox_engine/discard.html">discard</a></strong> — fait avancer l'état du moteur d'une quantité donnée <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Caractéristiques {#Characteristics}</strong></p>
+<ul>
+<li><strong><a href="philox_engine/min.html">min</a> [statique]</strong> — obtient la plus petite valeur possible dans l'intervalle de sortie <em>(fonction membre statique publique)</em></li>
+<li><strong><a href="philox_engine/max.html">max</a> [statique]</strong> — obtient la plus grande valeur possible dans l'intervalle de sortie <em>(fonction membre statique publique)</em></li>
+</ul>
+<h2 id="Non-member_functions">Fonctions non membres</h2>
+<ul>
+<li><strong><a href="philox_engine/operator_cmp.html">operator==</a> (C++26)</strong> — compare les états internes de deux moteurs de nombres pseudo-aléatoires <em>(fonction)</em></li>
+<li><strong><a href="philox_engine/operator_ltltgtgt.html">operator&lt;&lt;operator&gt;&gt;</a> (C++26)</strong> — effectue l'entrée et la sortie de flux sur un moteur de nombres pseudo-aléatoires <em>(modèle de fonction)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_philox_engine"><code>__cpp_lib_philox_engine</code></a></td>
+<td><a href="../../compiler_support/26.html#cpp_lib_philox_engine_202406L"><code>202406L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>std::philox_engine</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

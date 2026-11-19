@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exigences nommées C++ : LiteralType (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/named_req.html">Exigences nommées</a></nav>
+<h1 id="exigences-nommées-c-literaltype-depuis-c-11">Exigences nommées C++ : LiteralType (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/named_req/LiteralType">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Spécifie qu'un type est un <em>type littéral</em>. Les types littéraux sont les types des <a href="../language/constexpr.html#constexpr_variable">variables <code>constexpr</code></a> et peuvent être construits, manipulés et renvoyés par les <a href="../language/constexpr.html#constexpr_function">fonctions <code>constexpr</code></a>.</p>
+<p>Note : la norme ne définit pas d'exigence nommée portant ce nom. Il s'agit d'une catégorie de types définie par le langage de base. Elle n'est incluse ici comme exigence nommée que par cohérence.</p>
+<h2 id="Requirements">Exigences</h2>
+<p>Un type littéral est l'un des suivants :</p>
+<blockquote>
+<ul>
+<li><code>void</code> éventuellement qualifié cv (afin que les fonctions <code>constexpr</code> puissent renvoyer void) ;</li>
+</ul>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<ul>
+<li><a href="ScalarType.html">type scalaire</a> ;</li>
+<li><a href="../language/reference.html">type référence</a> ;</li>
+<li>un <a href="../language/array.html">tableau</a> de type littéral ;</li>
+<li>un type classe éventuellement qualifié cv possédant toutes les propriétés suivantes :
+<ul>
+<li>possède un <a href="../language/destructor.html">destructeur</a> [trivial <em>(jusqu'à C++20)</em> | <code>constexpr</code> <em>(depuis C++20)</em>],</li>
+<li>tous ses membres de données non statiques et non variant ainsi que ses classes de base sont de types littéraux non volatils, et</li>
+<li>est l'un des suivants</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>un <a href="../language/lambda.html">type lambda</a>,</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>
+<p>un type union <a href="../language/aggregate_initialization.html#Definitions">agrégat</a> qui</p>
+<ul>
+<li>n'a aucun <a href="../language/union.html#Union-like_classes">membre variant</a>, ou</li>
+<li>possède au moins un membre variant de type littéral non volatile,</li>
+</ul>
+</li>
+<li>
+<p>un type <a href="../language/aggregate_initialization.html#Definitions">agrégat</a> qui n'est pas une union, et dont chacun de ses membres <a href="../language/union.html#Anonymous_unions">union anonyme</a></p>
+<ul>
+<li>n'a aucun <a href="../language/union.html#Union-like_classes">membre variant</a>, ou</li>
+<li>possède au moins un membre variant de type littéral non volatile,</li>
+</ul>
+</li>
+<li>
+<p>un type possédant au moins un constructeur (éventuellement modèle) <code>constexpr</code> qui n'est ni un constructeur de copie ni un constructeur de déplacement.</p>
+</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Un type peut être littéral même si tous ses constructeurs constexpr sont supprimés, inaccessibles, ou ne peuvent pas participer à la résolution de surcharge.</p>
+<pre><code class="language-cpp">struct A { constexpr A(int) = delete; char c; }; // A est un type littéral
+constexpr A v = std::bit_cast&lt;A&gt;('0'); // OK en C++20
+                                       // v a un type littéral et peut donc être constexpr
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>Type littéral qui étend les littéraux de chaîne :</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+
+class conststr // conststr est un type littéral
+{
+    const char* p;
+    std::size_t sz;
+public:
+    template&lt;std::size_t N&gt;
+    constexpr conststr(const char(&amp;a)[N]) : p(a), sz(N - 1) {}
+
+    constexpr char operator[](std::size_t n) const
+    {
+        return n &lt; sz ? p[n] : throw std::out_of_range(&quot;&quot;);
+    }
+
+    constexpr std::size_t size() const { return sz; }
+};
+
+constexpr std::size_t count_lower(conststr s)
+{
+    std::size_t c{};
+    for (std::size_t n{}; n != s.size(); ++n)
+        if ('a' &lt;= s[n] &amp;&amp; s[n] &lt;= 'z')
+            ++c;
+    return c;
+}
+
+// Une fonction de sortie qui exige une constante de compilation N, à des fins de test
+template&lt;int N&gt;
+struct constN
+{
+    constN() { std::cout &lt;&lt; N &lt;&lt; '\n'; }
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;The number of lowercase letters in \&quot;Hello, world!\&quot; is &quot;;
+    constN&lt;count_lower(&quot;Hello, world!&quot;)&gt;(); // le littéral de chaîne est implicitement
+                                            // converti en conststr
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">The number of lowercase letters in &quot;Hello, world!&quot; is 9
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1453.html">CWG 1453</a></td>
+<td>C++11</td>
+<td>une classe littérale pouvait avoir des membres de données volatils</td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1951.html">CWG 1951</a></td>
+<td>C++11 C++14</td>
+<td>on ne savait pas si les types <code>void</code> (depuis C++14) et les types classe (depuis C++11) sont des types littéraux, lorsqu'ils sont qualifiés cv</td>
+<td>ils le sont</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2096.html">CWG 2096</a></td>
+<td>C++11</td>
+<td>pour qu'un type union soit littéral, tous ses membres de données non statiques doivent être littéraux</td>
+<td>un seul membre de données non statique doit l'être</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2598.html">CWG 2598</a></td>
+<td>C++11</td>
+<td>pour qu'un type union soit littéral, il doit posséder au moins un membre de données non statique</td>
+<td>il peut ne posséder aucun membre de données non statique</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../types/is_literal_type.html">is_literal_type</a> (C++11) (deprecated in C++17) (removed in C++20)</strong> — vérifie si un type est un type littéral <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

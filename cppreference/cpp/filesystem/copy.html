@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::copy — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-copy"><code>std::filesystem::copy</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/copy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">void copy( const std::filesystem::path&amp; from,
+           const std::filesystem::path&amp; to );  // (1) (depuis C++17)
+
+void copy( const std::filesystem::path&amp; from,
+           const std::filesystem::path&amp; to,
+           std::error_code&amp; ec );  // (2) (depuis C++17)
+
+void copy( const std::filesystem::path&amp; from,
+           const std::filesystem::path&amp; to,
+           std::filesystem::copy_options options );  // (3) (depuis C++17)
+
+void copy( const std::filesystem::path&amp; from,
+           const std::filesystem::path&amp; to,
+           std::filesystem::copy_options options,
+           std::error_code&amp; ec );  // (4) (depuis C++17)
+</code></pre>
+<p>Copie des fichiers et des répertoires, avec diverses options.</p>
+<p>1,2) Le comportement par défaut, équivalent à <code>(3,4)</code> avec <code>copy_options::none</code> utilisé comme <code>options</code>.</p>
+<p>3,4) Copie le fichier ou le répertoire <code>from</code> vers le fichier ou le répertoire <code>to</code>, en utilisant les options de copie indiquées par <code>options</code>. Le comportement est indéfini s'il y a plus d'une option dans l'un des groupes d'options <a href="copy_options.html">copy_options</a> présents dans <code>options</code> (même dans le groupe <code>copy_file</code>).</p>
+<p>Le comportement est le suivant :</p>
+<ul>
+<li>
+<p>D'abord, avant toute autre chose, obtient le type et les permissions de <code>from</code> par au plus un seul appel à</p>
+<ul>
+<li><a href="status.html"><code>std::filesystem::symlink_status</code></a>, si <code>copy_options::skip_symlinks</code>, <code>copy_options::copy_symlinks</code> ou <code>copy_options::create_symlinks</code> est présent dans <code>options</code> ;</li>
+<li><a href="status.html"><code>std::filesystem::status</code></a> sinon.</li>
+</ul>
+</li>
+<li>
+<p>Si nécessaire, obtient le statut de <code>to</code>, par au plus un seul appel à</p>
+<ul>
+<li><a href="status.html"><code>std::filesystem::symlink_status</code></a>, si <code>copy_options::skip_symlinks</code> ou <code>copy_options::create_symlinks</code> est présent dans <code>options</code> ;</li>
+<li><a href="status.html"><code>std::filesystem::status</code></a> sinon (y compris le cas où <code>copy_options::copy_symlinks</code> est présent dans <code>options</code>).</li>
+</ul>
+</li>
+<li>
+<p>Si <code>from</code> ou <code>to</code> a un <a href="file_type.html">type de fichier</a> défini par l'implémentation, les effets de cette fonction sont définis par l'implémentation.</p>
+</li>
+<li>
+<p>Si <code>from</code> n'existe pas, signale une erreur.</p>
+</li>
+<li>
+<p>Si <code>from</code> et <code>to</code> sont le même fichier tel que déterminé par <a href="equivalent.html"><code>std::filesystem::equivalent</code></a>, signale une erreur.</p>
+</li>
+<li>
+<p>Si <code>from</code> ou <code>to</code> n'est ni un fichier régulier, ni un répertoire, ni un lien symbolique, tel que déterminé par <a href="is_other.html"><code>std::filesystem::is_other</code></a>, signale une erreur.</p>
+</li>
+<li>
+<p>Si <code>from</code> est un répertoire, mais que <code>to</code> est un fichier ordinaire, signale une erreur.</p>
+</li>
+<li>
+<p>Si <code>from</code> est un lien symbolique, alors</p>
+<ul>
+<li>Si <code>copy_options::skip_symlink</code> est présent dans <code>options</code>, ne fait rien.</li>
+<li>Sinon, si <code>to</code> n'existe pas et que <code>copy_options::copy_symlinks</code> est présent dans <code>options</code>, alors se comporte comme si <code>copy_symlink(from, to)</code>.</li>
+<li>Sinon, signale une erreur.</li>
+</ul>
+</li>
+<li>
+<p>Sinon, si <code>from</code> est un fichier ordinaire, alors</p>
+<ul>
+<li>Si <code>copy_options::directories_only</code> est présent dans <code>options</code>, ne fait rien.</li>
+<li>Sinon, si <code>copy_options::create_symlinks</code> est présent dans <code>options</code>, crée un lien symbolique vers <code>to</code>. Remarque : <code>from</code> doit être un chemin absolu, sauf si <code>to</code> se trouve dans le répertoire courant.</li>
+<li>Sinon, si <code>copy_options::create_hard_links</code> est présent dans <code>options</code>, crée un lien physique vers <code>to</code>.</li>
+<li>Sinon, si <code>to</code> est un répertoire, alors se comporte comme si <code>copy_file(from, to/from.filename(), options)</code> (crée une copie de <code>from</code> sous forme de fichier dans le répertoire <code>to</code>).</li>
+<li>Sinon, se comporte comme si <code>copy_file(from, to, options)</code> (copie le fichier).</li>
+</ul>
+</li>
+<li>
+<p>Sinon, si <code>from</code> est un répertoire et <code>copy_options::create_symlinks</code> est défini dans <code>options</code>, signale une erreur avec un code d'erreur égal à <code>std::make_error_code(std::errc::is_a_directory)</code>.</p>
+</li>
+<li>
+<p>Sinon, si <code>from</code> est un répertoire et que soit <code>options</code> a <code>copy_options::recursive</code>, soit <code>copy_options::none</code>,</p>
+<ul>
+<li>Si <code>to</code> n'existe pas, exécute d'abord <code>create_directory(to, from)</code> (crée le nouveau répertoire avec une copie des attributs de l'ancien répertoire).</li>
+<li>Puis, que <code>to</code> existât déjà ou vienne d'être créé, itère sur les fichiers contenus dans <code>from</code> comme si par <code>for (const std::filesystem::directory_entry&amp; x : std::filesystem::directory_iterator(from))</code> et pour chaque entrée de répertoire, appelle récursivement <code>copy(x.path(), to/x.path().filename(), options | in-recursive-copy)</code>, où <em>in-recursive-copy</em> est un bit spécial qui n'a aucun autre effet lorsqu'il est défini dans <code>options</code>. (Le seul but de définir ce bit est d'empêcher la copie récursive des sous-répertoires si <code>options</code> est <code>copy_options::none</code>.)</li>
+</ul>
+</li>
+<li>
+<p>Sinon, ne fait rien.</p>
+</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>from</code> — chemin vers le fichier, répertoire ou lien symbolique source</li>
+<li><code>to</code> — chemin vers le fichier, répertoire ou lien symbolique cible</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<p>1,3) Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreurs de l'API OS sous-jacente, construite avec <code>from</code> comme premier argument de chemin, <code>to</code> comme second argument de chemin, et le code d'erreur OS comme argument de code d'erreur.</p>
+<p>2,4) Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+<h2 id="Notes">Notes</h2>
+<p>Le comportement par défaut lors de la copie de répertoires est la copie non récursive : les fichiers sont copiés, mais pas les sous-répertoires :</p>
+<pre><code class="language-cpp">// Soient
+// /dir1 contient /dir1/file1, /dir1/file2, /dir1/dir2
+// et /dir1/dir2 contient /dir1/dir2/file3
+// Après
+std::filesystem::copy(&quot;/dir1&quot;, &quot;/dir3&quot;);
+// /dir3 est créé (avec les attributs de /dir1)
+// /dir1/file1 est copié vers /dir3/file1
+// /dir1/file2 est copié vers /dir3/file2
+</code></pre>
+<p>Alors qu'avec <code>copy_options::recursive</code>, les sous-répertoires sont également copiés, avec leur contenu, de manière récursive.</p>
+<pre><code class="language-cpp">// ...mais ensuite
+std::filesystem::copy(&quot;/dir1&quot;, &quot;/dir3&quot;, std::filesystem::copy_options::recursive);
+// /dir3 est créé (avec les attributs de /dir1)
+// /dir1/file1 est copié vers /dir3/file1
+// /dir1/file2 est copié vers /dir3/file2
+// /dir3/dir2 est créé (avec les attributs de /dir1/dir2)
+// /dir1/dir2/file3 est copié vers /dir3/dir2/file3
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+namespace fs = std::filesystem;
+
+int main()
+{
+    fs::create_directories(&quot;sandbox/dir/subdir&quot;);
+    std::ofstream(&quot;sandbox/file1.txt&quot;).put('a');
+    fs::copy(&quot;sandbox/file1.txt&quot;, &quot;sandbox/file2.txt&quot;); // copie de fichier
+    fs::copy(&quot;sandbox/dir&quot;, &quot;sandbox/dir2&quot;); // copie de répertoire (non récursive)
+    const auto copyOptions = fs::copy_options::update_existing
+                           | fs::copy_options::recursive
+                           | fs::copy_options::directories_only
+                           ;
+    fs::copy(&quot;sandbox&quot;, &quot;sandbox_copy&quot;, copyOptions);
+    static_cast&lt;void&gt;(std::system(&quot;tree&quot;));
+    fs::remove_all(&quot;sandbox&quot;);
+    fs::remove_all(&quot;sandbox_copy&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">.
+├── sandbox
+│   ├── dir
+│   │   └── subdir
+│   ├── dir2
+│   ├── file1.txt
+│   └── file2.txt
+└── sandbox_copy
+    ├── dir
+    │   └── subdir
+    └── dir2
+
+8 directories, 2 files
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3013">LWG 3013</a></td>
+<td>C++17</td>
+<td><code>error_code</code> surcharge marquée noexcept mais pouvant allouer de la mémoire</td>
+<td>noexcept supprimé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2682">LWG 2682</a></td>
+<td>C++17</td>
+<td>tenter de créer un lien symbolique pour un répertoire réussit mais ne fait rien</td>
+<td>signale une erreur</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="copy_options.html">copy_options</a> (C++17)</strong> — spécifie la sémantique des opérations de copie <em>(enum)</em></li>
+<li><strong><a href="copy_symlink.html">copy_symlink</a> (C++17)</strong> — copie un lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="copy_file.html">copy_file</a> (C++17)</strong> — copie le contenu d'un fichier <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

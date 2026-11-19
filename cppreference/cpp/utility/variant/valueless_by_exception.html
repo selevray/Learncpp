@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::variant&lt;Types...&gt;::valueless_by_exception — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/variant.html">std::variant</a></nav>
+<h1 id="std-variant-types-valueless_by_exception"><code>std::variant&lt;Types...&gt;::valueless_by_exception</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/variant/valueless_by_exception">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">constexpr bool valueless_by_exception() const noexcept;  // (depuis C++17)
+</code></pre>
+<p>Renvoie <code>false</code> si et seulement si la variante contient une valeur.</p>
+<h2 id="Notes">Notes</h2>
+<p>Une variante peut devenir sans valeur lors de l'initialisation de la valeur contenue dans les situations suivantes :</p>
+<ul>
+<li>(garanti) une exception est levée pendant une <a href="operator%3D.html">affectation par déplacement</a></li>
+<li>(optionnel) une exception est levée pendant une <a href="operator%3D.html">affectation par copie</a></li>
+<li>(optionnel) une exception est levée pendant une <a href="operator%3D.html">affectation</a> changeant de type</li>
+<li>(optionnel) une exception est levée pendant une <a href="emplace.html"><code>emplace</code></a> changeant de type</li>
+</ul>
+<p>Comme variant n'est jamais autorisé à allouer de la mémoire dynamique, la valeur précédente ne peut pas être conservée et, par conséquent, restaurée dans ces situations. Les cas « optionnels » peuvent éviter de lever une exception si le type fournit des déplacements sans exception et si l'implémentation construit d'abord la nouvelle valeur sur la pile, puis la déplace dans la variante.</p>
+<p>Cela s'applique même aux variantes de types non classes :</p>
+<pre><code class="language-cpp">struct S
+{
+    operator int() { throw 42; }
+};
+std::variant&lt;float, int&gt; v{12.f}; // OK
+v.emplace&lt;1&gt;(S()); // v peut être sans valeur
+</code></pre>
+<p>Une variante <em>sans valeur à cause d'une exception</em> — c'est-à-dire qui n'a pas de valeur à cause d'une exception précédente survenue dans l'une des situations listées ci-dessus — est considérée comme étant dans un état invalide :</p>
+<ul>
+<li><a href="index.html"><code>index</code></a> renvoie <a href="variant_npos.html"><code>variant_npos</code></a></li>
+<li><a href="get.html"><code>get</code></a> lève <a href="bad_variant_access.html"><code>bad_variant_access</code></a></li>
+<li><a href="visit2.html"><code>visit</code></a> et member-<a href="visit.html"><code>visit</code></a> <em>(depuis C++26)</em> lèvent <a href="bad_variant_access.html"><code>bad_variant_access</code></a></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+#include &lt;string&gt;
+#include &lt;variant&gt;
+
+struct Demo
+{
+    Demo(int) {}
+    Demo(const Demo&amp;) { throw std::domain_error(&quot;copy ctor&quot;); }
+    Demo&amp; operator= (const Demo&amp;) = default;
+};
+
+int main()
+{
+    std::variant&lt;std::string, Demo&gt; var{&quot;str&quot;};
+    assert(var.index() == 0);
+    assert(std::get&lt;0&gt;(var) == &quot;str&quot;);
+    assert(var.valueless_by_exception() == false);
+
+    try
+    {
+        var = Demo{555};
+    }
+    catch (const std::domain_error&amp; ex)
+    {
+        std::cout &lt;&lt; &quot;1) Exception: &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+    }
+    assert(var.index() == std::variant_npos);
+    assert(var.valueless_by_exception() == true);
+
+    // Maintenant var est « sans valeur », un état invalide causé
+    // par une exception levée lors de l'affectation changeant de type.
+
+    try
+    {
+        std::get&lt;1&gt;(var);
+    }
+    catch (const std::bad_variant_access&amp; ex)
+    {
+        std::cout &lt;&lt; &quot;2) Exception: &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+    }
+
+    var = &quot;str2&quot;;
+    assert(var.index() == 0);
+    assert(std::get&lt;0&gt;(var) == &quot;str2&quot;);
+    assert(var.valueless_by_exception() == false);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1) Exception: copy ctor
+2) Exception: std::get: variant is valueless
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="get.html">get(std::variant)</a> (C++17)</strong> — lit la valeur du variant à partir de l'indice ou du type (si le type est unique), lève une exception en cas d'erreur <em>(modèle de fonction)</em></li>
+<li><strong><a href="index.html">index</a></strong> — renvoie l'indice à partir de zéro de l'alternative détenue par <code>variant</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="bad_variant_access.html">bad_variant_access</a> (C++17)</strong> — exception levée lors d'accès invalides à la valeur d'un <code>variant</code> <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

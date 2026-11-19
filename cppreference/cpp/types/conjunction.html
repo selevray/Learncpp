@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::conjunction — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-conjunction"><code>std::conjunction</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/conjunction">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... B &gt;
+struct conjunction;  // (depuis C++17)
+</code></pre>
+<p>Forme la <a href="https://en.wikipedia.org/wiki/logical_conjunction">conjonction logique</a> des traits de type <code>B...</code>, en effectuant essentiellement un ET logique sur la séquence de traits.</p>
+<p>La spécialisation <code>std::conjunction&lt;B1, ..., BN&gt;</code> possède une base publique et non ambiguë qui est</p>
+<ul>
+<li>si <code>sizeof...(B) == 0</code>, <code>std::true_type</code> ; sinon</li>
+<li>le premier type <code>Bi</code> dans <code>B1, ..., BN</code> pour lequel <code>bool(Bi::value) == false</code>, ou <code>BN</code> s'il n'existe aucun tel type.</li>
+</ul>
+<p>Les noms de membres de la classe de base, autres que <code>conjunction</code> et <code>operator=</code>, ne sont pas masqués et sont disponibles sans ambiguïté dans <code>conjunction</code>.</p>
+<p>La conjonction est à court-circuit : s'il existe un argument de modèle de type <code>Bi</code> avec <code>bool(Bi::value) == false</code>, alors l'instanciation de <code>conjunction&lt;B1, ..., BN&gt;::value</code> ne nécessite pas l'instanciation de <code>Bj::value</code> pour <code>j &gt; i</code>.</p>
+<p>Si le programme ajoute des spécialisations pour <code>std::conjunction</code> ou <code>std::conjunction_v</code>, le comportement est indéfini.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>B...</code> — chaque argument de modèle <code>Bi</code> pour lequel <code>Bi::value</code> est instancié doit être utilisable comme classe de base et définir le membre <code>value</code> convertible en <code>bool</code></li>
+</ul>
+<h2 id="Helper_variable_template">Modèle de variable auxiliaire</h2>
+<pre><code class="language-cpp">template&lt; class... B &gt;
+constexpr bool conjunction_v = conjunction&lt;B...&gt;::value;  // (depuis C++17)
+</code></pre>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class...&gt;
+struct conjunction : std::true_type {};
+
+template&lt;class B1&gt;
+struct conjunction&lt;B1&gt; : B1 {};
+
+template&lt;class B1, class... Bn&gt;
+struct conjunction&lt;B1, Bn...&gt;
+    : std::conditional_t&lt;bool(B1::value), conjunction&lt;Bn...&gt;, B1&gt; {};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Une spécialisation de <code>conjunction</code> n'hérite pas nécessairement de <code>std::true_type</code> ou de <code>std::false_type</code> : elle hérite simplement du premier <code>B</code> dont <code>::value</code>, explicitement converti en <code>bool</code>, vaut <code>false</code>, ou du tout dernier <code>B</code> lorsque tous se convertissent en <code>true</code>. Par exemple, <code>std::conjunction&lt;std::integral_constant&lt;int, 2&gt;, std::integral_constant&lt;int, 4&gt;&gt;::value</code> vaut <code>4</code>.</p>
+<p>L'instanciation en court-circuit différencie <code>conjunction</code> des <a href="../language/fold.html">expressions de pliage</a> : une expression de pliage, comme <code>(... &amp;&amp; Bs::value)</code>, instancie chaque <code>B</code> dans <code>Bs</code>, tandis que <code>std::conjunction_v&lt;Bs...&gt;</code> arrête l'instanciation dès que la valeur peut être déterminée. Ceci est particulièrement utile si le type suivant est coûteux à instancier ou peut provoquer une erreur grave lorsqu'il est instancié avec le mauvais type.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_logical_traits"><code>__cpp_lib_logical_traits</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_logical_traits_201510L"><code>201510L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><a href="../meta.html#Operations_on_traits">Traits de types des opérateurs logiques</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt;
+
+// func est activée si tous les Ts... ont le même type que T
+template&lt;typename T, typename... Ts&gt;
+std::enable_if_t&lt;std::conjunction_v&lt;std::is_same&lt;T, Ts&gt;...&gt;&gt;
+func(T, Ts...)
+{
+    std::cout &lt;&lt; &quot;All types in pack are the same.\n&quot;;
+}
+
+// otherwise
+template&lt;typename T, typename... Ts&gt;
+std::enable_if_t&lt;!std::conjunction_v&lt;std::is_same&lt;T, Ts&gt;...&gt;&gt;
+func(T, Ts...)
+{
+    std::cout &lt;&lt; &quot;Not all types in pack are the same.\n&quot;;
+}
+
+template&lt;typename T, typename... Ts&gt;
+constexpr bool all_types_are_same = std::conjunction_v&lt;std::is_same&lt;T, Ts&gt;...&gt;;
+
+static_assert(all_types_are_same&lt;int, int, int&gt;);
+static_assert(not all_types_are_same&lt;int, int&amp;, int&gt;);
+
+int main()
+{
+    func(1, 2, 3);
+    func(1, 2, &quot;hello!&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">All types in pack are the same.
+Not all types in pack are the same.
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="negation.html">negation</a> (C++17)</strong> — métafonction de négation logique <em>(modèle de classe)</em></li>
+<li><strong><a href="disjunction.html">disjunction</a> (C++17)</strong> — métafonction OU logique variadique <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

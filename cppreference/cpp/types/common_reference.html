@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::common_reference — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-common_reference"><code>std::common_reference</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/common_reference">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... T &gt;
+struct common_reference;  // (depuis C++20)
+</code></pre>
+<p>Détermine le type référence commun des types <code>T...</code>, c'est-à-dire le type vers lequel tous les types de <code>T...</code> peuvent être convertis ou liés. Si un tel type existe (selon les règles ci-dessous), le membre <code>type</code> désigne ce type. Sinon, il n'existe aucun membre <code>type</code>. Le comportement est indéfini si l'un des types de <code>T...</code> est un type incomplet autre que <code>void</code> (éventuellement qualifié cv).</p>
+<p>Pour des types référence, <code>common_reference</code> tente de trouver un type référence auquel tous les types référence fournis peuvent être liés, mais peut renvoyer un type non référence s'il ne trouve pas un tel type référence.</p>
+<ul>
+<li>Si <code>sizeof...(T)</code> vaut zéro, il n'existe aucun membre <code>type</code>.</li>
+<li>Si <code>sizeof...(T)</code> vaut un (c'est-à-dire que <code>T...</code> ne contient qu'un seul type <code>T0</code>), le membre <code>type</code> désigne le même type que <code>T0</code>.</li>
+<li>Si <code>sizeof...(T)</code> vaut deux (c'est-à-dire que <code>T...</code> contient deux types <code>T1</code> et <code>T2</code>) :
+<ul>
+<li>Soit le type <code>S</code> le <em>type de référence commun simple</em> de <code>T1</code> et <code>T2</code> (tel que défini ci-dessous). Le type membre <code>type</code> désigne <code>S</code> si toutes les conditions ci-dessous sont satisfaites :
+<ul>
+<li><code>T1</code> et <code>T2</code> sont tous deux des types référence</li>
+<li><code>S</code> est bien formée</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>std::is_convertible_v&lt;std::add_pointer_t&lt;T1&gt;, std::add_pointer_t&lt;S&gt;&gt;</code> et <code>std::is_convertible_v&lt;std::add_pointer_t&lt;T2&gt;, std::add_pointer_t&lt;S&gt;&gt;</code> sont <code>true</code> ;</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<ul>
+<li>
+<p>Sinon, si <code>std::basic_common_reference&lt;std::remove_cvref_t&lt;T1&gt;, std::remove_cvref_t&lt;T2&gt;, T1Q, T2Q&gt;::type</code> existe, où <code>TiQ</code> est un modèle d'alias unaire tel que <code>TiQ&lt;U&gt;</code> soit <code>U</code> avec l'ajout des qualificateurs cv et de référence de <code>Ti</code>, alors le type membre <code>type</code> désigne ce type ;</p>
+</li>
+<li>
+<ul>
+<li>Sinon, si <code>decltype(false? val&lt;T1&gt;() : val&lt;T2&gt;())</code>, où <code>val</code> est un modèle de fonction <code>template&lt;class T&gt; T val();</code>, est un type valide, alors le type membre <code>type</code> désigne ce type ;</li>
+<li>Sinon, si <code>std::common_type_t&lt;T1, T2&gt;</code> est un type valide, alors le type membre <code>type</code> désigne ce type ;</li>
+<li>Sinon, il n'existe aucun membre <code>type</code>.</li>
+</ul>
+</li>
+<li>
+<p>Si <code>sizeof...(T)</code> est supérieur à deux (c'est-à-dire que <code>T...</code> est constitué des types <code>T1, T2, R...</code>), alors, si <code>std::common_reference_t&lt;T1, T2&gt;</code> existe, le membre <code>type</code> désigne <code>std::common_reference_t&lt;std::common_reference_t&lt;T1, T2&gt;, R...&gt;</code> si un tel type existe. Dans tous les autres cas, il n'existe aucun membre <code>type</code>.</p>
+</li>
+</ul>
+<p>Le <em>type référence commun simple</em> de deux types référence <code>T1</code> et <code>T2</code> est défini comme suit :</p>
+<ul>
+<li>Si <code>T1</code> est <code>cv1 X&amp;</code> et <code>T2</code> est <code>cv2 Y&amp;</code> (c'est-à-dire que les deux sont des types référence lvalue) : leur type de référence commun simple est <code>decltype(false? std::declval&lt;cv12 X&amp;&gt;() : std::declval&lt;cv12 Y&amp;&gt;())</code>, où <em>cv12</em> est l'union de <em>cv1</em> et <em>cv2</em>, si ce type existe et est un type référence ;</li>
+<li>Si <code>T1</code> et <code>T2</code> sont tous deux des types référence rvalue : si le type de référence commun simple de <code>T1&amp;</code> et <code>T2&amp;</code> (déterminé selon le point précédent) existe, alors soit <code>C</code> ce type, et son type référence rvalue correspondant. Si <code>std::is_convertible_v&lt;T1, C&gt;</code> et <code>std::is_convertible_v&lt;T2, C&gt;</code> sont tous deux <code>true</code>, alors le type de référence commun simple de <code>T1</code> et <code>T2</code> est <code>C</code> ;</li>
+<li>Sinon, l'un des deux types doit être un type référence lvalue <code>A&amp;</code> et l'autre un type référence rvalue <code>B&amp;&amp;</code> (<code>A</code> et <code>B</code> peuvent être qualifiés cv). Soit <code>D</code> le type de référence commun simple de <code>A&amp;</code> et <code>B const&amp;</code>, s'il existe. Si <code>D</code> existe et que <code>std::is_convertible_v&lt;B&amp;&amp;, D&gt;</code> est <code>true</code>, alors le type de référence commun simple est <code>D</code> ;</li>
+<li>Sinon, il n'existe aucun type référence commun simple.</li>
+</ul>
+<p>Voir <a href="../language/operator_other.html#Conditional_operator">Opérateur conditionnel</a> pour la définition du type de l'expression <code>false ? X : Y</code> comme celles utilisées ci-dessus.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>type</code></strong> — le type référence commun pour tous les <code>T...</code></li>
+</ul>
+<h2 id="Helper_types">Types auxiliaires</h2>
+<pre><code class="language-cpp">template&lt; class... T &gt;
+using common_reference_t = std::common_reference&lt;T...&gt;::type;
+
+template&lt; class T, class U, template&lt;class&gt; class TQual, template&lt;class&gt; class UQual &gt;
+struct basic_common_reference {};
+</code></pre>
+<p>Le modèle de classe <code>basic_common_reference</code> est un point de personnalisation qui permet aux utilisateurs d'influencer le résultat de <code>common_reference</code> pour les types définis par l'utilisateur (typiquement des références mandataires). Le modèle primaire est vide.</p>
+<h2 id="Specializations">Spécialisations</h2>
+<p>Un programme peut spécialiser <code>std::basic_common_reference&lt;T, U, TQual, UQual&gt;</code> sur les deux premiers paramètres <code>T</code> et <code>U</code> si <code>std::is_same_v&lt;T, std::decay_t&lt;T&gt;&gt;</code> et <code>std::is_same_v&lt;U, std::decay_t&lt;U&gt;&gt;</code> sont tous deux <code>true</code> et qu'au moins l'un d'eux dépend d'un type défini par le programme.</p>
+<p>Si une telle spécialisation possède un membre nommé <code>type</code>, il doit s'agir d'un membre public et non ambigu désignant un type vers lequel <code>TQual&lt;T&gt;</code> et <code>UQual&lt;U&gt;</code> sont convertibles. De plus, <code>std::basic_common_reference&lt;T, U, TQual, UQual&gt;::type</code> et <code>std::basic_common_reference&lt;U, T, UQual, TQual&gt;::type</code> doivent désigner le même type.</p>
+<p>Un programme ne peut pas spécialiser <code>basic_common_reference</code> sur le troisième ou le quatrième paramètre, ni spécialiser <code>common_reference</code> lui-même. Un programme qui ajoute des spécialisations en violation de ces règles a un comportement indéfini.</p>
+<p>La bibliothèque standard fournit les spécialisations suivantes de <code>basic_common_reference</code> :</p>
+<ul>
+<li><strong><a href="../utility/pair/basic_common_reference.html">std::basic_common_reference&lt;std::pair&gt;</a> (C++23)</strong> — détermine le type de référence commun de deux <code>pair</code>s <em>(spécialisation de modèle de classe)</em></li>
+<li><strong><a href="../utility/tuple/basic_common_reference.html">std::basic_common_reference&lt;<em>tuple-like</em>&gt;</a> (C++23)</strong> — détermine le type de référence commun d'un <code>tuple</code> et d'un type <code>tuple-like</code> <em>(spécialisation de modèle de classe)</em></li>
+<li><strong><a href="../utility/functional/reference_wrapper/basic_common_reference.html">std::basic_common_reference&lt;std::reference_wrapper&gt;</a> (C++23)</strong> — détermine le type de référence commun de <code>reference_wrapper</code> et d'un <code>reference_wrapper</code> non <em>(spécialisation de modèle de classe)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_common_reference"><code>__cpp_lib_common_reference</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_lib_common_reference_202302L"><code>202302L</code></a></td>
+<td><em>(C++23)</em></td>
+<td>Faire de <code>std::common_reference_t</code> de <a href="../utility/functional/reference_wrapper.html"><code>std::reference_wrapper</code></a> un type référence</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Examples">Exemples</h2>
+<pre><code class="language-cpp">#include &lt;concepts&gt;
+#include &lt;type_traits&gt;
+
+static_assert(
+    std::same_as&lt;
+        int&amp;,
+        std::common_reference_t&lt;
+            std::add_lvalue_reference_t&lt;int&gt;,
+            std::add_lvalue_reference_t&lt;int&gt;&amp;,
+            std::add_lvalue_reference_t&lt;int&gt;&amp;&amp;,
+            std::add_lvalue_reference_t&lt;int&gt;const,
+            std::add_lvalue_reference_t&lt;int&gt;const&amp;
+        &gt;
+    &gt;
+);
+
+int main() {}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="common_type.html">common_type</a> (C++11)</strong> — détermine le type commun d'un groupe de types <em>(modèle de classe)</em></li>
+<li><strong><a href="../concepts/common_reference_with.html">common_reference_with</a> (C++20)</strong> — spécifie que deux types partagent un type de référence commun <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

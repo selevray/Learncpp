@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>div, ldiv, lldiv, imaxdiv — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/numeric.html">Numerics</a> › <a href="../../../c/numeric/math.html">Fonctions mathématiques courantes</a></nav>
+<h1 id="div-ldiv-lldiv-imaxdiv">div, ldiv, lldiv, imaxdiv</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/numeric/math/div">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdlib.h&gt;</strong></p>
+<pre><code class="language-c">div_t     div( int x, int y );  // (1)
+
+ldiv_t    ldiv( long x, long y );  // (2)
+
+lldiv_t   lldiv( long long x, long long y );  // (3) (depuis C99)
+</code></pre>
+<p><strong>Défini dans l'en-tête &lt;inttypes.h&gt;</strong></p>
+<pre><code class="language-c">imaxdiv_t imaxdiv( intmax_t x, intmax_t y );  // (4) (depuis C99)
+</code></pre>
+<p>Calcule à la fois le quotient et le reste de la division du numérateur <code>x</code> par le dénominateur <code>y</code>.</p>
+<blockquote>
+<p>Calcule simultanément le quotient et le reste. Le quotient est le quotient algébrique dont la partie fractionnaire est supprimée (troncature vers zéro). Le reste est tel que <code>quot * y + rem == x</code>.</p>
+<p><em>(jusqu'à C99)</em></p>
+</blockquote>
+<blockquote>
+<p>Calcule simultanément le quotient (le résultat de l'expression <code>x / y</code>) et le reste (le résultat de l'expression <code>x % y</code>).</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>x, y</code> — valeurs entières</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Si le reste et le quotient peuvent tous deux être représentés par des objets du type correspondant (<code>int</code>, <code>long</code>, <code>long long</code>, <code>intmax_t</code>, respectivement), les deux sont renvoyés dans un objet de type <code>div_t</code>, <code>ldiv_t</code>, <code>lldiv_t</code>, <code>imaxdiv_t</code> défini comme suit :</p>
+<h2 id="div_t">div_t</h2>
+<pre><code class="language-c">struct div_t { int quot; int rem; };
+</code></pre>
+<p>or</p>
+<pre><code class="language-c">struct div_t { int rem; int quot; };
+</code></pre>
+<h2 id="ldiv_t">ldiv_t</h2>
+<pre><code class="language-c">struct ldiv_t { long quot; long rem; };
+</code></pre>
+<p>or</p>
+<pre><code class="language-c">struct ldiv_t { long rem; long quot; };
+</code></pre>
+<h2 id="lldiv_t">lldiv_t</h2>
+<pre><code class="language-c">struct lldiv_t { long long quot; long long rem; };
+</code></pre>
+<p>or</p>
+<pre><code class="language-c">struct lldiv_t { long long rem; long long quot; };
+</code></pre>
+<h2 id="imaxdiv_t">imaxdiv_t</h2>
+<pre><code class="language-c">struct imaxdiv_t { intmax_t quot; intmax_t rem; };
+</code></pre>
+<p>or</p>
+<pre><code class="language-c">struct imaxdiv_t { intmax_t rem; intmax_t quot; };
+</code></pre>
+<p>Si le reste ou le quotient ne peut pas être représenté, le comportement est indéfini.</p>
+<h2 id="Notes">Notes</h2>
+<p>Jusqu'en C99, le sens d'arrondi du quotient et le signe du reste dans les opérateurs de division et de reste natifs étaient définis par l'implémentation si l'un des opérandes était négatif, mais ils étaient bien définis dans <code>div</code> et <code>ldiv</code>.</p>
+<p>Sur de nombreuses plateformes, une seule instruction du processeur obtient à la fois le quotient et le reste, et cette fonction peut en tirer parti, bien que les compilateurs soient généralement capables de fusionner les <code>/</code> et <code>%</code> proches lorsque cela convient.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;assert.h&gt;
+#include &lt;limits.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+void reverse(char* first, char* last)
+{
+    for (--last; first &lt; last; ++first, --last)
+    {
+        char c = *last;
+        *last = *first;
+        *first = c;
+    }
+}
+
+// renvoie un tampon vide en cas de dépassement de tampon
+char* itoa(int n, int base, char* buf, size_t buf_size)
+{
+    assert(2 &lt;= base &amp;&amp; base &lt;= 16 &amp;&amp; buf &amp;&amp; buf_size);
+    div_t dv = {.quot = n};
+    char* p = buf;
+    do
+    {
+        if (!--buf_size)
+            return (*buf = '\0'), buf;
+        dv = div(dv.quot, base);
+        *p++ = &quot;0123456789abcdef&quot;[abs(dv.rem)];
+    }
+    while(dv.quot);
+    if (n &lt; 0)
+        *p++ = '-';
+    *p = '\0';
+    reverse(buf, p);
+    return buf;
+}
+
+int main(void)
+{
+    char buf[16];
+    printf(&quot;%s\n&quot;, itoa(0, 2, buf, sizeof buf));
+    printf(&quot;%s\n&quot;, itoa(007, 3, buf, sizeof buf));
+    printf(&quot;%s\n&quot;, itoa(12346, 10, buf, sizeof buf));
+    printf(&quot;%s\n&quot;, itoa(-12346, 10, buf, sizeof buf));
+    printf(&quot;%s\n&quot;, itoa(-42, 2, buf, sizeof buf));
+    printf(&quot;%s\n&quot;, itoa(INT_MAX, 16, buf, sizeof buf));
+    printf(&quot;%s\n&quot;, itoa(INT_MIN, 16, buf, sizeof buf));
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">0
+21
+12346
+-12346
+-101010
+7fffffff
+-80000000
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.8.2.2 La fonction imaxdiv (p : TBD)</li>
+<li>7.22.6.2 Les fonctions div, ldiv et lldiv (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.8.2.2 La fonction imaxdiv (p : 159)</li>
+<li>7.22.6.2 Les fonctions div, ldiv et lldiv (p : 259)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.8.2.2 La fonction imaxdiv (p : 219)</li>
+<li>7.22.6.2 Les fonctions div, ldiv et lldiv (p : 356)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.8.2.2 La fonction imaxdiv (p : 200)</li>
+<li>7.20.6.2 Les fonctions div, ldiv et lldiv (p : 320)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.10 div_t, ldiv_t</li>
+<li>4.10.6.2 La fonction div</li>
+<li>4.10.6.4 La fonction ldiv</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="fmod.html">fmodfmodffmodl</a> (C99) (C99)</strong> — calcule le reste de l'opération de division à virgule flottante <em>(fonction)</em></li>
+<li><strong><a href="remainder.html">remainderremainderfremainderl</a> (C99) (C99) (C99)</strong> — calcule le reste signé de l'opération de division à virgule flottante <em>(fonction)</em></li>
+<li><strong><a href="remquo.html">remquoremquofremquol</a> (C99) (C99) (C99)</strong> — calcule le reste signé ainsi que les trois derniers bits de l'opération de division <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/numeric/math/div.html">Documentation C++</a> pour div</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://en.wikipedia.org/wiki/Euclidean_division">Division euclidienne</a> — D'après Wikipédia.</td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://en.wikipedia.org/wiki/Modulo">Modulo (et division tronquée)</a> — D'après Wikipédia.</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

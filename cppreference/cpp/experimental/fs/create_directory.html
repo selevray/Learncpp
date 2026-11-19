@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::filesystem::create_directory, std::experimental::filesystem::create_directories — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../cpp/experimental/fs.html">Bibliothèque du système de fichiers</a></nav>
+<h1 id="std-experimental-filesystem-create_directory-std-experimental-filesystem-create_directories"><code>std::experimental::filesystem::create_directory, std::experimental::filesystem::create_directories</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/fs/create_directory">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/filesystem&gt;</strong></p>
+<pre><code class="language-cpp">bool create_directory( const path&amp; p );
+bool create_directory( const path&amp; p, error_code&amp; ec );  // (1) (TS sur le système de fichiers)
+
+bool create_directory( const path&amp; p, const path&amp; existing_p );
+bool create_directory( const path&amp; p, const path&amp; existing_p, error_code&amp; ec );  // (2) (TS sur le système de fichiers)
+
+bool create_directories( const path&amp; p );
+bool create_directories( const path&amp; p, error_code&amp; ec );  // (3) (TS sur le système de fichiers)
+</code></pre>
+<ol>
+<li>
+<p>Crée le répertoire <code>p</code> comme avec POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html">mkdir()</a> avec un second argument valant <code>static_cast&lt;int&gt;(fs::perms::all)</code> (le répertoire parent doit déjà exister). Si <code>p</code> existe déjà et est déjà un répertoire, la fonction ne fait rien (cette condition n'est pas traitée comme une erreur).</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, sauf que les attributs du nouveau répertoire sont copiés depuis <code>existing_p</code> (qui doit être un répertoire existant). Les attributs copiés dépendent du système : sur les systèmes POSIX, les attributs sont copiés comme avec</p>
+</li>
+</ol>
+<pre><code class="language-cpp">stat(existing_p.c_str(), &amp;attributes_stat)
+mkdir(p.c_str(), attributes_stat.st_mode)
+</code></pre>
+<p>Sous Windows, les attributs sont copiés comme avec</p>
+<pre><code class="language-cpp">CreateDirectoryExW(existing_p.c_str(), p.c_str(), 0)
+</code></pre>
+<ol start="3">
+<li>Exécute <code>(1)</code> pour chaque élément de <code>p</code> qui n'existe pas encore.</li>
+</ol>
+<p>Les surcharges sans exception renvoient <code>false</code> si une erreur survient.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — le chemin du nouveau répertoire à créer</li>
+<li><code>existing_p</code> — le chemin d'un répertoire dont copier les attributs</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1,2) <code>true</code> si la création du répertoire réussit, <code>false</code> sinon.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>1,3) La surcharge sans paramètre <code>error_code&amp;</code> lève <a href="filesystem_error.html">filesystem_error</a> en cas d'erreur de l'API du système sous-jacent, construite avec <code>p</code> comme premier argument et le code d'erreur du système comme argument de code d'erreur. <code>std::bad_alloc</code> peut être levée si l'allocation mémoire échoue. La surcharge prenant un paramètre <code>error_code&amp;</code> le définit au code d'erreur de l'API du système si un appel à l'API échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient. Cette surcharge a<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept</code></p>
+<ol start="2">
+<li>La surcharge sans paramètre <code>error_code&amp;</code> lève <a href="filesystem_error.html">filesystem_error</a> en cas d'erreur de l'API du système sous-jacent, construite avec <code>p</code> comme premier argument, <code>existing_p</code> comme deuxième argument et le code d'erreur du système comme argument de code d'erreur. <code>std::bad_alloc</code> peut être levée si l'allocation mémoire échoue. La surcharge prenant un paramètre <code>error_code&amp;</code> le définit au code d'erreur de l'API du système si un appel à l'API échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient. Cette surcharge a<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept</code></li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>La surcharge <code>(2)</code> préservant les attributs est appelée implicitement par <a href="copy.html"><code>copy()</code></a> lors de la copie récursive de répertoires. Son équivalent dans boost.filesystem est <a href="https://www.boost.org/doc/libs/1_57_0/libs/filesystem/doc/reference.html#copy_directory">copy_directory</a> (avec l'ordre des arguments inversé).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;experimental/filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+namespace fs = std::experimental::filesystem;
+
+int main()
+{
+    fs::create_directories(&quot;sandbox/1/2/a&quot;);
+    fs::create_directory(&quot;sandbox/1/2/b&quot;);
+    fs::permissions(&quot;sandbox/1/2/b&quot;, fs::perms::remove_perms | fs::perms::others_all);
+    fs::create_directory(&quot;sandbox/1/2/c&quot;, &quot;sandbox/1/2/b&quot;);
+    std::system(&quot;ls -l sandbox/1/2&quot;);
+    fs::remove_all(&quot;sandbox&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">drwxr-xr-x 2 user group 4096 Apr 15 09:33 a
+drwxr-x--- 2 user group 4096 Apr 15 09:33 b
+drwxr-x--- 2 user group 4096 Apr 15 09:33 c
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="create_symlink.html">create_symlinkcreate_directory_symlink</a></strong> — crée un lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="copy.html">copy</a></strong> — copie des fichiers ou des répertoires <em>(fonction)</em></li>
+<li><strong><a href="perms.html">perms</a></strong> — identifie les permissions du système de fichiers <em>(énumération)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

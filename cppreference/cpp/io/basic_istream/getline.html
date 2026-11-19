@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_istream&lt;CharT,Traits&gt;::getline — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_istream.html">std::basic_istream</a></nav>
+<h1 id="std-basic_istream-chart-traits-getline"><code>std::basic_istream&lt;CharT,Traits&gt;::getline</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_istream/getline">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">basic_istream&amp; getline( char_type* s, std::streamsize count );  // (1)
+
+basic_istream&amp; getline( char_type* s, std::streamsize count, char_type delim );  // (2)
+</code></pre>
+<p>Extrait des caractères du flux jusqu'à la fin de ligne ou le délimiteur spécifié <code>delim</code>.</p>
+<p>La première surcharge est équivalente à <code>getline(s, count, widen('\n'))</code>.</p>
+<p>Se comporte comme <a href="../../named_req/UnformattedInputFunction.html"><em>UnformattedInputFunction</em></a>. Après avoir construit et vérifié l'objet sentry, extrait des caractères de <code>*this</code> et les stocke dans les emplacements successifs du tableau dont le premier élément est pointé par <code>s</code>, jusqu'à ce que l'une des conditions suivantes se produise (testées dans l'ordre indiqué) :</p>
+<ol>
+<li>une condition de fin de fichier se produit dans la séquence d'entrée.</li>
+<li>le prochain caractère disponible <code>c</code> est le délimiteur, selon <code>Traits::eq(c, delim)</code>. Le délimiteur est extrait (contrairement à <a href="get.html"><code>basic_istream::get()</code></a>) et compté dans <a href="gcount.html"><code>gcount()</code></a>, mais n'est pas stocké.</li>
+<li><code>count</code> est non positif, ou <code>count - 1</code> caractères ont été extraits (<code>setstate(failbit)</code> est appelé dans ce cas).</li>
+</ol>
+<p>Si la fonction n'extrait aucun caractère, <code>failbit</code> est mis dans l'état d'erreur local avant l'appel de <a href="../basic_ios/setstate.html"><code>setstate()</code></a>.</p>
+<p>Dans tous les cas, si <code>count &gt; 0</code>, elle stocke ensuite un caractère nul <code>CharT()</code> à l'emplacement suivant du tableau et met à jour <a href="gcount.html"><code>gcount()</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Comme la condition #2 est testée avant la condition #3, la ligne d'entrée qui remplit exactement le tampon ne déclenche pas <code>failbit</code>.</p>
+<p>Comme le caractère de fin est compté comme caractère extrait, une ligne d'entrée vide ne déclenche pas <code>failbit</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers la chaîne de caractères dans laquelle stocker les caractères</li>
+<li><code>count</code> — taille de la chaîne de caractères pointée par <code>s</code></li>
+<li><code>delim</code> — caractère délimiteur où arrêter l'extraction. Il est extrait mais non stocké.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Exceptions">Exceptions</h2>
+<p><a href="../ios_base/failure.html"><code>failure</code></a> si une erreur s'est produite (l'indicateur d'état d'erreur n'est pas <a href="../ios_base/iostate.html"><code>goodbit</code></a>) et que <a href="../basic_ios/exceptions.html"><code>exceptions()</code></a> est configuré pour lever une exception pour cet état.</p>
+<p>Si une opération interne lève une exception, elle est capturée et <a href="../ios_base/iostate.html"><code>badbit</code></a> est mis. Si <a href="../basic_ios/exceptions.html"><code>exceptions()</code></a> est mis pour <code>badbit</code>, l'exception est relancée.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::istringstream input(&quot;abc|def|gh&quot;);
+    std::vector&lt;std::array&lt;char, 4&gt;&gt; v;
+
+    // note : la boucle suivante se termine lorsque std::ios_base::operator bool()
+    // sur le flux renvoyé par getline() renvoie false
+    for (std::array&lt;char, 4&gt; a; input.getline(&amp;a[0], 4, '|');)
+        v.push_back(a);
+
+    for (auto&amp; a : v)
+        std::cout &lt;&lt; &amp;a[0] &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">abc
+def
+gh
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue531">LWG 531</a></td>
+<td>C++98</td>
+<td><code>std::getline</code> ne pouvait pas gérer le cas où <code>count</code> est non positif</td>
+<td>aucun caractère n'est extrait dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../string/basic_string/getline.html">getline</a></strong> — lit des données depuis un flux d'E/S dans une chaîne <em>(modèle de fonction)</em></li>
+<li><strong><a href="operator_gtgt.html">operator&gt;&gt;</a></strong> — extrait des données formatées <em>(fonction membre publique)</em></li>
+<li><strong><a href="get.html">get</a></strong> — extrait des caractères <em>(fonction membre publique)</em></li>
+<li><strong><a href="read.html">read</a></strong> — extrait des blocs de caractères <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

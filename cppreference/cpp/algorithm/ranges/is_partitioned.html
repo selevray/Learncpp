@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::is_partitioned — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-is_partitioned"><code>std::ranges::is_partitioned</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/is_partitioned">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_iterator I, std::sentinel_for&lt;I&gt; S,
+          class Proj = std::identity,
+          std::indirect_unary_predicate&lt;std::projected&lt;I, Proj&gt;&gt; Pred &gt;
+constexpr bool
+    is_partitioned( I first, S last, Pred pred, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; ranges::input_range R, class Proj = std::identity,
+          std::indirect_unary_predicate&lt;
+              std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt; Pred &gt;
+constexpr bool
+    is_partitioned( R&amp;&amp; r, Pred pred, Proj proj = {} );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Renvoie <code>true</code> si tous les éléments de l'intervalle <code>[first,last)</code> qui satisfont le prédicat <code>pred</code> après projection apparaissent avant tous les éléments qui ne le satisfont pas. Renvoie aussi <code>true</code> si <code>[first,last)</code> est vide.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — paire itérateur-sentinelle désignant l'intervalle d'éléments à examiner</li>
+<li><code>r</code> — l'intervalle des éléments à examiner</li>
+<li><code>pred</code> — prédicat à appliquer aux éléments projetés</li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si l'intervalle <code>[first,last)</code> est vide ou est partitionné par <code>pred</code>, <code>false</code> sinon.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Au plus <code>ranges::distance(first, last)</code> applications de <code>pred</code> et <code>proj</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct is_partitioned_fn
+{
+    template&lt;std::input_iterator I, std::sentinel_for&lt;I&gt; S, class Proj = std::identity,
+             std::indirect_unary_predicate&lt;std::projected&lt;I, Proj&gt;&gt; Pred&gt;
+    constexpr bool operator()(I first, S last, Pred pred, Proj proj = {}) const
+    {
+        for (; first != last; ++first)
+            if (!std::invoke(pred, std::invoke(proj, *first)))
+                break;
+
+        for (; first != last; ++first)
+            if (std::invoke(pred, std::invoke(proj, *first)))
+                return false;
+
+        return true;
+    }
+
+    template&lt;ranges::input_range R, class Proj = std::identity,
+             std::indirect_unary_predicate&lt;std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt; Pred&gt;
+    constexpr bool operator()(R&amp;&amp; r, Pred pred, Proj proj = {}) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::ref(pred), std::ref(proj));
+    }
+};
+
+inline constexpr auto is_partitioned = is_partitioned_fn();
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;numeric&gt;
+#include &lt;utility&gt;
+
+int main()
+{
+    std::array&lt;int, 9&gt; v;
+
+    auto print = [&amp;v](bool o)
+    {
+        for (int x : v)
+            std::cout &lt;&lt; x &lt;&lt; ' ';
+        std::cout &lt;&lt; (o ? &quot;=&gt; &quot; : &quot;=&gt; not &quot;) &lt;&lt; &quot;partitioned\n&quot;;
+    };
+
+    auto is_even = [](int i) { return i % 2 == 0; };
+
+    std::iota(v.begin(), v.end(), 1); // or std::ranges::iota(v, 1);
+    print(std::ranges::is_partitioned(v, is_even));
+
+    std::ranges::partition(v, is_even);
+    print(std::ranges::is_partitioned(std::as_const(v), is_even));
+
+    std::ranges::reverse(v);
+    print(std::ranges::is_partitioned(v.cbegin(), v.cend(), is_even));
+    print(std::ranges::is_partitioned(v.crbegin(), v.crend(), is_even));
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1 2 3 4 5 6 7 8 9 =&gt; not partitioned
+2 4 6 8 5 3 7 1 9 =&gt; partitioned
+9 1 7 3 5 8 6 4 2 =&gt; not partitioned
+9 1 7 3 5 8 6 4 2 =&gt; partitioned
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="partition.html">ranges::partition</a> (C++20)</strong> — divise un intervalle d'éléments en deux groupes <em>(objet fonction algorithme)</em></li>
+<li><strong><a href="partition_point.html">ranges::partition_point</a> (C++20)</strong> — localise le point de partition d'un intervalle partitionné <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="../is_partitioned.html">is_partitioned</a> (C++11)</strong> — détermine si l'intervalle est partitionné par le prédicat donné <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

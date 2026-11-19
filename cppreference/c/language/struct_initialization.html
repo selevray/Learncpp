@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Initialisation de struct et d&#x27;union — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="initialisation-de-struct-et-d-union">Initialisation de struct et d'union</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/struct_initialization">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Lors de l'<a href="initialization.html">initialisation</a> d'un objet de type <a href="struct.html">struct</a> ou <a href="union.html">union</a>, l'initialiseur doit être une liste non vide, <em>(jusqu'à C23)</em> entre accolades, séparée par des virgules, d'initialiseurs pour les membres :</p>
+<p>|
+| |
+| <code>=</code> <code>{</code> <code>expression</code> <code>,</code> <code>...</code> <code>}</code> | (1) | (jusqu'à C99) |
+|
+| <code>=</code> <code>{</code> <code>designator</code><em>(optionnel)</em> <code>expression</code> <code>,</code> <code>...</code> <code>}</code> | (2) | (depuis C99) |
+|
+| <code>=</code> <code>{</code> <code>}</code> | (3) | (depuis C23) |
+|</p>
+<p>où le <code>designator</code> est une suite (séparée par des espaces ou contiguë) de désignateurs de membres individuels de la forme <code>.</code> <code>member</code> et de <a href="array_initialization.html">désignateurs de tableau</a> de la forme <code>[</code> <code>index</code> <code>]</code>.</p>
+<p>Tous les membres non initialisés explicitement sont <a href="initialization.html#Empty_initialization">initialisés à vide</a>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Lors de l'initialisation d'une <a href="union.html">union</a>, la liste d'initialisation ne doit contenir qu'un seul membre, qui initialise le premier membre de l'unionsauf si un désignateur est utilisé <em>(depuis C99)</em>.</p>
+<pre><code class="language-c">union { int x; char c[4]; }
+  u = {1},           // rend u.x actif avec la valeur 1
+ u2 = { .c={'\1'} }; // rend u2.c actif avec la valeur {'\1','\0','\0','\0'}
+</code></pre>
+<p>Lors de l'initialisation d'une <a href="struct.html">struct</a>, le premier initialiseur de la liste initialise le premier membre déclaré(sauf si un désignateur est spécifié) <em>(depuis C99)</em>, et tous les initialiseurs suivants sans désignateurs *(depuis C99)*initialisent les membres de la struct déclarés après celui initialisé par l'expression précédente.</p>
+<pre><code class="language-c">struct point {double x,y,z;} p = {1.2, 1.3}; // p.x=1.2, p.y=1.3, p.z=0.0
+div_t answer = {.quot = 2, .rem = -1 };      // l'ordre des éléments de div_t peut varier
+</code></pre>
+<blockquote>
+<p>Un désignateur fait que l'initialiseur suivant initialise le membre de struct décrit par le désignateur. L'initialisation se poursuit ensuite dans l'ordre de déclaration, en commençant par l'élément déclaré après celui décrit par le désignateur.</p>
+<pre><code class="language-c">struct {int sec,min,hour,day,mon,year;} z
+   = {.day=31,12,2014,.sec=30,15,17}; // initialise z à {30,15,17,31,12,2014}
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>C'est une erreur de fournir plus d'initialiseurs que de membres.</p>
+<h2 id="Nested_initialization">Initialisation imbriquée</h2>
+<p>Si les membres de la struct ou de l'union sont des tableaux, des structs ou des unions, les initialiseurs correspondants dans la liste d'initialiseurs entre accolades sont tous les initialiseurs valides pour ces membres, sauf que leurs accolades peuvent être omises comme suit :</p>
+<p>Si l'initialiseur imbriqué commence par une accolade ouvrante, tout l'initialiseur imbriqué jusqu'à son accolade fermante initialise le sous-objet correspondant. Chaque accolade ouvrante établit un nouvel <em>objet courant</em>. Les membres de l'objet courant sont initialisés dans leur ordre naturel, sauf si des désignateurs sont utilisés <em>(depuis C99)</em> : éléments de tableau dans l'ordre des indices, membres de struct dans l'ordre de déclaration, seul le premier membre déclaré de toute union. Les sous-objets de l'objet courant qui ne sont pas explicitement initialisés avant l'accolade fermante sont <a href="initialization.html#Empty_initialization">initialisés à vide</a>.</p>
+<pre><code class="language-c">struct example {
+    struct addr_t {
+       uint32_t port;
+    } addr;
+    union {
+       uint8_t a8[4];
+       uint16_t a16[2];
+    } in_u;
+};
+struct example ex = { // début de la liste d'initialisation pour la structure example
+                     { // début de la liste d'initialisation pour ex.addr
+                        80 // unique membre de la structure initialisée
+                     }, // fin de la liste d'initialisation pour ex.addr
+                     { // début de la liste d'initialisation pour ex.in_u
+                        {127,0,0,1} // initialise le premier élément de l'union
+                     } };
+</code></pre>
+<p>Si l'initialiseur imbriqué ne commence pas par une accolade ouvrante, seuls assez d'initialiseurs de la liste sont pris en compte pour les éléments ou membres du tableau, de la struct ou de l'union membre ; les initialiseurs restants servent à initialiser le membre de struct suivant :</p>
+<pre><code class="language-c">struct example ex = {80, 127, 0, 0, 1}; // 80 initialise ex.addr.port
+                                        // 127 initialise ex.in_u.a8[0]
+                                        // 0 initialise ex.in_u.a8[1]
+                                        // 0 initialise ex.in_u.a8[2]
+                                        // 1 initialise ex.in_u.a8[3]
+</code></pre>
+<blockquote>
+<p>Lorsque les désignateurs sont imbriqués, les désignateurs des membres suivent les désignateurs des structs/unions/tableaux englobants. Dans une liste d'initialisation entre crochets imbriquée, le désignateur le plus externe fait référence à l'<em>objet courant</em> et ne sélectionne le sous-objet à initialiser que dans l'<em>objet courant</em>.</p>
+<pre><code class="language-c">struct example ex2 = { // l'objet courant est ex2, les désignateurs concernent les membres de example
+                       .in_u.a8[0]=127, 0, 0, 1, .addr=80};
+struct example ex3 = {80, .in_u={ // change l'objet courant en l'union ex.in_u
+                           127,
+                           .a8[2]=1 // ce désignateur désigne le membre de in_u
+                      } };
+</code></pre>
+<p>Si un sous-objet est explicitement initialisé deux fois (ce qui peut arriver lorsque des désignateurs sont utilisés), l'initialiseur qui apparaît plus loin dans la liste est celui utilisé (le précédent peut ne pas être évalué) :</p>
+<pre><code class="language-c">struct {int n;} s = {printf(&quot;a\n&quot;), // ceci peut être affiché ou omis
+                     .n=printf(&quot;b\n&quot;)}; // toujours affiché
+</code></pre>
+<p>Bien que les sous-objets non initialisés soient initialisés implicitement, l'initialisation implicite d'un sous-objet ne remplace jamais l'initialisation explicite de ce même sous-objet si elle apparaît plus tôt dans la liste (choisissez clang pour observer la sortie correcte) :</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+typedef struct { int k; int l; int a[2]; } T;
+typedef struct { int i;  T t; } S;
+T x = {.l = 43, .k = 42, .a[1] = 19, .a[0] = 18 };
+ // x initialisé à {42, 43, {18, 19} }
+int main(void)
+{
+    S l = { 1,          // initialise l.i à 1
+           .t = x,      // initialise l.t à {42, 43, {18, 19} }
+           .t.l = 41,   // change l.t en {42, 41, {18, 19} }
+           .t.a[1] = 17 // change l.t en {42, 41, {18, 17} }
+          };
+    printf(&quot;l.t.k is %d\n&quot;, l.t.k); // .t = x fixe explicitement l.t.k à 42
+                                    // .t.l = 41 remettrait implicitement l.t.k à zéro
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">l.t.k is 42
+</code></pre>
+<p>Cependant, lorsqu'un initialiseur commence par une accolade ouvrante, son <em>objet courant</em> est entièrement réinitialisé et tous les initialiseurs explicites antérieurs pour l'un de ses sous-objets sont ignorés :</p>
+<pre><code class="language-c">struct fred { char s[4]; int n; };
+struct fred x[ ] = { { { &quot;abc&quot; }, 1 }, // initialise x[0] à { {'a','b','c','\0'}, 1 }
+                      [0].s[0] = 'q'   // change x[0] en { {'q','b','c','\0'}, 1 }
+                   };
+struct fred y[ ] = { { { &quot;abc&quot; }, 1 }, // initialise y[0] à { {'a','b','c','\0'}, 1 }
+                     [0] = { // l'objet courant est maintenant la totalité de y[0]
+                             .s[0] = 'q'
+                            } // remplace y[0] par { {'q','\0','\0','\0'}, 0 }
+                    };
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>La liste d'initialisation peut se terminer par une virgule, qui est ignorée.</p>
+<pre><code class="language-c">struct {double x,y;} p = {1.0,
+                          2.0, // virgule finale acceptée
+                          };
+</code></pre>
+<blockquote>
+<p>En C, la liste d'initialiseurs entre accolades ne peut pas être vide (notez que C++ autorise les listes vides, et notez aussi qu'une <a href="struct.html">struct</a> en C ne peut pas être vide) :</p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>La liste d'initialisation peut être vide en C comme en C++ :</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<pre><code class="language-c">struct {int n;} s = {0}; // OK
+struct {int n;} s = {}; // Erreur jusqu'en C23 : la liste d'initialisation ne peut pas être vide
+                        // OK depuis C23 : s.n est initialisé à 0
+struct {} s = {}; // Erreur : la structure ne peut pas être vide
+</code></pre>
+<blockquote>
+<p>Chaque expression de la liste d'initialisation doit être une <a href="constant_expression.html">expression constante</a> lors de l'initialisation d'agrégats de n'importe quelle durée de stockage.</p>
+<p><em>(jusqu'à C99)</em></p>
+</blockquote>
+<blockquote>
+<p>Comme pour toute autre <a href="initialization.html">initialisation</a>, chaque expression de la liste d'initialisation doit être une <a href="constant_expression.html">expression constante</a> lors de l'initialisation d'agrégats à durée de stockage statiqueou thread-local <em>(depuis C11)</em> <a href="storage_duration.html">durée de stockage</a> :</p>
+<pre><code class="language-c">static struct {char* p} s = {malloc(1)}; // error
+</code></pre>
+<p>L'<a href="eval_order.html">ordre d'évaluation</a> des sous-expressions de tout initialiseur est séquencé de façon indéterminée (mais pas en C++ depuis C++11) :</p>
+<pre><code class="language-c">int n = 1;
+struct {int x,y;} p = {n++, n++}; // non spécifié, mais comportement bien défini :
+                                  // n est incrémenté deux fois dans un ordre arbitraire
+                                  // p égal à {1,2} et {2,1} sont tous deux valides
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : davantage d'exemples pratiques, par exemple initialiser des structures socket</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void)
+{
+    char buff[70];
+    // les initialiseurs désignés simplifient l'utilisation des structures dont
+    // l'ordre des membres est non spécifié
+    struct tm my_time = { .tm_year=2012-1900, .tm_mon=9, .tm_mday=9,
+                          .tm_hour=8, .tm_min=10, .tm_sec=20 };
+    strftime(buff, sizeof buff, &quot;%A %c&quot;, &amp;my_time);
+    puts(buff);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Sunday Sun Oct  9 08:10:20 2012
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.9/12-39 Initialisation (p : 101-105)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.9/12-38 Initialisation (p : 140-144)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.8/12-38 Initialisation (p : 126-130)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>6.5.7 Initialization</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/aggregate_initialization.html">Documentation C++</a> pour Initialisation d'agrégat</strong></p>
+
+</main>
+</body>
+</html>

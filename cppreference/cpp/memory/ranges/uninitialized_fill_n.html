@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::uninitialized_fill_n — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-ranges-uninitialized_fill_n"><code>std::ranges::uninitialized_fill_n</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/ranges/uninitialized_fill_n">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; no-throw-forward-range I, class T &gt;
+    requires std::constructible_from&lt;std::iter_value_t&lt;I&gt;, const T&amp;&gt;
+I uninitialized_fill_n( I first, std::iter_difference_t&lt;I&gt; count,
+                        const T&amp; value );  // (depuis C++20) (constexpr depuis C++26)
+</code></pre>
+<p>Copie <code>value</code> dans une zone mémoire non initialisée <code>first+[0,count)</code> comme par <code>return ranges::uninitialized_fill(std::counted_iterator(first, count), std::default_sentinel, value).base();</code></p>
+<p>Si une exception est levée pendant l'initialisation, les objets déjà construits sont détruits dans un ordre non spécifié.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../../algorithm/ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first</code> — le début de l'intervalle des éléments à initialiser</li>
+<li><code>count</code> — nombre d'éléments à construire</li>
+<li><code>value</code> — la valeur avec laquelle construire les éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Comme décrit ci-dessus.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire en <code>count</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute exception levée lors de la construction des éléments de l'intervalle de destination.</p>
+<h2 id="Notes">Notes</h2>
+<p>Une implémentation peut améliorer l'efficacité de <code>ranges::uninitialized_fill_n</code>, par exemple en utilisant <a href="../../algorithm/ranges/fill_n.html"><code>ranges::fill_n</code></a>, si le type de valeur de l'intervalle de sortie est <a href="../../named_req/TrivialType.html"><em>TrivialType</em></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_raw_memory_algorithms"><code>__cpp_lib_raw_memory_algorithms</code></a></td>
+<td><a href="../../compiler_support/26.html#cpp_lib_raw_memory_algorithms_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> pour <a href="../../memory.html#Uninitialized_memory_algorithms">algorithmes de mémoire spécialisés</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct uninitialized_fill_n_fn
+{
+    template&lt;no-throw-forward-range I, class T&gt;
+    requires std::constructible_from&lt;std::iter_value_t&lt;I&gt;, const T&amp;&gt;
+    I operator()(I first, std::iter_difference_t&lt;I&gt; n, const T&amp; x) const
+    {
+        I rollback{first};
+        try
+        {
+            for (; n-- &gt; 0; ++first)
+                ranges::construct_at(std::addressof(*first), x);
+            return first;
+        }
+        catch (...) // retour arrière : détruire les éléments construits
+        {
+            for (; rollback != first; ++rollback)
+                ranges::destroy_at(std::addressof(*rollback));
+            throw;
+        }
+    }
+};
+
+inline constexpr uninitialized_fill_n_fn uninitialized_fill_n{};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    constexpr int n{3};
+    alignas(alignof(std::string)) char out[n * sizeof(std::string)];
+
+    try
+    {
+        auto first{reinterpret_cast&lt;std::string*&gt;(out)};
+        auto last = std::ranges::uninitialized_fill_n(first, n, &quot;cppreference&quot;);
+
+        for (auto it{first}; it != last; ++it)
+            std::cout &lt;&lt; *it &lt;&lt; '\n';
+
+        std::ranges::destroy(first, last);
+    }
+    catch (...)
+    {
+        std::cout &lt;&lt; &quot;Exception!\n&quot;;
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">cppreference
+cppreference
+cppreference
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3870">LWG 3870</a></td>
+<td>C++20</td>
+<td>cet algorithme peut créer des objets sur un stockage <code>const</code></td>
+<td>maintenu interdit</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="uninitialized_fill.html">ranges::uninitialized_fill</a> (C++20)</strong> — copie un objet dans une zone mémoire non initialisée, définie par un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../uninitialized_fill_n.html">uninitialized_fill_n</a></strong> — copie un objet vers une zone de mémoire non initialisée, définie par un début et un nombre <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

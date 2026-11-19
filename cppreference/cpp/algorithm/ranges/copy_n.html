@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::copy_n, std::ranges::copy_n_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-copy_n-std-ranges-copy_n_result"><code>std::ranges::copy_n, std::ranges::copy_n_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/copy_n">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_iterator I, std::weakly_incrementable O &gt;
+requires std::indirectly_copyable&lt;I, O&gt;
+constexpr copy_n_result&lt;I, O&gt;
+    copy_n( I first, std::iter_difference_t&lt;I&gt; n, O result );  // (1) (depuis C++20)
+</code></pre>
+<p><strong>Type auxiliaire</strong></p>
+<pre><code class="language-cpp">template&lt; class I, class O &gt;
+using copy_n_result = ranges::in_out_result&lt;I, O&gt;;  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Copie exactement <code>n</code> valeurs de l'intervalle commençant à <code>first</code> vers l'intervalle commençant à <code>result</code> en effectuant <code>*(result + i) = *(first + i)</code> pour chaque entier dans <code>[0,n)</code>. Le comportement est indéfini si <code>result</code> se trouve dans l'intervalle <code>[first,first + n)</code> (<a href="copy_backward.html"><code>ranges::copy_backward</code></a> peut être utilisé à la place dans ce cas).</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first</code> — le début de la plage des éléments à copier</li>
+<li><code>n</code> — nombre d'éléments à copier</li>
+<li><code>result</code> — le début de l'intervalle de destination</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>ranges::copy_n_result{first + n, result + n}</code> ou, plus formellement, une valeur de type <a href="return_types/in_out_result.html"><code>ranges::in_out_result</code></a> qui contient un itérateur <a href="../../iterator/input_iterator.html"><code>std::input_iterator</code></a> égal à <code>ranges::next(first, n)</code> et un itérateur <a href="../../iterator/weakly_incrementable.html"><code>std::weakly_incrementable</code></a> égal à <code>ranges::next(result, n)</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>n</code> affectations.</p>
+<h2 id="Notes">Notes</h2>
+<p>En pratique, les implémentations de <code>std::ranges::copy_n</code> peuvent éviter les affectations multiples et utiliser des fonctions de copie en bloc telles que <a href="../../string/byte/memmove.html"><code>std::memmove</code></a> si le type de valeur est <a href="../../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a> et que les types d'itérateurs satisfont <a href="../../iterator/contiguous_iterator.html"><code>contiguous_iterator</code></a>. Alternativement, cette accélération de copie peut être introduite pendant une phase d'optimisation du compilateur.</p>
+<p>Lors de la copie de plages qui se chevauchent, <code>std::ranges::copy_n</code> convient lorsque la copie se fait vers la gauche (le début de la plage de destination est en dehors de la plage source), tandis que <code>std::ranges::copy_backward</code> convient lorsque la copie se fait vers la droite (la fin de la plage de destination est en dehors de la plage source).</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct copy_n_fn
+{
+    template&lt;std::input_iterator I, std::weakly_incrementable O&gt;
+    requires std::indirectly_copyable&lt;I, O&gt;
+    constexpr ranges::copy_n_result&lt;I, O&gt;
+        operator()(I first, std::iter_difference_t&lt;I&gt; n, O result) const
+    {
+        for (std::iter_difference_t&lt;I&gt; i {}; i != n; ++i, ++first, ++result)
+            *result = *first;
+        return {std::move(first), std::move(result)};
+    }
+};
+
+inline constexpr copy_n_fn copy_n {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+    const std::string_view in {&quot;ABCDEFGH&quot;};
+    std::string out;
+
+    std::ranges::copy_n(in.begin(), 4, std::back_inserter(out));
+    std::cout &lt;&lt; std::quoted(out) &lt;&lt; '\n';
+
+    out = &quot;abcdefgh&quot;;
+    const auto res = std::ranges::copy_n(in.begin(), 5, out.begin());
+    std::cout
+        &lt;&lt; &quot;*(res.in): '&quot; &lt;&lt; *(res.in) &lt;&lt; &quot;', distance: &quot;
+        &lt;&lt; std::distance(std::begin(in), res.in) &lt;&lt; '\n'
+        &lt;&lt; &quot;*(res.out): '&quot; &lt;&lt; *(res.out) &lt;&lt; &quot;', distance: &quot;
+        &lt;&lt; std::distance(std::begin(out), res.out) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">&quot;ABCD&quot;
+*(res.in): 'F', distance: 5
+*(res.out): 'f', distance: 5
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="copy.html">ranges::copyranges::copy_if</a> (C++20) (C++20)</strong> — copie une plage d'éléments vers un nouvel emplacement <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="copy_backward.html">ranges::copy_backward</a> (C++20)</strong> — copie une plage d'éléments dans l'ordre inverse <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="remove_copy.html">ranges::remove_copyranges::remove_copy_if</a> (C++20) (C++20)</strong> — copie un intervalle d'éléments en omettant ceux qui satisfont des critères spécifiques <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="replace_copy.html">ranges::replace_copyranges::replace_copy_if</a> (C++20) (C++20)</strong> — copie un intervalle en remplaçant les éléments satisfaisant des critères spécifiques par une autre valeur <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="reverse_copy.html">ranges::reverse_copy</a> (C++20)</strong> — crée une copie d'un intervalle en ordre inverse <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="rotate_copy.html">ranges::rotate_copy</a> (C++20)</strong> — copie et fait pivoter un intervalle d'éléments <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="unique_copy.html">ranges::unique_copy</a> (C++20)</strong> — crée une copie de certains éléments d'un intervalle ne contenant aucun doublon consécutif <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="move.html">ranges::move</a> (C++20)</strong> — déplace un intervalle d'éléments vers un nouvel emplacement <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="move_backward.html">ranges::move_backward</a> (C++20)</strong> — déplace un intervalle d'éléments vers un nouvel emplacement dans l'ordre inverse <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../copy_n.html">copy_n</a> (C++11)</strong> — copie un certain nombre d'éléments à un nouvel emplacement <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

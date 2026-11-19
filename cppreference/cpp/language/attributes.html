@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Séquence de spécificateurs d&#x27;attributs (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="séquence-de-spécificateurs-d-attributs-depuis-c-11">Séquence de spécificateurs d'attributs (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/attributes">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Introduit des attributs définis par l'implémentation pour les types, objets, code, etc.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>[[</code> <code>attribute-list</code> <code>]]</code> | | (depuis C++11) |
+|
+| <code>[[</code> <code>using</code> <code>attribute-namespace</code> <code>:</code> <code>attribute-list</code> <code>]]</code> | | (depuis C++17) |
+|</p>
+<p>où <code>attribute-list</code> est une liste séparée par des virgules de zéro ou plusieurs <code>attribute</code> (pouvant se terminer par une ellipse <code>...</code> indiquant une <a href="parameter_pack.html">expansion de paquet</a>)</p>
+<p>|
+| |
+| <code>identifier</code> | (1) | |
+|
+| <code>attribute-namespace</code> <code>::</code> <code>identifier</code> | (2) | |
+|
+| <code>identifier</code> <code>(</code> <code>argument-list</code> ﻿*(facultatif)* <code>)</code> | (3) | |
+|
+| <code>attribute-namespace</code> <code>::</code> <code>identifier</code> <code>(</code> <code>argument-list</code> ﻿*(facultatif)* <code>)</code> | (4) | |
+|</p>
+<p>où <code>attribute-namespace</code> est un <code>identifier</code> et <code>argument-list</code> est une séquence de jetons où les parenthèses, crochets et accolades sont équilibrés (<code>balanced-token-seq</code>).</p>
+<ol>
+<li>
+<p>Attribut simple, comme <code>[[noreturn]]</code>.</p>
+</li>
+<li>
+<p>Attribut avec un espace de noms, comme <code>[[gnu::unused]]</code>.</p>
+</li>
+<li>
+<p>Attribut avec arguments, comme <code>[[deprecated(&quot;because&quot;)]]</code>.</p>
+</li>
+<li>
+<p>Attribut avec à la fois un espace de noms et une liste d'arguments.</p>
+</li>
+</ol>
+<blockquote>
+<p>Si <code>using namespace:</code> apparaît au début d'une liste d'attributs, aucun autre attribut de cette liste ne peut spécifier un espace de noms : l'espace de noms spécifié dans un using s'applique à tous :</p>
+<pre><code class="language-cpp">[[using CC: opt(1), debug]] // identique à [[CC::opt(1), CC::debug]]
+[[using CC: CC::opt(1)]] // erreur : impossible de combiner using et un attribut à portée
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Explanation">Explication</h2>
+<p>Les attributs fournissent la syntaxe standard unifiée pour les extensions de langage définies par l'implémentation, comme les extensions de langage GNU et IBM <code>__attribute__((...))</code>, l'extension Microsoft <code>__declspec()</code>, etc.</p>
+<p>Un attribut peut être utilisé presque partout dans le programme C++, et s'appliquer presque à tout : aux types, aux variables, aux fonctions, aux noms, aux blocs de code, à des unités de traduction entières, bien que chaque attribut particulier ne soit valide que là où l'implémentation le permet : <code>[[expect_true]]</code> pourrait être un attribut utilisable uniquement avec une <code>if</code>, et non avec une déclaration de classe. <code>[[omp::parallel()]]</code> pourrait être un attribut s'appliquant à un bloc de code ou à une boucle <code>for</code>, mais non au type <code>int</code>, etc. (notez que ces deux attributs sont des exemples fictifs, voir plus bas les attributs standard et certains attributs non standard).</p>
+<p>Dans les déclarations, les attributs peuvent apparaître à la fois avant la déclaration entière et directement après le nom de l'entité déclarée, auquel cas ils sont combinés. Dans la plupart des autres situations, les attributs s'appliquent à l'entité qui les précède directement.</p>
+<p>Le <a href="alignas.html"><code>alignas</code> spécificateur</a> fait partie de la séquence de spécificateurs d'attributs, bien qu'il ait une syntaxe différente. Il peut apparaître là où apparaissent les attributs <code>[[...]]</code> et se mélanger avec eux (à condition d'être utilisé là où <code>alignas</code> est permis).</p>
+<p>Deux jetons consécutifs de crochet gauche (<code>[[</code>) ne peuvent apparaître que lors de l'introduction d'un spécificateur d'attribut ou à l'intérieur d'un argument d'attribut.</p>
+<pre><code class="language-cpp">void f()
+{
+    int y[3];
+    y[[] { return 0; }()] = 1;  // error
+    int i [[cats::meow([[]])]]; // OK
+}
+</code></pre>
+<p>Outre les attributs standard listés ci-dessous, les implémentations peuvent prendre en charge des attributs non standard arbitraires au comportement défini par l'implémentation. Tous les attributs inconnus d'une implémentation sont ignorés sans provoquer d'erreur. <em>(depuis C++17)</em></p>
+<blockquote>
+<p>Un attribut sans <code>attribute-namespace</code> et sans <code>attribute-namespace</code> dont le nom est soit <code>std</code> soit <code>std</code> suivi d'un ou plusieurs chiffres est réservé pour une future standardisation. Autrement dit, chaque attribut non standard appartient à l'<code>attribute-namespace</code> fourni par l'implémentation, par exemple <code>[[gnu::may_alias]]</code>, <code>[[clang::trivial_abi]]</code> et <code>[[msvc::noop_dtor]]</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Standard_attributes">Attributs standard</h2>
+<p>Les attributs suivants sont définis par le standard C++.</p>
+<p>Les attributs standard ne peuvent pas être ignorés syntaxiquement : ils ne peuvent pas contenir d'erreurs de syntaxe, doivent être appliqués à la bonne cible, et les entités figurant dans les arguments doivent être <a href="definition.html#ODR-use">utilisées en ODR</a>.</p>
+<p>Les attributs standard ne peuvent pas non plus être ignorés sémantiquement : le comportement obtenu avec toutes les instances d'un attribut standard particulier supprimées aurait été un comportement conforme pour le programme original avec l'attribut présent.</p>
+<ul>
+<li><strong><code>[[noreturn]]</code> (C++11)</strong> — indique que la fonction ne retourne pas <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[carries_dependency]]</code> (C++11)</strong> — indique que la chaîne de dépendance dans release-consume <a href="../atomic/memory_order.html"><code>std::memory_order</code></a> se propage vers l'intérieur et vers l'extérieur de la fonction <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[deprecated]]</code> (C++14)<br />
+<code>[[deprecated(&quot;reason&quot;)]]</code> (C++14)</strong> — indique que l'utilisation du nom ou de l'entité déclarée avec cet attribut est autorisée, mais déconseillée pour certains <code>reason</code> <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[fallthrough]]</code> (C++17)</strong> — indique que le passage du label de cas précédent (fall-through) est intentionnel et ne doit pas être signalé par un compilateur qui avertit des fall-through <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[maybe_unused]]</code> (C++17)</strong> — supprime les avertissements du compilateur sur les entités inutilisées, le cas échéant <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[nodiscard]]</code> (C++17)<br />
+<code>[[nodiscard(&quot;reason&quot;)]]</code> (C++20)</strong> — encourage le compilateur à émettre un avertissement si la valeur de retour est ignorée <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[likely]]</code> (C++20)<br />
+<code>[[unlikely]]</code> (C++20)</strong> — indique que le compilateur doit optimiser le cas où un chemin d'exécution à travers une instruction est plus ou moins probable que tout autre chemin d'exécution <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[no_unique_address]]</code> (C++20)</strong> — indique qu'un membre de données non statique n'a pas besoin d'avoir une adresse distincte de tous les autres membres de données non statiques de sa classe <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[assume(expression)]]</code> (C++23)</strong> — spécifie que l'<em>expression</em> s'évaluera toujours à <code>true</code> en un point donné <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[indeterminate]]</code> (C++26)</strong> — spécifie qu'un objet a une valeur indéterminée s'il n'est pas initialisé <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[optimize_for_synchronized]]</code> (TM TS)</strong> — indique que la définition de la fonction doit être optimisée pour un appel depuis une <a href="transactional_memory.html">instruction synchronized</a> <em>(spécificateur d'attribut)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>La présence de chaque attribut individuel sur une plateforme donnée peut être vérifiée avec la macro de prétraitement <a href="../feature_test.html#Attributes"><code>__has_cpp_attribute</code></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_attributes"><code>__cpp_attributes</code></a></td>
+<td><a href="../compiler_support/11.html#cpp_attributes_200809L"><code>200809L</code></a></td>
+<td><em>(C++11)</em></td>
+<td>Attributs</td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_namespace_attributes"><code>__cpp_namespace_attributes</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_namespace_attributes_201411L"><code>201411L</code></a></td>
+<td><em>(C++17)</em></td>
+<td>Attributs pour les <a href="namespace.html">espaces de noms</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">[[gnu::always_inline]] [[gnu::hot]] [[gnu::const]] [[nodiscard]]
+inline int f(); // déclarer f avec quatre attributs
+
+[[gnu::always_inline, gnu::const, gnu::hot, nodiscard]]
+int f(); // identique à ci-dessus, mais utilise un seul spécificateur d'attribut qui contient quatre attributs
+
+// C++17:
+[[using gnu : const, always_inline, hot]] [[nodiscard]]
+int f[[gnu::always_inline]](); // un attribut peut apparaître dans plusieurs spécificateurs
+
+int f() { return 0; }
+
+int main() {}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2079.html">CWG 2079</a></td>
+<td>C++11</td>
+<td><code>[[</code> ne pouvait pas apparaître à l'intérieur d'un argument d'attribut</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2538.html">CWG 2538</a></td>
+<td>C++11</td>
+<td>il n'était pas clair si les attributs standard peuvent être ignorés syntaxiquement</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2695.html">CWG 2695</a></td>
+<td>C++11</td>
+<td>il n'était pas clair si les attributs standard peuvent être ignorés sémantiquement</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2156R1">P2156R1</a></td>
+<td>C++11</td>
+<td>chaque attribut standard devait apparaître au plus une fois dans un <code>attribute-list</code></td>
+<td>non requis</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../feature_test.html#Attributes"><code>__has_cpp_attribute</code></a> - vérifie la présence d'un attribut</strong></p>
+<p><strong><a href="../../c/language/attributes.html">Documentation C</a> pour Séquence de spécificateurs d'attributs</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html#Attribute-Syntax">Attributs dans GCC</a>. Ces attributs peuvent être utilisés comme <code>[[gnu::...]]</code>, <a href="https://stackoverflow.com/questions/54639524/which-gnu-attributes-have-c11-syntax#comment96071307_54639524">Voir SO</a>.</td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://clang.llvm.org/docs/AttributeReference.html">Attributs dans Clang</a>.</td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://learn.microsoft.com/en-us/cpp/cpp/attributes#microsoft-specific-attributes">Attributs dans MSVC</a>.</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

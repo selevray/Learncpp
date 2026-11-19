@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sélection générique (depuis C11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="sélection-générique-depuis-c11">Sélection générique (depuis C11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/generic">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet de choisir l'une de plusieurs expressions à la compilation, en fonction du type d'une expression de contrôle</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>_Generic</code> <code>(</code> <code>controlling-expression</code> <code>,</code> <code>association-list</code> <code>)</code> | | (depuis C11) |
+|</p>
+<p>où <code>association-list</code> est une liste d'associations séparées par des virgules, chacune ayant la syntaxe</p>
+<p>|
+| |
+| <code>type-name</code> <code>:</code> <code>expression</code> | | |
+|
+| <code>default</code> <code>:</code> <code>expression</code> | | |
+|</p>
+<p>where</p>
+<ul>
+<li><code>type-name</code> — tout <a href="compatible_type.html">type objet</a> complet qui n'est pas à taille variable (c'est-à-dire ni VLA ni pointeur vers VLA).</li>
+<li><code>controlling-expression</code> — toute expression (sauf l'<a href="operator_other.html#Comma_operator">opérateur virgule</a>) dont le type doit être compatible avec l'un des <code>type-name</code> si l'association <code>default</code> n'est pas utilisée</li>
+<li><code>expression</code> — toute expression (sauf l'<a href="operator_other.html#Comma_operator">opérateur virgule</a>) de type et de catégorie de valeur quelconques</li>
+</ul>
+<p>Deux <code>type-name</code>s de la <code>association-list</code> ne peuvent pas désigner des <a href="compatible_type.html#Compatible_types">types compatibles</a>. Il ne peut y avoir qu'une seule association utilisant le mot-clé <code>default</code>. Si <code>default</code> n'est pas utilisé et qu'aucun des <code>type-name</code>s n'est compatible avec le type de l'expression de contrôle, le programme ne compilera pas.</p>
+<h2 id="Explanation">Explication</h2>
+<p>D'abord, le type de <code>controlling-expression</code> subit des <a href="conversion.html#Lvalue_conversions">conversions lvalue</a>. La conversion s'effectue uniquement dans le domaine des types : elle supprime les qualificateurs cvr de premier niveau et l'atomicité, et applique les transformations tableau-vers-pointeur et fonction-vers-pointeur au type de l'expression de contrôle, sans déclencher d'effets de bord ni calculer de valeurs.</p>
+<p>Le type après conversion est comparé aux <code>type-name</code>s de la liste des associations.</p>
+<p>Si le type est <a href="compatible_type.html#Compatible_types">compatible</a> avec le <code>type-name</code> de l'une des associations, alors le type, la valeur et la <a href="value_category.html">catégorie de valeur</a> de la sélection générique sont le type, la valeur et la catégorie de valeur de l'<code>expression</code> qui apparaît après les deux-points pour cette <code>type-name</code>.</p>
+<p>Si aucun des <code>type-name</code>s n'est compatible avec le type du <code>controlling-expression</code>, et que l'association <code>default</code> est fournie, alors le type, la valeur et la catégorie de valeur de la sélection générique sont le type, la valeur et la catégorie de valeur de l'expression qui suit l'étiquette <code>default :</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>L'<code>controlling-expression</code> et les <code>expression</code>s des sélections non choisies ne sont jamais évalués.</p>
+<p>En raison des conversions lvalue, <code>&quot;abc&quot;</code> correspond à <code>char*</code> et non à <code>char[4]</code>, et <code>(int const){0}</code> correspond à <code>int</code>, et non à <code>const int</code>.</p>
+<p>Toutes les <a href="value_category.html">catégories de valeur</a>, y compris les désignateurs de fonctions et les expressions void, sont autorisées comme <code>expression</code>s dans une sélection générique, et si elle est choisie, la sélection générique elle-même a la même catégorie de valeur.</p>
+<p>Les <a href="../numeric/tgmath.html">macros mathématiques génériques par type</a> de <a href="../numeric/tgmath.html"><code>&lt;tgmath.h&gt;</code></a>, introduites en C99, étaient implémentées de manière propre à chaque compilateur. Les sélections génériques, introduites en C11, ont donné aux programmeurs la possibilité d'écrire du code dépendant du type de manière similaire.</p>
+<p>La sélection générique est similaire à la surcharge en C++ (où l'une de plusieurs fonctions est choisie à la compilation en fonction des types des arguments), sauf qu'elle choisit entre des expressions arbitraires.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/_Generic.html"><code>_Generic</code></a>,
+<a href="../keyword/default.html"><code>default</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+
+// Implémentation possible de la macro cbrt de tgmath.h
+#define cbrt(X) _Generic((X),     \
+              long double: cbrtl, \
+                  default: cbrt,  \
+                    float: cbrtf  \
+              )(X)
+
+int main(void)
+{
+    double x = 8.0;
+    const float y = 3.375;
+    printf(&quot;cbrt(8.0) = %f\n&quot;, cbrt(x));    // sélectionne le cbrt par défaut
+    printf(&quot;cbrtf(3.375) = %f\n&quot;, cbrt(y)); // convertit const float en float,
+                                            // puis sélectionne cbrtf
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">cbrt(8.0) = 2.000000
+cbrtf(3.375) = 1.500000
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts modifiant le comportement suivants ont été appliqués rétroactivement aux normes C publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_481">DR 481</a></td>
+<td>C11</td>
+<td>il n'était pas précisé si l'expression de contrôle subit des conversions lvalue</td>
+<td>elle les subit</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.5.1.1 Sélection générique (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.5.1.1 Sélection générique (p : 56-57)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.5.1.1 Sélection générique (p : 78-79)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/templates.html">Documentation C++</a> pour Modèles</strong></p>
+
+</main>
+</body>
+</html>

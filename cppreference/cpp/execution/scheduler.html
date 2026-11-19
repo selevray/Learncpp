@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::execution::scheduler — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/execution.html">Bibliothèque d&#x27;exécution (depuis C++26)</a></nav>
+<h1 id="std-execution-scheduler"><code>std::execution::scheduler</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/execution/scheduler">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;execution&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Sch &gt;
+concept scheduler =
+    std::derived_from&lt;
+        typename std::remove_cvref_t&lt;Sch&gt;::scheduler_concept,
+        scheduler_t&gt; &amp;&amp;
+    /*queryable*/&lt;Sch&gt; &amp;&amp;
+    requires(Sch&amp;&amp; sch)
+    {
+        {
+            std::execution::schedule(std::forward&lt;Sch&gt;(sch))
+        } -&gt; std::execution::sender;
+        {
+            auto(
+                std::execution::get_completion_scheduler&lt;
+                    std::execution::set_value_t&gt;(
+                        std::execution::get_env(
+                            std::execution::schedule(
+                                std::forward&lt;Sch&gt;(sch)))))
+        } -&gt; std::same_as&lt;std::remove_cvref_t&lt;Sch&gt;&gt;;
+    } &amp;&amp;
+    std::equality_comparable&lt;std::remove_cvref_t&lt;Sch&gt;&gt; &amp;&amp;
+    std::copy_constructible&lt;std::remove_cvref_t&lt;Sch&gt;&gt;;
+};  // (1) (depuis C++26)
+</code></pre>
+<p><strong>Type d'étiquette auxiliaire</strong></p>
+<pre><code class="language-cpp">struct scheduler_t {};  // (2) (depuis C++26)
+</code></pre>
+<p>Le concept <code>scheduler</code> est modélisé par les types qui sont des <em>ordonnanceurs</em>, c'est-à-dire des gestionnaires légers de ressources d'exécution, comme des pools de threads, qui fonctionnent avec la bibliothèque d'exécution C++.</p>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Étant donné un ordonnanceur de type <code>Sch</code> et un environnement d'exécution de type <code>Env</code> tel que <code>sender_in&lt;schedule_result_t&lt;Sch&gt;, Env&gt;</code> soit satisfait, alors <code>/*sender-in-of*/&lt;schedule_result_t&lt;Sch&gt;, Env&gt;</code> est modélisé.</p>
+<p>Le constructeur de copie, le destructeur, la comparaison d'égalité et les fonctions membres d'échange de l'ordonnanceur doivent être non lançants.</p>
+<p>Toutes ces fonctions membres ainsi que la fonction <code>schedule</code> du type d'ordonnanceur doivent être thread-safe.</p>
+<p>Deux ordonnanceurs ne sont égaux que s'ils représentent la même ressource d'exécution.</p>
+<p>Pour un ordonnanceur donné <code>sch</code>, l'expression <code>get_completion_scheduler&lt;set_value_t&gt;(get_env(schedule(sch)))</code> se compare égale à <code>sch</code>.</p>
+<p>Pour un ordonnanceur donné <code>sch</code>, si l'expression <code>get_domain(sch)</code> est bien formée, alors l'expression <code>get_domain(get_env(schedule(sch)))</code> est également bien formée et a le même type.</p>
+<p>Le destructeur d'un ordonnanceur ne doit pas bloquer l'achèvement en attente de tout récepteur connecté aux objets émetteurs retournés par schedule (la ressource sous-jacente peut fournir une API distincte pour attendre la fin des objets fonction soumis)</p>
+<h2 id="Examples">Exemples</h2>
+<p>simple enveloppe de <code>std::execution::run_loop</code> qui interroge en permanence la file de run_loop sur un thread dédié unique. Démonstration avec l'implémentation de référence du brouillon : &lt;https://godbolt.org/z/146fY4Y91&gt;</p>
+<pre><code class="language-cpp">#include &lt;execution&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+class single_thread_context
+{
+    std::execution::run_loop loop_{};
+    std::jthread thread_;
+
+public:
+    single_thread_context()
+        : thread_([this] { loop_.run(); })
+    {}
+    single_thread_context(single_thread_context&amp;&amp;) = delete;
+
+    ~single_thread_context()
+    {
+        loop_.finish();
+    }
+
+    std::execution::scheduler auto get_scheduler() noexcept
+    {
+        return loop_.get_scheduler();
+    }
+};
+
+int main()
+{
+    single_thread_context ctx;
+
+    std::execution::sender auto snd =
+        std::execution::schedule(ctx.get_scheduler())
+        | std::execution::then([]
+            {
+                std::cout &lt;&lt; &quot;Hello world! Have an int.\n&quot;;
+                return 015;
+            })
+        | std::execution::then([](int arg) { return arg + 42; });
+
+    auto [i] = std::this_thread::sync_wait(snd).value();
+
+    std::cout &lt;&lt; &quot;Back in the main thread, result is &quot; &lt;&lt; i &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Hello world! Have an int.
+Back in the main thread, result is 55
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="schedule.html">execution::schedule</a> (C++26)</strong> — prépare un graphe de tâches pour l'exécution sur un ordonnanceur donné <em>(objet de point de personnalisation)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

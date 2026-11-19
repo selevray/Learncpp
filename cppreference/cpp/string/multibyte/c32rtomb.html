@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::c32rtomb — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="std-c32rtomb"><code>std::c32rtomb</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/multibyte/c32rtomb">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cuchar&gt;</strong></p>
+<pre><code class="language-cpp">std::size_t c32rtomb( char* s, char32_t c32, std::mbstate_t* ps );  // (depuis C++11)
+</code></pre>
+<p>Convertit un caractère UTF-32 en sa représentation multioctet étroite.</p>
+<p>Si <code>s</code> n'est pas un pointeur nul, la fonction détermine le nombre d'octets nécessaires pour stocker la représentation multioctet de <code>c32</code> (y compris les éventuelles séquences de décalage, et en tenant compte de l'état de conversion multioctet courant <code>*ps</code>), et stocke cette représentation multioctet dans le tableau de caractères dont le premier élément est pointé par <code>s</code>, en mettant à jour <code>*ps</code> si nécessaire. Au plus <code>MB_CUR_MAX</code> octets peuvent être écrits par cette fonction.</p>
+<p>Si <code>s</code> est un pointeur nul, l'appel équivaut à <code>std::c32rtomb(buf, U'\0', ps)</code> pour un tampon interne <code>buf</code>.</p>
+<p>Si <code>c32</code> est le caractère large nul <code>U'\0'</code>, un octet nul est stocké, précédé de toute séquence de décalage nécessaire pour rétablir l'état de décalage initial, et le paramètre d'état de conversion <code>*ps</code> est mis à jour pour représenter l'état de décalage initial.</p>
+<p>L'encodage multioctet utilisé par cette fonction est spécifié par la locale C actuellement active.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers le tableau de caractères étroits où le caractère multioctet sera stocké</li>
+<li><code>c32</code> — le caractère 32 bits à convertir</li>
+<li><code>ps</code> — pointeur vers l'objet d'état de conversion utilisé lors de l'interprétation de la chaîne multioctet</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, renvoie le nombre d'octets (y compris les séquences de décalage) écrits dans le tableau de caractères dont le premier élément est pointé par <code>s</code>. Cette valeur peut être <code>0</code>, par exemple lors du traitement du premier <code>char32_t</code> d'une séquence multi-<code>char32_t</code> de caractères (ce cas ne se produit pas en UTF-32).</p>
+<p>En cas d'échec (si <code>c32</code> n'est pas un caractère 32 bits valide), renvoie <code>-1</code>, stocke <a href="../../error/errno_macros.html"><code>EILSEQ</code></a> dans <a href="../../error/errno.html"><code>errno</code></a>, et laisse <code>*ps</code> dans un état non spécifié.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;climits&gt;
+#include &lt;clocale&gt;
+#include &lt;cuchar&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+
+int main()
+{
+    std::setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    std::u32string_view strv = U&quot;zß水🍌&quot;; // ou z\u00df\u6c34\U0001F34C
+    std::cout &lt;&lt; &quot;Processing &quot; &lt;&lt; strv.size() &lt;&lt; &quot; UTF-32 code units: [ &quot;;
+    for (char32_t c : strv)
+        std::cout &lt;&lt; std::showbase &lt;&lt; std::hex &lt;&lt; static_cast&lt;int&gt;(c) &lt;&lt; ' ';
+    std::cout &lt;&lt; &quot;]\n&quot;;
+
+    std::mbstate_t state{};
+    char out[MB_LEN_MAX]{};
+    for (char32_t c : strv)
+    {
+        std::size_t rc = std::c32rtomb(out, c, &amp;state);
+        std::cout &lt;&lt; static_cast&lt;int&gt;(c) &lt;&lt; &quot; converted to [ &quot;;
+        if (rc != (std::size_t) - 1)
+            for (unsigned char c8 : std::string_view{out, rc})
+                std::cout &lt;&lt; +c8 &lt;&lt; ' ';
+        std::cout &lt;&lt; &quot;]\n&quot;;
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Processing 4 UTF-32 code units: [ 0x7a 0xdf 0x6c34 0x1f34c ]
+0x7a converted to [ 0x7a ]
+0xdf converted to [ 0xc3 0x9f ]
+0x6c34 converted to [ 0xe6 0xb0 0xb4 ]
+0x1f34c converted to [ 0xf0 0x9f 0x8d 0x8c ]
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbrtoc32.html">mbrtoc32</a> (C++11)</strong> — convertit un caractère multioctet étroit en encodage UTF-32 <em>(fonction)</em></li>
+<li><strong><a href="../../locale/codecvt/out.html">do_out</a> [virtuelle]</strong> — convertit une chaîne de <code>InternT</code> vers <code>ExternT</code>, par exemple lors de l'écriture dans le fichier <em>(fonction membre virtuelle protégée de <code>std::codecvt&lt;InternT,ExternT,StateT&gt;</code>)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/multibyte/c32rtomb.html">Documentation C</a> pour c32rtomb</strong></p>
+
+</main>
+</body>
+</html>

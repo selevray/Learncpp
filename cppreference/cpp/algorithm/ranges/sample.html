@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::sample — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-sample"><code>std::ranges::sample</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/sample">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_iterator I, std::sentinel_for&lt;I&gt; S,
+          std::weakly_incrementable O, class Gen &gt;
+requires (std::forward_iterator&lt;I&gt; || std::random_access_iterator&lt;O&gt;) &amp;&amp;
+          std::indirectly_copyable&lt;I, O&gt; &amp;&amp;
+          std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+O sample( I first, S last, O out, std::iter_difference_t&lt;I&gt; n, Gen&amp;&amp; gen );  // (1) (depuis C++20)
+
+template&lt; ranges::input_range R, std::weakly_incrementable O, class Gen &gt;
+requires (ranges::forward_range&lt;R&gt; || std::random_access_iterator&lt;O&gt;) &amp;&amp;
+          std::indirectly_copyable&lt;ranges::iterator_t&lt;R&gt;, O&gt; &amp;&amp;
+          std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+O sample( R&amp;&amp; r, O out, ranges::range_difference_t&lt;R&gt; n, Gen&amp;&amp; gen );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Sélectionne <code>M = min(n, last - first)</code> éléments de la séquence <code>[first,last)</code> (sans remise) de sorte que chaque <em>échantillon</em> possible ait la même probabilité d'apparition, et écrit ces éléments sélectionnés dans l'intervalle commençant à <code>out</code>.</li>
+</ol>
+<p>L'algorithme est <em>stable</em> (préserve l'ordre relatif des éléments sélectionnés) seulement si <code>I</code> modélise <code>std::forward_iterator</code>.</p>
+<p>Le comportement est indéfini si <code>out</code> se trouve dans <code>[first,last)</code>.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code>, et <code>ranges::end(r)</code> comme <code>last</code>.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first1, last1</code> — l'intervalle dans lequel effectuer l'échantillonnage (<em>la population</em>)</li>
+<li><code>r</code> — l'intervalle dans lequel effectuer l'échantillonnage (<em>la population</em>)</li>
+<li><code>out</code> — l'itérateur de sortie où les échantillons sont écrits</li>
+<li><code>n</code> — nombre d'échantillons à prélever</li>
+<li><code>gen</code> — le générateur de nombres aléatoires utilisé comme source d'aléa</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur égal à <code>out + M</code>, c'est-à-dire la fin de l'intervalle d'échantillons résultant.</p>
+<h2 id="Complexity">Complexité</h2>
+<p><em>Linéaire</em> : 𝓞<code>(last - first)</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction peut implémenter un <em>échantillonnage par sélection</em> ou un <a href="https://en.wikipedia.org/wiki/reservoir_sampling">échantillonnage par réservoir</a>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct sample_fn
+{
+    template&lt;std::input_iterator I, std::sentinel_for&lt;I&gt; S,
+             std::weakly_incrementable O, class Gen&gt;
+    requires (std::forward_iterator&lt;I&gt; or
+              std::random_access_iterator&lt;O&gt;) &amp;&amp;
+              std::indirectly_copyable&lt;I, O&gt; &amp;&amp;
+              std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+    O operator()(I first, S last, O out, std::iter_difference_t&lt;I&gt; n, Gen&amp;&amp; gen) const
+    {
+        using diff_t = std::iter_difference_t&lt;I&gt;;
+        using distrib_t = std::uniform_int_distribution&lt;diff_t&gt;;
+        using param_t = typename distrib_t::param_type;
+        distrib_t D{};
+
+        if constexpr (std::forward_iterator&lt;I&gt;)
+        {
+            // cette branche préserve la « stabilité » des éléments de l'échantillon
+            auto rest{ranges::distance(first, last)};
+            for (n = ranges::min(n, rest); n != 0; ++first)
+                if (D(gen, param_t(0, --rest)) &lt; n)
+                {
+                    *out++ = *first;
+                    --n;
+                }
+            return out;
+        }
+        else
+        {
+            // O est un random_access_iterator
+            diff_t sample_size{};
+            // copie les éléments [first, first + M) vers une sortie à « accès aléatoire »
+            for (; first != last &amp;&amp; sample_size != n; ++first)
+                out[sample_size++] = *first;
+            // écrase certains des éléments copiés par des éléments sélectionnés au hasard
+            for (auto pop_size{sample_size}; first != last; ++first, ++pop_size)
+            {
+                const auto i{D(gen, param_t{0, pop_size})};
+                if (i &lt; n)
+                    out[i] = *first;
+            }
+            return out + sample_size;
+        }
+    }
+
+    template&lt;ranges::input_range R, std::weakly_incrementable O, class Gen&gt;
+    requires (ranges::forward_range&lt;R&gt; or std::random_access_iterator&lt;O&gt;) &amp;&amp;
+              std::indirectly_copyable&lt;ranges::iterator_t&lt;R&gt;, O&gt; &amp;&amp;
+              std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+    O operator()(R&amp;&amp; r, O out, ranges::range_difference_t&lt;R&gt; n, Gen&amp;&amp; gen) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::move(out), n,
+                       std::forward&lt;Gen&gt;(gen));
+    }
+};
+
+inline constexpr sample_fn sample {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;random&gt;
+#include &lt;vector&gt;
+
+void print(auto const&amp; rem, auto const&amp; v)
+{
+    std::cout &lt;&lt; rem &lt;&lt; &quot; = [&quot; &lt;&lt; std::size(v) &lt;&lt; &quot;] { &quot;;
+    for (auto const&amp; e : v)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; &quot;}\n&quot;;
+}
+
+int main()
+{
+    const auto in = {1, 2, 3, 4, 5, 6};
+    print(&quot;in&quot;, in);
+
+    std::vector&lt;int&gt; out;
+    const int max = in.size() + 2;
+    auto gen = std::mt19937{std::random_device{}()};
+
+    for (int n{}; n != max; ++n)
+    {
+        out.clear();
+        std::ranges::sample(in, std::back_inserter(out), n, gen);
+        std::cout &lt;&lt; &quot;n = &quot; &lt;&lt; n;
+        print(&quot;, out&quot;, out);
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">in = [6] { 1 2 3 4 5 6 }
+n = 0, out = [0] { }
+n = 1, out = [1] { 5 }
+n = 2, out = [2] { 4 5 }
+n = 3, out = [3] { 2 3 5 }
+n = 4, out = [4] { 2 4 5 6 }
+n = 5, out = [5] { 1 2 3 5 6 }
+n = 6, out = [6] { 1 2 3 4 5 6 }
+n = 7, out = [6] { 1 2 3 4 5 6 }
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="shuffle.html">ranges::shuffle</a> (C++20)</strong> — réordonne aléatoirement les éléments d'un intervalle <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="../sample.html">sample</a> (C++17)</strong> — sélectionne N éléments aléatoires d'une séquence <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

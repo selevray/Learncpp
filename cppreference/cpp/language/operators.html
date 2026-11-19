@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>surcharge d&#x27;opérateurs — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="surcharge-d-opérateurs">surcharge d'opérateurs</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/operators">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Personnalise les opérateurs C++ pour les opérandes de types définis par l'utilisateur.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p><em>Les fonctions opérateurs</em> sont des <a href="function.html">fonctions</a> dont les noms sont particuliers :</p>
+<p>|
+| |
+| <code>operator</code> <code>op</code> | (1) | |
+|
+| <code>operator</code> <code>new</code> <code>operator</code> <code>new []</code> | (2) | |
+|
+| <code>operator</code> <code>delete</code> <code>operator</code> <code>delete []</code> | (3) | |
+|
+| <code>operator</code> <code>co_await</code> | (4) | (depuis C++20) |
+|</p>
+<ul>
+<li><code>op</code> — l'un quelconque des opérateurs suivants :<code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code> <code>^</code> <code>&amp;</code> <code>|</code> <code>~</code> <code>!</code> <code>=</code> <code>&lt;</code> <code>&gt;</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code> <code>^=</code> <code>&amp;=</code> <code>|=</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code> <code>&gt;&gt;=</code> <code>&lt;&lt;=</code> <code>==</code> <code>!=</code> <code>&lt;=</code> <code>&gt;=</code> <code>&lt;=&gt;</code> <em>(depuis C++20)</em> <code>&amp;&amp;</code> <code>||</code> <code>++</code> <code>--</code> <code>,</code> <code>-&gt;*</code> <code>-&gt;</code> <code>()</code> <code>[]</code></li>
+</ul>
+<ol>
+<li>
+<p>Un opérateur de ponctuation surchargé.</p>
+</li>
+<li>
+<p>Une <a href="../memory/new/operator_new.html">fonction d'allocation</a>.</p>
+</li>
+<li>
+<p>Une <a href="../memory/new/operator_delete.html">fonction de désallocation</a>.</p>
+</li>
+<li>
+<p>Un opérateur <code>co_await</code> surchargé destiné à être utilisé dans des <a href="coroutines.html#co_await"><code>co_await</code> expressions</a>.</p>
+</li>
+</ol>
+<p>Le comportement des opérateurs autres que de ponctuation est décrit sur leurs pages respectives. Sauf indication contraire, le reste de la description de cette page ne s'applique pas à ces fonctions.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Lorsqu'un opérateur apparaît dans une <a href="expressions.html">expression</a>, et qu'au moins l'un de ses opérandes a un <a href="class.html">type classe</a> ou un <a href="enum.html">type énumération</a>, alors la <a href="overload_resolution.html">résolution de surcharge</a> sert à déterminer la fonction définie par l'utilisateur à appeler parmi toutes les fonctions dont les signatures correspondent à ce qui suit :</p>
+<p><strong>Expression</strong> | <strong>En tant que fonction membre</strong> | <strong>En tant que fonction non membre</strong> | <strong>Exemple</strong></p>
+<p>@a
+| (a).operator@ ( ) | operator@ (a) | <code>!std::cin</code> appelle <code>std::cin.operator!()</code></p>
+<p>a@b
+| (a).operator@ (b) | operator@ (a, b) | <code>std::cout &lt;&lt; 42</code> appelle <code>std::cout.operator&lt;&lt;(42)</code></p>
+<p>a=b
+| (a).operator= (b) | ne peut pas être non membre | Étant donné <code>std::string s;</code>, <code>s = &quot;abc&quot;;</code> appelle <code>s.operator=(&quot;abc&quot;)</code></p>
+<p>a(b...)
+| (a).operator()(b...) | ne peut pas être non membre | Étant donné <code>std::random_device r;</code>, <code>auto n = r();</code> appelle <code>r.operator()()</code></p>
+<p>a[b...]
+| (a).operator<a href="b..."></a> | ne peut pas être non membre | Étant donné <code>std::map&lt;int, int&gt; m;</code>, <code>m[1] = 2;</code> appelle <code>m.operator[](1)</code></p>
+<p>a-&gt;
+| (a).operator-&gt;( ) | ne peut pas être non membre | Étant donné <code>std::unique_ptr&lt;S&gt; p;</code>, <code>p-&gt;bar()</code> appelle <code>p.operator-&gt;()</code></p>
+<p>a@
+| (a).operator@ (0) | operator@ (a, 0) | Étant donné <code>std::vector&lt;int&gt;::iterator i;</code>, <code>i++</code> appelle <code>i.operator++(0)</code></p>
+<p>Dans ce tableau, <code>@</code> est un marqueur représentant tous les opérateurs correspondants : tous les opérateurs préfixes dans @a, tous les opérateurs postfixes autres que -&gt; dans a@, tous les opérateurs infixes autres que = dans a@b.</p>
+<blockquote>
+<p>De plus, pour les opérateurs de comparaison <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>, <code>&lt;=&gt;</code>, la résolution de surcharge considère aussi les <a href="overload_resolution.html#Call_to_an_overloaded_operator">candidats réécrits</a> <code>operator==</code> ou <code>operator&lt;=&gt;</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Les opérateurs surchargés (mais pas les opérateurs intégrés) peuvent être appelés en utilisant la notation fonctionnelle :</p>
+<pre><code class="language-cpp">std::string str = &quot;Hello, &quot;;
+str.operator+=(&quot;world&quot;);                      // équivalent à str += &quot;world&quot;;
+operator&lt;&lt;(operator&lt;&lt;(std::cout, str), '\n'); // équivalent à std::cout &lt;&lt; str &lt;&lt; '\n';
+                                              // (depuis C++17) sauf pour le séquencement
+</code></pre>
+<blockquote>
+<h4 id="Static_overloaded_operators">Opérateurs surchargés statiques</h4>
+<p>Les opérateurs surchargés qui sont des fonctions membres peuvent être déclarés <a href="static.html#Static_member_functions">static</a>. Cependant, cela n'est autorisé que pour <code>operator()</code> et <code>operator[]</code>.</p>
+<p>De tels opérateurs peuvent être appelés en utilisant la notation fonctionnelle. Toutefois, lorsque ces opérateurs apparaissent dans des expressions, ils nécessitent toujours un objet de type classe.</p>
+<pre><code class="language-cpp">struct SwapThem
+{
+    template&lt;typename T&gt;
+    static void operator()(T&amp; lhs, T&amp; rhs)
+    {
+        std::ranges::swap(lhs, rhs);
+    }
+
+    template&lt;typename T&gt;
+    static void operator[](T&amp; lhs, T&amp; rhs)
+    {
+        std::ranges::swap(lhs, rhs);
+    }
+};
+inline constexpr SwapThem swap_them{};
+
+void foo()
+{
+    int a = 1, b = 2;
+
+    swap_them(a, b); // OK
+    swap_them[a, b]; // OK
+
+    SwapThem{}(a, b); // OK
+    SwapThem{}[a, b]; // OK
+
+    SwapThem::operator()(a, b); // OK
+    SwapThem::operator[](a, b); // OK
+
+    SwapThem(a, b); // erreur, construction invalide
+    SwapThem[a, b]; // error
+}
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Restrictions">Restrictions</h2>
+<ul>
+<li>Une fonction opérateur doit avoir au moins un paramètre de fonction ou un paramètre objet implicite dont le type est une classe, une référence à une classe, une énumération ou une référence à une énumération.</li>
+<li>Les opérateurs <code>::</code> (résolution de portée), <code>.</code> (accès membre), <code>.*</code> (accès membre via pointeur vers membre) et <code>?:</code> (conditionnel ternaire) ne peuvent pas être surchargés.</li>
+<li>De nouveaux opérateurs tels que <code>**</code>, <code>&lt;&gt;</code> ou <code>&amp;|</code> ne peuvent pas être créés.</li>
+<li>Il n'est pas possible de modifier la priorité, le regroupement ou le nombre d'opérandes des opérateurs.</li>
+<li>La surcharge de l'opérateur <code>-&gt;</code> doit soit renvoyer un pointeur brut, soit renvoyer un objet (par référence ou par valeur) pour lequel l'opérateur <code>-&gt;</code> est à son tour surchargé.</li>
+<li>Les surcharges des opérateurs <code>&amp;&amp;</code> et <code>||</code> perdent l'évaluation en court-circuit.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>&amp;&amp;</code>, <code>||</code> et <code>,</code> perdent leurs <a href="eval_order.html">propriétés de séquencement</a> particulières lorsqu'ils sont surchargés et se comportent comme des appels de fonction ordinaires, même lorsqu'ils sont utilisés sans la notation d'appel de fonction.</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<h2 id="Canonical_implementations">Implémentations canoniques</h2>
+<p>Outre les restrictions ci-dessus, le langage n'impose aucune autre contrainte sur ce que font les opérateurs surchargés, ni sur le type de retour (il ne participe pas à la résolution de surcharge), mais en général, les opérateurs surchargés doivent se comporter aussi semblablement que possible aux opérateurs intégrés : <code>operator+</code> doit additionner, plutôt que multiplier ses arguments, <code>operator=</code> doit affecter, etc. Les opérateurs apparentés doivent se comporter de façon similaire (<code>operator+</code> et <code>operator+=</code> effectuent la même opération de type addition). Les types de retour sont limités par les expressions dans lesquelles l'opérateur doit être utilisé : par exemple, les opérateurs d'affectation renvoient par référence pour permettre d'écrire <code>a = b = c = d</code>, ce que permettent les opérateurs intégrés.</p>
+<p>Les surcharges d'opérateurs couramment utilisées ont les formes canoniques typiques suivantes :<a href="operators.html#cite_note-1">[1]</a></p>
+<h3 id="Assignment_operator">Opérateur d'affectation</h3>
+<p>L'opérateur d'affectation <code>operator=</code> possède des propriétés particulières : voir <a href="as_operator.html">affectation par copie</a> et <a href="move_operator.html">affectation par déplacement</a> pour plus de détails.</p>
+<p>L'opérateur d'affectation par copie canonique doit <a href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.html#c62-make-copy-assignment-safe-for-self-assignment">être sûr en cas d'auto-affectation</a>, et renvoyer le membre gauche par référence :</p>
+<pre><code class="language-cpp">// affectation par copie
+T&amp; operator=(const T&amp; other)
+{
+    // Protéger contre l'auto-affectation
+    if (this == &amp;other)
+        return *this;
+
+    // supposons que *this gère une ressource réutilisable, comme un tampon alloué sur le tas mArray
+    if (size != other.size)           // la ressource de *this ne peut pas être réutilisée
+    {
+        temp = new int[other.size];   // alloue la ressource ; en cas d'exception, ne fait rien
+        delete[] mArray;              // libérer la ressource de *this
+        mArray = temp;
+        size = other.size;
+    }
+
+    std::copy(other.mArray, other.mArray + other.size, mArray);
+    return *this;
+}
+</code></pre>
+<blockquote>
+<p>L'affectation par déplacement canonique doit <a href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.html#c64-a-move-operation-should-move-and-leave-its-source-in-a-valid-state">laisser l'objet déplacé dans un état valide</a> (c'est-à-dire un état dont les invariants de classe sont préservés), et soit <a href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.html#c65-make-move-assignment-safe-for-self-assignment">ne rien faire</a>, soit au moins laisser l'objet dans un état valide en cas d'auto-affectation, renvoyer le membre gauche par référence vers un objet non const, et être noexcept :</p>
+<pre><code class="language-cpp">// affectation par déplacement
+T&amp; operator=(T&amp;&amp; other) noexcept
+{
+    // Protéger contre l'auto-affectation
+    if (this == &amp;other)
+        return *this; // delete[]/size=0 serait également acceptable
+
+    delete[] mArray;                               // libérer la ressource de *this
+    mArray = std::exchange(other.mArray, nullptr); // laisser other dans un état valide
+    size = std::exchange(other.size, 0);
+    return *this;
+}
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Dans les situations où l'affectation par copie ne peut pas bénéficier de la réutilisation des ressources (elle ne gère pas de tableau alloué sur le tas et n'a pas de membre (éventuellement transitif) qui en gère un, comme un membre <a href="../container/vector.html"><code>std::vector</code></a> ou <a href="../string/basic_string.html"><code>std::string</code></a>), il existe un raccourci pratique et populaire : l'opérateur d'affectation copie-et-échange, qui prend son paramètre par valeur (fonctionnant ainsi à la fois comme affectation par copie et par déplacement selon la catégorie de valeur de l'argument), échange avec le paramètre, et laisse le destructeur le nettoyer.</p>
+<pre><code class="language-cpp">// affectation par copie (idiome copy-and-swap)
+T&amp; T::operator=(T other) noexcept // appeler le constructeur de copie ou de déplacement pour construire other
+{
+    std::swap(size, other.size); // échanger les ressources entre *this et other
+    std::swap(mArray, other.mArray);
+    return *this;
+} // le destructeur de other est appelé pour libérer les ressources auparavant gérées par *this
+</code></pre>
+<p>Cette forme fournit automatiquement une <a href="exceptions.html#Exception_safety">garantie forte d'exception</a>, mais interdit la réutilisation des ressources.</p>
+<h3 id="Stream_extraction_and_insertion">Extraction et insertion dans un flux</h3>
+<p>Les surcharges de <code>operator&gt;&gt;</code> et <code>operator&lt;&lt;</code> qui prennent un <code>std::istream&amp;</code> ou <code>std::ostream&amp;</code> comme argument de gauche sont connues sous le nom d'opérateurs d'insertion et d'extraction. Comme ils prennent le type défini par l'utilisateur comme argument de droite (<code>b</code> dans <code>a @ b</code>), ils doivent être implémentés comme non membres.</p>
+<pre><code class="language-cpp">std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const T&amp; obj)
+{
+    // écrire obj dans le flux
+    return os;
+}
+
+std::istream&amp; operator&gt;&gt;(std::istream&amp; is, T&amp; obj)
+{
+    // lire obj depuis le flux
+    if (/* T ne peut pas être construit */)
+        is.setstate(std::ios::failbit);
+    return is;
+}
+</code></pre>
+<p>Ces opérateurs sont parfois implémentés comme des <a href="friend.html">fonctions amies</a>.</p>
+<h3 id="Function_call_operator">Opérateur d'appel de fonction</h3>
+<p>Lorsqu'une classe définie par l'utilisateur surcharge l'opérateur d'appel de fonction <code>operator()</code>, elle devient un type <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a>.</p>
+<p>Un objet d'un tel type peut être utilisé dans une expression d'appel de fonction :</p>
+<pre><code class="language-cpp">// Un objet de ce type représente une fonction linéaire d'une variable a * x + b.
+struct Linear
+{
+    double a, b;
+
+    double operator()(double x) const
+    {
+        return a * x + b;
+    }
+};
+
+int main()
+{
+    Linear f{2, 1};  // Représente la fonction 2x + 1.
+    Linear g{-1, 0}; // Représente la fonction -x.
+    // f et g sont des objets utilisables comme une fonction.
+
+    double f_0 = f(0);
+    double f_1 = f(1);
+
+    double g_0 = g(0);
+}
+</code></pre>
+<p>De nombreux <a href="../algorithm.html">algorithmes</a> de la bibliothèque standard acceptent des <a href="../named_req/FunctionObject.html"><em>FunctionObject</em>s</a> pour personnaliser leur comportement. Il n'existe pas de formes canoniques particulièrement notables de <code>operator()</code>, mais pour illustrer l'usage :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+struct Sum
+{
+    int sum = 0;
+    void operator()(int n) { sum += n; }
+};
+
+int main()
+{
+    std::vector&lt;int&gt; v = {1, 2, 3, 4, 5};
+    Sum s = std::for_each(v.begin(), v.end(), Sum());
+    std::cout &lt;&lt; &quot;The sum is &quot; &lt;&lt; s.sum &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">The sum is 15
+</code></pre>
+<h3 id="Increment_and_decrement">Incrémentation et décrémentation</h3>
+<p>Lorsque l'opérateur d'incrémentation ou de décrémentation postfixé apparaît dans une expression, la fonction définie par l'utilisateur correspondante (<code>operator++</code> ou <code>operator--</code>) est appelée avec un argument entier <code>0</code>. Typiquement, elle est déclarée comme <code>T operator++(int)</code> ou <code>T operator--(int)</code>, où l'argument est ignoré. Les opérateurs d'incrémentation et de décrémentation postfixés sont généralement implémentés à partir de leurs versions préfixées :</p>
+<pre><code class="language-cpp">struct X
+{
+    // incrémentation préfixe
+    X&amp; operator++()
+    {
+        // l'incrémentation effective a lieu ici
+        return *this; // renvoyer la nouvelle valeur par référence
+    }
+
+    // incrémentation postfixe
+    X operator++(int)
+    {
+        X old = *this; // copier l'ancienne valeur
+        operator++();  // incrémentation préfixe
+        return old;    // renvoyer l'ancienne valeur
+    }
+
+    // décrémentation préfixe
+    X&amp; operator--()
+    {
+        // la décrémentation effective a lieu ici
+        return *this; // renvoyer la nouvelle valeur par référence
+    }
+
+    // décrémentation postfixe
+    X operator--(int)
+    {
+        X old = *this; // copier l'ancienne valeur
+        operator--();  // décrémentation préfixe
+        return old;    // renvoyer l'ancienne valeur
+    }
+};
+</code></pre>
+<p>Bien que les implémentations canoniques des opérateurs d'incrémentation et de décrémentation préfixés renvoient par référence, comme pour toute surcharge d'opérateur, le type de retour est défini par l'utilisateur ; par exemple, les surcharges de ces opérateurs pour <a href="../atomic/atomic.html"><code>std::atomic</code></a> renvoient par valeur.</p>
+<h3 id="Binary_arithmetic_operators">Opérateurs arithmétiques binaires</h3>
+<p>Les opérateurs binaires sont généralement implémentés comme non membres pour préserver la symétrie (par exemple, lors de l'addition d'un nombre complexe et d'un entier, si <code>operator+</code> est une fonction membre du type complexe, alors seule <code>complex + integer</code> compilerait, et non <code>integer + complex</code>). Comme il existe pour chaque opérateur arithmétique binaire un opérateur d'affectation composée correspondant, les formes canoniques des opérateurs binaires sont implémentées à partir de leurs affectations composées :</p>
+<pre><code class="language-cpp">class X
+{
+public:
+    X&amp; operator+=(const X&amp; rhs) // affectation composée (n'a pas besoin d'être un membre,
+    {                           // mais le plus souvent elle l'est, pour modifier les membres privés)
+        /* l'addition de rhs à *this a lieu ici */
+        return *this; // renvoyer le résultat par référence
+    }
+
+    // les amies définies dans le corps de la classe sont inline et sont masquées pour la recherche non ADL
+    friend X operator+(X lhs,        // passer lhs par valeur aide à optimiser les chaînes a+b+c
+                       const X&amp; rhs) // sinon, les deux paramètres peuvent être des références const
+    {
+        lhs += rhs; // réutiliser l'affectation composée
+        return lhs; // renvoyer le résultat par valeur (utilise le constructeur de déplacement)
+    }
+};
+</code></pre>
+<h3 id="Comparison_operators">Opérateurs de comparaison</h3>
+<p>Les algorithmes de la bibliothèque standard tels que <a href="../algorithm/sort.html"><code>std::sort</code></a> et les conteneurs tels que <a href="../container/set.html"><code>std::set</code></a> attendent que <code>operator&lt;</code> soit défini, par défaut, pour les types fournis par l'utilisateur, et attendent qu'il implémente un ordre faible strict (satisfaisant ainsi les exigences <a href="../named_req/Compare.html"><em>Compare</em></a>). Une manière idiomatique d'implémenter un ordre faible strict pour une structure est d'utiliser la comparaison lexicographique fournie par <a href="../utility/tuple/tie.html"><code>std::tie</code></a> :</p>
+<pre><code class="language-cpp">struct Record
+{
+    std::string name;
+    unsigned int floor;
+    double weight;
+
+    friend bool operator&lt;(const Record&amp; l, const Record&amp; r)
+    {
+        return std::tie(l.name, l.floor, l.weight)
+             &lt; std::tie(r.name, r.floor, r.weight); // conserver le même ordre
+    }
+};
+</code></pre>
+<p>En général, une fois que <code>operator&lt;</code> est fourni, les autres opérateurs relationnels sont implémentés à partir de <code>operator&lt;</code>.</p>
+<pre><code class="language-cpp">inline bool operator&lt; (const X&amp; lhs, const X&amp; rhs) { /* effectuer la comparaison réelle */ }
+inline bool operator&gt; (const X&amp; lhs, const X&amp; rhs) { return rhs &lt; lhs; }
+inline bool operator&lt;=(const X&amp; lhs, const X&amp; rhs) { return !(lhs &gt; rhs); }
+inline bool operator&gt;=(const X&amp; lhs, const X&amp; rhs) { return !(lhs &lt; rhs); }
+</code></pre>
+<p>De même, l'opérateur d'inégalité est généralement implémenté à partir de <code>operator==</code> :</p>
+<pre><code class="language-cpp">inline bool operator==(const X&amp; lhs, const X&amp; rhs) { /* effectuer la comparaison réelle */ }
+inline bool operator!=(const X&amp; lhs, const X&amp; rhs) { return !(lhs == rhs); }
+</code></pre>
+<p>Lorsqu'une comparaison à trois voies (comme <a href="../string/byte/memcmp.html"><code>std::memcmp</code></a> ou <a href="../string/basic_string/compare.html"><code>std::string::compare</code></a>) est fournie, les six opérateurs de comparaison à deux voies peuvent tous s'exprimer à partir de celle-ci :</p>
+<pre><code class="language-cpp">inline bool operator==(const X&amp; lhs, const X&amp; rhs) { return cmp(lhs,rhs) == 0; }
+inline bool operator!=(const X&amp; lhs, const X&amp; rhs) { return cmp(lhs,rhs) != 0; }
+inline bool operator&lt; (const X&amp; lhs, const X&amp; rhs) { return cmp(lhs,rhs) &lt;  0; }
+inline bool operator&gt; (const X&amp; lhs, const X&amp; rhs) { return cmp(lhs,rhs) &gt;  0; }
+inline bool operator&lt;=(const X&amp; lhs, const X&amp; rhs) { return cmp(lhs,rhs) &lt;= 0; }
+inline bool operator&gt;=(const X&amp; lhs, const X&amp; rhs) { return cmp(lhs,rhs) &gt;= 0; }
+</code></pre>
+<h3 id="Array_subscript_operator">Opérateur d'indexation de tableau</h3>
+<p>Les classes définies par l'utilisateur qui fournissent un accès de type tableau permettant la lecture et l'écriture définissent généralement deux surcharges de <code>operator[]</code> : des variantes const et non const :</p>
+<pre><code class="language-cpp">struct T
+{
+          value_t&amp; operator[](std::size_t idx)       { return mVector[idx]; }
+    const value_t&amp; operator[](std::size_t idx) const { return mVector[idx]; }
+};
+</code></pre>
+<blockquote>
+<p>Alternativement, elles peuvent être exprimées comme un unique modèle de fonction membre utilisant un <a href="member_functions.html#Explicit_object_parameter">paramètre objet explicite</a> :</p>
+<pre><code class="language-cpp">struct T
+{
+    decltype(auto) operator[](this auto&amp; self, std::size_t idx)
+    {
+        return self.mVector[idx];
+    }
+};
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Si le type de valeur est connu comme étant un type scalaire, la variante const doit renvoyer par valeur.</p>
+<p>Lorsque l'accès direct aux éléments du conteneur n'est pas souhaité ou pas possible, ou pour distinguer l'usage en lvalue <code>c[i] = v;</code> et en rvalue <code>v = c[i];</code>, <code>operator[]</code> peut renvoyer un mandataire. Voir par exemple <a href="../utility/bitset/operator_at.html"><code>std::bitset::operator[]</code></a>.</p>
+<blockquote>
+<p><code>operator[]</code> ne peut prendre qu'un seul indice. Pour fournir une sémantique d'accès à un tableau multidimensionnel, par exemple pour implémenter un accès à un tableau 3D <code>a[i][j][k] = x;</code>, <code>operator[]</code> doit renvoyer une référence vers un plan 2D, qui doit avoir son propre <code>operator[]</code> qui renvoie une référence vers une ligne 1D, qui doit avoir <code>operator[]</code> qui renvoie une référence vers l'élément. Pour éviter cette complexité, certaines bibliothèques choisissent de surcharger <code>operator()</code> à la place, de sorte que les expressions d'accès 3D aient la syntaxe de type Fortran <code>a(i, j, k) = x;</code>.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>operator[]</code> peut prendre un nombre quelconque d'indices. Par exemple, un <code>operator[]</code> d'une classe de tableau 3D déclarée comme <code>T&amp; operator[](std::size_t x, std::size_t y, std::size_t z);</code> peut accéder directement aux éléments.</p>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+
+template&lt;typename T, std::size_t Z, std::size_t Y, std::size_t X&gt;
+struct Array3d
+{
+    std::array&lt;T, X * Y * Z&gt; m{};
+
+    constexpr T&amp; operator[](std::size_t z, std::size_t y, std::size_t x) // C++23
+    {
+        assert(x &lt; X and y &lt; Y and z &lt; Z);
+        return m[z * Y * X + y * X + x];
+    }
+};
+
+int main()
+{
+    Array3d&lt;int, 4, 3, 2&gt; v;
+    v[3, 2, 1] = 42;
+    std::cout &lt;&lt; &quot;v[3, 2, 1] = &quot; &lt;&lt; v[3, 2, 1] &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">v[3, 2, 1] = 42
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h3 id="Bitwise_arithmetic_operators">Opérateurs arithmétiques binaires sur bits</h3>
+<p>Les classes et énumérations définies par l'utilisateur qui implémentent les exigences de <a href="../named_req/BitmaskType.html"><em>BitmaskType</em></a> doivent surcharger les opérateurs arithmétiques binaires sur bits <code>operator&amp;</code>, <code>operator|</code>, <code>operator^</code>, <code>operator~</code>, <code>operator&amp;=</code>, <code>operator|=</code> et <code>operator^=</code>, et peuvent facultativement surcharger les opérateurs de décalage <code>operator&lt;&lt;</code> <code>operator&gt;&gt;</code>, <code>operator&gt;&gt;=</code> et <code>operator&lt;&lt;=</code>. Les implémentations canoniques suivent généralement le schéma des opérateurs arithmétiques binaires décrit ci-dessus.</p>
+<h3 id="Boolean_negation_operator">Opérateur de négation booléenne</h3>
+<blockquote>
+<p>L'opérateur <code>operator!</code> est couramment surchargé par les classes définies par l'utilisateur destinées à être utilisées dans des contextes booléens. Ces classes fournissent également une fonction de conversion définie par l'utilisateur vers le type booléen (voir <a href="../io/basic_ios.html"><code>std::basic_ios</code></a> pour l'exemple de la bibliothèque standard), et le comportement attendu de <code>operator!</code> est de renvoyer la valeur opposée à celle de <code>operator bool</code>.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Comme l'opérateur natif <code>!</code> effectue une <a href="implicit_cast.html#Contextual_conversions">conversion contextuelle vers <code>bool</code></a>, les classes définies par l'utilisateur destinées à être utilisées dans des contextes booléens peuvent fournir uniquement <code>operator bool</code> et n'ont pas besoin de surcharger <code>operator!</code>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="Rarely_overloaded_operators">Opérateurs rarement surchargés</h3>
+<p>Les opérateurs suivants sont rarement surchargés :</p>
+<ul>
+<li>L'opérateur d'adresse, <code>operator&amp;</code>. Si l'opérateur unaire &amp; est appliqué à une lvalue de type incomplet et que le type complet déclare une <code>operator&amp;</code> surchargée, il n'est pas spécifié si l'opérateur a la signification native ou si la fonction opérateur est appelée. Comme cet opérateur peut être surchargé, les bibliothèques génériques utilisent <a href="../memory/addressof.html"><code>std::addressof</code></a> pour obtenir les adresses des objets de types définis par l'utilisateur. L'exemple le plus connu d'une <code>operator&amp;</code> surchargée canonique est la classe Microsoft <a href="https://docs.microsoft.com/en-us/cpp/atl/reference/ccomptrbase-class?view=msvc-160#operator_amp"><code>CComPtrBase</code></a>. Un exemple d'utilisation de cet opérateur dans un EDSL se trouve dans <a href="https://www.boost.org/doc/libs/release/libs/spirit/doc/html/spirit/qi/reference/operator/and_predicate.html">boost.spirit</a>.</li>
+<li>Les opérateurs logiques booléens, <code>operator&amp;&amp;</code> et <code>operator||</code>. Contrairement aux versions natives, les surcharges ne peuvent pas implémenter l'évaluation court-circuitée.Contrairement aux versions natives également, elles ne séquencent pas leur opérande gauche avant l'opérande droit. <em>(jusqu'à C++17)</em> Dans la bibliothèque standard, ces opérateurs ne sont surchargés que pour <a href="../numeric/valarray.html"><code>std::valarray</code></a>.</li>
+<li>L'opérateur virgule, <code>operator,</code>. Contrairement à la version native, les surcharges ne séquencent pas leur opérande gauche avant l'opérande droit. <em>(jusqu'à C++17)</em> Comme cet opérateur peut être surchargé, les bibliothèques génériques utilisent des expressions telles que <code>a, void(), b</code> au lieu de <code>a, b</code> pour séquencer l'exécution d'expressions de types définis par l'utilisateur. La bibliothèque Boost utilise <code>operator,</code> dans <a href="https://www.boost.org/doc/libs/release/libs/assign/doc/index.html#intro">boost.assign</a>, <a href="https://github.com/boostorg/spirit/blob/develop/include/boost/spirit/home/qi/string/symbols.hpp#L317">boost.spirit</a> et d'autres bibliothèques. La bibliothèque d'accès aux bases de données <a href="https://soci.sourceforge.net/doc.html">SOCI</a> surcharge également <code>operator,</code>.</li>
+<li>L'accès membre via pointeur vers membre <code>operator-&gt;*</code>. La surcharge de cet opérateur n'a pas d'inconvénient spécifique, mais il est rarement utilisé en pratique. Il a été suggéré qu'il puisse faire partie d'une <a href="https://www.aristeia.com/Papers/DDJ_Oct_1999.pdf">interface de pointeur intelligent</a>, et il est d'ailleurs utilisé dans ce rôle par les acteurs de <a href="https://www.boost.org/doc/libs/release/libs/phoenix/doc/html/phoenix/modules/operator.html#phoenix.modules.operator.member_pointer_operator">boost.phoenix</a>. Il est plus courant dans des EDSL comme <a href="https://github.com/schlangster/cpp.react/blob/legacy1/include/react/Signal.h#L557">cpp.react</a>.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_static_call_operator"><code>__cpp_static_call_operator</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_static_call_operator_202207L"><code>202207L</code></a></td>
+<td><em>(C++23)</em></td>
+<td>static <code>operator()</code></td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_multidimensional_subscript"><code>__cpp_multidimensional_subscript</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_multidimensional_subscript_202211L"><code>202211L</code></a></td>
+<td><em>(C++23)</em></td>
+<td>static <code>operator[]</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/operator.html"><code>operator</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+class Fraction
+{
+    // ou std::gcd de C++17
+    constexpr int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+
+    int n, d;
+public:
+    constexpr Fraction(int n, int d = 1) : n(n / gcd(n, d)), d(d / gcd(n, d)) {}
+
+    constexpr int num() const { return n; }
+    constexpr int den() const { return d; }
+
+    constexpr Fraction&amp; operator*=(const Fraction&amp; rhs)
+    {
+        int new_n = n * rhs.n / gcd(n * rhs.n, d * rhs.d);
+        d = d * rhs.d / gcd(n * rhs.n, d * rhs.d);
+        n = new_n;
+        return *this;
+    }
+};
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; out, const Fraction&amp; f)
+{
+   return out &lt;&lt; f.num() &lt;&lt; '/' &lt;&lt; f.den();
+}
+
+constexpr bool operator==(const Fraction&amp; lhs, const Fraction&amp; rhs)
+{
+    return lhs.num() == rhs.num() &amp;&amp; lhs.den() == rhs.den();
+}
+
+constexpr bool operator!=(const Fraction&amp; lhs, const Fraction&amp; rhs)
+{
+    return !(lhs == rhs);
+}
+
+constexpr Fraction operator*(Fraction lhs, const Fraction&amp; rhs)
+{
+    return lhs *= rhs;
+}
+
+int main()
+{
+    constexpr Fraction f1{3, 8}, f2{1, 2}, f3{10, 2};
+    std::cout &lt;&lt; f1 &lt;&lt; &quot; * &quot; &lt;&lt; f2 &lt;&lt; &quot; = &quot; &lt;&lt; f1 * f2 &lt;&lt; '\n'
+              &lt;&lt; f2 &lt;&lt; &quot; * &quot; &lt;&lt; f3 &lt;&lt; &quot; = &quot; &lt;&lt; f2 * f3 &lt;&lt; '\n'
+              &lt;&lt;  2 &lt;&lt; &quot; * &quot; &lt;&lt; f1 &lt;&lt; &quot; = &quot; &lt;&lt;  2 * f1 &lt;&lt; '\n';
+    static_assert(f3 == f2 * 10);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">3/8 * 1/2 = 3/16
+1/2 * 5/1 = 5/2
+2 * 3/8 = 3/4
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1481.html">CWG 1481</a></td>
+<td>C++98</td>
+<td>l'opérateur d'incrémentation préfixe non membre ne pouvait avoir qu'un paramètre de type classe, de type énumération, ou de référence vers de tels types</td>
+<td>aucune exigence de type</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2931.html">CWG 2931</a></td>
+<td>C++23</td>
+<td>les fonctions opérateurs à objet explicite ne pouvaient avoir aucun paramètre de type classe, de type énumération, ou de référence vers de tels types</td>
+<td>prohibited</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="operator_precedence.html">Priorité des opérateurs</a></li>
+<li><a href="operator_alternative.html">Syntaxe alternative des opérateurs</a></li>
+<li><a href="adl.html">Recherche dépendante des arguments</a></li>
+</ul>
+<p><strong>Opérateurs courants</strong></p>
+<p><a href="operator_assignment.html">assignment</a>
+| <a href="operator_incdec.html">incrémentation<br />
+décrémentation</a> | <a href="operator_arithmetic.html">arithmetic</a>
+| <a href="operator_logical.html">logical</a>
+| <a href="operator_comparison.html">comparison</a>
+| <a href="operator_member_access.html">accès<br />
+membre</a> | <a href="operator_other.html">other</a></p>
+<p><code>a = b a += b a -= b a *= b a /= b a %= b a &amp;= b a |= b a ^= b a &lt;&lt;= b a &gt;&gt;= b</code></p>
+<p>|</p>
+<p><code>++a --a a++ a--</code></p>
+<p>|</p>
+<p><code>+a -a a + b a - b a * b a / b a % b ~a a &amp; b a | b a ^ b a &lt;&lt; b a &gt;&gt; b</code></p>
+<p>|</p>
+<p><code>!a a &amp;&amp; b a || b</code></p>
+<p>|</p>
+<p><code>a == b a != b a &lt; b a &gt; b a &lt;= b a &gt;= b a &lt;=&gt; b</code></p>
+<p>|</p>
+<p><code>a[...] *a &amp;a a-&gt;b a.b a-&gt;*b a.*b</code></p>
+<p>| appel de fonction</p>
+<p><code>a(...)</code></p>
+<p>virgule</p>
+<p><code>a, b</code></p>
+<p>conditionnel</p>
+<p><code>a ? b : c</code></p>
+<p><strong>Opérateurs spéciaux</strong></p>
+<p><a href="static_cast.html"><code>static_cast</code></a> convertit un type en un autre type apparenté<br />
+<a href="dynamic_cast.html"><code>dynamic_cast</code></a> convertit au sein des hiérarchies d'héritage<br />
+<a href="const_cast.html"><code>const_cast</code></a> ajoute ou supprime des qualificateurs <a href="cv.html">cv</a><br />
+<a href="reinterpret_cast.html"><code>reinterpret_cast</code></a> convertit un type en un type sans rapport<br />
+<a href="explicit_cast.html">Transtypage de style C</a> convertit un type en un autre par un mélange de <code>static_cast</code>, <code>const_cast</code> et <code>reinterpret_cast</code><br />
+<a href="new.html"><code>new</code></a> crée des objets à durée de stockage dynamique<br />
+<a href="delete.html"><code>delete</code></a> détruit les objets précédemment créés par l'expression new et libère la zone mémoire obtenue<br />
+<a href="sizeof.html"><code>sizeof</code></a> interroge la taille d'un type<br />
+<a href="sizeof....html"><code>sizeof...</code></a> interroge la taille d'un <a href="parameter_pack.html">pack</a> (depuis C++11)<br />
+<a href="typeid.html"><code>typeid</code></a> interroge les informations de type d'un type<br />
+<a href="noexcept.html"><code>noexcept</code></a> vérifie si une expression peut lever une exception (depuis C++11)<br />
+<a href="alignof.html"><code>alignof</code></a> interroge les exigences d'alignement d'un type (depuis C++11)</p>
+<h2 id="External_links">Liens externes</h2>
+<ol>
+<li><a href="operators.html#cite_ref-1">↑</a> <a href="https://stackoverflow.com/questions/4421706/4421719#4421719">Surcharge d'opérateurs</a> dans la FAQ C++ de StackOverflow</li>
+</ol>
+
+</main>
+</body>
+</html>

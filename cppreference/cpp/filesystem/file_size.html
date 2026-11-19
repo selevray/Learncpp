@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::file_size — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-file_size"><code>std::filesystem::file_size</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/file_size">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">std::uintmax_t file_size( const std::filesystem::path&amp; p );  // (1) (depuis C++17)
+
+std::uintmax_t file_size( const std::filesystem::path&amp; p,
+                          std::error_code&amp; ec ) noexcept;  // (2) (depuis C++17)
+</code></pre>
+<p>Si <code>p</code> n'existe pas, signale une erreur.</p>
+<p>Pour un fichier régulier <code>p</code>, renvoie la taille déterminée comme si par la lecture du membre <code>st_size</code> de la structure obtenue par POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/stat.html"><code>stat</code></a> (les liens symboliques sont suivis).</p>
+<p>Le résultat de la tentative de détermination de la taille d'un répertoire (ainsi que de tout autre fichier qui n'est ni un fichier régulier ni un lien symbolique) est défini par l'implémentation.</p>
+<p>La surcharge sans exception renvoie <code>static_cast&lt;std::uintmax_t&gt;(-1)</code> en cas d'erreur.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — chemin à examiner</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La taille du fichier, en octets.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<ol>
+<li>
+<p>Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</p>
+</li>
+<li>
+<p>Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+namespace fs = std::filesystem;
+
+struct HumanReadable
+{
+    std::uintmax_t size{};
+
+private:
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, HumanReadable hr)
+    {
+        int o{};
+        double mantissa = hr.size;
+        for (; mantissa &gt;= 1024.; mantissa /= 1024., ++o);
+        os &lt;&lt; std::ceil(mantissa * 10.) / 10. &lt;&lt; &quot;BKMGTPE&quot;[o];
+        return o ? os &lt;&lt; &quot;B (&quot; &lt;&lt; hr.size &lt;&lt; ')' : os;
+    }
+};
+
+int main(int, char const* argv[])
+{
+    fs::path example = &quot;example.bin&quot;;
+    fs::path p = fs::current_path() / example;
+    std::ofstream(p).put('a'); // créer un fichier de taille 1
+    std::cout &lt;&lt; example &lt;&lt; &quot; size = &quot; &lt;&lt; fs::file_size(p) &lt;&lt; '\n';
+    fs::remove(p);
+
+    p = argv[0];
+    std::cout &lt;&lt; p &lt;&lt; &quot; size = &quot; &lt;&lt; HumanReadable{fs::file_size(p)} &lt;&lt; '\n';
+
+    try
+    {
+        std::cout &lt;&lt; &quot;Attempt to get size of a directory:\n&quot;;
+        [[maybe_unused]] auto x_x = fs::file_size(&quot;/dev&quot;);
+    }
+    catch (fs::filesystem_error&amp; e)
+    {
+        std::cout &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+
+    for (std::error_code ec; fs::path bin : {&quot;cat&quot;, &quot;mouse&quot;})
+    {
+        bin = &quot;/bin&quot;/bin;
+        if (const std::uintmax_t size = fs::file_size(bin, ec); ec)
+            std::cout &lt;&lt; bin &lt;&lt; &quot; : &quot; &lt;&lt; ec.message() &lt;&lt; '\n';
+        else
+            std::cout &lt;&lt; bin &lt;&lt; &quot; size = &quot; &lt;&lt; HumanReadable{size} &lt;&lt; '\n';
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;example.bin&quot; size = 1
+&quot;./a.out&quot; size = 22KB (22512)
+Attempt to get size of a directory:
+filesystem error: cannot get file size: Is a directory [/dev]
+&quot;/bin/cat&quot; size = 50.9KB (52080)
+&quot;/bin/mouse&quot; : No such file or directory
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="resize_file.html">resize_file</a> (C++17)</strong> — modifie la taille d'un fichier ordinaire par troncature ou remplissage de zéros <em>(fonction)</em></li>
+<li><strong><a href="space.html">space</a> (C++17)</strong> — détermine l'espace libre disponible sur le système de fichiers <em>(fonction)</em></li>
+<li><strong><a href="directory_entry/file_size.html">file_size</a></strong> — renvoie la taille du fichier désigné par l'entrée de répertoire <em>(fonction membre publique de <code>std::filesystem::directory_entry</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

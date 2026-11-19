@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmpfile, tmpfile_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/io.html">Entrées/sorties de fichiers</a></nav>
+<h1 id="tmpfile-tmpfile_s">tmpfile, tmpfile_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/io/tmpfile">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdio.h&gt;</strong></p>
+<pre><code class="language-c">FILE* tmpfile( void );  // (1)
+
+errno_t tmpfile_s( FILE* restrict* restrict streamptr );  // (2) (depuis C11)
+</code></pre>
+<ol>
+<li>
+<p>Crée et ouvre un fichier temporaire. Le fichier est ouvert en tant que fichier binaire en mise à jour (comme avec <a href="fopen.html"><code>fopen</code></a> en mode <code>&quot;wb+&quot;</code>). Le nom de fichier est garanti unique au sein du système de fichiers. Au moins <a href="../io.html"><code>TMP_MAX</code></a> fichiers peuvent être ouverts pendant la durée de vie d'un programme (cette limite peut être partagée avec <a href="tmpnam.html"><code>tmpnam</code></a> et davantage limitée par <a href="../io.html"><code>FOPEN_MAX</code></a>).</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, sauf qu'au moins <code>TMP_MAX_S</code> fichiers peuvent être ouverts (la limite peut être partagée avec <code>tmpnam_s</code>), et si <code>streamptr</code> est un pointeur nul, la fonction <a href="../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée est appelée.Comme pour toutes les fonctions à vérification de bornes, <code>tmpfile_s</code> n'est garantie disponible que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../io.html"><code>&lt;stdio.h&gt;</code></a>.</p>
+</li>
+</ol>
+<p>Le fichier temporaire créé par cette fonction est fermé et supprimé à la fin normale du programme. Sa suppression en cas de terminaison anormale est définie par l'implémentation.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ol>
+<li>
+<p>(aucun)</p>
+</li>
+<li>
+<p>pointeur vers un pointeur qui sera mis à jour par cet appel de fonction</p>
+</li>
+</ol>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>Pointeur vers le flux de fichier associé au fichier, ou pointeur nul si une erreur s'est produite.</p>
+</li>
+<li>
+<p>Zéro si le fichier a été créé et ouvert avec succès, non nul si le fichier n'a pas pu être créé ou ouvert, ou si <code>streamptr</code> est un pointeur nul. De plus, le pointeur vers le flux de fichier associé est stocké dans <code>*streamptr</code> en cas de succès, et une valeur de pointeur nul est stockée dans <code>*streamptr</code> en cas d'erreur.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Sur certaines implémentations (par exemple les anciens Linux), cette fonction crée, ouvre et supprime immédiatement le fichier du système de fichiers : tant qu'un descripteur de fichier ouvert vers un fichier supprimé est détenu par un programme, le fichier existe, mais comme il a été supprimé, son nom n'apparaît dans aucun répertoire, de sorte qu'aucun autre processus ne peut l'ouvrir. Une fois le descripteur de fichier fermé, ou une fois le programme terminé (normalement ou anormalement), l'espace occupé par le fichier est récupéré par le système de fichiers. Les Linux récents (depuis la version 3.11 ou ultérieure, selon le système de fichiers) créent ces fichiers temporaires invisibles en une seule étape, via un indicateur spécial de l'appel système <a href="https://man7.org/linux/man-pages/man2/open.2.html"><code>open()</code></a>.</p>
+<p>Sur certaines implémentations (par exemple Windows), des privilèges élevés sont requis, car la fonction peut créer le fichier temporaire dans un répertoire système.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define _POSIX_C_SOURCE 200112L
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+int main(void)
+{
+    printf(&quot;TMP_MAX = %d, FOPEN_MAX = %d\n&quot;, TMP_MAX, FOPEN_MAX);
+    FILE* tmpf = tmpfile();
+    fputs(&quot;Hello, world&quot;, tmpf);
+    rewind(tmpf);
+    char buf[6];
+    fgets(buf, sizeof buf, tmpf);
+    printf(&quot;got back from the file: '%s'\n&quot;, buf);
+
+    // Méthode propre à Linux pour afficher le nom du fichier tmpfile
+    char fname[FILENAME_MAX], link[FILENAME_MAX] = {0};
+    sprintf(fname, &quot;/proc/self/fd/%d&quot;, fileno(tmpf));
+    if (readlink(fname, link, sizeof link - 1) &gt; 0)
+        printf(&quot;File name: %s\n&quot;, link);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">TMP_MAX = 238328, FOPEN_MAX = 16
+got back from the file: 'Hello'
+File name: /tmp/tmpfjptPe5 (deleted)
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.21.4.3 La fonction tmpfile (p : TBD)</li>
+<li>K.3.5.1.1 La fonction tmpfile_s (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.21.4.3 La fonction tmpfile (p : 222)</li>
+<li>K.3.5.1.1 La fonction tmpfile_s (p : 427)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.21.4.3 La fonction tmpfile (p : 303)</li>
+<li>K.3.5.1.1 La fonction tmpfile_s (p : 586-587)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.19.4.3 La fonction tmpfile (p : 269)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.9.4.3 La fonction tmpfile</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="tmpnam.html">tmpnamtmpnam_s</a> (C11)</strong> — renvoie un nom de fichier unique <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/io/c/tmpfile.html">Documentation C++</a> pour tmpfile</strong></p>
+
+</main>
+</body>
+</html>

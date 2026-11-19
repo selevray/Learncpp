@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordre d&#x27;évaluation — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="ordre-d-évaluation">Ordre d'évaluation</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/eval_order">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>L'ordre d'évaluation des opérandes de tout opérateur C, y compris l'ordre d'évaluation des arguments de fonction dans une expression d'appel de fonction, ainsi que l'ordre d'évaluation des sous-expressions au sein de toute expression, est non spécifié (sauf mention contraire ci-dessous). Le compilateur peut les évaluer dans n'importe quel ordre, et peut choisir un autre ordre lorsque la même expression est évaluée à nouveau.</p>
+<p>Il n'existe pas en C de notion d'évaluation de gauche à droite ou de droite à gauche, à ne pas confondre avec l'associativité de gauche à droite ou de droite à gauche des opérateurs : l'expression <code>f1() + f2() + f3()</code> est analysée comme <code>(f1() + f2()) + f3()</code> en raison de l'associativité de gauche à droite de operator+, mais l'appel de fonction à <code>f3</code> peut être évalué en premier, en dernier, ou entre <code>f1()</code> ou <code>f2()</code> à l'exécution.</p>
+<h2 id="Definitions">Définitions</h2>
+<h3 id="Evaluations">Évaluations</h3>
+<p>Le compilateur effectue deux types d'évaluations pour chaque expression ou sous-expression (qui sont toutes deux facultatives) :</p>
+<ul>
+<li><em>calcul de la valeur</em> : calcul de la valeur renvoyée par l'expression. Cela peut impliquer la détermination de l'identité de l'objet (<a href="value_category.html">évaluation lvalue</a>) ou la lecture de la valeur précédemment affectée à un objet (évaluation rvalue)</li>
+<li><em>effet de bord</em> : accès (lecture ou écriture) à un objet désigné par une lvalue <a href="volatile.html">volatile</a>, modification (écriture) d'un objet, synchronisation atomique <em>(depuis C11)</em>, modification d'un fichier, modification de l'environnement à virgule flottante (si pris en charge), ou appel d'une fonction effectuant l'une de ces opérations.</li>
+</ul>
+<p>Si une expression ne produit aucun effet de bord et que le compilateur peut déterminer que la valeur n'est pas utilisée, l'expression <a href="as_if.html">peut ne pas être évaluée</a>.</p>
+<h3 id="Ordering">Ordonnancement</h3>
+<p>« sequenced-before » est une relation asymétrique, transitive et deux à deux entre des évaluations au sein du même thread (elle peut s'étendre à travers les threads si des types atomiques et des barrières mémoire sont impliqués).</p>
+<ul>
+<li>Si un <a href="https://en.wikipedia.org/wiki/Sequence_point"><em>point de séquence</em></a> est présent entre les sous-expressions E1 et E2, alors le calcul de la valeur et les effets de bord de E1 sont <em>sequenced-before</em> de chaque calcul de valeur et de chaque effet de bord de E2</li>
+</ul>
+<blockquote>
+<ul>
+<li>Si l'évaluation A est sequenced before l'évaluation B, alors l'évaluation de A sera terminée avant que l'évaluation de B ne commence.</li>
+<li>Si A n'est pas séquencé avant B et que B est séquencé avant A, alors l'évaluation de B sera terminée avant que l'évaluation de A ne commence.</li>
+<li>Si A n'est pas séquencé avant B et que B n'est pas séquencé avant A, alors deux possibilités existent :</li>
+<li>les évaluations de A et B sont non séquencées : elles peuvent être effectuées dans n'importe quel ordre et peuvent se chevaucher (au sein d'un même fil d'exécution, le compilateur peut entrelacer les instructions CPU qui composent A et B)</li>
+<li>les évaluations de A et B sont indéterminément séquencées : elles peuvent être effectuées dans n'importe quel ordre mais ne peuvent pas se chevaucher : soit A sera terminée avant B, soit B sera terminée avant A. L'ordre peut être inverse la prochaine fois que la même expression est évaluée.</li>
+</ul>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="Rules">Règles</h2>
+<ol>
+<li>
+<p>Il existe un point de séquence après l'évaluation de tous les arguments de fonction et du désignateur de fonction, et avant l'appel effectif de la fonction.</p>
+</li>
+<li>
+<p>Il existe un point de séquence après l'évaluation du premier opérande (de gauche) et avant l'évaluation du second opérande (de droite) des opérateurs binaires suivants : <code>&amp;&amp;</code> (ET logique), <code>||</code> (OU logique) et <code>,</code> (virgule).</p>
+</li>
+<li>
+<p>Il existe un point de séquence après l'évaluation du premier opérande (de gauche) et avant l'évaluation du second ou du troisième opérande (celui qui est évalué) de l'opérateur conditionnel <code>?:</code></p>
+</li>
+<li>
+<p>Il existe un point de séquence après l'évaluation d'une expression complète (une expression qui n'est pas une sous-expression : typiquement quelque chose qui se termine par un point-virgule ou une <a href="statements.html">instruction de contrôle</a> de <code>if</code>/<code>switch</code>/<code>while</code>/<code>do</code>) et avant l'expression complète suivante.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="5">
+<li>
+<p>Il existe un point de séquence à la fin d'un déclarateur complet.</p>
+</li>
+<li>
+<p>Il existe un point de séquence immédiatement avant le retour d'une fonction de bibliothèque.</p>
+</li>
+<li>
+<p>Il existe un point de séquence après l'action associée à chaque spécificateur de conversion dans les E/S formatées (en particulier, il est bien formé pour <a href="../io/fscanf.html"><code>scanf</code></a> d'écrire des champs différents dans la même variable et pour <a href="../io/fprintf.html"><code>printf</code></a> de lire et modifier ou modifier plusieurs fois la même variable en utilisant <code>%n</code>)</p>
+</li>
+<li>
+<p>Il existe des points de séquence avant et immédiatement après chaque appel à une fonction de comparaison effectué par les fonctions de bibliothèque <a href="../algorithm/qsort.html"><code>qsort</code></a> et <a href="../algorithm/bsearch.html"><code>bsearch</code></a>, ainsi qu'entre tout appel à la fonction de comparaison et le déplacement des objets associés effectué par <a href="../algorithm/qsort.html"><code>qsort</code></a></p>
+</li>
+</ol>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<blockquote>
+<ol start="9">
+<li>
+<p>Les calculs de valeur (mais pas les effets de bord) des opérandes de tout opérateur sont séquencés avant le calcul de valeur du résultat de l'opérateur (mais pas ses effets de bord).</p>
+</li>
+<li>
+<p>L'effet de bord (modification de l'argument de gauche) de l'opérateur d'affectation directe et de tous les opérateurs d'affectation composée est séquencé après le calcul de valeur (mais pas les effets de bord) des deux arguments, gauche et droit.</p>
+</li>
+<li>
+<p>Le calcul de valeur des opérateurs de post-incrémentation et de post-décrémentation est séquencé avant leur effet de bord.</p>
+</li>
+<li>
+<p>Un appel de fonction qui n'est ni séquencé avant ni séquencé après un autre appel de fonction est indéterminément séquencé (les instructions CPU constituant des appels de fonctions différents ne peuvent pas être entrelacées, même si les fonctions sont en ligne)</p>
+</li>
+<li>
+<p>Dans les expressions de liste d'<a href="initialization.html">initialisation</a>, toutes les évaluations sont séquencées de manière indéterminée</p>
+</li>
+<li>
+<p>Par rapport à un appel de fonction séquencé de manière indéterminée, l'opération des opérateurs d'affectation composée, ainsi que les formes préfixée et postfixée des opérateurs d'incrémentation et de décrémentation, sont des évaluations uniques.</p>
+</li>
+</ol>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="Undefined_behavior">Comportement indéfini</h2>
+<ol>
+<li>Si un effet de bord sur un objet scalaire est non séquencé par rapport à un autre effet de bord sur le même objet scalaire, le <a href="behavior.html#UB_and_optimization">comportement est indéfini</a>.</li>
+</ol>
+<pre><code class="language-c">i = ++i + i++; // comportement indéfini
+i = i++ + 1; // comportement indéfini
+f(++i, ++i); // comportement indéfini
+f(i = -1, i = -1); // comportement indéfini
+</code></pre>
+<ol start="2">
+<li>Si un effet de bord sur un objet scalaire est non séquencé par rapport à un calcul de valeur utilisant la valeur du même objet scalaire, le comportement est indéfini.</li>
+</ol>
+<pre><code class="language-c">f(i, i++); // comportement indéfini
+a[i] = i++; // comportement indéfini
+</code></pre>
+<ol start="3">
+<li>Les règles ci-dessus s'appliquent tant qu'au moins un ordre admissible des sous-expressions permet un tel effet de bord non séquencé.</li>
+</ol>
+<h2 id="See_also">Voir aussi</h2>
+<p><a href="operator_precedence.html">Priorité des opérateurs</a> qui définit la manière dont les expressions sont construites à partir de leur représentation dans le code source.</p>
+<p><strong><a href="../../cpp/language/eval_order.html">Documentation C++</a> pour Ordre d'évaluation</strong></p>
+
+</main>
+</body>
+</html>

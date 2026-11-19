@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nom de classe injecté — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="nom-de-classe-injecté">Nom de classe injecté</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/injected-class-name">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Le nom de classe injecté est le nom non qualifié d'une classe dans la portée de ladite classe.</p>
+<p>Dans un <a href="class_template.html">modèle de classe</a>, le nom de classe injecté peut être utilisé soit comme nom de modèle désignant le modèle courant, soit comme nom de classe désignant l'instanciation courante.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Dans une <a href="scope.html#Class_scope">portée de classe</a>, le nom de la classe courante ou le nom de modèle du modèle de classe courant est traité comme s'il s'agissait d'un nom de membre public ; on parle de <em>injected-class-name</em>. Le point de déclaration de ce nom se situe immédiatement après l'accolade ouvrante de la définition de la classe (du modèle).</p>
+<pre><code class="language-cpp">int X;
+
+struct X
+{
+    void f()
+    {
+        X* p;   // OK, X est un nom de classe injecté
+        ::X* q; // Erreur : la recherche de nom trouve un nom de variable, qui masque le nom de la struct
+    }
+};
+
+template&lt;class T&gt;
+struct Y
+{
+    void g()
+    {
+        Y* p;    // OK, Y est un nom de classe injecté
+        Y&lt;T&gt;* q; // OK, Y est un nom de classe injecté, mais Y&lt;T&gt; ne l'est pas
+    }
+};
+</code></pre>
+<p>Comme les autres membres, les noms de classe injectés sont hérités. En présence d'un héritage privé ou protégé, le nom de classe injecté d'une classe de base indirecte peut se retrouver inaccessible dans une classe dérivée.</p>
+<pre><code class="language-cpp">struct A {};
+struct B : private A {};
+struct C : public B
+{
+    A* p;   // Erreur : le nom de classe injecté A est inaccessible
+    ::A* q; // OK, n'utilise pas le nom de classe injecté
+};
+</code></pre>
+<h2 id="In_class_template">Dans un modèle de classe</h2>
+<p>Le nom de classe injecté d'un modèle de classe peut être utilisé comme nom de modèle ou comme nom de type.</p>
+<p>Dans les cas suivants, le nom de classe injecté est traité comme un nom de modèle du modèle de classe lui-même :</p>
+<ul>
+<li>Il est suivi de <code>&lt;</code>.</li>
+<li>Il est utilisé comme <a href="template_parameters.html#Template_template_arguments">argument de modèle de modèle</a>.</li>
+<li>C'est le dernier identifiant du <a href="elaborated_type_specifier.html">spécificateur de classe élaboré</a> d'une déclaration de modèle de classe amie.</li>
+</ul>
+<p>Sinon, il est traité comme un nom de type, et équivaut au nom de modèle suivi des paramètres de modèle du modèle de classe, entre <code>&lt;&gt;</code>.</p>
+<pre><code class="language-cpp">template&lt;template&lt;class, class&gt; class&gt;
+struct A;
+
+template&lt;class T1, class T2&gt;
+struct X
+{
+    X&lt;T1, T2&gt;* p;   // OK, X est traité comme un nom de modèle
+
+    using a = A&lt;X&gt;; // OK, X est traité comme un nom de modèle
+
+    template&lt;class U1, class U2&gt;
+    friend class X; // OK, X est traité comme un nom de modèle
+
+    X* q;           // OK, X est traité comme un nom de type, équivalent à X&lt;T1, T2&gt;
+};
+</code></pre>
+<p>Dans la portée d'une <a href="template_specialization.html">spécialisation</a> ou d'une <a href="partial_specialization.html">spécialisation partielle</a> de modèle de classe, lorsque le nom de classe injecté est utilisé comme nom de type, il équivaut au nom de modèle suivi des arguments de modèle de la spécialisation ou spécialisation partielle, entre <code>&lt;&gt;</code>.</p>
+<pre><code class="language-cpp">template&lt;&gt;
+struct X&lt;void, void&gt;
+{
+    X* p; // OK, X est traité comme un nom de type, équivalent à X&lt;void, void&gt;
+
+    template&lt;class, class&gt;
+    friend class X; // OK, X est traité comme un nom de modèle (comme dans le modèle primaire)
+
+    X&lt;void, void&gt;* q; // OK, X est traité comme un nom de modèle
+};
+
+template&lt;class T&gt;
+struct X&lt;char, T&gt;
+{
+    X* p, q; // OK, X est traité comme un nom de type, équivalent à X&lt;char, T&gt;
+
+    using r = X&lt;int, int&gt;; // OK, peut être utilisé pour désigner une autre spécialisation
+};
+</code></pre>
+<p>Le nom de classe injecté d'un modèle de classe ou d'une spécialisation de modèle de classe peut être utilisé soit comme nom de modèle, soit comme nom de type, partout où il est dans la portée.</p>
+<pre><code class="language-cpp">template&lt;&gt;
+class X&lt;int, char&gt;
+{
+    class B
+    {
+        X a;            // signifie X&lt;int, char&gt;
+
+        template&lt;class, class&gt;
+        friend class X; // signifie ::X
+    };
+};
+
+template&lt;class T&gt;
+struct Base
+{
+    Base* p; // OK : Base signifie Base&lt;T&gt;
+};
+
+template&lt;class T&gt;
+struct Derived : public Base&lt;T*&gt;
+{
+    typename Derived::Base* p; // OK : Derived::Base signifie Derived&lt;T&gt;::Base,
+                               // soit Base&lt;T*&gt;
+};
+
+template&lt;class T, template&lt;class&gt; class U = T::template Base&gt;
+struct Third {};
+
+Third&lt;Derived&lt;int&gt;&gt; t; // OK : l'argument par défaut utilise le nom de classe injecté comme modèle
+</code></pre>
+<p>Une recherche qui trouve un nom de classe injecté peut produire une ambiguïté dans certains cas (par exemple, s'il est trouvé dans plus d'une classe de base). Si tous les noms de classe injectés trouvés désignent des spécialisations du même modèle de classe, et si le nom est utilisé comme nom de modèle, la référence désigne le modèle de classe lui-même et non une spécialisation, et elle n'est pas ambiguë.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct Base {};
+
+template&lt;class T&gt;
+struct Derived: Base&lt;int&gt;, Base&lt;char&gt;
+{
+    typename Derived::Base b;         // erreur : ambigu
+    typename Derived::Base&lt;double&gt; d; // OK
+};
+</code></pre>
+<h2 id="injected-class-name_and_constructors">nom de classe injecté et constructeurs</h2>
+<p>Les constructeurs n'ont pas de nom, mais le nom de classe injecté de la classe englobante est considéré comme désignant un constructeur dans les déclarations et définitions de constructeurs.</p>
+<p>Dans un nom qualifié <code>C::D</code>, si</p>
+<ul>
+<li>la recherche de noms n'ignore pas les noms de fonctions, et</li>
+<li>la recherche de <code>D</code> dans la portée de la classe <code>C</code> trouve son nom de classe injecté</li>
+</ul>
+<p>le nom qualifié est toujours considéré comme désignant le constructeur de <code>C</code>. Un tel nom ne peut être utilisé que dans la déclaration d'un constructeur (par exemple dans une déclaration de constructeur ami, une spécialisation de modèle de constructeur, une instanciation de modèle de constructeur ou une définition de constructeur)ou pour hériter de constructeurs <em>(depuis C++11)</em>.</p>
+<pre><code class="language-cpp">struct A
+{
+    A();
+    A(int);
+
+    template&lt;class T&gt;
+    A(T) {}
+};
+using A_alias = A;
+
+A::A() {}
+A_alias::A(int) {}
+template A::A(double);
+
+struct B : A
+{
+    using A_alias::A;
+};
+
+A::A a;         // Erreur : A::A est considéré comme désignant un constructeur, et non un type
+struct A::A a2; // OK, identique à 'A a2;'
+B::A b;         // OK, identique à 'A b;'
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1004.html">CWG 1004</a></td>
+<td>C++98</td>
+<td>un nom de classe injecté ne pouvait pas être un argument de modèle de modèle</td>
+<td>autorisé, il désigne dans ce cas le modèle de classe lui-même</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2637.html">CWG 2637</a></td>
+<td>C++98</td>
+<td>toute la template-id pouvait être un nom de classe injecté</td>
+<td>seul le nom de modèle le pouvait</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

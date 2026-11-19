@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recherche de noms et espaces de noms — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="recherche-de-noms-et-espaces-de-noms">Recherche de noms et espaces de noms</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/name_space">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Lorsqu'un <a href="identifier.html">identificateur</a> est rencontré dans un programme C, une recherche est effectuée pour localiser la <a href="declarations.html">déclaration</a> qui a introduit cet identificateur et qui est actuellement <a href="scope.html">dans la portée</a>. C permet à plusieurs déclarations pour un même identificateur d'être dans la portée simultanément si ces identificateurs appartiennent à des catégories différentes, appelées <em>espaces de noms</em> :</p>
+<ol>
+<li>
+<p>Espace de noms des étiquettes : tous les identificateurs déclarés comme <a href="statements.html#Labels">étiquettes</a>.</p>
+</li>
+<li>
+<p>Noms de tags : tous les identificateurs déclarés comme noms de <a href="struct.html">struct</a>, <a href="union.html">union</a> et <a href="enum.html">types énumérés</a>. Notez que les trois sortes de tags partagent un même espace de noms.</p>
+</li>
+<li>
+<p>Noms de membres : tous les identificateurs déclarés comme membres d'une même <a href="struct.html">struct</a> ou <a href="union.html">union</a>. Chaque struct et union introduit son propre espace de noms de ce type.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="4">
+<li>
+<p>Espace de noms global des attributs : <a href="attributes.html">jetons d'attribut</a> définis par la norme ou par les préfixes d'attributs définis par l'implémentation.</p>
+</li>
+<li>
+<p>Noms d'attributs non standard : noms d'attributs suivant les préfixes d'attributs. Chaque préfixe d'attribut possède un espace de noms distinct pour les attributs définis par l'implémentation qu'il introduit.</p>
+</li>
+</ol>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<ol start="6">
+<li>Tous les autres identificateurs, appelés <em>identificateurs ordinaires</em> pour les distinguer de <code>(1-5)</code> (noms de fonctions, noms d'objets, noms de typedef, constantes d'énumération).</li>
+</ol>
+<p>Au point de recherche, l'espace de noms d'un identificateur est déterminé par la manière dont il est utilisé :</p>
+<ol>
+<li>
+<p>identificateur apparaissant comme opérande d'une <a href="goto.html">instruction goto</a> est recherché dans l'espace de noms des étiquettes.</p>
+</li>
+<li>
+<p>identificateur qui suit le mot-clé <code>struct</code>, <code>union</code> ou <code>enum</code> est recherché dans l'espace de noms des tags.</p>
+</li>
+<li>
+<p>identificateur qui suit l'<a href="operator_member_access.html">accès à un membre</a> ou l'opérateur d'accès à un membre via un pointeur est recherché dans l'espace de noms des membres du type déterminé par l'opérande gauche de l'opérateur d'accès au membre.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="4">
+<li>
+<p>identificateur qui apparaît directement dans un spécificateur d'attribut (<code>[[...]]</code>) est recherché dans l'espace de noms global des attributs.</p>
+</li>
+<li>
+<p>identificateur qui suit le jeton <code>::</code> suivant un préfixe d'attribut est recherché dans l'espace de noms introduit par le préfixe d'attribut.</p>
+</li>
+</ol>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<ol start="6">
+<li>tous les autres identificateurs sont recherchés dans l'espace de noms des identificateurs ordinaires.</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Les noms de <a href="../preprocessor/replace.html">macros</a> ne font partie d'aucun espace de noms, car ils sont remplacés par le préprocesseur avant l'analyse sémantique.</p>
+<p>Il est courant d'injecter les noms de struct/union/enum dans l'espace de noms des identificateurs ordinaires à l'aide d'une déclaration <a href="typedef.html">typedef</a> :</p>
+<pre><code class="language-c">struct A { };       // introduit le nom A dans l'espace de noms des tags
+typedef struct A A; // d'abord, la recherche de A après « struct » trouve un nom dans l'espace de noms des tags
+                    // introduit ensuite le nom A dans l'espace de noms ordinaire
+struct A* p;        // OK, ce A est recherché dans l'espace de noms des tags
+A* q;               // OK, ce A est recherché dans l'espace de noms ordinaire
+</code></pre>
+<p>Un exemple bien connu de même identificateur utilisé dans deux espaces de noms est l'identificateur <code>stat</code> de l'en-tête POSIX <code>sys/stat.h</code>. Il <a href="http://pubs.opengroup.org/onlinepubs/9699919799/">désigne une fonction</a> lorsqu'il est utilisé comme identificateur ordinaire et <a href="http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_stat.h.html">désigne une struct</a> lorsqu'il est utilisé comme tag.</p>
+<p>Contrairement au C++, les constantes d'énumération ne sont pas des membres de struct ; elles appartiennent à l'espace de noms des identificateurs ordinaires et, comme il n'existe pas de portée de struct en C, leur portée est celle dans laquelle la déclaration de struct apparaît :</p>
+<pre><code class="language-c">struct tagged_union {
+   enum {INT, FLOAT, STRING} type;
+   union {
+      int integer;
+      float floating_point;
+      char *string;
+   };
+} tu;
+
+tu.type = INT; // OK en C, erreur en C++
+</code></pre>
+<blockquote>
+<p>Si un attribut standard, un préfixe d'attribut ou un nom d'attribut non standard n'est pas pris en charge, l'attribut invalide est ignoré sans provoquer d'erreur.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">void foo (void) { return; } // espace de noms ordinaire, portée de fichier
+struct foo {      // espace de noms des étiquettes, portée de fichier
+    int foo;      // espace de noms des membres pour cette struct foo, portée de fichier
+    enum bar {    // espace de noms des étiquettes, portée de fichier
+        RED       // espace de noms ordinaire, portée de fichier
+    } bar;        // espace de noms des membres pour cette struct foo, portée de fichier
+    struct foo* p; // OK : utilise le nom « foo » de la portée d'étiquette/de fichier
+};
+enum bar x; // OK : utilise bar de la portée d'étiquette/de fichier
+// int foo; // Erreur : l'espace de noms ordinaire contient déjà foo dans la portée
+//union foo { int a, b; }; // Erreur : foo est déjà présent dans l'espace de noms des étiquettes de la portée
+
+int main(void)
+{
+    goto foo; // OK : utilise « foo » de l'espace de noms des étiquettes/portée de fonction
+
+    struct foo { // espace de noms des étiquettes, portée de bloc (masque la portée de fichier)
+       enum bar x; // OK : utilise « bar » de l'espace de noms des étiquettes/portée de fichier
+    };
+    typedef struct foo foo; // OK : utilise foo de l'espace de noms des étiquettes/portée de bloc
+                            // définit foo ordinaire de portée de bloc (masque la portée de fichier)
+    (foo){.x=RED}; // utilise foo ordinaire/de portée de bloc et RED ordinaire/de portée de fichier
+
+foo:; // espace de noms des étiquettes, portée de fonction
+}
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.2.3 Espaces de noms des identificateurs (p : 29-30)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.2.3 Espaces de noms des identificateurs (p : 37)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.2.3 Espaces de noms des identificateurs (p : 31)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.1.2.3 Espaces de noms des identificateurs</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/lookup.html">Documentation C++</a> pour Recherche de noms</strong></p>
+
+</main>
+</body>
+</html>

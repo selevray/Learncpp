@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::modf, std::modff, std::modfl — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/numeric.html">Bibliothèque numérique</a> › <a href="../../../cpp/numeric/math.html">Fonctions mathématiques courantes</a></nav>
+<h1 id="std-modf-std-modff-std-modfl"><code>std::modf, std::modff, std::modfl</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/numeric/math/modf">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cmath&gt;</strong></p>
+<pre><code class="language-cpp">float       modf ( float num, float* iptr );
+double      modf ( double num, double* iptr );
+long double modf ( long double num, long double* iptr );  // (jusqu'à C++23)
+
+constexpr /* type à virgule flottante */
+            modf ( /* type à virgule flottante */ num,
+                   /* type à virgule flottante */* iptr );  // (depuis C++23)
+
+float       modff( float num, float* iptr );  // (2) (depuis C++11) (constexpr depuis C++23)
+
+long double modfl( long double num, long double* iptr );  // (3) (depuis C++11) (constexpr depuis C++23)
+</code></pre>
+<p><strong>Surcharges supplémentaires (depuis C++11)</strong></p>
+<p><strong>Défini dans l'en-tête &lt;cmath&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Integer &gt;
+double      modf ( Integer num, double* iptr );  // (A) (constexpr depuis C++23)
+</code></pre>
+<p>1-3) Décompose la valeur à virgule flottante donnée <code>num</code> en parties entière et fractionnaire, chacune ayant le même type et le même signe que <code>num</code>. La partie entière (au format à virgule flottante) est stockée dans l'objet pointé par <code>iptr</code>.La bibliothèque fournit des surcharges de <code>std::modf</code> pour tous les types à virgule flottante non qualifiés cv comme type du paramètre <code>num</code> et comme type pointé de <code>iptr</code>. <em>(depuis C++23)</em></p>
+<blockquote>
+<p>A) Des surcharges supplémentaires sont fournies pour tous les types entiers, qui sont traités comme <code>double</code>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>num</code> — valeur à virgule flottante ou entière</li>
+<li><code>iptr</code> — pointeur vers la valeur à virgule flottante où stocker la partie entière</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Si aucune erreur ne se produit, renvoie la partie fractionnaire de <code>num</code> avec le même signe que <code>num</code>. La partie entière est placée dans la valeur pointée par <code>iptr</code>.</p>
+<p>La somme de la valeur renvoyée et de la valeur stockée dans <code>*iptr</code> donne <code>num</code> (à l'arrondi près).</p>
+<h2 id="Error_handling">Gestion des erreurs</h2>
+<p>Cette fonction n'est soumise à aucune des erreurs spécifiées dans <a href="math_errhandling.html"><code>math_errhandling</code></a>.</p>
+<p>Si l'implémentation prend en charge l'arithmétique à virgule flottante IEEE (CEI 60559),</p>
+<ul>
+<li>Si <code>num</code> vaut ±0, ±0 est renvoyé, et ±0 est stocké dans <code>*iptr</code>.</li>
+<li>Si <code>num</code> vaut ±∞, ±0 est renvoyé, et ±∞ est stocké dans <code>*iptr</code>.</li>
+<li>Si <code>num</code> est NaN, NaN est renvoyé, et NaN est stocké dans <code>*iptr</code>.</li>
+<li>La valeur renvoyée est exacte, <a href="../fenv/FE_round.html">le mode d'arrondi courant</a> est ignoré.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction se comporte comme si elle était implémentée ainsi :</p>
+<pre><code class="language-cpp">double modf(double num, double* iptr)
+{
+#pragma STDC FENV_ACCESS ON
+    int save_round = std::fegetround();
+    std::fesetround(FE_TOWARDZERO);
+    *iptr = std::nearbyint(num);
+    std::fesetround(save_round);
+    return std::copysign(std::isinf(num) ? 0.0 : num - (*iptr), num);
+}
+</code></pre>
+<p>Les surcharges supplémentaires ne sont pas tenues d'être fournies exactement comme <code>(A)</code>. Elles doivent seulement suffire à garantir que pour leur argument <code>num</code> de type entier, <code>std::modf(num, iptr)</code> a le même effet que <code>std::modf(static_cast&lt;double&gt;(num), iptr)</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Compare différentes fonctions de décomposition des nombres à virgule flottante :</p>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;iostream&gt;
+#include &lt;limits&gt;
+
+int main()
+{
+    double f = 123.45;
+    std::cout &lt;&lt; &quot;Given the number &quot; &lt;&lt; f &lt;&lt; &quot; or &quot; &lt;&lt; std::hexfloat
+              &lt;&lt; f &lt;&lt; std::defaultfloat &lt;&lt; &quot; in hex,\n&quot;;
+
+    double f3;
+    double f2 = std::modf(f, &amp;f3);
+    std::cout &lt;&lt; &quot;modf() makes &quot; &lt;&lt; f3 &lt;&lt; &quot; + &quot; &lt;&lt; f2 &lt;&lt; '\n';
+
+    int i;
+    f2 = std::frexp(f, &amp;i);
+    std::cout &lt;&lt; &quot;frexp() makes &quot; &lt;&lt; f2 &lt;&lt; &quot; * 2^&quot; &lt;&lt; i &lt;&lt; '\n';
+
+    i = std::ilogb(f);
+    std::cout &lt;&lt; &quot;logb()/ilogb() make &quot; &lt;&lt; f / std::scalbn(1.0, i) &lt;&lt; &quot; * &quot;
+              &lt;&lt; std::numeric_limits&lt;double&gt;::radix
+              &lt;&lt; &quot;^&quot; &lt;&lt; std::ilogb(f) &lt;&lt; '\n';
+
+    // valeurs spéciales
+    f2 = std::modf(-0.0, &amp;f3);
+    std::cout &lt;&lt; &quot;modf(-0) makes &quot; &lt;&lt; f3 &lt;&lt; &quot; + &quot; &lt;&lt; f2 &lt;&lt; '\n';
+    f2 = std::modf(-INFINITY, &amp;f3);
+    std::cout &lt;&lt; &quot;modf(-Inf) makes &quot; &lt;&lt; f3 &lt;&lt; &quot; + &quot; &lt;&lt; f2 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Given the number 123.45 or 0x1.edccccccccccdp+6 in hex,
+modf() makes 123 + 0.45
+frexp() makes 0.964453 * 2^7
+logb()/ilogb() make 1.92891 * 2^6
+modf(-0) makes -0 + -0
+modf(-Inf) makes -INF + -0
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="trunc.html">trunctruncftruncl</a> (C++11) (C++11) (C++11)</strong> — entier le plus proche dont la valeur absolue n'excède pas la valeur donnée <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/numeric/math/modf.html">Documentation C</a> de modf</strong></p>
+
+</main>
+</body>
+</html>

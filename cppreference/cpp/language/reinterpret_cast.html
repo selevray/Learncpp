@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversion reinterpret_cast — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="conversion-reinterpret_cast">Conversion reinterpret_cast</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/reinterpret_cast">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Convertit entre types en réinterprétant le motif binaire sous-jacent.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>reinterpret_cast&lt;</code> <code>target-type</code> <code>&gt;(</code> <code>expression</code> <code>)</code> | | |
+|</p>
+<p>Renvoie une valeur de type <code>target-type</code>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Contrairement à <code>static_cast</code>, mais comme <code>const_cast</code>, l'expression <code>reinterpret_cast</code> ne se compile en aucune instruction du processeur (sauf lors de conversions entre entiers et pointeurs, ou entre pointeurs sur des architectures obscures où la représentation du pointeur dépend de son type). Il s'agit principalement d'une directive à la compilation qui demande au compilateur de traiter <code>expression</code> comme s'il avait le type <code>target-type</code>.</p>
+<p>Seules les conversions suivantes peuvent être effectuées avec <code>reinterpret_cast</code>, sauf lorsque ces conversions <a href="const_cast.html#Casting_away_constness">supprimeraient la constness</a> (ou la volatilité).</p>
+<ol>
+<li>
+<p>Une expression de type entier, énumération, pointeur ou pointeur vers membre peut être convertie vers son propre type. La valeur résultante est la même que la valeur de <code>expression</code>.</p>
+</li>
+<li>
+<p>Un pointeur peut être converti vers tout type entier suffisamment grand pour contenir toutes les valeurs de son type (par exemple vers <a href="../types/integer.html"><code>std::uintptr_t</code></a>).</p>
+</li>
+<li>
+<p>Une valeur de tout type entier ou énumération peut être convertie vers un type pointeur. Un pointeur converti en entier de taille suffisante puis reconverti vers le même type de pointeur a garanti sa valeur d'origine ; sinon, le pointeur résultant ne peut pas être déréférencé en toute sécurité (la conversion aller-retour dans l'autre sens n'est pas garantie ; un même pointeur peut avoir plusieurs représentations entières). La constante de pointeur nul <a href="../types/NULL.html"><code>NULL</code></a> ou l'entier zéro n'est pas garanti de produire la valeur de pointeur nul du type cible ; <a href="static_cast.html"><code>static_cast</code></a> ou <a href="implicit_cast.html">conversion implicite</a> doit être utilisé à cette fin.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="4">
+<li>Toute valeur de type <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a>, y compris <code>nullptr</code>, peut être convertie vers tout type entier comme si elle était <code>(void*)0</code>, mais aucune valeur, pas même <code>nullptr</code>, ne peut être convertie vers <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a> : <code>static_cast</code> doit être utilisé à cette fin.</li>
+</ol>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="5">
+<li>
+<p>Tout type de pointeur vers objet <code>T1*</code> peut être converti vers un autre type de pointeur vers objet <code>cv T2*</code>. Ceci est exactement équivalent à <code>static_cast&lt;cv T2*&gt;(static_cast&lt;cv void*&gt;(expression))</code> (ce qui implique que si l'exigence d'alignement de <code>T2</code> n'est pas plus stricte que celle de <code>T1</code>, la valeur du pointeur ne change pas et la reconversion du pointeur résultant vers son type d'origine donne la valeur d'origine). Dans tous les cas, le pointeur résultant ne peut être déréférencé en toute sécurité que si la valeur déréférencée est <a href="reinterpret_cast.html#Type_accessibility">accessible par type</a>.</p>
+</li>
+<li>
+<p>Une expression [<a href="value_category.html#lvalue">lvalue</a> <em>(jusqu'à C++11)</em> | <a href="value_category.html#glvalue">glvalue</a> <em>(depuis C++11)</em>] de type <code>T1</code> peut être convertie en référence vers un autre type <code>T2</code>. Le résultat est celui de <code>*reinterpret_cast&lt;T2*&gt;(p)</code>, où <code>p</code> est un pointeur de type « pointeur vers <code>T1</code> » vers l'objet ou la fonction désigné par <code>expression</code>. Aucun temporaire n'est matérialisé ni <em>(depuis C++17)</em> créé, aucune copie n'est faite, aucun constructeur ni fonction de conversion n'est appelé. La référence résultante ne peut être utilisée en toute sécurité que si elle est <a href="reinterpret_cast.html#Type_accessibility">accessible par type</a>.</p>
+</li>
+<li>
+<p>Tout pointeur vers fonction peut être converti vers un pointeur vers un type de fonction différent. Le résultat n'est pas spécifié, mais la conversion de ce pointeur vers le type de fonction d'origine donne le pointeur vers la fonction d'origine. Le pointeur résultant ne peut être appelé en toute sécurité que si son type de fonction est <a href="reinterpret_cast.html#Call_compatibility">compatible à l'appel</a> avec le type de fonction d'origine.</p>
+</li>
+<li>
+<p>Sur certaines implémentations (en particulier, sur tout système compatible POSIX comme l'exige <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlsym.html"><code>dlsym</code></a>), un pointeur de fonction peut être converti vers <code>void*</code> ou tout autre pointeur vers objet, et inversement. Si l'implémentation prend en charge la conversion dans les deux sens, la conversion vers le type d'origine donne la valeur d'origine ; sinon, le pointeur résultant ne peut pas être déréférencé ni appelé en toute sécurité.</p>
+</li>
+<li>
+<p>La valeur de pointeur nul de tout type de pointeur peut être convertie vers tout autre type de pointeur, donnant la valeur de pointeur nul de ce type. Notez que la constante de pointeur nul <code>nullptr</code> ou toute autre valeur de type <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a> ne peut pas être convertie en pointeur avec <code>reinterpret_cast</code> : la conversion implicite ou <code>static_cast</code> doit être utilisée à cette fin.</p>
+</li>
+<li>
+<p>Un pointeur vers fonction membre peut être converti vers un pointeur vers une fonction membre différente d'un type différent. La conversion vers le type d'origine donne la valeur d'origine ; sinon, le pointeur résultant ne peut pas être utilisé en toute sécurité.</p>
+</li>
+<li>
+<p>Un pointeur vers objet membre d'une certaine classe <code>T1</code> peut être converti vers un pointeur vers un autre objet membre d'une autre classe <code>T2</code>. Si l'alignement de <code>T2</code> n'est pas plus strict que celui de <code>T1</code>, la conversion vers le type d'origine <code>T1</code> donne la valeur d'origine ; sinon, le pointeur résultant ne peut pas être utilisé en toute sécurité.</p>
+</li>
+</ol>
+<p>Comme pour toutes les expressions de transtypage, le résultat est :</p>
+<ul>
+<li>une lvalue si <code>target-type</code> est de type référence lvalueou référence rvalue vers un type fonction <em>(depuis C++11)</em> ;</li>
+</ul>
+<blockquote>
+<ul>
+<li>une xvalue si <code>target-type</code> est une référence rvalue vers un type objet ;</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>une prvalue sinon.</li>
+</ul>
+<h2 id="Type_aliasing">Aliasing de type</h2>
+<h3 id="Type_accessibility">Accessibilité de type</h3>
+<p>Si un type <code>T_ref</code> est <a href="implicit_cast.html#Similar_types">similaire</a> à l'un des types suivants, un objet de <a href="type-id.html#Dynamic_type">type dynamique</a> <code>T_obj</code> est <em>accessible par type</em> à travers une [lvalue <em>(jusqu'à C++11)</em> | glvalue <em>(depuis C++11)</em>] de type <code>T_ref</code> :</p>
+<ul>
+<li><code>char</code></li>
+<li><code>unsigned char</code></li>
+</ul>
+<blockquote>
+<ul>
+<li><code>std::byte</code></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li><code>T_obj</code></li>
+<li>le type signé ou non signé correspondant à <code>T_obj</code></li>
+</ul>
+<p>Si un programme tente de lire ou de modifier la valeur stockée d'un objet à travers une [lvalue <em>(jusqu'à C++11)</em> | glvalue <em>(depuis C++11)</em>] à travers laquelle il n'est pas accessible par type, le comportement est indéfini.</p>
+<p>Cette règle permet l'analyse d'alias fondée sur le type, dans laquelle un compilateur suppose que la valeur lue à travers une glvalue d'un type n'est pas modifiée par une écriture à travers une glvalue d'un type différent (sous réserve des exceptions mentionnées ci-dessus).</p>
+<p>Notez que de nombreux compilateurs C++ assouplissent cette règle, en tant qu'extension de langage non standard, pour autoriser l'accès de mauvais type via le membre inactif d'une <a href="union.html">union</a> (un tel accès n'est pas indéfini en C).</p>
+<h3 id="Call_compatibility">Compatibilité d'appel</h3>
+<p>Si l'une des conditions suivantes est satisfaite, un type <code>T_call</code> est <em>compatible à l'appel</em> avec un type de fonction <code>T_func</code> :</p>
+<ul>
+<li><code>T_call</code> est le même type que <code>T_func</code>.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>T_func*</code> peut être converti en <code>T_call*</code> via une <a href="implicit_cast.html#Function_pointer_conversions">conversion de pointeur de fonction</a>.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Si une fonction est appelée à travers une expression dont le <a href="function.html#Function_type">type de fonction</a> n'est pas compatible à l'appel avec le type de la définition de la fonction appelée, le comportement est indéfini.</p>
+<h2 id="Notes">Notes</h2>
+<p>En supposant que les exigences d'alignement sont respectées, un <code>reinterpret_cast</code> ne modifie pas la <a href="pointer.html#Pointers">valeur d'un pointeur</a> en dehors de quelques cas limités concernant les objets <a href="static_cast.html#pointer-interconvertible"><em>interconvertibles par pointeur</em></a> :</p>
+<pre><code class="language-cpp">struct S1 { int a; } s1;
+struct S2 { int a; private: int b; } s2; // not standard-layout
+union U { int a; double b; } u = {0};
+int arr[2];
+
+int* p1 = reinterpret_cast&lt;int*&gt;(&amp;s1); // la valeur de p1 est « pointeur vers s1.a » car
+                                       // s1.a et s1 sont interconvertibles par pointeur
+
+int* p2 = reinterpret_cast&lt;int*&gt;(&amp;s2); // la valeur de p2 est inchangée par reinterpret_cast
+                                       // et vaut « pointeur vers s2 ».
+
+int* p3 = reinterpret_cast&lt;int*&gt;(&amp;u);  // la valeur de p3 est « pointeur vers u.a » :
+                                       // u.a et u sont interconvertibles par pointeur
+
+double* p4 = reinterpret_cast&lt;double*&gt;(p3); // la valeur de p4 est « pointeur vers u.b » : u.a et
+                                            // u.b sont interconvertibles par pointeur car
+                                            // tous deux sont interconvertibles par pointeur avec u
+
+int* p5 = reinterpret_cast&lt;int*&gt;(&amp;arr); // la valeur de p5 est inchangée par reinterpret_cast
+                                        // et vaut « pointeur vers arr »
+</code></pre>
+<p>Effectuer un accès à un membre de classe désignant un membre de donnée non statique ou une fonction membre non statique sur une glvalue qui ne désigne pas réellement un objet du type approprié - comme celle obtenue via un <code>reinterpret_cast</code> - entraîne un comportement indéfini :</p>
+<pre><code class="language-cpp">struct S { int x; };
+struct T { int x; int f(); };
+struct S1 : S {};    // standard-layout
+struct ST : S, T {}; // not standard-layout
+
+S s = {};
+auto p = reinterpret_cast&lt;T*&gt;(&amp;s); // la valeur de p est « pointeur vers s »
+auto i = p-&gt;x; // l'accès à un membre de classe est un comportement indéfini ;
+               // s n'est pas un objet T
+p-&gt;x = 1; // comportement indéfini
+p-&gt;f();   // comportement indéfini
+
+S1 s1 = {};
+auto p1 = reinterpret_cast&lt;S*&gt;(&amp;s1); // la valeur de p1 est « pointeur vers le sous-objet S de s1 »
+auto i = p1-&gt;x; // OK
+p1-&gt;x = 1;      // OK
+
+ST st = {};
+auto p2 = reinterpret_cast&lt;S*&gt;(&amp;st); // la valeur de p2 est « pointeur vers st »
+auto i = p2-&gt;x; // comportement indéfini
+p2-&gt;x = 1;      // comportement indéfini
+</code></pre>
+<p>De nombreux compilateurs émettent des avertissements « strict aliasing » dans de tels cas, même si, techniquement, ces constructions enfreignent autre chose que le paragraphe communément appelé « règle de strict aliasing ».</p>
+<p>Le but de la règle de strict aliasing et des règles associées est de permettre l'analyse d'alias fondée sur le type, qui serait compromise si un programme pouvait valablement créer une situation où deux pointeurs vers des types sans rapport (par exemple un <code>int*</code> et un <code>float*</code>) pourraient exister simultanément et être tous deux utilisés pour lire ou écrire la même mémoire (voir <a href="https://web.archive.org/web/20201128194944/http://www.open-std.org/pipermail/ub/2016-February/000565.html">ce courriel sur le relais SG12</a>). Ainsi, toute technique qui semble capable de créer une telle situation invoque nécessairement un comportement indéfini.</p>
+<p>Lorsqu'il est nécessaire d'interpréter les octets d'un objet comme une valeur d'un type différent, <a href="../string/byte/memcpy.html"><code>std::memcpy</code></a> ou <a href="../numeric/bit_cast.html"><code>std::bit_cast</code></a> <em>(depuis C++20)</em> peut être utilisé :</p>
+<pre><code class="language-cpp">double d = 0.1;
+std::int64_t n;
+static_assert(sizeof n == sizeof d);
+// n = *reinterpret_cast&lt;std::int64_t*&gt;(&amp;d); // Comportement indéfini
+std::memcpy(&amp;n, &amp;d, sizeof d);               // OK
+n = std::bit_cast&lt;std::int64_t&gt;(d);          // aussi OK
+</code></pre>
+<blockquote>
+<p>Si l'implémentation fournit <a href="../types/integer.html"><code>std::intptr_t</code></a> et/ou <a href="../types/integer.html"><code>std::uintptr_t</code></a>, alors une conversion d'un pointeur vers un type objet ou <em>cv</em> <code>void</code> vers ces types est toujours bien définie. Cependant, ceci n'est pas garanti pour un pointeur de fonction.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>En C, la copie et l'affectation d'agrégats accèdent à l'agrégat objet dans son ensemble. En C++, en revanche, de telles actions sont toujours effectuées via un appel de fonction membre, qui accède aux sous-objets individuels plutôt qu'à l'objet entier (ou, dans le cas des unions, copie la représentation de l'objet, c.-à-d. via <code>unsigned char</code>).</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/reinterpret_cast.html"><code>reinterpret_cast</code></a></p>
+<h2 id="Example">Exemple</h2>
+<p>Démontre quelques utilisations de <code>reinterpret_cast</code> :</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+
+int f() { return 42; }
+
+int main()
+{
+    int i = 7;
+
+    // pointeur vers entier, puis retour
+    std::uintptr_t v1 = reinterpret_cast&lt;std::uintptr_t&gt;(&amp;i); // static_cast est une erreur
+    std::cout &lt;&lt; &quot;The value of &amp;i is &quot; &lt;&lt; std::showbase &lt;&lt; std::hex &lt;&lt; v1 &lt;&lt; '\n';
+    int* p1 = reinterpret_cast&lt;int*&gt;(v1);
+    assert(p1 == &amp;i);
+
+    // pointeur vers fonction vers un autre, puis retour
+    void(*fp1)() = reinterpret_cast&lt;void(*)()&gt;(f);
+    // fp1(); comportement indéfini
+    int(*fp2)() = reinterpret_cast&lt;int(*)()&gt;(fp1);
+    std::cout &lt;&lt; std::dec &lt;&lt; fp2() &lt;&lt; '\n'; // safe
+
+    // aliasing de type via un pointeur
+    char* p2 = reinterpret_cast&lt;char*&gt;(&amp;i);
+    std::cout &lt;&lt; (p2[0] == '\x7' ? &quot;This system is little-endian\n&quot;
+                                 : &quot;This system is big-endian\n&quot;);
+
+    // aliasing de type via une référence
+    reinterpret_cast&lt;unsigned int&amp;&gt;(i) = 42;
+    std::cout &lt;&lt; i &lt;&lt; '\n';
+
+    [[maybe_unused]] const int &amp;const_iref = i;
+    // int &amp;iref = reinterpret_cast&lt;int&amp;&gt;(
+    //     const_iref); // erreur de compilation : impossible de supprimer const
+    // Il faut utiliser const_cast à la place : int &amp;iref = const_cast&lt;int&amp;&gt;(const_iref);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">The value of &amp;i is 0x7fff352c3580
+42
+This system is little-endian
+42
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/195.html">CWG 195</a></td>
+<td>C++98</td>
+<td>conversion entre pointeurs de fonction et pointeurs d'objets non autorisée</td>
+<td>rendu à support conditionnel</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/658.html">CWG 658</a></td>
+<td>C++98</td>
+<td>le résultat des conversions de pointeurs était non spécifié (sauf pour les conversions vers le type d'origine)</td>
+<td>spécification fournie pour les pointeurs dont les types pointés satisfont les exigences d'alignement</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/799.html">CWG 799</a></td>
+<td>C++98</td>
+<td>on ne savait pas quelle conversion d'identité pouvait être effectuée par <code>reinterpret_cast</code></td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1268.html">CWG 1268</a></td>
+<td>C++11</td>
+<td><code>reinterpret_cast</code> ne pouvait convertir que des lvalues vers des types référence</td>
+<td>les xvalues étaient également autorisées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2780.html">CWG 2780</a></td>
+<td>C++98</td>
+<td><code>reinterpret_cast</code> ne pouvait pas convertir des lvalues de fonction vers d'autres types référence</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2939.html">CWG 2939</a></td>
+<td>C++17</td>
+<td><code>reinterpret_cast</code> pouvait convertir des prvalues vers des types référence rvalue</td>
+<td>non autorisé</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.6.1.10 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.6.1.9 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>8.2.10 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>5.2.10 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>5.2.10 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>5.2.10 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>5.2.10 Conversion reinterpret_cast [expr.reinterpret.cast]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="const_cast.html">conversion <code>const_cast</code></a></strong> — ajoute ou supprime const</li>
+<li><strong><a href="static_cast.html">conversion <code>static_cast</code></a></strong> — effectue des conversions de base</li>
+<li><strong><a href="dynamic_cast.html">conversion <code>dynamic_cast</code></a></strong> — effectue des conversions polymorphes vérifiées</li>
+<li><strong><a href="explicit_cast.html">conversions explicites</a></strong> — conversions permissives entre types</li>
+<li><strong><a href="implicit_cast.html">conversions standard</a></strong> — conversions implicites d'un type à un autre</li>
+<li><strong><a href="../numeric/bit_cast.html">bit_cast</a> (C++20)</strong> — réinterprète la représentation objet d'un type comme celle d'un autre <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

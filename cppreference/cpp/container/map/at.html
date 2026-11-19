@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::map&lt;Key,T,Compare,Allocator&gt;::at — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/map.html">std::map</a></nav>
+<h1 id="std-map-key-t-compare-allocator-at"><code>std::map&lt;Key,T,Compare,Allocator&gt;::at</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/map/at">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">T&amp; at( const Key&amp; key );  // (1)
+
+const T&amp; at( const Key&amp; key ) const;  // (2)
+
+template&lt; class K &gt;
+T&amp; at( const K&amp; x );  // (3) (depuis C++26)
+
+template&lt; class K &gt;
+const T&amp; at( const K&amp; x ) const;  // (4) (depuis C++26)
+</code></pre>
+<p>Renvoie une référence à la valeur associée de l'élément ayant la clé spécifiée. Si aucun élément de ce type n'existe, une exception de type <a href="../../error/out_of_range.html"><code>std::out_of_range</code></a> est levée.</p>
+<p>1,2) La clé est équivalente à <code>key</code>.</p>
+<p>3,4) La clé se compare <em>équivalente</em> à la valeur <code>x</code>. La référence à la valeur associée est obtenue comme si par l'expression <code>this-&gt;find(x)-&gt;second</code>.</p>
+<p>L'expression <code>this-&gt;find(x)</code> doit être bien formée et avoir un comportement bien défini, sinon le comportement est indéfini.</p>
+<p>Ces surcharges participent à la résolution de surcharge uniquement si le qualified-id <code>Compare::is_transparent</code> est valide et désigne un type. Cela permet d'appeler cette fonction sans construire d'instance de <code>Key</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>key</code> — la clé de l'élément à rechercher</li>
+<li><code>x</code> — une valeur de n'importe quel type pouvant être comparée de façon transparente à une clé</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une référence à la valeur associée de l'élément demandé.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>1,2) <a href="../../error/out_of_range.html"><code>std::out_of_range</code></a> si le conteneur ne possède pas d'élément avec la <code>key</code> spécifiée.</p>
+<p>3,4) <a href="../../error/out_of_range.html"><code>std::out_of_range</code></a> si le conteneur ne possède pas l'élément spécifié, c'est-à-dire si <code>find(x) == end()</code> vaut <code>true</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Logarithmique en la taille du conteneur.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_associative_heterogeneous_insertion"><code>__cpp_lib_associative_heterogeneous_insertion</code></a></td>
+<td><a href="../../compiler_support/26.html#cpp_lib_associative_heterogeneous_insertion_202311L"><code>202311L</code></a></td>
+<td><em>(C++26)</em></td>
+<td>Surcharges hétérogènes pour les autres fonctions membres des <a href="../../container.html">conteneurs</a> associatifs <a href="../../container.html#Associative_containers">ordonnés</a> et <a href="../../container.html#Unordered_associative_containers">non ordonnés</a>. <code>(3,4)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &lt;map&gt;
+
+struct LightKey { int o; };
+struct HeavyKey { int o[1000]; };
+
+// Le conteneur doit utiliser std::less&lt;&gt; (ou un autre Comparator transparent) pour
+// accéder aux surcharges (3,4). Cela inclut les surcharges standard, telles que
+// la comparaison entre std::string et std::string_view.
+bool operator&lt;(const HeavyKey&amp; x, const LightKey&amp; y) { return x.o[0] &lt; y.o; }
+bool operator&lt;(const LightKey&amp; x, const HeavyKey&amp; y) { return x.o &lt; y.o[0]; }
+bool operator&lt;(const HeavyKey&amp; x, const HeavyKey&amp; y) { return x.o[0] &lt; y.o[0]; }
+
+int main()
+{
+    std::map&lt;int, char&gt; map{{1, 'a'}, {2, 'b'}};
+    assert(map.at(1) == 'a');
+    assert(map.at(2) == 'b');
+    try
+    {
+        map.at(13);
+    }
+    catch(const std::out_of_range&amp; ex)
+    {
+        std::cout &lt;&lt; &quot;1) out_of_range::what(): &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+    }
+
+#ifdef __cpp_lib_associative_heterogeneous_insertion
+    // Démonstration de comparaison transparente.
+    std::map&lt;HeavyKey, char, std::less&lt;&gt;&gt; map2{{{1}, 'a'}, {{2}, 'b'}};
+    assert(map2.at(LightKey{1}) == 'a');
+    assert(map2.at(LightKey{2}) == 'b');
+    try
+    {
+        map2.at(LightKey{13});
+    }
+    catch(const std::out_of_range&amp; ex)
+    {
+        std::cout &lt;&lt; &quot;2) out_of_range::what(): &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+    }
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1) out_of_range::what(): map::at:  key not found
+2) out_of_range::what(): map::at:  key not found
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue464">LWG 464</a></td>
+<td>C++98</td>
+<td><code>map</code> ne disposait pas de cette fonction membre</td>
+<td>added</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue703">LWG 703</a></td>
+<td>C++98</td>
+<td>l'exigence de complexité était absente</td>
+<td>added</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2007">LWG 2007</a></td>
+<td>C++98</td>
+<td>la valeur de retour désignait l'élément demandé</td>
+<td>fait référence à sa valeur associée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="operator_at.html">operator[]</a></strong> — accède ou insère l'élément spécifié <em>(fonction membre publique)</em></li>
+<li><strong><a href="find.html">find</a></strong> — trouve l'élément avec une clé spécifique <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

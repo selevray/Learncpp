@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::reverse — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-reverse"><code>std::ranges::reverse</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/reverse">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::bidirectional_iterator I, std::sentinel_for&lt;I&gt; S &gt;
+requires std::permutable&lt;I&gt;
+constexpr I
+    reverse( I first, S last );  // (1) (depuis C++20)
+
+template&lt; ranges::bidirectional_range R &gt;
+requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt;
+    reverse( R&amp;&amp; r );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Inverse l'ordre des éléments de l'intervalle <code>[first,last)</code>.</li>
+</ol>
+<p>Se comporte comme si l'on appliquait <a href="../../iterator/ranges/iter_swap.html"><code>ranges::iter_swap</code></a> à chaque paire d'itérateurs <code>first + i, last - i - 1</code> pour chaque entier <code>i</code>, où <code>0 ≤ i &lt; (last - first) / 2</code>.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments à inverser</li>
+<li><code>r</code> — l'intervalle d'éléments à inverser</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur égal à <code>last</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>(last - first) / 2</code> échanges.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les implémentations (par exemple <a href="https://github.com/microsoft/STL/blob/main/stl/src/vector_algorithms.cpp">MSVC STL</a>) peuvent activer la vectorisation lorsque le type d'itérateur modélise <a href="../../iterator/contiguous_iterator.html"><code>contiguous_iterator</code></a> et que l'échange de sa valeur ne fait appel ni à une fonction membre spéciale non triviale, ni à <a href="../../language/adl.html">ADL</a>-trouvé <code>swap</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Voir aussi les implémentations de <a href="https://github.com/gcc-mirror/gcc/blob/14d8a5ae472ca5743016f37da2dd4770d83dea21/libstdc%2B%2B-v3/include/bits/ranges_algo.h#L1278-L1325">libstdc++</a> et <a href="https://github.com/microsoft/STL/blob/472161105d596192194d4715ccad307c6c163b4a/stl/inc/algorithm#L4154-L4180">MSVC STL</a>.</p>
+<pre><code class="language-cpp">struct reverse_fn
+{
+    template&lt;std::bidirectional_iterator I, std::sentinel_for&lt;I&gt; S&gt;
+    requires std::permutable&lt;I&gt;
+    constexpr I operator()(I first, S last) const
+    {
+        auto last2 {ranges::next(first, last)};
+        for (auto tail {last2}; !(first == tail or first == --tail); ++first)
+            ranges::iter_swap(first, tail);
+        return last2;
+    }
+
+    template&lt;ranges::bidirectional_range R&gt;
+    requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt;
+    constexpr ranges::borrowed_iterator_t&lt;R&gt;
+        operator()(R&amp;&amp; r) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r));
+    }
+};
+
+inline constexpr reverse_fn reverse {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::string s {&quot;ABCDEF&quot;};
+    std::cout &lt;&lt; s &lt;&lt; &quot; → &quot;;
+    std::ranges::reverse(s.begin(), s.end());
+    std::cout &lt;&lt; s &lt;&lt; &quot; → &quot;;
+    std::ranges::reverse(s);
+    std::cout &lt;&lt; s &lt;&lt; &quot; │ &quot;;
+
+    std::array a {1, 2, 3, 4, 5};
+    for (auto e : a)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; &quot;→ &quot;;
+    std::ranges::reverse(a);
+    for (auto e : a)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">ABCDEF → FEDCBA → ABCDEF │ 1 2 3 4 5 → 5 4 3 2 1
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="reverse_copy.html">ranges::reverse_copy</a> (C++20)</strong> — crée une copie d'un intervalle en ordre inverse <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../../ranges/reverse_view.html">ranges::reverse_viewviews::reverse</a> (C++20)</strong> — une <a href="../../ranges/view.html"><code>view</code></a> qui parcourt les éléments d'une autre vue bidirectionnelle en ordre inverse <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+<li><strong><a href="../reverse.html">reverse</a></strong> — inverse l'ordre des éléments d'un intervalle <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

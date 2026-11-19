@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::disjunction — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-disjunction"><code>std::disjunction</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/disjunction">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... B &gt;
+struct disjunction;  // (depuis C++17)
+</code></pre>
+<p>Forme la <a href="https://en.wikipedia.org/wiki/Logical_disjunction">disjonction logique</a> des traits de type <code>B...</code>, en effectuant de manière effective un OU logique sur la séquence de traits.</p>
+<p>La spécialisation <code>std::disjunction&lt;B1, ..., BN&gt;</code> possède une base publique et non ambiguë qui est</p>
+<ul>
+<li>si <code>sizeof...(B) == 0</code>, <code>std::false_type</code> ; sinon</li>
+<li>le premier type <code>Bi</code> dans <code>B1, ..., BN</code> pour lequel <code>bool(Bi::value) == true</code>, ou <code>BN</code> s'il n'existe aucun tel type.</li>
+</ul>
+<p>Les noms de membres de la classe de base, autres que <code>disjunction</code> et <code>operator=</code>, ne sont pas masqués et sont disponibles sans ambiguïté dans <code>disjunction</code>.</p>
+<p>La disjonction est à court-circuit : s'il existe un argument de modèle de type <code>Bi</code> avec <code>bool(Bi::value) != false</code>, alors l'instanciation de <code>disjunction&lt;B1, ..., BN&gt;::value</code> ne nécessite pas l'instanciation de <code>Bj::value</code> pour <code>j &gt; i</code>.</p>
+<p>Si le programme ajoute des spécialisations pour <code>std::disjunction</code> ou <code>std::disjunction_v</code>, le comportement est indéfini.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>B...</code> — chaque argument de modèle <code>Bi</code> pour lequel <code>Bi::value</code> est instancié doit être utilisable comme classe de base et définir le membre <code>value</code> convertible en <code>bool</code></li>
+</ul>
+<h2 id="Helper_variable_template">Modèle de variable auxiliaire</h2>
+<pre><code class="language-cpp">template&lt; class... B &gt;
+constexpr bool disjunction_v = disjunction&lt;B...&gt;::value;  // (depuis C++17)
+</code></pre>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class...&gt;
+struct disjunction : std::false_type {};
+
+template&lt;class B1&gt;
+struct disjunction&lt;B1&gt; : B1 {};
+
+template&lt;class B1, class... Bn&gt;
+struct disjunction&lt;B1, Bn...&gt;
+    : std::conditional_t&lt;bool(B1::value), B1, disjunction&lt;Bn...&gt;&gt;  {};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Une spécialisation de <code>disjunction</code> n'hérite pas nécessairement de l'un ou l'autre de <code>std::true_type</code> ou <code>std::false_type</code> : elle hérite simplement du premier <code>B</code> dont <code>::value</code>, explicitement converti en <code>bool</code>, vaut <code>true</code>, ou du tout dernier <code>B</code> lorsque tous se convertissent en <code>false</code>. Par exemple, <code>std::disjunction&lt;std::integral_constant&lt;int, 2&gt;, std::integral_constant&lt;int, 4&gt;&gt;::value</code> est <code>2</code>.</p>
+<p>L'instanciation à court-circuit distingue <code>disjunction</code> des <a href="../language/fold.html">expressions de pliage</a> : une expression de pliage comme <code>(... || Bs::value)</code> instancie chaque <code>B</code> dans <code>Bs</code>, alors que <code>std::disjunction_v&lt;Bs...&gt;</code> arrête l'instanciation dès que la valeur peut être déterminée. Ceci est particulièrement utile si le type suivant est coûteux à instancier ou peut provoquer une erreur grave lorsqu'il est instancié avec le mauvais type.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_logical_traits"><code>__cpp_lib_logical_traits</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_logical_traits_201510L"><code>201510L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><a href="../meta.html#Operations_on_traits">Traits de types des opérateurs logiques</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdint&gt;
+#include &lt;string&gt;
+#include &lt;type_traits&gt;
+
+// values_equal&lt;a, b, T&gt;::value vaut true si et seulement si a == b.
+template&lt;auto V1, decltype(V1) V2, typename T&gt;
+struct values_equal : std::bool_constant&lt;V1 == V2&gt;
+{
+    using type = T;
+};
+
+// default_type&lt;T&gt;::value vaut toujours true
+template&lt;typename T&gt;
+struct default_type : std::true_type
+{
+    using type = T;
+};
+
+// Nous pouvons maintenant utiliser disjunction comme une instruction switch :
+template&lt;int I&gt;
+using int_of_size = typename std::disjunction&lt; //
+    values_equal&lt;I, 1, std::int8_t&gt;,           //
+    values_equal&lt;I, 2, std::int16_t&gt;,          //
+    values_equal&lt;I, 4, std::int32_t&gt;,          //
+    values_equal&lt;I, 8, std::int64_t&gt;,          //
+    default_type&lt;void&gt;                         // doit être en dernier !
+    &gt;::type;
+
+static_assert(sizeof(int_of_size&lt;1&gt;) == 1);
+static_assert(sizeof(int_of_size&lt;2&gt;) == 2);
+static_assert(sizeof(int_of_size&lt;4&gt;) == 4);
+static_assert(sizeof(int_of_size&lt;8&gt;) == 8);
+static_assert(std::is_same_v&lt;int_of_size&lt;13&gt;, void&gt;);
+
+// vérifier si Foo est constructible à partir de double provoquera une erreur grave
+struct Foo
+{
+    template&lt;class T&gt;
+    struct sfinae_unfriendly_check { static_assert(!std::is_same_v&lt;T, double&gt;); };
+
+    template&lt;class T&gt;
+    Foo(T, sfinae_unfriendly_check&lt;T&gt; = {});
+};
+
+template&lt;class... Ts&gt;
+struct first_constructible
+{
+    template&lt;class T, class...Args&gt;
+    struct is_constructible_x : std::is_constructible&lt;T, Args...&gt;
+    {
+        using type = T;
+    };
+
+    struct fallback
+    {
+        static constexpr bool value = true;
+        using type = void; // type à renvoyer si rien n'est trouvé
+    };
+
+    template&lt;class... Args&gt;
+    using with = typename std::disjunction&lt;is_constructible_x&lt;Ts, Args...&gt;...,
+                                           fallback&gt;::type;
+};
+
+// OK, is_constructible&lt;Foo, double&gt; non instancié
+static_assert(std::is_same_v&lt;first_constructible&lt;std::string, int, Foo&gt;::with&lt;double&gt;,
+                             int&gt;);
+
+static_assert(std::is_same_v&lt;first_constructible&lt;std::string, int&gt;::with&lt;&gt;, std::string&gt;);
+static_assert(std::is_same_v&lt;first_constructible&lt;std::string, int&gt;::with&lt;const char*&gt;,
+                             std::string&gt;);
+static_assert(std::is_same_v&lt;first_constructible&lt;std::string, int&gt;::with&lt;void*&gt;, void&gt;);
+
+int main() {}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="negation.html">negation</a> (C++17)</strong> — métafonction de négation logique <em>(modèle de classe)</em></li>
+<li><strong><a href="conjunction.html">conjunction</a> (C++17)</strong> — métafonction ET logique variadique <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

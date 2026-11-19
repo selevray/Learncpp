@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::accumulate — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-accumulate"><code>std::accumulate</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/accumulate">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;numeric&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class InputIt, class T &gt;
+T accumulate( InputIt first, InputIt last, T init );  // (1) (constexpr depuis C++20)
+
+template&lt; class InputIt, class T, class BinaryOp &gt;
+T accumulate( InputIt first, InputIt last, T init, BinaryOp op );  // (2) (constexpr depuis C++20)
+</code></pre>
+<p>Calcule la somme de la valeur donnée <code>init</code> et des éléments de l'intervalle <code>[first,last)</code>.</p>
+<ol>
+<li>
+<p>Initialise l'accumulateur <code>acc</code> (de type <code>T</code>) avec la valeur initiale <code>init</code>, puis le modifie avec [<code>acc = acc + *i</code> <em>(jusqu'à C++20)</em> | <code>acc = std::move(acc) + *i</code> <em>(depuis C++20)</em>] pour chaque itérateur <code>i</code> de l'intervalle <code>[first,last)</code>, dans l'ordre.</p>
+</li>
+<li>
+<p>Initialise l'accumulateur <code>acc</code> (de type <code>T</code>) avec la valeur initiale <code>init</code>, puis le modifie avec [<code>acc = op(acc, *i)</code> <em>(jusqu'à C++20)</em> | <code>acc = op(std::move(acc), *i)</code> <em>(depuis C++20)</em>] pour chaque itérateur <code>i</code> de l'intervalle <code>[first,last)</code>, dans l'ordre.</p>
+</li>
+</ol>
+<p>Si l'une des conditions suivantes est satisfaite, le comportement est indéfini :</p>
+<ul>
+<li><code>T</code> n'est pas <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a>.</li>
+<li><code>T</code> n'est pas <a href="../named_req/CopyAssignable.html"><em>CopyAssignable</em></a>.</li>
+<li><code>op</code> modifie tout élément de <code>[first,last)</code>.</li>
+<li><code>op</code> invalide tout itérateur ou sous-intervalle de <code>[first,last]</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li>
+<p><code>first, last</code> — l'intervalle des éléments à sommer</p>
+</li>
+<li>
+<p><code>init</code> — valeur initiale de la somme</p>
+</li>
+<li>
+<p><code>op</code> — objet fonction d'opération binaire qui sera appliqué.</p>
+<p>La signature de la fonction doit être équivalente à la suivante :</p>
+<p><code>Ret fun(const Type1 &amp;a, const Type2 &amp;b);</code></p>
+<p>La signature n'a pas besoin de <code>const &amp;</code>.<br />
+Le type <code>Type1</code> doit être tel qu'un objet de type <code>T</code> puisse être implicitement converti en <code>Type1</code>. Le type <code>Type2</code> doit être tel qu'un objet de type <code>InputIt</code> puisse être déréférencé puis implicitement converti en <code>Type2</code>. Le type <code>Ret</code> doit être tel qu'un objet de type <code>T</code> puisse se voir affecter une valeur de type <code>Ret</code>.</p>
+</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>acc</code> après toutes les modifications.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p><strong><a href="accumulate.html#Version_1">accumulate (1)</a></strong></p>
+<pre><code class="language-cpp">template&lt;class InputIt, class T&gt;
+constexpr // depuis C++20
+T accumulate(InputIt first, InputIt last, T init)
+{
+    for (; first != last; ++first)
+        init = std::move(init) + *first; // std::move depuis C++20
+
+    return init;
+}
+</code></pre>
+<p><strong><a href="accumulate.html#Version_2">accumulate (2)</a></strong></p>
+<pre><code class="language-cpp">template&lt;class InputIt, class T, class BinaryOperation&gt;
+constexpr // depuis C++20
+T accumulate(InputIt first, InputIt last, T init, BinaryOperation op)
+{
+    for (; first != last; ++first)
+        init = op(std::move(init), *first); // std::move depuis C++20
+
+    return init;
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><code>std::accumulate</code> effectue un <a href="https://en.wikipedia.org/wiki/Fold_(higher-order_function)">pliage</a> à gauche. Pour effectuer un pliage à droite, il faut inverser l'ordre des arguments de l'opérateur binaire et utiliser des itérateurs inverses.</p>
+<p>Si la déduction de type est laissée au compilateur, <code>op</code> opère sur des valeurs du même type que <code>init</code>, ce qui peut entraîner des conversions indésirables des éléments de l'itérateur. Par exemple, <code>std::accumulate(v.begin(), v.end(), 0)</code> ne donne probablement pas le résultat souhaité lorsque <code>v</code> est de type <code>std::vector&lt;double&gt;</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;numeric&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+    int sum = std::accumulate(v.begin(), v.end(), 0);
+    int product = std::accumulate(v.begin(), v.end(), 1, std::multiplies&lt;int&gt;());
+
+    auto dash_fold = [](std::string a, int b)
+    {
+        return std::move(a) + '-' + std::to_string(b);
+    };
+
+    std::string s = std::accumulate(std::next(v.begin()), v.end(),
+                                    std::to_string(v[0]), // commence par le premier élément
+                                    dash_fold);
+
+    // Pliage à droite utilisant des itérateurs inverses
+    std::string rs = std::accumulate(std::next(v.rbegin()), v.rend(),
+                                     std::to_string(v.back()), // commence par le dernier élément
+                                     dash_fold);
+
+    std::cout &lt;&lt; &quot;sum: &quot; &lt;&lt; sum &lt;&lt; '\n'
+              &lt;&lt; &quot;product: &quot; &lt;&lt; product &lt;&lt; '\n'
+              &lt;&lt; &quot;dash-separated string: &quot; &lt;&lt; s &lt;&lt; '\n'
+              &lt;&lt; &quot;dash-separated string (right-folded): &quot; &lt;&lt; rs &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">sum: 55
+product: 3628800
+dash-separated string: 1-2-3-4-5-6-7-8-9-10
+dash-separated string (right-folded): 10-9-8-7-6-5-4-3-2-1
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue242">LWG 242</a></td>
+<td>C++98</td>
+<td><code>op</code> ne doit pas avoir d'effets de bord</td>
+<td>il ne peut pas modifier les intervalles concernés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="adjacent_difference.html">adjacent_difference</a></strong> — calcule les différences entre éléments adjacents d'un intervalle <em>(modèle de fonction)</em></li>
+<li><strong><a href="inner_product.html">inner_product</a></strong> — calcule le produit scalaire de deux intervalles d'éléments <em>(modèle de fonction)</em></li>
+<li><strong><a href="partial_sum.html">partial_sum</a></strong> — calcule la somme partielle d'un intervalle d'éléments <em>(modèle de fonction)</em></li>
+<li><strong><a href="reduce.html">reduce</a> (C++17)</strong> — similaire à <code>std::accumulate</code>, sauf dans le désordre <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/fold_left.html">ranges::fold_left</a> (C++23)</strong> — pliage à gauche d'un intervalle d'éléments <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

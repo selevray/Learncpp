@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::permissions — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-permissions"><code>std::filesystem::permissions</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/permissions">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">void permissions( const std::filesystem::path&amp; p,
+                  std::filesystem::perms prms,
+                  std::filesystem::perm_options opts = perm_options::replace );  // (1) (depuis C++17)
+
+void permissions( const std::filesystem::path&amp; p,
+                  std::filesystem::perms prms,
+                  std::error_code&amp; ec ) noexcept;  // (2) (depuis C++17)
+
+void permissions( const std::filesystem::path&amp; p,
+                  std::filesystem::perms prms,
+                  std::filesystem::perm_options opts,
+                  std::error_code&amp; ec );  // (3) (depuis C++17)
+</code></pre>
+<p>Modifie les permissions d'accès du fichier vers lequel <code>p</code> se résout, comme le ferait POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/fchmodat.html"><code>fchmodat</code></a>. Les liens symboliques sont suivis sauf si <code>perm_options::nofollow</code> est défini dans <code>opts</code>.</p>
+<p>La seconde signature se comporte comme si elle était appelée avec <code>opts</code> défini à <code>perm_options::replace</code>.</p>
+<p>Les effets dépendent de <code>prms</code> et <code>opts</code> comme suit :</p>
+<ul>
+<li>Si <code>opts</code> vaut <code>perm_options::replace</code>, les permissions du fichier sont définies exactement à <code>prms &amp; std::filesystem::perms::mask</code> (c'est-à-dire que chaque bit valide de <code>prms</code> est appliqué).</li>
+<li>Si <code>opts</code> vaut <code>perm_options::add</code>, les permissions du fichier sont définies exactement à <code>status(p).permissions() | (prms &amp; perms::mask)</code> (c'est-à-dire que tout bit valide activé dans <code>prms</code> mais pas dans les permissions actuelles du fichier est ajouté aux permissions du fichier).</li>
+<li>Si <code>opts</code> vaut <code>perm_options::remove</code>, les permissions du fichier sont définies exactement à <code>status(p).permissions() &amp; ~(prms &amp; perms::mask)</code> (c'est-à-dire que tout bit valide désactivé dans <code>prms</code> mais activé dans les permissions actuelles du fichier est retiré des permissions du fichier).</li>
+</ul>
+<p><code>opts</code> doit n'avoir qu'un seul des éléments <code>replace</code>, <code>add</code> ou <code>remove</code> défini.</p>
+<p>La surcharge sans exception ne prend aucune action particulière en cas d'erreur.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — chemin à examiner</li>
+<li><code>prms</code> — permissions à définir, ajouter ou retirer</li>
+<li><code>opts</code> — options contrôlant l'action effectuée par cette fonction</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<ol>
+<li>Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</li>
+</ol>
+<p>2,3) Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les permissions ne sont pas nécessairement implémentées sous forme de bits, mais elles sont conceptuellement traitées de cette façon.</p>
+<p>Certains bits de permission peuvent être ignorés sur certains systèmes, et la modification de certains bits peut en modifier automatiquement d'autres (par exemple, sur les plateformes ne distinguant pas propriétaire/groupe/tous, définir l'un des trois bits d'écriture définit les trois).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+
+void demo_perms(std::filesystem::perms p)
+{
+    using std::filesystem::perms;
+    auto show = [=](char op, perms perm)
+    {
+        std::cout &lt;&lt; (perms::none == (perm &amp; p) ? '-' : op);
+    };
+    show('r', perms::owner_read);
+    show('w', perms::owner_write);
+    show('x', perms::owner_exec);
+    show('r', perms::group_read);
+    show('w', perms::group_write);
+    show('x', perms::group_exec);
+    show('r', perms::others_read);
+    show('w', perms::others_write);
+    show('x', perms::others_exec);
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::ofstream(&quot;test.txt&quot;); // créer un fichier
+
+    std::cout &lt;&lt; &quot;Created file with permissions: &quot;;
+    demo_perms(std::filesystem::status(&quot;test.txt&quot;).permissions());
+
+    std::filesystem::permissions(
+        &quot;test.txt&quot;,
+        std::filesystem::perms::owner_all | std::filesystem::perms::group_all,
+        std::filesystem::perm_options::add
+    );
+
+    std::cout &lt;&lt; &quot;After adding u+rwx and g+rwx:  &quot;;
+    demo_perms(std::filesystem::status(&quot;test.txt&quot;).permissions());
+
+    std::filesystem::remove(&quot;test.txt&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Created file with permissions: rw-r--r--
+After adding u+rwx and g+wrx:  rwxrwxr--
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="perms.html">perms</a> (C++17)</strong> — identifie les permissions du système de fichiers <em>(énumération)</em></li>
+<li><strong><a href="status.html">statussymlink_status</a> (C++17) (C++17)</strong> — détermine les attributs du fichier détermine les attributs du fichier, en vérifiant la cible du lien symbolique <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portée — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="portée"><code>Portée</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/scope">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Chaque <a href="identifier.html">identificateur</a> qui apparaît dans un programme C est <em>visible</em> (c'est-à-dire utilisable) uniquement dans une partie éventuellement discontinue du code source appelée sa <em>portée</em>.</p>
+<p>Au sein d'une portée, un identificateur ne peut désigner plusieurs entités que si celles-ci appartiennent à des <a href="name_space.html">espaces de noms</a> différents.</p>
+<p>C possède quatre sortes de portées :</p>
+<ul>
+<li>portée de bloc</li>
+<li>portée de fichier</li>
+<li>portée de fonction</li>
+<li>portée du prototype de fonction</li>
+</ul>
+<h2 id="Nested_scopes">Portées imbriquées</h2>
+<p>Si deux entités différentes désignées par le même identificateur sont visibles en même temps, et appartiennent au même <a href="name_space.html">espace de noms</a>, les portées sont imbriquées (aucune autre forme de chevauchement de portées n'est autorisée), et la déclaration située dans la portée interne masque la déclaration située dans la portée externe :</p>
+<pre><code class="language-c">// L'espace de noms ici est celui des identifiants ordinaires.
+
+int a;   // la portée de fichier du nom a commence ici
+
+void f(void)
+{
+    int a = 1; // la portée de bloc du nom a commence ici ; masque le a de portée de fichier
+    {
+      int a = 2;         // la portée du a intérieur commence ici, le a extérieur est masqué
+      printf(&quot;%d\n&quot;, a); // le a intérieur est dans sa portée, affiche 2
+    }                    // la portée de bloc du a intérieur se termine ici
+    printf(&quot;%d\n&quot;, a);   // le a extérieur est dans sa portée, affiche 1
+}                        // la portée du a extérieur se termine ici
+
+void g(int a);   // le nom a a une portée de prototype de fonction ; masque le a de portée de fichier
+</code></pre>
+<h2 id="Block_scope">Portée de bloc</h2>
+<p>La portée de tout identificateur déclaré à l'intérieur d'une <a href="statements.html#Compound_statements">instruction composée</a>, y compris les corps de fonctions, ou dans toute expression, déclaration ou instruction figurant dans une instruction <a href="if.html">if</a>, <a href="switch.html">switch</a>, <a href="for.html">for</a>, <a href="while.html">while</a> ou <a href="do.html">do-while</a> <em>(depuis C99)</em>, ou dans la liste de paramètres d'une <a href="function_definition.html">définition de fonction</a>, commence au point de déclaration et se termine à la fin du bloc ou de l'instruction dans lequel il a été déclaré.</p>
+<pre><code class="language-c">void f(int n)  // la portée du paramètre de fonction 'n' commence
+{         // le corps de la fonction commence
+   ++n;   // 'n' est dans sa portée et désigne le paramètre de fonction
+// int n = 2; // erreur : impossible de redéclarer l'identifiant dans la même portée
+   for(int n = 0; n&lt;10; ++n) { // la portée du 'n' local à la boucle commence
+       printf(&quot;%d\n&quot;, n); // prints 0 1 2 3 4 5 6 7 8 9
+   } // la portée du 'n' local à la boucle se termine
+     // le paramètre de fonction 'n' est de nouveau dans sa portée
+   printf(&quot;%d\n&quot;, n); // affiche la valeur du paramètre
+} // la portée du paramètre de fonction 'n' se termine
+int a = n; // Erreur : le nom 'n' n'est pas dans sa portée
+</code></pre>
+<blockquote>
+<p>Jusqu'à C99, les instructions de sélection et d'itération n'établissaient pas leur propre portée de bloc (bien que, si une instruction composée était utilisée dans l'instruction, elle possédait sa portée de bloc habituelle) :</p>
+<pre><code class="language-c">enum {a, b};
+int different(void)
+{
+    if (sizeof(enum {b, a}) != sizeof(int))
+        return a; // a == 1
+    return b; // b == 0 en C89, b == 1 en C99
+}
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Les variables de portée de bloc n'ont <a href="storage_duration.html">aucune liaison</a> et une <a href="storage_duration.html">durée de stockage automatique</a> par défaut. Notez que la durée de stockage des variables locales non VLA commence à l'entrée dans le bloc, mais tant que la déclaration n'a pas été rencontrée, la variable n'est pas dans sa portée et ne peut pas être accédée.</p>
+<h2 id="File_scope">Portée de fichier</h2>
+<p>La portée de tout identificateur déclaré en dehors de tout bloc ou de toute liste de paramètres commence au point de déclaration et se termine à la fin de l'unité de traduction.</p>
+<pre><code class="language-c">int i; // la portée de i commence
+static int g(int a) { return a; } // la portée de g commence (remarque : « a » a une portée de bloc)
+int main(void)
+{
+    i = g(2); // i et g sont dans leur portée
+}
+</code></pre>
+<p>Les identificateurs de portée de fichier ont une <a href="storage_duration.html">liaison externe</a> et une <a href="storage_duration.html">durée de stockage statique</a> par défaut.</p>
+<h2 id="Function_scope">Portée de fonction</h2>
+<p>Une <a href="statements.html#Labels">étiquette (et uniquement une étiquette)</a> déclarée dans une fonction est visible partout dans cette fonction, dans tous les blocs imbriqués, avant et après sa propre déclaration. Remarque : une étiquette est déclarée implicitement, en utilisant un identificateur par ailleurs inutilisé avant le deux-points, placé avant une instruction.</p>
+<pre><code class="language-c">void f()
+{
+   {
+       goto label; // étiquette dans la portée bien que déclarée plus tard
+label:;
+   }
+   goto label; // l'étiquette ignore la portée de bloc
+}
+
+void g()
+{
+    goto label; // erreur : étiquette hors de portée dans g()
+}
+</code></pre>
+<h2 id="Function_prototype_scope">Portée du prototype de fonction</h2>
+<p>La portée d'un nom introduit dans la liste de paramètres d'une <a href="function_declaration.html">déclaration de fonction</a> qui n'est pas une définition se termine à la fin du <a href="declarations.html">déclarateur</a> de la fonction.</p>
+<pre><code class="language-c">int f(int n,
+      int a[n]); // n est dans sa portée et désigne le premier paramètre
+</code></pre>
+<p>Notez que si la déclaration contient plusieurs déclarateurs ou des déclarateurs imbriqués, la portée se termine à la fin du déclarateur de fonction le plus proche qui l'englobe :</p>
+<pre><code class="language-c">void f ( // le nom de fonction 'f' est en portée de fichier
+ long double f,            // l'identifiant 'f' est maintenant dans sa portée, le 'f' de portée de fichier est masqué
+ char (**a)[10 * sizeof f] // 'f' désigne le premier paramètre, qui est dans sa portée
+);
+
+enum{ n = 3 };
+int (*(*g)(int n))[n]; // la portée du paramètre de fonction 'n'
+                       // se termine à la fin de son déclarateur de fonction
+                       // dans le déclarateur de tableau, le n global est dans sa portée
+// (ceci déclare un pointeur vers une fonction renvoyant un pointeur vers un tableau de 3 int)
+</code></pre>
+<h2 id="Point_of_declaration">Point de déclaration</h2>
+<p>La portée des étiquettes de structure, d'union et d'énumération commence immédiatement après l'apparition de l'étiquette dans un spécificateur de type qui déclare cette étiquette.</p>
+<pre><code class="language-c">struct Node {
+   struct Node* next; // Node est dans sa portée et désigne cette struct
+};
+</code></pre>
+<p>La portée d'une constante d'énumération commence immédiatement après l'apparition de son énumérateur de définition dans une liste d'énumérateurs.</p>
+<pre><code class="language-c">enum { x = 12 };
+{
+    enum { x = x + 1, // le nouveau x n'est pas dans sa portée avant la virgule, x est initialisé à 13
+           y = x + 1  // le nouvel énumérateur x est maintenant dans sa portée, y est initialisé à 14
+         };
+}
+</code></pre>
+<p>La portée de tout autre identificateur commence juste après la fin de son déclarateur et avant l'initialiseur, s'il y en a un :</p>
+<pre><code class="language-c">int x = 2; // la portée du premier 'x' commence
+{
+    int x[x]; // la portée du 'x' nouvellement déclaré commence après le déclarateur (x[x]).
+              // Dans le déclarateur, le 'x' extérieur est toujours dans sa portée.
+              // Ceci déclare un tableau VLA de 2 int.
+}
+</code></pre>
+<pre><code class="language-c">unsigned char x = 32; // la portée du 'x' extérieur commence
+{
+    unsigned char x = x;
+            // la portée du 'x' intérieur commence avant l'initialiseur (= x)
+            // ceci n'initialise pas le 'x' intérieur avec la valeur 32,
+            // ceci initialise le 'x' intérieur avec sa propre valeur indéterminée
+}
+
+unsigned long factorial(unsigned long n)
+// le déclarateur se termine, 'factorial' est dans sa portée à partir de ce point
+{
+   return n&lt;2 ? 1 : n*factorial(n-1); // appel récursif
+}
+</code></pre>
+<p>Dans le cas particulier, la portée d'un <a href="compatible_type.html">nom de type</a> qui n'est pas une déclaration d'identificateur est considérée comme commençant juste après l'endroit du nom de type où l'identificateur apparaîtrait s'il n'avait pas été omis.</p>
+<h2 id="Notes">Notes</h2>
+<p>Avant C89, les identifiants à liaison externe avaient une portée de fichier même lorsqu'ils étaient introduits dans un bloc ; de ce fait, un compilateur C89 n'est pas tenu de diagnostiquer l'utilisation d'un identifiant extern sorti de sa portée (une telle utilisation est un comportement indéfini).</p>
+<p>Les variables locales dans le corps d'une boucle peuvent masquer les variables déclarées dans la clause d'initialisation d'une boucle <a href="for.html">for</a> en C (leur portée est imbriquée), mais ne le peuvent pas en C++.</p>
+<p>Contrairement à C++, C n'a pas de portée de struct : les noms déclarés dans une déclaration struct/union/enum sont dans la même portée que la déclaration de la struct (sauf que les membres de données sont dans leur propre <a href="name_space.html">espace de noms des membres</a>) :</p>
+<pre><code class="language-c">struct foo {
+    struct baz {};
+    enum color {RED, BLUE};
+};
+struct baz b; // baz est dans sa portée
+enum color x = RED; // color et RED sont dans leur portée
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.2.1 Portées des identifiants, des noms de types et des littéraux composés (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.2.1 Portées des identifiants (p : 28-29)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.2.1 Portées des identifiants (p : 35-36)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.2.1 Portées des identifiants (p : 29-30)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.1.2.1 Portées des identifiants</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/scope.html">Documentation C++</a> pour Portée</strong></p>
+
+</main>
+</body>
+</html>

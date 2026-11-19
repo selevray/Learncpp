@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::clamp — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-clamp"><code>std::ranges::clamp</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/clamp">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class Proj = std::identity,
+          std::indirect_strict_weak_order&lt;std::projected&lt;const T*, Proj&gt;&gt; Comp =
+              ranges::less &gt;
+constexpr const T&amp;
+    clamp( const T&amp; v, const T&amp; lo, const T&amp; hi, Comp comp = {}, Proj proj = {} );  // (depuis C++20)
+</code></pre>
+<p>Si la valeur de <code>v</code> est comprise dans <code>[lo,hi]</code>, renvoie <code>v</code> ; sinon renvoie la borne la plus proche.</p>
+<p>Le comportement est indéfini si <code>lo</code> est supérieur à <code>hi</code>.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>v</code> — la valeur à borner</li>
+<li><code>lo, hi</code> — les bornes entre lesquelles borner <code>v</code></li>
+<li><code>comp</code> — la comparaison à appliquer aux éléments projetés</li>
+<li><code>proj</code> — la projection à appliquer à <code>v</code>, <code>lo</code> et <code>hi</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Référence à <code>lo</code> si la valeur projetée de <code>v</code> est inférieure à la valeur projetée de <code>lo</code>, référence à <code>hi</code> si la valeur projetée de <code>hi</code> est inférieure à la valeur projetée de <code>v</code>, sinon référence à <code>v</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Au plus deux comparaisons et trois applications de la projection.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct clamp_fn
+{
+    template&lt;class T, class Proj = std::identity,
+             std::indirect_strict_weak_order&lt;std::projected&lt;const T*, Proj&gt;&gt;
+                 Comp = std::ranges::less&gt;
+    constexpr const T&amp; operator()(const T&amp; v, const T&amp; lo, const T&amp; hi,
+                                  Comp comp = {}, Proj proj = {}) const
+    {
+        auto&amp;&amp; pv = std::invoke(proj, v);
+
+        if (std::invoke(comp, std::forward&lt;decltype(pv)&gt;(pv), std::invoke(proj, lo)))
+            return lo;
+
+        if (std::invoke(comp, std::invoke(proj, hi), std::forward&lt;decltype(pv)&gt;(pv)))
+            return hi;
+
+        return v;
+    }
+};
+
+inline constexpr clamp_fn clamp;
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Capturer le résultat de <code>std::ranges::clamp</code> par référence produit une référence pendante si l'un des paramètres est un temporaire et que ce paramètre est renvoyé :</p>
+<pre><code class="language-cpp">int n = -1;
+const int&amp; r = std::ranges::clamp(n, 0, 255); // r est pendante
+</code></pre>
+<p>Si <code>v</code> compare comme équivalent à l'une des bornes, renvoie une référence à <code>v</code>, et non à la borne.</p>
+<p>Cette fonction ne doit pas être utilisée avec à la fois une projection renvoyant par valeur et un comparateur prenant ses arguments par valeur, sauf si un déplacement du type de résultat de la projection vers le type du paramètre du comparateur équivaut à une copie. Si la comparaison via <a href="../../utility/functional/invoke.html"><code>std::invoke</code></a> modifiait le résultat de la projection, le comportement est indéfini en raison des <a href="../../concepts/invocable.html">exigences sémantiques de <code>std::regular_invocable</code></a> (subsumé par <a href="../../iterator/indirect_strict_weak_order.html"><code>std::indirect_strict_weak_order</code></a>).</p>
+<p>La norme exige que la catégorie de valeur du résultat de la projection soit préservée, et <code>proj</code> ne peut être appelé sur <code>v</code> qu'une seule fois, ce qui signifie qu'un résultat de projection qui est une prvalue doit être mis en cache et déplacé deux fois pour les deux appels au comparateur.</p>
+<ul>
+<li><a href="https://github.com/gcc-mirror/gcc/blob/f3169941996c76ecbfae9c37709d2b57652be555/libstdc%2B%2B-v3/include/bits/ranges_algo.h#L3196-L3218">libstdc++</a> ne respecte pas cela et transmet toujours le résultat de la projection en tant que lvalue.</li>
+<li><a href="https://github.com/llvm/llvm-project/issues/64717">libc++</a> exécutait auparavant la projection deux fois, ce qui a été corrigé dans Clang 18.</li>
+<li><a href="https://github.com/microsoft/STL/issues/1893">MSVC STL</a> exécutait auparavant la projection deux fois, ce qui a été corrigé dans VS 2022 17.2.</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cstdint&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+using namespace std::literals;
+namespace ranges = std::ranges;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;[raw] [&quot; &lt;&lt; INT8_MIN &lt;&lt; ',' &lt;&lt; INT8_MAX &lt;&lt; &quot;] &quot;
+                 &quot;[0&quot; &lt;&lt; ',' &lt;&lt; UINT8_MAX &lt;&lt; &quot;]\n&quot;;
+    for (int const v : {-129, -128, -1, 0, 42, 127, 128, 255, 256})
+        std::cout &lt;&lt; std::setw(4) &lt;&lt; v
+                  &lt;&lt; std::setw(11) &lt;&lt; ranges::clamp(v, INT8_MIN, INT8_MAX)
+                  &lt;&lt; std::setw(8) &lt;&lt; ranges::clamp(v, 0, UINT8_MAX) &lt;&lt; '\n';
+    std::cout &lt;&lt; std::string(23, '-') &lt;&lt; '\n';
+
+    // Fonction de projection
+    const auto stoi = [](std::string s) { return std::stoi(s); };
+
+    // Identique à ci-dessus, mais avec des chaînes de caractères
+    for (std::string const v : {&quot;-129&quot;, &quot;-128&quot;, &quot;-1&quot;, &quot;0&quot;, &quot;42&quot;,
+                                &quot;127&quot;, &quot;128&quot;, &quot;255&quot;, &quot;256&quot;})
+        std::cout &lt;&lt; std::setw(4) &lt;&lt; v
+                  &lt;&lt; std::setw(11) &lt;&lt; ranges::clamp(v, &quot;-128&quot;s, &quot;127&quot;s, {}, stoi)
+                  &lt;&lt; std::setw(8) &lt;&lt; ranges::clamp(v, &quot;0&quot;s, &quot;255&quot;s, {}, stoi)
+                  &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">[raw] [-128,127] [0,255]
+-129       -128       0
+-128       -128       0
+  -1         -1       0
+   0          0       0
+  42         42      42
+ 127        127     127
+ 128        127     128
+ 255        127     255
+ 256        127     255
+-----------------------
+-129       -128       0
+-128       -128       0
+  -1         -1       0
+   0          0       0
+  42         42      42
+ 127        127     127
+ 128        127     128
+ 255        127     255
+ 256        127     255
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="min.html">ranges::min</a> (C++20)</strong> — renvoie la plus petite des valeurs données <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="max.html">ranges::max</a> (C++20)</strong> — renvoie la plus grande des valeurs données <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../../utility/in_range.html">in_range</a> (C++20)</strong> — vérifie si une valeur entière est dans l'intervalle d'un type entier donné <em>(modèle de fonction)</em></li>
+<li><strong><a href="../clamp.html">clamp</a> (C++17)</strong> — borne une valeur entre une paire de valeurs limites <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

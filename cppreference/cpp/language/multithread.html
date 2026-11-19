@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exécutions multi-threads et courses de données (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="exécutions-multi-threads-et-courses-de-données-depuis-c-11">Exécutions multi-threads et courses de données (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/multithread">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un <em>fil d'exécution</em> est un flux de contrôle au sein d'un programme qui commence par l'invocation d'une fonction de niveau supérieur spécifique (par <a href="../thread/thread.html"><code>std::thread</code></a>, <a href="../thread/async.html"><code>std::async</code></a>, <a href="../thread/jthread.html"><code>std::jthread</code></a> <em>(depuis C++20)</em> ou par d'autres moyens), et comprend récursivement chaque appel de fonction ensuite exécuté par ce fil.</p>
+<ul>
+<li>Lorsqu'un fil en crée un autre, l'appel initial de la fonction de niveau supérieur du nouveau fil est exécuté par le nouveau fil, et non par le fil créateur.</li>
+</ul>
+<p>Tout fil peut potentiellement accéder à tout objet et à toute fonction du programme :</p>
+<ul>
+<li>Les objets à <a href="storage_duration.html">durée de stockage</a> automatique et locale au thread peuvent néanmoins être accédés par un autre thread, par l'intermédiaire d'un pointeur ou par référence.</li>
+<li>Dans une <a href="../freestanding.html">implémentation hébergée</a>, un programme C++ peut avoir plusieurs threads s'exécutant simultanément. L'exécution de chaque thread se déroule comme défini par le reste de cette page. L'exécution de l'ensemble du programme consiste en l'exécution de tous ses threads.</li>
+<li>Dans une <a href="../freestanding.html">implémentation autonome</a>, il est défini par l'implémentation qu'un programme puisse avoir plus d'un fil d'exécution.</li>
+</ul>
+<p>Pour un <a href="../utility/program/signal.html#Signal_handler">gestionnaire de signal</a> qui n'est pas exécuté à la suite d'un appel à <a href="../utility/program/raise.html"><code>std::raise</code></a>, il n'est pas spécifié dans quel fil d'exécution se trouve l'invocation du gestionnaire de signal.</p>
+<h2 id="Data_races">Courses de données</h2>
+<p>Différents fils d'exécution sont toujours autorisés à accéder (lire et modifier) simultanément à des <a href="memory_model.html#Memory_location">emplacements mémoire</a> différents, sans interférence et sans exigence de synchronisation.</p>
+<p>Deux <a href="eval_order.html">évaluations</a> d'expressions <em>entrent en conflit</em> si l'une d'elles modifie un emplacement mémoire ou débute ou termine la durée de vie d'un objet dans un emplacement mémoire, et que l'autre lit ou modifie le même emplacement mémoire ou débute ou termine la durée de vie d'un objet occupant un stockage qui chevauche cet emplacement mémoire.</p>
+<p>Un programme qui comporte deux évaluations en conflit présente une <em>course de données</em>, sauf si</p>
+<ul>
+<li>les deux évaluations s'exécutent sur le même fil ou dans le même <a href="../utility/program/signal.html#Signal_handler">gestionnaire de signal</a>, ou</li>
+<li>les deux évaluations en conflit sont des opérations atomiques (voir <a href="../atomic/atomic.html"><code>std::atomic</code></a>), ou</li>
+<li>l'une des évaluations en conflit <em>arrive avant</em> l'autre (voir <a href="../atomic/memory_order.html"><code>std::memory_order</code></a>).</li>
+</ul>
+<p>Si une course de données se produit, le comportement du programme est indéfini.</p>
+<p>(En particulier, la libération d'un <a href="../thread/mutex.html"><code>std::mutex</code></a> est <em>synchronisée avec</em> l'acquisition du même mutex par un autre fil, et arrive donc <em>avant</em> cette acquisition, ce qui permet d'utiliser des verrous mutex pour se protéger des courses de données.)</p>
+<pre><code class="language-cpp">int cnt = 0;
+auto f = [&amp;] { cnt++; };
+std::thread t1{f}, t2{f}, t3{f}; // comportement indéfini
+</code></pre>
+<pre><code class="language-cpp">std::atomic&lt;int&gt; cnt{0};
+auto f = [&amp;] { cnt++; };
+std::thread t1{f}, t2{f}, t3{f}; // OK
+</code></pre>
+<h3 id="Container_data_races">Courses de données sur les conteneurs</h3>
+<p>Tous les <a href="../container.html">conteneurs</a> de la bibliothèque standard, à l'exception de <a href="../container/vector_bool.html"><code>std::vector&lt;bool&gt;</code></a>, garantissent que des modifications concurrentes du contenu de l'objet contenu dans des éléments différents d'un même conteneur ne provoqueront jamais de courses de données.</p>
+<pre><code class="language-cpp">std::vector&lt;int&gt; vec = {1, 2, 3, 4};
+auto f = [&amp;](int index) { vec[index] = 5; };
+std::thread t1{f, 0}, t2{f, 1}; // OK
+std::thread t3{f, 2}, t4{f, 2}; // comportement indéfini
+</code></pre>
+<pre><code class="language-cpp">std::vector&lt;bool&gt; vec = {false, false};
+auto f = [&amp;](int index) { vec[index] = true; };
+std::thread t1{f, 0}, t2{f, 1}; // comportement indéfini
+</code></pre>
+<h2 id="Memory_order">Ordre mémoire</h2>
+<p>Lorsqu'un fil lit une valeur depuis un emplacement mémoire, il peut voir la valeur initiale, la valeur écrite dans le même fil, ou la valeur écrite dans un autre fil. Voir <a href="../atomic/memory_order.html"><code>std::memory_order</code></a> pour les détails sur l'ordre dans lequel les écritures effectuées par les fils deviennent visibles pour les autres fils.</p>
+<h2 id="Forward_progress">Progression</h2>
+<h3 id="Obstruction_freedom">Liberté d'obstruction</h3>
+<p>Lorsqu'un seul fil non bloqué dans une fonction de la bibliothèque standard exécute une <a href="../atomic.html#Atomic_operations">fonction atomique</a> sans verrou, cette exécution est garantie de se terminer (toutes les opérations sans verrou de la bibliothèque standard sont <a href="https://en.wikipedia.org/wiki/Non-blocking_algorithm#Obstruction-freedom">sans obstruction</a>).</p>
+<h3 id="Lock_freedom">Liberté de verrou</h3>
+<p>Lorsqu'une ou plusieurs fonctions atomiques sans verrou s'exécutent simultanément, au moins l'une d'elles est garantie de se terminer (toutes les opérations sans verrou de la bibliothèque standard sont <a href="https://en.wikipedia.org/wiki/Non-blocking_algorithm#Lock-freedom">sans verrou</a> : il incombe à l'implémentation de s'assurer qu'elles ne peuvent pas être bloquées indéfiniment en livelock par d'autres fils, par exemple en volant continuellement la ligne de cache).</p>
+<h3 id="Progress_guarantee">Garantie de progression</h3>
+<p>Dans un programme C++ valide, chaque fil finit par effectuer l'une des opérations suivantes :</p>
+<ul>
+<li>Termine le programme.</li>
+<li>Invoque <a href="../thread/yield.html"><code>std::this_thread::yield</code></a>.</li>
+<li>Effectue un appel à une fonction d'entrée/sortie de la bibliothèque.</li>
+<li>Effectue un accès via un glvalue <a href="cv.html">volatile</a>.</li>
+<li>Effectue une opération atomique ou une opération de synchronisation.</li>
+<li>Poursuit l'exécution d'une boucle infinie triviale (voir ci-dessous).</li>
+</ul>
+<p>On dit qu'un thread <em>progresse</em> s'il effectue l'une des étapes d'exécution ci-dessus, se bloque dans une fonction de la bibliothèque standard, ou appelle une fonction atomique sans verrou qui ne se termine pas à cause d'un thread concurrent non bloqué.</p>
+<p>Cela permet aux compilateurs de supprimer, fusionner et réordonner toutes les boucles sans comportement observable, sans avoir à prouver qu'elles finissent par se terminer, car ils peuvent supposer qu'aucun thread d'exécution ne peut s'exécuter indéfiniment sans effectuer l'un de ces comportements observables. Une exception est faite pour les boucles infinies triviales, qui ne peuvent ni être supprimées ni réordonnées.</p>
+<h3 id="Trivial_infinite_loops">Boucles infinies triviales</h3>
+<p>Une <em>instruction d'itération trivialement vide</em> est une instruction d'itération correspondant à l'une des formes suivantes :</p>
+<p>|
+| |
+| <code>while (</code> <code>condition</code> <code>) ;</code> | (1) | |
+|
+| <code>while (</code> <code>condition</code> <code>) { }</code> | (2) | |
+|
+| <code>do ; while (</code> <code>condition</code> <code>) ;</code> | (3) | |
+|
+| <code>do { } while (</code> <code>condition</code> <code>) ;</code> | (4) | |
+|
+| <code>for (</code> <code>init-statement condition</code> ﻿*(facultatif)* <code>; ) ;</code> | (5) | |
+|
+| <code>for (</code> <code>init-statement condition</code> ﻿*(facultatif)* <code>; ) { }</code> | (6) | |
+|</p>
+<ol>
+<li>
+<p>Une instruction <a href="while.html"><code>while</code></a> dont le corps de boucle est une instruction simple vide.</p>
+</li>
+<li>
+<p>Une instruction <a href="while.html"><code>while</code></a> dont le corps de boucle est une instruction composée vide.</p>
+</li>
+<li>
+<p>Une instruction <a href="do.html"><code>do</code>-<code>while</code></a> dont le corps de boucle est une instruction simple vide.</p>
+</li>
+<li>
+<p>Une instruction <a href="do.html"><code>do</code>-<code>while</code></a> dont le corps de boucle est une instruction composée vide.</p>
+</li>
+<li>
+<p>Une instruction <a href="for.html"><code>for</code></a> dont le corps de boucle est une instruction simple vide, l'instruction <code>for</code> n'ayant pas de <code>iteration-expression</code>.</p>
+</li>
+<li>
+<p>Une instruction <a href="for.html"><code>for</code></a> dont le corps de boucle est une instruction composée vide, l'instruction <code>for</code> n'ayant pas de <code>iteration-expression</code>.</p>
+</li>
+</ol>
+<p>L'<em>expression de contrôle</em> d'une instruction d'itération trivialement vide est :</p>
+<p>1-4) <code>condition</code>.</p>
+<p>5,6) <code>condition</code> si elle est présente, sinon <code>true</code>.</p>
+<p>Une <em>boucle infinie triviale</em> est une instruction d'itération trivialement vide dont l'expression de contrôle convertie est une <a href="constant_expression.html">expression constante</a>, lorsqu'elle est <a href="constant_expression.html#Manifestly_constant-evaluated_expressions">évaluée de manière constante manifeste</a>, et vaut <code>true</code>.</p>
+<p>Le corps d'une boucle infinie triviale est remplacé par un appel à la fonction <a href="../thread/yield.html"><code>std::this_thread::yield</code></a>. Il est défini par l'implémentation que ce remplacement ait lieu ou non sur les <a href="../freestanding.html">implémentations autonomes</a>.</p>
+<pre><code class="language-cpp">for (;;); // boucle infinie triviale, bien définie depuis P2809
+for (;;) { int x; } // comportement indéfini
+</code></pre>
+<blockquote>
+<h4 id="Concurrent_forward_progress">Progression concurrente</h4>
+<p>Si un thread offre la <em>garantie de progression concurrente</em>, il <em>progressera</em> (au sens défini ci-dessus) en un temps fini, tant qu'il ne s'est pas terminé, que les autres threads (s'il y en a) progressent ou non.</p>
+<p>La norme encourage, sans l'exiger, à ce que le thread principal et les threads lancés par <a href="../thread/thread.html"><code>std::thread</code></a> et <a href="../thread/jthread.html"><code>std::jthread</code></a> <em>(depuis C++20)</em> offrent la garantie de progression concurrente.</p>
+<h4 id="Parallel_forward_progress">Progression parallèle</h4>
+<p>Si un thread offre la <em>garantie de progression parallèle</em>, l'implémentation n'est pas tenue de garantir que ce thread finira par progresser s'il n'a encore exécuté aucune étape d'exécution (E/S, volatile, atomique ou synchronisation), mais une fois qu'il a exécuté une étape, il fournit des garanties de <em>progression concurrente</em> (cette règle décrit un thread d'un pool de threads qui exécute des tâches dans un ordre arbitraire).</p>
+<h4 id="Weakly_parallel_forward_progress">Progression faiblement parallèle</h4>
+<p>Si un thread offre la <em>garantie de progression faiblement parallèle</em>, il ne garantit pas de finir par progresser, que les autres threads progressent ou non.</p>
+<p>Ces threads peuvent malgré tout être garantis de progresser grâce à une délégation de garantie de progression lors du blocage : si un thread <code>P</code> se bloque de cette manière sur la fin d'un ensemble de threads <code>S</code>, alors au moins un thread de <code>S</code> offrira une garantie de progression égale ou supérieure à <code>P</code>. Une fois ce thread terminé, un autre thread de <code>S</code> sera de même renforcé. Une fois l'ensemble vide, <code>P</code> sera débloqué.</p>
+<p>Les <a href="../algorithm.html">algorithmes parallèles</a> de la bibliothèque standard C++ se bloquent avec délégation de progression lors de la fin d'un ensemble non spécifié de threads gérés par la bibliothèque.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1953.html">CWG 1953</a></td>
+<td>C++11</td>
+<td>deux évaluations d'expressions qui débutent/terminent les durées de vie d'objets aux stockages qui se chevauchent n'entraient pas en conflit</td>
+<td>elles entrent en conflit</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2200">LWG 2200</a></td>
+<td>C++11</td>
+<td>il n'était pas clair si l'exigence de course aux données sur les conteneurs ne s'appliquait qu'aux conteneurs de séquence</td>
+<td>s'applique à tous les conteneurs</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2809R3">P2809R3</a></td>
+<td>C++11</td>
+<td>le comportement de l'exécution de boucles infinies « triviales »<a href="multithread.html#cite_note-1">[1]</a> était indéfini</td>
+<td>définit correctement les « boucles infinies triviales » et rend leur comportement bien défini</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><a href="multithread.html#cite_ref-1">↑</a> « Triviale » signifie ici que l'exécution de la boucle infinie ne fait jamais aucun progrès.</li>
+</ol>
+
+</main>
+</body>
+</html>

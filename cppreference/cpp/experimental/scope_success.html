@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::scope_success — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a></nav>
+<h1 id="std-experimental-scope_success"><code>std::experimental::scope_success</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/scope_success">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/scope&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class EF &gt;
+class scope_success;  // (spécification technique des fondamentaux de bibliothèque v3)
+</code></pre>
+<p>Le modèle de classe <code>scope_success</code> est un garde de portée à usage général destiné à appeler sa fonction de sortie lorsqu'une portée est quittée normalement.</p>
+<p><code>scope_success</code> n'est pas <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a>, <a href="../named_req/CopyAssignable.html"><em>CopyAssignable</em></a> ou <a href="../named_req/MoveAssignable.html"><em>MoveAssignable</em></a>, cependant il peut être <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a> si <code>EF</code> satisfait certaines exigences, ce qui permet d'encapsuler un <code>scope_success</code> dans un autre objet.</p>
+<p>Un <code>scope_success</code> peut être actif, c'est-à-dire appeler sa fonction de sortie à la destruction, ou inactif, c'est-à-dire ne rien faire à la destruction. Un <code>scope_success</code> est actif après sa construction à partir d'une fonction de sortie.</p>
+<p>Un <code>scope_success</code> peut devenir inactif en appelant <code>release()</code> dessus, manuellement ou automatiquement (par le constructeur de déplacement). Un <code>scope_success</code> inactif peut aussi être obtenu en l'initialisant avec un autre <code>scope_success</code> inactif. Une fois qu'un <code>scope_success</code> est inactif, il ne peut plus redevenir actif.</p>
+<p>Un <code>scope_success</code> contient en pratique une <code>EF</code> et un indicateur <code>bool</code> indiquant s'il est actif, ainsi qu'un compteur d'exceptions non capturées utilisé pour détecter si le destructeur est appelé pendant le déroulement de la pile.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>EF</code> — type de la fonction de sortie stockée</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>EF</code> doit être soit :
+<ul>
+<li>un type <a href="../named_req/Destructible.html"><em>Destructible</em></a> <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a>,</li>
+<li>une référence lvalue vers <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a>,</li>
+<li>une référence lvalue vers une fonction.</li>
+</ul>
+</li>
+<li>L'appel d'une lvalue de <code>std::remove_reference_t&lt;EF&gt;</code> sans argument doit être bien formé.</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="scope_success/scope_success.html">(constructeur)</a></strong> — construit un nouveau <code>scope_success</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="scope_success/~scope_success.html">(destructeur)</a></strong> — appelle la fonction de sortie lorsque la portée est quittée normalement si le <code>scope_success</code> est actif, puis détruit le <code>scope_success</code> <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — <code>scope_success</code> n'est pas affectable <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Modificateurs {#Modifiers}</strong></p>
+<ul>
+<li><strong><a href="scope_success/release.html">release</a></strong> — rend le <code>scope_success</code> inactif <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Deduction_guides"><a href="scope_success/deduction_guides.html">Guides de déduction</a></h2>
+<h2 id="Notes">Notes</h2>
+<p>Construire un <code>scope_success</code> de durée de stockage dynamique peut conduire à un comportement inattendu.</p>
+<p>Construire un <code>scope_success</code> à partir d'un autre <code>scope_success</code> créé dans un thread différent peut également conduire à un comportement inattendu, car le nombre d'exceptions non capturées obtenu dans différents threads peut être comparé lors de la destruction.</p>
+<p>Si le <code>EF</code> stocké dans un objet <code>scope_success</code> fait référence à une variable locale de la fonction où il est défini, par exemple sous la forme d'une lambda capturant la variable par référence, et que cette variable est utilisée comme opérande de retour dans cette fonction, cette variable peut déjà avoir été retournée lorsque le destructeur de <code>scope_success</code> s'exécute en appelant la fonction de sortie. Cela peut conduire à un comportement surprenant.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;cstdlib&gt;
+#include &lt;string_view&gt;
+#include &lt;experimental/scope&gt;
+
+void print_exit_status(std::string_view name, bool exit_status, bool did_throw) {
+  std::cout &lt;&lt; name &lt;&lt; &quot;:\n&quot;;
+  std::cout &lt;&lt; &quot;  Throwed exception  &quot; &lt;&lt; (did_throw ? &quot;yes&quot; : &quot;no&quot;) &lt;&lt; &quot;\n&quot;;
+  std::cout &lt;&lt; &quot;  Exit status        &quot; &lt;&lt; (exit_status ? &quot;finished&quot; : &quot;pending&quot;) &lt;&lt; &quot;\n\n&quot;;
+}
+
+// Lever aléatoirement une exception (50 % de chances)
+void maybe_throw() {
+    if (std::rand() &gt;= RAND_MAX / 2)
+        throw std::exception{};
+}
+
+int main() {
+  bool exit_status{false}, did_throw{false};
+
+  // Gestion manuelle à la « fin de portée »
+  try {
+    maybe_throw();
+    exit_status = true;
+  } catch (...) { did_throw = true; }
+  print_exit_status(&quot;Manual handling&quot;, exit_status, did_throw);
+
+  // Avec scope_exit : s'exécute à la sortie de portée (succès ou exception)
+  exit_status = did_throw = false;
+  try {
+    auto guard = std::experimental::scope_exit{[&amp;]{ exit_status = true; } };
+    maybe_throw();
+  } catch (...) { did_throw = true; }
+  print_exit_status(&quot;scope_exit&quot;, exit_status, did_throw);
+
+  // Avec scope_fail : s'exécute uniquement si une exception survient
+  exit_status = did_throw = false;
+  try {
+    auto guard = std::experimental::scope_fail{[&amp;]{ exit_status = true; } };
+    maybe_throw();
+  } catch (...) { did_throw = true; }
+  print_exit_status(&quot;scope_fail&quot;, exit_status, did_throw);
+
+  // Avec scope_success : s'exécute uniquement si aucune exception ne survient
+  exit_status = did_throw = false;
+  try {
+    auto guard = std::experimental::scope_success{[&amp;]{ exit_status = true; } };
+    maybe_throw();
+  } catch (...) { did_throw = true; }
+  print_exit_status(&quot;scope_success&quot;, exit_status, did_throw);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Manual handling:
+  Throwed exception  yes
+  Exit status        pending
+
+scope_exit:
+  Throwed exception  no
+  Exit status        finished
+
+scope_fail:
+  Throwed exception  yes
+  Exit status        finished
+
+scope_success:
+  Throwed exception  yes
+  Exit status        pending
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="scope_exit.html">scope_exit</a></strong> — encapsule un objet fonction et l'invoque à la sortie de la portée <em>(modèle de classe)</em></li>
+<li><strong><a href="scope_fail.html">scope_fail</a></strong> — encapsule un objet fonction et l'invoque à la sortie de la portée par une exception <em>(modèle de classe)</em></li>
+<li><strong><a href="../memory/default_delete.html">default_delete</a> (C++11)</strong> — suppresseur par défaut pour <a href="../memory/unique_ptr.html"><code>unique_ptr</code></a> <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::money_get&lt;CharT,InputIt&gt;::get, do_get — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/money_get.html">std::money_get</a></nav>
+<h1 id="std-money_get-chart-inputit-get-do_get"><code>std::money_get&lt;CharT,InputIt&gt;::get, do_get</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/money_get/get">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+iter_type get( iter_type beg, iter_type end, bool intl, std::ios_base&amp; str,
+               std::ios_base::iostate&amp; err, long double&amp; units ) const;  // (1)
+
+iter_type get( iter_type beg, iter_type end, bool intl, std::ios_base&amp; str,
+               std::ios_base::iostate&amp; err, string_type&amp; digits ) const;  // (2)
+
+protected:
+virtual iter_type do_get( iter_type beg, iter_type end, bool intl, std::ios_base&amp; str,
+                          std::ios_base::iostate&amp; err, long double&amp; units ) const;  // (3)
+
+virtual iter_type do_get( iter_type beg, iter_type end, bool intl, std::ios_base&amp; str,
+                          std::ios_base::iostate&amp; err, string_type&amp; digits ) const;  // (4)
+</code></pre>
+<p>Analyse une valeur monétaire depuis un itérateur d'entrée et écrit le résultat dans un <code>long double</code> ou une chaîne.</p>
+<p>1,2) Fonctions membres publiques, appellent la fonction membre <code>do_get</code> de la classe la plus dérivée.</p>
+<p>3,4) Lit des caractères depuis l'itérateur d'entrée <code>beg</code>, en s'attendant à trouver une valeur monétaire formatée selon les règles spécifiées par la facette <code>std::ctype</code> imprégnée dans <code>str.getloc()</code> (<code>ct</code> pour le reste de cette page), la facette <code>std::moneypunct&lt;CharT, intl&gt;</code> imprégnée dans <code>str.getloc()</code> (<code>mp</code> pour le reste de cette page), et les indicateurs de formatage du flux obtenus depuis <code>str.flags()</code>.</p>
+<p>Si l'itérateur d'entrée <code>beg</code> devient égal à <code>end</code> avant la fin de l'analyse, définit à la fois <code>failbit</code> et <code>eofbit</code> dans <code>err</code>. Si l'analyse échoue pour une autre raison, définit <code>failbit</code> dans <code>err</code>. Dans les deux cas, ne modifie pas le paramètre de sortie (<code>units</code> ou <code>digits</code>) en cas d'erreur.</p>
+<p>Si l'analyse réussit, ne modifie pas <code>err</code> et stocke le résultat dans <code>units</code> ou <code>digits</code>.</p>
+<p>Le <a href="../money_base.html"><code>pattern</code></a> de formatage utilisé par cette fonction est toujours <code>mp.neg_format()</code>.</p>
+<p>Si <code>mp.grouping()</code> n'autorise pas les séparateurs de milliers, le premier séparateur rencontré est traité comme une erreur d'analyse ; sinon ils sont traités comme facultatifs.</p>
+<p>Si <code>money_base::space</code> ou <code>money_base::none</code> est le dernier élément de <a href="../money_base.html"><code>pattern</code></a>, l'analyseur ne tente pas de consommer d'espaces blancs après l'analyse des autres composantes de la valeur monétaire. Sinon, un ou plusieurs caractères d'espacement sont consommés à l'endroit où <code>money_base::space</code> apparaît.</p>
+<p>Si l'indicateur <code>showbase</code> est défini dans <code>str.flags()</code>, le symbole monétaire ou la chaîne monétaire est requis ; sinon, le symbole monétaire est facultatif.</p>
+<p>Si le premier caractère de la chaîne retournée par <code>mp.positive_sign()</code> ou <code>mp.negative_sign()</code> est trouvé à la position <code>money_base::sign</code> du motif de formatage, il est consommé, et les autres caractères de cette chaîne sont attendus et consommés après toutes les autres composantes de la valeur monétaire. Si <code>mp.positive_sign()</code> et <code>mp.negative_sign()</code> sont toutes deux non vides, le signe est requis et doit correspondre au premier caractère de l'une de ces chaînes. Si l'une de ces chaînes est vide, le signe est facultatif (et s'il est absent, le signe du résultat correspond à la chaîne vide). Si les deux chaînes sont vides, ou ont le même premier caractère, le résultat reçoit le signe positif. Si le paramètre de sortie est une chaîne (<code>digits</code>) et que le résultat est négatif, la valeur <code>ct.widen('-')</code> est stockée comme premier caractère du résultat.</p>
+<p>Les chiffres de l'entrée sont extraits dans l'ordre où ils apparaissent et sont placés dans <code>digits</code> (après élargissement par <code>ct.widen()</code> si nécessaire), ou dans un tampon temporaire <code>buf1</code>, à partir duquel la valeur de <code>units</code> est construite comme si par</p>
+<pre><code class="language-cpp">static const char src[] = &quot;0123456789-&quot;;
+CharT atoms[sizeof(src)];
+ct.widen(src, src + sizeof(src) - 1, atoms);
+for (int i = 0; i &lt; n; ++i)
+buf2[i] = src[find(atoms, atoms+sizeof(src), buf1[i]) - atoms];
+buf2[n] = 0;
+sscanf(buf2, &quot;%Lf&quot;, &amp;units);
+</code></pre>
+<p>(où <code>n</code> est le nombre de caractères extraits de l'entrée et stockés dans <code>buf1</code>, et <code>buf2</code> est un autre tampon de caractères suffisamment grand).</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur pointant immédiatement après le dernier caractère reconnu comme partie valide de la chaîne monétaire en entrée.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les unités monétaires sont supposées être les plus petites unités non fractionnaires de la devise : les cents aux États-Unis, les yens au Japon. Ainsi, la séquence d'entrée <code>&quot;$1,056.23&quot;</code> dans un paramètre régional américain produit le nombre <code>105623.0</code> dans <code>units</code> ou une chaîne <code>&quot;105623&quot;</code> dans <code>digits</code>.</p>
+<p>Comme le symbole monétaire est optionnel si <code>showbase</code> est désactivé, alors que la <code>negative_sign()</code> multicaractère complète est obligatoire ; avec le motif de formatage <code>{sign, value, space, symbol}</code>, <code>showbase</code> désactivé et negative_sign valant <code>&quot;-&quot;</code>, la chaîne <code>&quot;-1.23 €&quot;</code> est analysée comme <code>-123</code> et laisse &quot;€&quot; non consommé dans le flux d'entrée ; mais si negative_sign vaut <code>&quot;()&quot;</code>, la chaîne <code>&quot;(1.23 €)&quot;</code> est entièrement consommée.</p>
+<p>Le manipulateur d'E/S <a href="../../io/manip/get_money.html"><code>std::get_money</code></a> offre une interface plus simple pour cette fonction.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;locale&gt;
+#include &lt;sstream&gt;
+
+void demo_money_get(std::locale loc, const std::string&amp; input)
+{
+    std::istringstream str(input);
+    str.imbue(loc);
+    long double units;
+
+    // Le code suivant peut être écrit plus simplement avec std::get_money(units)
+    std::ios_base::iostate err = std::ios_base::goodbit;
+    std::istreambuf_iterator&lt;char&gt; ret =
+        std::use_facet&lt;std::money_get&lt;char&gt;&gt;(loc).get(
+            std::istreambuf_iterator&lt;char&gt;(str),
+            std::istreambuf_iterator&lt;char&gt;(),
+            false, str, err, units);
+    str.setstate(err);
+    std::istreambuf_iterator&lt;char&gt; last{};
+    if (str)
+    {
+        std::cout &lt;&lt; &quot;Successfully parsed '&quot; &lt;&lt; str.str() &lt;&lt; &quot;' as &quot;
+                  &lt;&lt; units / 100 &lt;&lt; &quot; units\n&quot;;
+        if (ret != last)
+        {
+            std::cout &lt;&lt; &quot;Remaining content: '&quot;;
+            std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+            std::cout &lt;&lt; &quot;'\n&quot;;
+        }
+        else
+            std::cout &lt;&lt; &quot;The input was fully consumed\n&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;Parse failed. Unparsed string: '&quot;;
+        std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+        std::cout &lt;&lt; &quot;'\n&quot;;
+    }
+}
+
+int main()
+{
+    demo_money_get(std::locale(&quot;en_US.utf8&quot;), &quot;-$5.12 abc&quot;);
+    demo_money_get(std::locale(&quot;ms_MY.utf8&quot;), &quot;(RM5.12) def&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Successfully parsed '-$5.12 abc' as -5.12 units
+Remaining content: ' abc'
+Successfully parsed '(RM5.12) def' as -5.12 units
+Remaining content: ' def'
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../moneypunct.html">moneypunct</a></strong> — définit les paramètres de formatage monétaire utilisés par <a href="../money_get.html"><code>std::money_get</code></a> et <a href="../money_put.html"><code>std::money_put</code></a> <em>(modèle de classe)</em></li>
+<li><strong><a href="../money_get.html">money_get</a></strong> — analyse et construit une valeur monétaire depuis une séquence de caractères en entrée <em>(modèle de classe)</em></li>
+<li><strong><a href="../../io/manip/get_money.html">get_money</a> (C++11)</strong> — analyse une valeur monétaire <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

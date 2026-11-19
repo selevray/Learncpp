@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>expression delete — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="expression-delete">expression delete</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/delete">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Détruit le ou les objets précédemment alloués par la <a href="new.html">new-expression</a> et libère la zone mémoire obtenue.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>::</code><em>(facultatif)</em> <code>delete</code> <code>expression</code> | (1) | |
+|
+| <code>::</code><em>(facultatif)</em> <code>delete[]</code> <code>expression</code> | (2) | |
+|</p>
+<ul>
+<li><code>expression</code> — l'une des suivantes :
+<ul>
+<li>une expression de type classe <a href="implicit_cast.html">implicitement convertible contextuellement</a> en pointeur vers un type objet</li>
+<li>une prvalue de type pointeur vers un type objet</li>
+</ul>
+</li>
+</ul>
+<ol>
+<li>
+<p>Détruit un objet non tableau créé par une <a href="new.html">new-expression</a>.</p>
+</li>
+<li>
+<p>Détruit un tableau créé par une <a href="new.html">new[]-expression</a>.</p>
+</li>
+</ol>
+<h2 id="Explanation">Explication</h2>
+<p>Étant donné le pointeur évalué à partir de <code>expression</code> (après conversions éventuelles) comme <code>ptr</code>.</p>
+<ol>
+<li><code>ptr</code> doit être l'un des suivants</li>
+</ol>
+<ul>
+<li>un pointeur nul,</li>
+<li>un pointeur vers un objet non tableau créé par une <a href="new.html">new-expression</a>, ou</li>
+<li>un pointeur vers un sous-objet de base d'un objet non tableau créé par une <a href="new.html">new-expression</a>.</li>
+</ul>
+<p>Le type pointé par <code>ptr</code> doit être <a href="implicit_cast.html#Similar_types">similaire</a> au type de l'objet (ou du sous-objet de base). Si <code>ptr</code> est autre chose, y compris s'il s'agit d'un pointeur obtenu par la forme tableau de la <a href="new.html">new-expression</a>, le comportement est <a href="ub.html">indéfini</a>.</p>
+<ol start="2">
+<li><code>ptr</code> doit être un pointeur nul ou un pointeur dont la valeur a été obtenue précédemment par une forme tableau de <a href="new.html">new-expression</a> dont la <a href="../memory/new/operator_new.html">fonction d'allocation</a> n'était pas une forme sans allocation (c.-à-d. la surcharge <code>(10)</code>).</li>
+</ol>
+<p>Le type pointé par <code>ptr</code> doit être <a href="implicit_cast.html#Similar_types">similaire</a> au type des éléments de l'objet tableau. Si <code>ptr</code> est autre chose, y compris s'il s'agit d'un pointeur obtenu par la forme non tableau de la <a href="new.html">new-expression</a>, le comportement est <a href="ub.html">indéfini</a>.</p>
+<p>Le résultat de la delete-expression a toujours le type <code>void</code>.</p>
+<p>Si l'objet supprimé a un type classe incomplet au point de suppression, [et la classe complète a un destructeur non trivial ou une fonction de désallocation, le comportement est indéfini <em>(jusqu'à C++26)</em> | le programme est mal formé <em>(depuis C++26)</em>].</p>
+<p>Si <code>ptr</code> n'est pas un pointeur nulet la <a href="../memory/new/operator_delete.html">fonction de désallocation</a> n'est pas un destroying delete <em>(depuis C++20)</em>, la delete-expression invoque le <a href="destructor.html">destructeur</a> (s'il existe) de l'objet détruit, ou de chaque élément du tableau détruit (en allant du dernier élément au premier). Le destructeur doit être <a href="access.html">accessible</a> depuis le point où apparaît la delete-expression.</p>
+<p>Ensuite, qu'une exception ait été levée ou non par un destructeur, la delete-expression invoque la <a href="../memory/new/operator_delete.html">fonction de désallocation</a> : soit <code>operator delete</code> (première version), soit <code>operator delete[]</code> (seconde version), sauf si la new-expression correspondante était combinée avec une autre new-expression <em>(depuis C++14)</em>.</p>
+<p>Le nom de la fonction de désallocation est <a href="lookup.html">recherché</a> dans la portée du type dynamique de l'objet pointé par <code>ptr</code>, ce qui signifie que les fonctions de désallocation propres à la classe, si elles existent, sont trouvées avant les globales. Si <code>::</code> est présent dans la delete-expression, seul l'espace de noms global est examiné par cette recherche. Dans tous les cas, toutes les déclarations autres que celles des fonctions de désallocation usuelles sont écartées.</p>
+<p>Si une fonction de désallocation est trouvée, la fonction à appeler est sélectionnée comme suit (voir <a href="../memory/new/operator_delete.html">fonction de désallocation</a> pour une description plus détaillée de ces fonctions et de leurs effets) :</p>
+<blockquote>
+<ul>
+<li>Si au moins une des fonctions de désallocation est un destroying delete, tous les delete non destroying sont ignorés.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>
+<p>Si l'exigence d'alignement du type dépasse <code>__STDCPP_DEFAULT_NEW_ALIGNMENT__</code>, les fonctions de désallocation sensibles à l'alignement (avec un paramètre de type <a href="../memory/new/align_val_t.html"><code>std::align_val_t</code></a>) sont préférées. Pour les autres types, les fonctions de désallocation insensibles à l'alignement (sans paramètre de type <a href="../memory/new/align_val_t.html"><code>std::align_val_t</code></a>) sont préférées.</p>
+</li>
+<li>
+<p>Si plus d'une fonction préférée est trouvée, seules les fonctions préférées sont prises en compte à l'étape suivante.</p>
+</li>
+<li>
+<p>Si aucune fonction préférée n'est trouvée, les fonctions non préférées sont prises en compte à l'étape suivante.</p>
+</li>
+<li>
+<p>S'il ne reste qu'une seule fonction, cette fonction est sélectionnée.</p>
+</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>Si les fonctions de désallocation trouvées sont propres à la classe, la fonction de désallocation propre à la classe insensible à la taille (sans paramètre de type <a href="../types/size_t.html"><code>std::size_t</code></a>) est préférée à celle sensible à la taille (avec paramètre de type <a href="../types/size_t.html"><code>std::size_t</code></a>).</li>
+</ul>
+<blockquote>
+<ul>
+<li>Sinon, la recherche a atteint la portée globale, et :</li>
+<li>Si le type est complet et si, pour la forme tableau uniquement, l'opérande est un pointeur vers un type classe ayant un destructeur non trivial, ou un tableau (éventuellement multidimensionnel) de tels types, la fonction globale sensible à la taille (avec un paramètre de type <a href="../types/size_t.html"><code>std::size_t</code></a>) est sélectionnée.</li>
+<li>Sinon, il n'est pas spécifié si la fonction globale de désallocation sensible à la taille (avec un paramètre de type <a href="../types/size_t.html"><code>std::size_t</code></a>) ou la fonction globale de désallocation insensible à la taille (sans paramètre de type <a href="../types/size_t.html"><code>std::size_t</code></a>) est sélectionnée.</li>
+</ul>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<p>La fonction de désallocation sélectionnée doit être <a href="access.html">accessible</a> depuis le point où apparaît la delete-expression, sauf si la fonction de désallocation est sélectionnée au point de définition du <a href="virtual.html#Virtual_destructor">destructeur virtuel</a> du <a href="type-id.html#Dynamic_type">type dynamique</a>.</p>
+<p>Le pointeur vers le bloc de stockage à libérer est passé à la <a href="../memory/new/operator_delete.html">fonction de désallocation</a> sélectionnée par le processus ci-dessus comme premier argument. La taille du bloc est passée comme argument optionnel <a href="../types/size_t.html"><code>std::size_t</code></a>. L'exigence d'alignement est passée comme argument optionnel <a href="../memory/new/align_val_t.html"><code>std::align_val_t</code></a>. <em>(depuis C++17)</em></p>
+<p>Si <code>ptr</code> est une valeur de pointeur nul, aucun destructeur n'est appelé, et la fonction de désallocation peut ou non être appelée (c'est non spécifié), mais les fonctions de désallocation par défaut sont garanties de ne rien faire lorsqu'elles reçoivent un pointeur nul.</p>
+<p>Si <code>ptr</code> est un pointeur vers un sous-objet de classe de base de l'objet alloué avec <a href="new.html">new</a>, le destructeur de la classe de base doit être <a href="virtual.html">virtual</a>, sinon le comportement est indéfini.</p>
+<h2 id="Notes">Notes</h2>
+<p>Un pointeur vers <code>void</code> ne peut pas être supprimé car ce n'est pas un pointeur vers un type objet.</p>
+<blockquote>
+<p>Comme une paire de crochets suivant le mot-clé <code>delete</code> est toujours interprétée comme la forme tableau d'une delete-expression, une <a href="lambda.html">lambda-expression</a> avec une liste de capture vide immédiatement après <code>delete</code> doit être entourée de parenthèses.</p>
+<pre><code class="language-cpp">// delete []{ return new int; }(); // erreur d'analyse
+delete ([]{ return new int; })();  // OK
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/delete.html"><code>delete</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/288.html">CWG 288</a></td>
+<td>C++98</td>
+<td>pour la première forme, le type statique de l'opérande était comparé à son type dynamique</td>
+<td>comparer le type statique de l'objet à supprimer avec son type dynamique</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/353.html">CWG 353</a></td>
+<td>C++98</td>
+<td>si la fonction de désallocation serait invoquée si le destructeur lève une exception était non spécifié</td>
+<td>toujours invoquée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/599.html">CWG 599</a></td>
+<td>C++98</td>
+<td>la première forme pouvait recevoir un pointeur nul de tout type, y compris les pointeurs de fonction</td>
+<td>à l'exception des pointeurs vers des types objets, tous les autres types de pointeurs sont rejetés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1642.html">CWG 1642</a></td>
+<td>C++98</td>
+<td><code>expression</code> pouvait être une lvalue de pointeur</td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2474.html">CWG 2474</a></td>
+<td>C++98</td>
+<td>supprimer un pointeur vers un objet d'un type similaire mais différent entraînait un comportement indéfini</td>
+<td>rendue bien définie</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2624.html">CWG 2624</a></td>
+<td>C++98</td>
+<td>les pointeurs obtenus à partir de <code>operator new[]</code> sans allocation pouvaient être passés à <code>delete[]</code></td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2758.html">CWG 2758</a></td>
+<td>C++98</td>
+<td>on ne savait pas clairement comment le contrôle d'accès était effectué pour la fonction de désallocation et le destructeur</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="new.html">new</a></li>
+</ul>
+
+</main>
+</body>
+</html>

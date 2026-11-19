@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::advance — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/iterator.html">Bibliothèque des itérateurs</a></nav>
+<h1 id="std-advance"><code>std::advance</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/advance">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class InputIt, class Distance &gt;
+void advance( InputIt&amp; it, Distance n );  // (jusqu'à C++17)
+
+template&lt; class InputIt, class Distance &gt;
+constexpr void advance( InputIt&amp; it, Distance n );  // (depuis C++17)
+</code></pre>
+<p>Incrémente l'itérateur donné <code>it</code> de <code>n</code> éléments.</p>
+<p>Si <code>n</code> est négatif, l'itérateur est décrémenté. Dans ce cas, <code>InputIt</code> doit satisfaire les exigences de <a href="../named_req/BidirectionalIterator.html"><em>LegacyBidirectionalIterator</em></a>, sinon le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>it</code> — itérateur à avancer</li>
+<li><code>n</code> — nombre d'éléments dont <code>it</code> doit être avancé</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire.</p>
+<p>Cependant, si <code>InputIt</code> satisfait en plus les exigences de <a href="../named_req/RandomAccessIterator.html"><em>LegacyRandomAccessIterator</em></a>, la complexité est constante.</p>
+<h2 id="Notes">Notes</h2>
+<p>Le comportement est indéfini si la séquence spécifiée d'incréments ou de décréments exige d'incrémenter un itérateur non incrémentable (tel que l'itérateur past-the-end), ou de décrémenter un itérateur non décrémentable (tel que l'itérateur front ou l'itérateur <a href="../iterator.html#Dereferenceability_and_validity">singulier</a>).</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Voir aussi les implémentations dans <a href="https://github.com/gcc-mirror/gcc/blob/d9375e490072d1aae73a93949aa158fcd2a27018/libstdc%2B%2B-v3/include/bits/stl_iterator_base_funcs.h#L200">libstdc++</a> et <a href="https://github.com/llvm-mirror/libcxx/blob/a12cb9d211019d99b5875b6d8034617cbc24c2cc/include/iterator#L582">libc++</a>.</p>
+<p><strong><a href="advance.html#Version_1">Version non constexpr</a></strong></p>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt;class It&gt;
+    void do_advance(It&amp; it, typename std::iterator_traits&lt;It&gt;::difference_type n,
+                    std::input_iterator_tag)
+    {
+        while (n &gt; 0)
+        {
+            --n;
+            ++it;
+        }
+    }
+
+    template&lt;class It&gt;
+    void do_advance(It&amp; it, typename std::iterator_traits&lt;It&gt;::difference_type n,
+                    std::bidirectional_iterator_tag)
+    {
+        while (n &gt; 0)
+        {
+            --n;
+            ++it;
+        }
+        while (n &lt; 0)
+        {
+            ++n;
+            --it;
+        }
+    }
+
+    template&lt;class It&gt;
+    void do_advance(It&amp; it, typename std::iterator_traits&lt;It&gt;::difference_type n,
+                    std::random_access_iterator_tag)
+    {
+        it += n;
+    }
+} // espace de noms detail
+
+template&lt;class It, class Distance&gt;
+void advance(It&amp; it, Distance n)
+{
+    detail::do_advance(it, typename std::iterator_traits&lt;It&gt;::difference_type(n),
+                       typename std::iterator_traits&lt;It&gt;::iterator_category());
+}
+</code></pre>
+<p><strong><a href="advance.html#Version_2">Version constexpr</a></strong></p>
+<pre><code class="language-cpp">template&lt;class It, class Distance&gt;
+constexpr void advance(It&amp; it, Distance n)
+{
+    using category = typename std::iterator_traits&lt;It&gt;::iterator_category;
+    static_assert(std::is_base_of_v&lt;std::input_iterator_tag, category&gt;);
+
+    auto dist = typename std::iterator_traits&lt;It&gt;::difference_type(n);
+    if constexpr (std::is_base_of_v&lt;std::random_access_iterator_tag, category&gt;)
+        it += dist;
+    else
+    {
+        while (dist &gt; 0)
+        {
+            --dist;
+            ++it;
+        }
+        if constexpr (std::is_base_of_v&lt;std::bidirectional_iterator_tag, category&gt;)
+            while (dist &lt; 0)
+            {
+                ++dist;
+                --it;
+            }
+    }
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v{3, 1, 4};
+
+    auto vi = v.begin();
+    std::advance(vi, 2);
+    std::cout &lt;&lt; *vi &lt;&lt; ' ';
+
+    vi = v.end();
+    std::advance(vi, -2);
+    std::cout &lt;&lt; *vi &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">4 1
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="next.html">next</a> (C++11)</strong> — incrémente un itérateur <em>(modèle de fonction)</em></li>
+<li><strong><a href="prev.html">prev</a> (C++11)</strong> — décrémente un itérateur <em>(modèle de fonction)</em></li>
+<li><strong><a href="distance.html">distance</a></strong> — renvoie la distance entre deux itérateurs <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/advance.html">ranges::advance</a> (C++20)</strong> — fait avancer un itérateur de la distance donnée ou jusqu'à une borne donnée <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

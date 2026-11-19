@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recherche de nom non qualifiée — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="recherche-de-nom-non-qualifiée">Recherche de nom non qualifiée</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/unqualified_lookup">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Pour un nom <em>non qualifié</em>, c'est-à-dire un nom qui n'apparaît pas à droite d'un opérateur de résolution de portée <code>::</code>, la recherche de nom examine les <a href="scope.html">portées</a> décrites ci-dessous, jusqu'à trouver au moins une déclaration de quelque nature que ce soit ; la recherche s'arrête alors et aucune autre portée n'est examinée. (Remarque : la recherche depuis certains contextes ignore certaines déclarations ; par exemple, la recherche d'un nom utilisé à gauche de <code>::</code> ignore les déclarations de fonctions, de variables et d'énumérateurs, la recherche d'un nom utilisé comme spécificateur de classe de base ignore toutes les déclarations qui ne sont pas de type).</p>
+<p>Pour la recherche de nom non qualifiée, toutes les déclarations d'un espace de noms désigné par une <a href="namespace.html">directive using</a> apparaissent comme si elles étaient déclarées dans l'espace de noms englobant le plus proche qui contient, directement ou indirectement, à la fois la directive using et l'espace de noms désigné.</p>
+<p>La recherche de nom non qualifiée du nom utilisé à gauche de l'opérateur d'appel de fonction (et, de manière équivalente, de l'opérateur dans une expression) est décrite dans la <a href="adl.html">recherche dépendant des arguments</a>.</p>
+<h2 id="File_scope">Portée de fichier</h2>
+<p>Pour un nom utilisé dans la portée globale (espace de noms de plus haut niveau), en dehors de toute fonction, classe ou espace de noms défini par l'utilisateur, la portée globale située avant l'utilisation du nom est examinée :</p>
+<pre><code class="language-cpp">int n = 1;     // déclaration de n
+int x = n + 1; // OK : la recherche trouve ::n
+
+int z = y - 1; // Error : la recherche échoue
+int y = 2;     // déclaration de y
+</code></pre>
+<h2 id="Namespace_scope">Portée d'espace de noms</h2>
+<p>Pour un nom utilisé dans un espace de noms défini par l'utilisateur, en dehors de toute fonction ou classe, cet espace de noms est recherché avant l'utilisation du nom, puis l'espace de noms englobant cet espace de noms avant la déclaration de celui-ci, etc., jusqu'à atteindre l'espace de noms global.</p>
+<pre><code class="language-cpp">int n = 1; // declaration
+
+namespace N
+{
+    int m = 2;
+
+    namespace Y
+    {
+        int x = n; // OK, la recherche trouve ::n
+        int y = m; // OK, la recherche trouve ::N::m
+        int z = k; // Error : la recherche échoue
+    }
+
+    int k = 3;
+}
+</code></pre>
+<h2 id="Definition_outside_of_its_namespace">Définition en dehors de son espace de noms</h2>
+<p>Pour un nom utilisé dans la définition d'une variable membre d'un espace de noms en dehors de celui-ci, la recherche procède de la même manière que pour un nom utilisé à l'intérieur de l'espace de noms :</p>
+<pre><code class="language-cpp">namespace X
+{
+    extern int x; // déclaration, pas définition
+    int n = 1;    // trouvé en 1er
+}
+
+int n = 2;        // trouvé en 2e
+int X::x = n;     // trouve X::n, met X::x à 1
+</code></pre>
+<h2 id="Non-member_function_definition">Définition d'une fonction non membre</h2>
+<p>Pour un nom utilisé dans la définition d'une fonction, que ce soit dans son corps ou dans un argument par défaut, lorsque la fonction est membre d'un espace de noms défini par l'utilisateur ou de l'espace de noms global, le bloc dans lequel le nom est utilisé est recherché avant l'utilisation du nom, puis le bloc englobant est recherché avant le début de ce bloc, etc., jusqu'à atteindre le bloc qui est le corps de la fonction. Ensuite, l'espace de noms dans lequel la fonction est déclarée est recherché jusqu'à la définition (et non nécessairement la déclaration) de la fonction qui utilise le nom, puis les espaces de noms englobants, etc.</p>
+<pre><code class="language-cpp">namespace A
+{
+    namespace N
+    {
+        void f();
+        int i = 3; // trouvé en 3e (si le 2e n'est pas présent)
+    }
+
+    int i = 4;     // trouvé en 4e (si le 3e n'est pas présent)
+}
+
+int i = 5;         // trouvé en 5e (si le 4e n'est pas présent)
+
+void A::N::f()
+{
+    int i = 2;     // trouvé en 2e (si le 1er n'est pas présent)
+
+    while (true)
+    {
+       int i = 1;  // trouvé en 1er : la recherche est terminée
+       std::cout &lt;&lt; i;
+    }
+}
+
+// int i;          // non trouvé
+
+namespace A
+{
+    namespace N
+    {
+        // int i;  // non trouvé
+    }
+}
+</code></pre>
+<h2 id="Class_definition">Définition de classe</h2>
+<p>Pour un nom utilisé n'importe où dans la <a href="class.html">définition de classe</a> (y compris les spécificateurs de classes de base et les définitions de classes imbriquées), sauf à l'intérieur du corps d'une fonction membre, d'un argument par défaut d'une fonction membre, d'une spécification d'exception d'une fonction membre ou d'un initialisateur de membre par défaut, lorsque le membre peut appartenir à une classe imbriquée dont la définition se trouve dans le corps de la classe englobante, les portées suivantes sont recherchées :</p>
+<p>a) le corps de la classe dans laquelle le nom est utilisé, jusqu'au point d'utilisation,</p>
+<p>b) le corps entier de sa ou ses classes de base, en poursuivant récursivement dans leurs bases lorsqu'aucune déclaration n'est trouvée,</p>
+<p>c) si cette classe est <a href="nested_classes.html">imbriquée</a>, le corps de la classe englobante jusqu'à la définition de cette classe, ainsi que le corps entier de la ou des classes de base de la classe englobante,</p>
+<p>d) si cette classe est <a href="class.html#Local_classes">locale</a>, ou imbriquée dans une classe locale, le bloc de portée dans lequel la classe est définie, jusqu'au point de définition,</p>
+<p>e) si cette classe est membre d'un espace de noms, ou imbriquée dans une classe membre d'un espace de noms, ou est une classe locale dans une fonction membre d'un espace de noms, la portée de l'espace de noms est recherchée jusqu'à la définition de la classe, de la classe englobante ou de la fonction ; la recherche se poursuit dans les espaces de noms englobant celui-ci, jusqu'à la portée globale.</p>
+<p>Pour une déclaration <a href="friend.html">friend</a>, la recherche permettant de déterminer si elle désigne une entité déclarée précédemment procède comme ci-dessus, sauf qu'elle s'arrête après l'espace de noms englobant le plus interne.</p>
+<pre><code class="language-cpp">namespace M
+{
+    // const int i = 1; // jamais trouvé
+
+    class B
+    {
+        // static const int i = 3;     // trouvé en 3e (mais ne passera pas le contrôle d'accès)
+    };
+}
+
+// const int i = 5;                    // trouvé en 5e
+
+namespace N
+{
+    // const int i = 4;                // trouvé en 4e
+
+    class Y : public M::B
+    {
+        // static const int i = 2;     // trouvé en 2e
+
+        class X
+        {
+            // static const int i = 1; // trouvé en 1er
+            int a[i]; // utilisation de i
+            // static const int i = 1; // jamais trouvé
+        };
+
+        // static const int i = 2;     // jamais trouvé
+    };
+
+    // const int i = 4;                // jamais trouvé
+}
+
+// const int i = 5;                    // jamais trouvé
+</code></pre>
+<h2 id="Injected_class_name">Nom de classe injecté</h2>
+<p>Pour le nom d'une classe ou d'un modèle de classe utilisé dans la définition de cette classe ou de ce modèle, ou dérivé de l'un d'eux, la recherche de nom non qualifiée trouve la classe en cours de définition comme si le nom avait été introduit par une déclaration de membre (avec un accès membre public). Pour plus de détails, voir <a href="injected-class-name.html">injected-class-name</a>.</p>
+<h2 id="Member_function_definition">Définition de fonction membre</h2>
+<p>Pour un nom utilisé à l'intérieur du corps d'une fonction membre, d'un argument par défaut d'une fonction membre, d'une spécification d'exception d'une fonction membre ou d'un initialisateur de membre par défaut, les portées recherchées sont les mêmes que dans la <a href="unqualified_lookup.html#Class_definition">définition de classe</a>, sauf que la portée entière de la classe est prise en compte, et non seulement la partie précédant la déclaration qui utilise le nom. Pour les classes imbriquées, le corps entier de la classe englobante est recherché.</p>
+<pre><code class="language-cpp">class B
+{
+    // int i;         // trouvé en 3e
+};
+
+namespace M
+{
+    // int i;         // trouvé en 5e
+
+    namespace N
+    {
+        // int i;     // trouvé en 4e
+
+        class X : public B
+        {
+            // int i; // trouvé en 2e
+            void f();
+            // int i; // trouvé aussi en 2e
+        };
+
+        // int i;     // trouvé en 4e
+    }
+}
+
+// int i;             // trouvé en 6e
+
+void M::N::X::f()
+{
+    // int i;         // trouvé en 1er
+    i = 16;
+    // int i;         // jamais trouvé
+}
+
+namespace M
+{
+    namespace N
+    {
+        // int i;     // jamais trouvé
+    }
+}
+</code></pre>
+<p>Dans tous les cas, lors de l'examen des classes de base dont la classe dérive, les règles suivantes, parfois appelées <a href="https://en.wikipedia.org/wiki/Dominance_(C%2B%2B)">dominance dans l'héritage virtuel</a>, sont appliquées :</p>
+<blockquote>
+<p>Un nom de membre trouvé dans un sous-objet <code>B</code> masque le même nom de membre dans tout sous-objet <code>A</code> si <code>A</code> est un sous-objet de classe de base de <code>B</code>. (Notez que ceci ne masque pas le nom dans les copies supplémentaires non virtuelles de <code>A</code> présentes dans le treillis d'héritage qui ne sont pas des bases de <code>B</code> : cette règle n'a d'effet que pour l'héritage virtuel.) Les noms introduits par des déclarations using sont traités comme des noms de la classe contenant la déclaration. Après l'examen de chaque base, l'ensemble résultant doit soit inclure des déclarations d'un membre statique provenant de sous-objets du même type, soit des déclarations de membres non statiques provenant du même sous-objet.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Un <em>ensemble de recherche</em> est construit, composé des déclarations et des sous-objets dans lesquels ces déclarations ont été trouvées. Les déclarations using sont remplacées par les membres qu'elles désignent, et les déclarations de types, y compris les noms de classe injectés, sont remplacées par les types qu'elles désignent. Si <code>C</code> est la classe dans la portée de laquelle le nom a été utilisé, <code>C</code> est examinée en premier. Si la liste des déclarations dans <code>C</code> est vide, un ensemble de recherche est construit pour chacune de ses bases directes <code>Bi</code> (en appliquant récursivement ces règles si <code>Bi</code> possède ses propres bases). Une fois construits, les ensembles de recherche des bases directes sont fusionnés dans l'ensemble de recherche de <code>C</code> comme suit :</p>
+<ul>
+<li>si l'ensemble de déclarations de <code>Bi</code> est vide, il est abandonné,</li>
+<li>si l'ensemble de recherche de <code>C</code> construit jusqu'ici est vide, il est remplacé par l'ensemble de recherche de <code>Bi</code>,</li>
+<li>si chaque sous-objet de l'ensemble de recherche de <code>Bi</code> est une base d'au moins un des sous-objets déjà ajoutés à l'ensemble de recherche de <code>C</code>, l'ensemble de recherche de <code>Bi</code> est abandonné,</li>
+<li>si chaque sous-objet déjà ajouté à l'ensemble de recherche de <code>C</code> est une base d'au moins un sous-objet de l'ensemble de recherche de <code>Bi</code>, alors l'ensemble de recherche de <code>C</code> est abandonné et remplacé par l'ensemble de recherche de <code>Bi</code>,</li>
+<li>sinon, si les ensembles de déclarations de <code>Bi</code> et de <code>C</code> sont différents, le résultat est une fusion ambiguë : le nouvel ensemble de recherche de <code>C</code> contient une déclaration invalide et une union des sous-objets précédemment fusionnés dans <code>C</code> et introduits depuis <code>Bi</code>. Cet ensemble de recherche invalide peut ne pas constituer une erreur s'il est abandonné par la suite,</li>
+<li>sinon, le nouvel ensemble de recherche de <code>C</code> contient les ensembles de déclarations communs et l'union des sous-objets précédemment fusionnés dans <code>C</code> et introduits depuis <code>Bi</code>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<pre><code class="language-cpp">struct X { void f(); };
+
+struct B1: virtual X { void f(); };
+
+struct B2: virtual X {};
+
+struct D : B1, B2
+{
+    void foo()
+    {
+        X::f(); // OK, appelle X::f (recherche qualifiée)
+        f(); // OK, appelle B1::f (recherche non qualifiée)
+    }
+};
+
+// Règles C++98 : B1::f masque X::f, donc bien que X::f puisse être atteint depuis D
+// via B2, il n'est pas trouvé par la recherche de nom depuis D.
+
+// Règles C++11 : l'ensemble de recherche de f dans D ne trouve rien, on poursuit vers les bases
+//  l'ensemble de recherche de f dans B1 trouve B1::f, et est complété
+// la fusion remplace l'ensemble vide ; l'ensemble de recherche de f dans C contient maintenant B1::f dans B1
+//  l'ensemble de recherche de f dans B2 ne trouve rien, on poursuit vers les bases
+//    la recherche de f dans X trouve X::f
+//  la fusion remplace l'ensemble vide ; l'ensemble de recherche de f dans B2 contient maintenant X::f dans X
+// la fusion dans C constate que chaque sous-objet (X) de l'ensemble de recherche dans B2 est une base
+// de chaque sous-objet (B1) déjà fusionné, donc l'ensemble de B2 est écarté
+// C ne contient plus que B1::f trouvé dans B1
+// (si struct D : B2, B1 avait été utilisé, la dernière fusion aurait *remplacé* l'ensemble de C
+//  donc X::f déjà fusionné dans X, car chaque sous-objet déjà ajouté à C (soit X)
+//  serait une base d'au moins un sous-objet du nouvel ensemble (B1), le résultat final
+//  serait le même : l'ensemble de recherche dans C ne contient que B1::f trouvé dans B1)
+</code></pre>
+<p>La recherche de nom non qualifiée qui trouve des membres statiques de <code>B</code>, des types imbriqués de <code>B</code> et des énumérateurs déclarés dans <code>B</code> n'est pas ambiguë, même s'il existe plusieurs sous-objets de base non virtuels de type <code>B</code> dans l'arbre d'héritage de la classe examinée :</p>
+<pre><code class="language-cpp">struct V { int v; };
+
+struct B
+{
+    int a;
+    static int s;
+    enum { e };
+};
+
+struct B1 : B, virtual V {};
+struct B2 : B, virtual V {};
+struct D : B1, B2 {};
+
+void f(D&amp; pd)
+{
+    ++pd.v;       // OK : un seul v car il n'y a qu'un seul sous-objet de base virtuelle
+    ++pd.s;       // OK : un seul B::s statique, bien que trouvé à la fois dans B1 et B2
+    int i = pd.e; // OK : un seul énumérateur B::e, bien qu'il soit trouvé à la fois dans B1 et B2
+    ++pd.a;       // erreur, ambiguë : B::a dans B1 et B::a dans B2
+}
+</code></pre>
+<h2 id="Friend_function_definition">Définition de fonction amie</h2>
+<p>Pour un nom utilisé dans la définition d'une fonction <a href="friend.html">friend</a> à l'intérieur du corps de la classe qui accorde l'amitié, la recherche de nom non qualifiée procède de la même manière que pour une fonction membre. Pour un nom utilisé dans une fonction <a href="friend.html">friend</a> définie en dehors du corps d'une classe, la recherche de nom non qualifiée procède de la même manière que pour une fonction d'un espace de noms.</p>
+<pre><code class="language-cpp">int i = 3;                     // trouvé en 3e pour f1, trouvé en 2e pour f2
+
+struct X
+{
+    static const int i = 2;    // trouvé en 2e pour f1, jamais trouvé pour f2
+
+    friend void f1(int x)
+    {
+        // int i;              // trouvé en 1er
+        i = x;                 // trouve et modifie X::i
+    }
+
+    friend int f2();
+
+    // static const int i = 2; // trouvé en 2e pour f1, n'importe où dans la portée de la classe
+};
+
+void f2(int x)
+{
+    // int i;                  // trouvé en 1er
+    i = x;                     // trouve et modifie ::i
+}
+</code></pre>
+<h2 id="Friend_function_declaration">Déclaration de fonction amie</h2>
+<p>Pour un nom utilisé dans le déclarateur d'une déclaration de fonction <a href="friend.html">friend</a> qui accorde l'amitié à une fonction membre d'une autre classe, si le nom ne fait pas partie d'un argument de modèle dans l'identifiant du <a href="declarations.html#Declarators">déclarateur</a>, la recherche non qualifiée examine d'abord la portée entière de la classe de la fonction membre. Si rien n'est trouvé dans cette portée (ou si le nom fait partie d'un argument de modèle dans l'identifiant du déclarateur), la recherche continue comme pour une fonction membre de la classe qui accorde l'amitié.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct S;
+
+// la classe dont les fonctions membres sont déclarées amies
+struct A
+{
+    typedef int AT;
+
+    void f1(AT);
+    void f2(float);
+
+    template&lt;class T&gt;
+    void f3();
+
+    void f4(S&lt;AT&gt;);
+};
+
+// la classe qui accorde l'amitié à f1, f2 et f3
+struct B
+{
+    typedef char AT;
+    typedef float BT;
+
+    friend void A::f1(AT);    // la recherche de AT trouve A::AT (AT trouvé dans A)
+    friend void A::f2(BT);    // la recherche de BT trouve B::BT (BT non trouvé dans A)
+    friend void A::f3&lt;AT&gt;();  // la recherche de AT trouve B::AT (pas de recherche dans A, car
+                              //     AT se trouve dans l'identifiant du déclarateur A::f3&lt;AT&gt;)
+};
+
+// le modèle de classe qui accorde l'amitié à f4
+template&lt;class AT&gt;
+struct C
+{
+    friend void A::f4(S&lt;AT&gt;); // la recherche de AT trouve A::AT
+                              // (AT ne se trouve pas dans l'identifiant du déclarateur A::f4)
+};
+</code></pre>
+<h2 id="Default_argument">Argument par défaut</h2>
+<p>Pour un nom utilisé dans un <a href="default_arguments.html">argument par défaut</a> d'une déclaration de fonction, ou un nom utilisé dans la partie <code>expression</code> d'un <a href="initializer_list.html">member-initializer</a> d'un constructeur, les noms des paramètres de la fonction sont trouvés en premier, avant que les portées du bloc, de la classe ou de l'espace de noms englobant ne soient examinées :</p>
+<pre><code class="language-cpp">class X
+{
+    int a, b, i, j;
+public:
+    const int&amp; r;
+
+    X(int i): r(a),      // initialise X::r pour qu'il référence X::a
+              b(i),      // initialise X::b avec la valeur du paramètre i
+              i(i),      // initialise X::i avec la valeur du paramètre i
+              j(this-&gt;i) // initialise X::j avec la valeur de X::i
+    {}
+};
+
+int a;
+int f(int a, int b = a); // erreur : la recherche de a trouve le paramètre a, et non ::a
+                         // et les paramètres ne sont pas autorisés comme arguments par défaut
+</code></pre>
+<h2 id="Static_data_member_definition">Définition de membre de donnée statique</h2>
+<p>Pour un nom utilisé dans la définition d'un <a href="static.html">membre de donnée statique</a>, la recherche procède de la même manière que pour un nom utilisé dans la définition d'une fonction membre.</p>
+<pre><code class="language-cpp">struct X
+{
+    static int x;
+    static const int n = 1; // trouvé en 1er
+};
+
+int n = 2;                  // trouvé en 2e
+int X::x = n;               // trouve X::n, affecte 1 à X::x, et non 2
+</code></pre>
+<h2 id="Enumerator_declaration">Déclaration d'énumérateur</h2>
+<p>Pour un nom utilisé dans la partie initialisateur de la <a href="enum.html">déclaration d'énumérateur</a>, les énumérateurs déclarés précédemment dans la même énumération sont trouvés en premier, avant que la recherche de nom non qualifiée n'examine la portée englobante du bloc, de la classe ou de l'espace de noms.</p>
+<pre><code class="language-cpp">const int RED = 7;
+
+enum class color
+{
+    RED,
+    GREEN = RED + 2, // RED trouve color::RED, et non ::RED, donc GREEN = 2
+    BLUE = ::RED + 4 // la recherche qualifiée trouve ::RED, BLUE = 11
+};
+</code></pre>
+<h2 id="Handler_of_a_function_try_block">Gestionnaire d'un bloc <code>try</code> de fonction</h2>
+<p>Pour un nom utilisé dans le <a href="catch.html">gestionnaire</a> d'un <a href="try.html#Function_try_block">bloc <code>try</code> de fonction</a>, la recherche procède comme pour un nom utilisé au tout début du bloc le plus externe du corps de la fonction (en particulier, les paramètres de la fonction sont visibles, mais les noms déclarés dans ce bloc le plus externe ne le sont pas)</p>
+<pre><code class="language-cpp">int n = 3;          // trouvé en 3e
+int f(int n = 2)    // trouvé en 2e
+
+try
+{
+    int n = -1;     // jamais trouvé
+}
+catch(...)
+{
+    // int n = 1;   // trouvé en 1er
+    assert(n == 2); // la recherche de n trouve le paramètre de fonction f
+    throw;
+}
+</code></pre>
+<h2 id="Overloaded_operator">Opérateur surchargé</h2>
+<p>Pour un <a href="expressions.html#Operators">opérateur</a> utilisé dans une expression (par exemple, <code>operator+</code> utilisé dans <code>a + b</code>), les règles de recherche sont légèrement différentes de celles de l'opérateur utilisé dans une expression d'appel de fonction explicite telle que <code>operator+(a, b)</code> : lors de l'analyse d'une expression, deux recherches distinctes sont effectuées : une pour les surcharges d'opérateurs non membres et une pour les surcharges d'opérateurs membres (pour les opérateurs où les deux formes sont autorisées). Ces ensembles sont ensuite fusionnés avec les surcharges d'opérateurs intégrés, à égalité, comme décrit dans la <a href="overload_resolution.html">résolution de surcharge</a>. Si la syntaxe d'appel de fonction explicite est utilisée, la recherche de nom non qualifiée habituelle est effectuée :</p>
+<pre><code class="language-cpp">struct A {};
+void operator+(A, A);  // opérateur+ défini par l'utilisateur, non membre
+
+struct B
+{
+    void operator+(B); // opérateur+ défini par l'utilisateur, membre
+    void f();
+};
+
+A a;
+
+void B::f() // définition d'une fonction membre de B
+{
+    operator+(a, a); // erreur : la recherche de nom ordinaire depuis une fonction membre
+                     // trouve la déclaration de operator+ dans la portée de B
+                     // et s'arrête là, sans jamais atteindre la portée globale
+
+    a + a; // OK : la recherche de membre trouve B::operator+, la recherche non membre
+           // trouve ::operator+(A, A), la résolution de surcharge sélectionne ::operator+(A, A)
+}
+</code></pre>
+<h2 id="Template_definition">Définition de modèle</h2>
+<p>Pour un <a href="dependent_name.html">nom non dépendant</a> utilisé dans une définition de modèle, la recherche de nom non qualifiée a lieu au moment où la définition du modèle est examinée. La liaison aux déclarations faites à ce moment n'est pas affectée par les déclarations visibles au point d'instanciation. Pour un <a href="dependent_name.html">nom dépendant</a> utilisé dans une définition de modèle, la recherche est reportée jusqu'à ce que les arguments de modèle soient connus ; à ce moment, l'<a href="adl.html">ADL</a> examine les déclarations de fonctions à liaison externe <em>(jusqu'à C++11)</em> visibles depuis le contexte de définition du modèle ainsi que depuis le contexte d'instanciation, alors que la recherche non ADL n'examine que les déclarations de fonctions à liaison externe <em>(jusqu'à C++11)</em> visibles depuis le contexte de définition du modèle (en d'autres termes, ajouter une nouvelle déclaration de fonction après la définition du modèle ne la rend visible que par l'ADL). Le comportement est indéfini s'il existe une meilleure correspondance à liaison externe dans les espaces de noms examinés par la recherche ADL, déclarée dans une autre unité de traduction, ou si la recherche aurait été ambiguë si ces unités de traduction avaient été examinées. Dans tous les cas, si une classe de base dépend d'un paramètre de modèle, sa portée n'est pas examinée par la recherche de nom non qualifiée (ni au point de définition, ni au point d'instanciation).</p>
+<pre><code class="language-cpp">void f(char); // première déclaration de f
+
+template&lt;class T&gt;
+void g(T t)
+{
+    f(1);    // nom non dépendant : la recherche trouve ::f(char) et le lie immédiatement
+    f(T(1)); // nom dépendant : la recherche est reportée
+    f(t);    // nom dépendant : la recherche est reportée
+//  dd++;    // nom non dépendant : la recherche ne trouve aucune déclaration
+}
+
+enum E { e };
+void f(E);   // deuxième déclaration de f
+void f(int); // troisième déclaration de f
+double dd;
+
+void h()
+{
+    g(e);  // instancie g&lt;E&gt;, moment où
+           // les deuxième et troisième utilisations du nom 'f'
+           // sont recherchées et trouvent ::f(char) (par recherche) et ::f(E) (par ADL)
+           // puis la résolution de surcharge choisit ::f(E).
+           // Ceci appelle f(char), puis f(E) deux fois
+
+    g(32); // instancie g&lt;int&gt;, moment où
+           // les deuxième et troisième utilisations du nom 'f'
+           // sont recherchées et trouvent uniquement ::f(char)
+           // puis la résolution de surcharge choisit ::f(char)
+           // Ceci appelle f(char) trois fois
+}
+
+typedef double A;
+
+template&lt;class T&gt;
+class B
+{
+    typedef int A;
+};
+
+template&lt;class T&gt;
+struct X : B&lt;T&gt;
+{
+    A a; // la recherche de A trouve ::A (double), et non B&lt;T&gt;::A
+};
+</code></pre>
+<p>Note : voir <a href="dependent_name.html#Lookup_rules">règles de recherche des noms dépendants</a> pour le raisonnement et les implications de cette règle.</p>
+<h2 id="Template_name">Nom de modèle</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : recherche à double portée du nom de modèle après -&gt; et .</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Member_of_a_class_template_outside_of_template">Membre d'un modèle de classe en dehors du modèle</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/490.html">CWG 490</a></td>
+<td>C++98</td>
+<td>tout nom dans un argument de modèle d'une déclaration de fonction membre amie n'a pas été recherché dans la portée de la classe de la fonction membre</td>
+<td>exclut seulement les noms figurant dans les arguments de modèle dans l'identifiant du déclarateur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/514.html">CWG 514</a></td>
+<td>C++98</td>
+<td>tout nom non qualifié utilisé dans la portée d'un espace de noms était d'abord recherché dans cette portée</td>
+<td>les noms non qualifiés utilisés pour définir une variable membre d'un espace de noms en dehors de cet espace de noms sont d'abord recherchés dans cet espace de noms</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>6.5 Recherche de noms [basic.lookup] (p : 44-45)</li>
+<li>6.5.2 Recherche de noms membres [class.member.lookup] (p : 45-47)</li>
+<li>13.8 Résolution des noms [temp.res] (p : 399-403)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>6.5 Recherche de noms [basic.lookup] (p : 38-50)</li>
+<li>11.8 Recherche de noms membres [class.member.lookup] (p : 283-285)</li>
+<li>13.8 Résolution des noms [temp.res] (p : 385-400)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>6.4 Recherche de noms [basic.lookup] (p : 50-63)</li>
+<li>13.2 Recherche de noms membres [class.member.lookup] (p : 259-262)</li>
+<li>17.6 Résolution des noms [temp.res] (p : 375-378)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>3.4 Recherche de noms [basic.lookup] (p : 42-56)</li>
+<li>10.2 Recherche de noms membres [class.member.lookup] (p : 233-236)</li>
+<li>14.6 Résolution des noms [temp.res] (p : 346-359)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>3.4 Recherche de noms [basic.lookup]</li>
+<li>10.2 Recherche de noms membres [class.member.lookup]</li>
+<li>14.6 Résolution des noms [temp.res]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>3.4 Recherche de noms [basic.lookup]</li>
+<li>10.2 Recherche de noms membres [class.member.lookup]</li>
+<li>14.6 Résolution des noms [temp.res]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="qualified_lookup.html">Recherche de nom qualifiée</a></li>
+<li><a href="scope.html">Portée</a></li>
+<li><a href="adl.html">Recherche dépendante des arguments</a></li>
+<li><a href="function_template.html">Déduction d'arguments de modèle</a></li>
+<li><a href="overload_resolution.html">Résolution de surcharge</a></li>
+</ul>
+
+</main>
+</body>
+</html>

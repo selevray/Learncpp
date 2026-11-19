@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::for_each, std::ranges::for_each_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-for_each-std-ranges-for_each_result"><code>std::ranges::for_each, std::ranges::for_each_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/for_each">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_iterator I, std::sentinel_for&lt;I&gt; S, class Proj = std::identity,
+          std::indirectly_unary_invocable&lt;std::projected&lt;I, Proj&gt;&gt; Fun &gt;
+constexpr for_each_result&lt;I, Fun&gt;
+    for_each( I first, S last, Fun f, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; ranges::input_range R, class Proj = std::identity,
+          std::indirectly_unary_invocable&lt;
+              std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt; Fun &gt;
+constexpr for_each_result&lt;ranges::borrowed_iterator_t&lt;R&gt;, Fun&gt;
+    for_each( R&amp;&amp; r, Fun f, Proj proj = {} );  // (2) (depuis C++20)
+</code></pre>
+<p><strong>Types auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class I, class F &gt;
+using for_each_result = ranges::in_fun_result&lt;I, F&gt;;  // (3) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Applique l'objet fonction <code>f</code> donné au résultat de la valeur projetée par chaque itérateur de l'intervalle <code>[first,last)</code>, dans l'ordre.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Pour les deux surcharges, si le type d'itérateur est modifiable, <code>f</code> peut modifier les éléments de l'intervalle via l'itérateur déréférencé. Si <code>f</code> renvoie un résultat, celui-ci est ignoré.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — paire itérateur-sentinelle désignant l'intervalle auquel appliquer la fonction</li>
+<li><code>r</code> — l'intervalle d'éléments auquel appliquer la fonction</li>
+<li><code>f</code> — la fonction à appliquer à l'intervalle projeté</li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>{std::ranges::next(std::move(first), last), std::move(f)}</code></p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>last - first</code> applications de <code>f</code> et <code>proj</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct for_each_fn
+{
+    template&lt;std::input_iterator I, std::sentinel_for&lt;I&gt; S, class Proj = std::identity,
+             std::indirectly_unary_invocable&lt;std::projected&lt;I, Proj&gt;&gt; Fun&gt;
+    constexpr ranges::for_each_result&lt;I, Fun&gt;
+        operator()(I first, S last, Fun f, Proj proj = {}) const
+    {
+        for (; first != last; ++first)
+            std::invoke(f, std::invoke(proj, *first));
+        return {std::move(first), std::move(f)};
+    }
+
+    template&lt;ranges::input_range R, class Proj = std::identity,
+             std::indirectly_unary_invocable&lt;std::projected&lt;ranges::iterator_t&lt;R&gt;,
+             Proj&gt;&gt; Fun&gt;
+    constexpr ranges::for_each_result&lt;ranges::borrowed_iterator_t&lt;R&gt;, Fun&gt;
+        operator()(R&amp;&amp; r, Fun f, Proj proj = {}) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::move(f), std::ref(proj));
+    }
+};
+
+inline constexpr for_each_fn for_each;
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant utilise une <a href="../../language/lambda.html">expression lambda</a> pour incrémenter tous les éléments d'un vector, puis utilise un <code>operator()</code> surchargé dans un foncteur pour calculer leur somme. Notez que pour calculer la somme, il est recommandé d'utiliser l'algorithme dédié <a href="../accumulate.html"><code>std::accumulate</code></a>.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cassert&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+struct Sum
+{
+    void operator()(int n) { sum += n; }
+    int sum {0};
+};
+
+int main()
+{
+    std::vector&lt;int&gt; nums {3, 4, 2, 8, 15, 267};
+
+    auto print = [](const auto&amp; n) { std::cout &lt;&lt; ' ' &lt;&lt; n; };
+
+    namespace ranges = std::ranges;
+    std::cout &lt;&lt; &quot;before:&quot;;
+    ranges::for_each(std::as_const(nums), print);
+    print('\n');
+
+    ranges::for_each(nums, [](int&amp; n) { ++n; });
+
+    // appelle Sum::operator() pour chaque nombre
+    auto [i, s] = ranges::for_each(nums.begin(), nums.end(), Sum());
+    assert(i == nums.end());
+
+    std::cout &lt;&lt; &quot;after: &quot;;
+    ranges::for_each(nums.cbegin(), nums.cend(), print);
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;sum: &quot; &lt;&lt; s.sum &lt;&lt; '\n';
+
+    using pair = std::pair&lt;int, std::string&gt;;
+    std::vector&lt;pair&gt; pairs {{1,&quot;one&quot;}, {2,&quot;two&quot;}, {3,&quot;tree&quot;}};
+
+    std::cout &lt;&lt; &quot;project the pair::first: &quot;;
+    ranges::for_each(pairs, print, [](const pair&amp; p) { return p.first; });
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;project the pair::second:&quot;;
+    ranges::for_each(pairs, print, &amp;pair::second);
+    print('\n');
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">before: 3 4 2 8 15 267
+after:  4 5 3 9 16 268
+sum: 305
+project the pair::first:  1 2 3
+project the pair::second: one two tree
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../language/range-for.html">boucle range-<code>for</code></a> (C++11)</strong> — exécute une boucle sur un intervalle</li>
+<li><strong><a href="transform.html">ranges::transform</a> (C++20)</strong> — applique une fonction à un intervalle d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="for_each_n.html">ranges::for_each_n</a> (C++20)</strong> — applique un objet fonction aux N premiers éléments d'une séquence <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="../for_each.html">for_each</a></strong> — applique une fonction à un intervalle d'éléments <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

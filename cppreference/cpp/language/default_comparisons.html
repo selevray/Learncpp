@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparaisons par défaut (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="comparaisons-par-défaut-depuis-c-20">Comparaisons par défaut (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/default_comparisons">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les fonctions d'opérateur de comparaison peuvent être explicitement défaut pour demander au compilateur de générer la comparaison par défaut correspondante pour une classe.</p>
+<h2 id="Definition">Définition</h2>
+<p>Une <em>fonction d'opérateur de comparaison défaut</em> est une fonction d'opérateur de comparaison non template (c'est-à-dire <code>&lt;=&gt;</code>, <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code> ou <code>&gt;=</code>) satisfaisant toutes les conditions suivantes :</p>
+<ul>
+<li>Elle est une <a href="member_functions.html">fonction membre non statique</a> ou un <a href="friend.html">ami</a> d'une classe <code>C</code>.</li>
+<li>Elle est <a href="function.html#Function_definition">définie comme défaut</a> dans <code>C</code> ou dans un contexte où <code>C</code> est <a href="type-id.html#Incomplete_type">complet</a>.</li>
+<li>Elle possède deux paramètres de type <code>const C&amp;</code> ou deux paramètres de type <code>C</code>, où le <a href="overload_resolution.html#Additional_rules_for_member_function_candidates">paramètre objet implicite</a> (le cas échéant) est considéré comme le premier paramètre.</li>
+</ul>
+<p>Une telle fonction d'opérateur de comparaison est appelée une <em>fonction d'opérateur de comparaison défaut pour la classe <code>C</code></em>.</p>
+<pre><code class="language-cpp">struct X
+{
+    bool operator==(const X&amp;) const = default; // OK
+    bool operator==(const X&amp;) = default;       // Error : l'objet implicite
+                                               //        le type du paramètre est X&amp;
+    bool operator==(this X, X) = default;      // OK
+};
+
+struct Y
+{
+    friend bool operator==(Y, Y) = default;        // OK
+    friend bool operator==(Y, const Y&amp;) = default; // Error : types de paramètres différents
+};
+
+bool operator==(const Y&amp;, const Y&amp;) = default;     // Error : n'est pas un ami de Y
+</code></pre>
+<p>Les recherches de noms et les vérifications d'accès dans la définition implicite d'une fonction d'opérateur de comparaison sont effectuées depuis un contexte équivalent à son corps de fonction. Une définition d'une fonction d'opérateur de comparaison comme défaut qui apparaît dans une classe doit être la première déclaration de cette fonction.</p>
+<h2 id="Default_comparison_order">Ordre de comparaison par défaut</h2>
+<p>Étant donnée une classe <code>C</code>, une liste de sous-objets est formée par les sujets suivants, dans l'ordre :</p>
+<ul>
+<li>Les sous-objets de classes de base directes de <code>C</code>, dans l'ordre de déclaration.</li>
+<li>Les <a href="data_members.html">membres de données</a> non statiques de <code>C</code>, dans l'ordre de déclaration.
+<ul>
+<li>Si un sous-objet membre est de type tableau, il est développé en la séquence de ses éléments, dans l'ordre des indices croissants. Le développement est récursif : les éléments de tableau de types tableau sont développés à nouveau jusqu'à ce qu'il n'existe plus aucun sous-objet de type tableau.</li>
+</ul>
+</li>
+</ul>
+<p>Pour tout objet <code>x</code> de type <code>C</code>, dans les descriptions suivantes :</p>
+<ul>
+<li>Soit <code>n</code> le nombre de sous-objets dans la liste de sous-objets (développée) de <code>x</code>.</li>
+<li>Soit <code>x_i</code> le <code>i</code>e sous-objet de la liste de sous-objets (développée) de <code>x</code>, où <code>x_i</code> est formé par une suite de <a href="overload_resolution.html#Ranking_of_implicit_conversion_sequences">conversions dérivée vers base</a>, de <a href="operator_member_access.html#Built-in_member_access_operators">expressions d'accès à un membre de classe</a> et de <a href="operator_member_access.html#Built-in_subscript_operator">expressions d'indexation de tableau</a> appliquées à <code>x</code>.</li>
+</ul>
+<pre><code class="language-cpp">struct S {};
+
+struct T : S
+{
+    int arr[2][2];
+} t;
+
+// La liste des sous-objets de « t » se compose des 5 sous-objets suivants, dans l'ordre :
+// (S)t → t[0][0] → t[0][1] → t[1][0] → t[1][1]
+</code></pre>
+<h2 id="Three-way_comparison">Comparaison à trois voies</h2>
+<p>Un <code>operator&lt;=&gt;</code> pour un type classe peut être défini comme défaut avec n'importe quel type de retour.</p>
+<h3 id="Comparison_category_types">Types de catégorie de comparaison</h3>
+<p>Il existe trois types de catégorie de comparaison :</p>
+<ul>
+<li><a href="../utility/compare/strong_ordering.html"><code>std::strong_ordering</code></a></li>
+<li><a href="../utility/compare/weak_ordering.html"><code>std::weak_ordering</code></a></li>
+<li><a href="../utility/compare/partial_ordering.html"><code>std::partial_ordering</code></a></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Les valeurs équivalentes sont..</th>
+<th>Les valeurs incomparables sont..</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../utility/compare/strong_ordering.html"><code>std::strong_ordering</code></a></td>
+<td>indistinguishable</td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="../utility/compare/weak_ordering.html"><code>std::weak_ordering</code></a></td>
+<td>distinguishable</td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="../utility/compare/partial_ordering.html"><code>std::partial_ordering</code></a></td>
+<td>distinguishable</td>
+<td>allowed</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Synthesized_three-way_comparison">Comparaison à trois voies synthétisée</h3>
+<p>La <em>comparaison à trois voies synthétisée</em> de type <code>T</code> entre les glvalues <code>a</code> et <code>b</code> de même type est définie comme suit :</p>
+<ul>
+<li>
+<p>Si la résolution de surcharge pour <code>a &lt;=&gt; b</code> aboutit à un candidat utilisable, et peut être explicitement convertie en <code>T</code> au moyen de <a href="static_cast.html"><code>static_cast</code></a>, la comparaison synthétisée est <code>static_cast&lt;T&gt;(a &lt;=&gt; b)</code>.</p>
+</li>
+<li>
+<p>Sinon, si l'une des conditions suivantes est satisfaite, la comparaison synthétisée n'est pas définie :</p>
+<ul>
+<li>La résolution de surcharge pour <code>a &lt;=&gt; b</code> trouve au moins un candidat viable.</li>
+<li><code>T</code> n'est pas un type de catégorie de comparaison.</li>
+<li>La résolution de surcharge pour <code>a == b</code> n'aboutit à aucun candidat utilisable.</li>
+<li>La résolution de surcharge pour <code>a &lt; b</code> n'aboutit à aucun candidat utilisable.</li>
+</ul>
+</li>
+<li>
+<p>Sinon, si <code>T</code> est <a href="../utility/compare/strong_ordering.html"><code>std::strong_ordering</code></a>, la comparaison synthétisée est</p>
+</li>
+</ul>
+<pre><code class="language-cpp">a == b ? std::strong_ordering::equal :
+a &lt; b  ? std::strong_ordering::less :
+         std::strong_ordering::greater
+</code></pre>
+<ul>
+<li>Sinon, si <code>T</code> est <a href="../utility/compare/weak_ordering.html"><code>std::weak_ordering</code></a>, la comparaison synthétisée est</li>
+</ul>
+<pre><code class="language-cpp">a == b ? std::weak_ordering::equivalent :
+a &lt; b  ? std::weak_ordering::less :
+         std::weak_ordering::greater
+</code></pre>
+<ul>
+<li>Sinon (<code>T</code> est <a href="../utility/compare/partial_ordering.html"><code>std::partial_ordering</code></a>), la comparaison synthétisée est</li>
+</ul>
+<pre><code class="language-cpp">a == b ? std::partial_ordering::equivalent :
+a &lt; b  ? std::partial_ordering::less :
+b &lt; a  ? std::partial_ordering::greater :
+         std::partial_ordering::unordered
+</code></pre>
+<h3 id="Placeholder_return_type">Type de retour substitué</h3>
+<p>Si le type de retour déclaré d'une fonction d'opérateur de comparaison à trois voies défaut (<code>operator&lt;=&gt;</code>) pour un type classe <code>C</code> est <code>auto</code>, le type de retour est déduit à partir des types de retour des comparaisons à trois voies entre les sous-objets correspondants d'un objet <code>x</code> de type <code>C</code>.</p>
+<p>Pour chaque sous-objet <code>x_i</code> de la <a href="default_comparisons.html#Default_comparison_order">liste de sous-objets (développée)</a> de <code>x</code> :</p>
+<ol>
+<li>Effectuer la résolution de surcharge pour <code>x_i &lt;=&gt; x_i</code> ; si la résolution de surcharge n'aboutit à aucun candidat utilisable, la fonction défaut <code>operator&lt;=&gt;</code> est définie comme supprimée.</li>
+<li>Notons la version sans qualificateur cv du type de <code>x_i &lt;=&gt; x_i</code> <code>R_i</code> ; si <code>R_i</code> n'est pas un type de catégorie de comparaison, la fonction défaut <code>operator&lt;=&gt;</code> est définie comme supprimée.</li>
+</ol>
+<p>Si la fonction défaut <code>operator&lt;=&gt;</code> n'est pas définie comme supprimée, son type de retour est déduit comme <code>std::common_comparison_category_t&lt;R_1, R_2, ..., R_n&gt;</code>.</p>
+<h3 id="Non-placeholder_return_type">Type de retour non substitué</h3>
+<p>Si le type de retour déclaré de la <code>operator&lt;=&gt;</code> défaut n'est pas <code>auto</code>, il ne peut contenir aucun <a href="auto.html">type substitué</a> (par exemple <code>decltype(auto)</code>).</p>
+<p>S'il existe un sous-objet <code>x_i</code> dans la liste de sous-objets (développée) de <code>x</code> tel que la <a href="default_comparisons.html#Synthesized_three-way_comparison">comparaison à trois voies synthétisée</a> du type de retour déclaré entre <code>x_i</code> et <code>x_i</code> n'est pas définie, la fonction défaut <code>operator&lt;=&gt;</code> est définie comme supprimée.</p>
+<h3 id="Comparison_result">Résultat de la comparaison</h3>
+<p>Soient <code>x</code> et <code>y</code> les paramètres d'une <code>operator&lt;=&gt;</code> défaut, notons chaque sous-objet de la liste de sous-objets (développée) de <code>x</code> et de <code>y</code> respectivement <code>x_i</code> et <code>y_i</code>. La comparaison à trois voies par défaut entre <code>x</code> et <code>y</code> est effectuée en comparant les sous-objets correspondants <code>x_i</code> et <code>y_i</code> dans l'ordre croissant de <code>i</code>.</p>
+<p>Soit <code>R</code> le type de retour (éventuellement déduit), le résultat de la comparaison entre <code>x_i</code> et <code>y_i</code> est le résultat de la comparaison à trois voies synthétisée de type <code>R</code> entre <code>x_i</code> et <code>y_i</code>.</p>
+<ul>
+<li>Lors de la comparaison à trois voies par défaut entre <code>x</code> et <code>y</code>, si une comparaison sous-objet par sous-objet entre <code>x_i</code> et <code>y_i</code> produit un résultat <code>v_i</code> tel que la conversion contextuelle de <code>v_i != 0</code> en <code>bool</code> donne <code>true</code>, la valeur de retour est une copie de <code>v_i</code> (les sous-objets restants ne sont pas comparés).</li>
+<li>Sinon, la valeur de retour est <code>static_cast&lt;R&gt;(std::strong_ordering::equal)</code>.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;compare&gt;
+#include &lt;iostream&gt;
+#include &lt;set&gt;
+
+struct Point
+{
+    int x;
+    int y;
+    auto operator&lt;=&gt;(const Point&amp;) const = default;
+    /* fonctions non comparatives */
+};
+
+int main()
+{
+    Point pt1{1, 1}, pt2{1, 2};
+    std::set&lt;Point&gt; s; // OK
+    s.insert(pt1);     // OK
+
+    // les fonctions opérateurs de comparaison à deux voies ne sont pas obligatoirement définies explicitement :
+    // operator== est déclaré implicitement (voir ci-dessous)
+    // les résolutions de surcharge des autres candidats sélectionneront les candidats réécrits
+    std::cout &lt;&lt; std::boolalpha
+        &lt;&lt; (pt1 == pt2) &lt;&lt; ' '  // false
+        &lt;&lt; (pt1 != pt2) &lt;&lt; ' '  // true
+        &lt;&lt; (pt1 &lt;  pt2) &lt;&lt; ' '  // true
+        &lt;&lt; (pt1 &lt;= pt2) &lt;&lt; ' '  // true
+        &lt;&lt; (pt1 &gt;  pt2) &lt;&lt; ' '  // false
+        &lt;&lt; (pt1 &gt;= pt2) &lt;&lt; ' '; // false
+}
+</code></pre>
+<h2 id="Equality_comparison">Comparaison d'égalité</h2>
+<h3 id="Explicit_declaration">Déclaration explicite</h3>
+<p>Une <code>operator==</code> pour un type classe peut être déclarée par défaut (defaulted) avec le type de retour <code>bool</code>.</p>
+<p>Étant donné une classe <code>C</code> et un objet <code>x</code> de type <code>C</code>, s'il existe un sous-objet <code>x_i</code> dans la liste des sous-objets (développée) de <code>x</code> tel que la résolution de surcharge pour <code>x_i == x_i</code> ne produit aucun candidat utilisable, la <code>operator==</code> defaulted est définie comme supprimée.</p>
+<p>Soient <code>x</code> et <code>y</code> les paramètres d'un <code>operator==</code> defaulted, et notons chaque sous-objet de la liste des sous-objets (développée) de <code>x</code> et de <code>y</code> respectivement <code>x_i</code> et <code>y_i</code>. La comparaison d'égalité par défaut entre <code>x</code> et <code>y</code> est effectuée en comparant les sous-objets correspondants <code>x_i</code> et <code>y_i</code> dans l'ordre croissant de <code>i</code>.</p>
+<p>Le résultat de la comparaison entre <code>x_i</code> et <code>y_i</code> est le résultat de <code>x_i == y_i</code>.</p>
+<ul>
+<li>Lors de la comparaison d'égalité par défaut entre <code>x</code> et <code>y</code>, si une comparaison sous-objet par sous-objet entre <code>x_i</code> et <code>y_i</code> produit un résultat <code>v_i</code> tel que la conversion contextuelle de <code>v_i</code> en <code>bool</code> donne <code>false</code>, la valeur de retour est <code>false</code> (les sous-objets restants ne sont pas comparés).</li>
+<li>Sinon, la valeur de retour est <code>true</code>.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct Point
+{
+    int x;
+    int y;
+    bool operator==(const Point&amp;) const = default;
+    /* fonctions non comparatives */
+};
+
+int main()
+{
+    Point pt1{3, 5}, pt2{2, 5};
+    std::cout &lt;&lt; std::boolalpha
+        &lt;&lt; (pt1 != pt2) &lt;&lt; '\n'  // true
+        &lt;&lt; (pt1 == pt1) &lt;&lt; '\n'; // true
+
+    struct [[maybe_unused]] { int x{}, y{}; } p, q;
+    // if (p == q) {} // Erreur : operator== n'est pas défini
+}
+</code></pre>
+<h3 id="Implicit_declaration">Déclaration implicite</h3>
+<p>Si une classe <code>C</code> ne déclare explicitement aucun membre ni aucune amitié nommé <code>operator==</code>, un opérateur est déclaré implicitement pour chaque <code>operator&lt;=&gt;</code> défini comme defaulted. Chaque <code>operator==</code> déclaré implicitement possède le même accès et la même <a href="function.html#Function_definition">définition de fonction</a>, et se trouve dans la même <a href="scope.html#Class_scope">portée de classe</a> que le <code>operator&lt;=&gt;</code> defaulted correspondant, avec les modifications suivantes :</p>
+<ul>
+<li>Le <a href="declarations.html#Declarators">identifiant de déclarateur</a> est remplacé par <code>operator==</code>.</li>
+<li>Le type de retour est remplacé par <code>bool</code>.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct X
+{
+    friend constexpr std::partial_ordering operator&lt;=&gt;(X, X)
+        requires (sizeof(T) != 1) = default;
+    // déclare implicitement : friend constexpr bool operator==(X, X)
+    //                          requires (sizeof(T) != 1) = default;
+
+    [[nodiscard]] virtual std::strong_ordering operator&lt;=&gt;(const X&amp;) const = default;
+    // déclare implicitement : [[nodiscard]] virtual bool
+    //                          operator==(const X&amp;) const = default;
+};
+</code></pre>
+<h2 id="Secondary_comparison">Comparaison secondaire</h2>
+<p>Une fonction opérateur de comparaison secondaire (<code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code> ou <code>&gt;=</code>) pour un type classe peut être déclarée par défaut (defaulted) avec le type de retour <code>bool</code>.</p>
+<p>Soit <code>@</code> l'un des cinq opérateurs de comparaison secondaires ; pour chaque <code>operator@</code> defaulted de paramètres <code>x</code> et <code>y</code>, jusqu'à deux résolutions de surcharge sont effectuées (sans considérer le <code>operator@</code> defaulted comme candidat) pour déterminer s'il est défini comme supprimé.</p>
+<ul>
+<li>La première résolution de surcharge est effectuée pour <code>x @ y</code>. Si la résolution de surcharge ne produit aucun candidat utilisable, ou si le candidat sélectionné n'est pas un <a href="overload_resolution.html#Call_to_an_overloaded_operator">candidat réécrit</a>, la <code>operator@</code> defaulted est définie comme supprimée. Il n'y a pas de seconde résolution de surcharge dans ces cas.</li>
+<li>La seconde résolution de surcharge est effectuée pour le candidat réécrit sélectionné de <code>x @ y</code>. Si la résolution de surcharge ne produit aucun candidat utilisable, la <code>operator@</code> defaulted est définie comme supprimée.</li>
+</ul>
+<p>Si <code>x @ y</code> ne peut pas être implicitement converti en <code>bool</code>, la <code>operator@</code> defaulted est définie comme supprimée.</p>
+<p>Si le <code>operator@</code> defaulted n'est pas défini comme supprimé, il produit <code>x @ y</code>.</p>
+<pre><code class="language-cpp">struct HasNoRelational {};
+
+struct C
+{
+    friend HasNoRelational operator&lt;=&gt;(const C&amp;, const C&amp;);
+    bool operator&lt;(const C&amp;) const = default; // OK, la fonction est defaulted
+};
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/default.html"><code>default</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2539.html">CWG 2539</a></td>
+<td>C++20</td>
+<td>la comparaison à trois voies synthétisée choisirait <code>static_cast</code> même si la conversion explicite n'est pas disponible</td>
+<td>ne choisit pas <code>static_cast</code> dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2546.html">CWG 2546</a></td>
+<td>C++20</td>
+<td>la <code>operator@</code> secondaire defaulted n'était pas définie comme supprimée si la résolution de surcharge de <code>x @ y</code> sélectionnait un candidat réécrit non utilisable</td>
+<td>définie comme supprimée dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2547.html">CWG 2547</a></td>
+<td>C++20</td>
+<td>il n'était pas clair si les fonctions opérateurs de comparaison pour des non-classes pouvaient être declarées par défaut</td>
+<td>elles ne peuvent pas être declarées par défaut</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2568.html">CWG 2568</a></td>
+<td>C++20</td>
+<td>l'implémentation implicite des fonctions opérateurs de comparaison pouvait violer les règles d'accès aux membres</td>
+<td>les vérifications d'accès sont effectuées depuis un contexte équivalent à leurs corps de fonction</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="overload_resolution.html#Call_to_an_overloaded_operator">résolution de surcharge</a> lors d'un appel à un opérateur surchargé</li>
+<li><a href="operator_comparison.html#Three-way_comparison">Opérateur de comparaison à trois voies</a> intégré</li>
+<li><a href="operators.html#Comparison_operators">Surcharge d'opérateurs</a> pour les opérateurs de comparaison</li>
+</ul>
+
+</main>
+</body>
+</html>

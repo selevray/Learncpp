@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modèles de membres — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="modèles-de-membres">Modèles de membres</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/member_template">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les déclarations de modèles (<a href="class_template.html">class</a>, <a href="function_template.html">function</a>, et <a href="variable_template.html">variables</a> <em>(depuis C++14)</em>) peuvent apparaître dans une <a href="class.html">spécification de membres</a> de toute classe, structure ou union qui ne sont pas des <a href="class.html#Local_classes">classes locales</a>.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+struct Printer
+{
+    // foncteur générique
+    std::ostream&amp; os;
+    Printer(std::ostream&amp; os) : os(os) {}
+    template&lt;typename T&gt;
+    void operator()(const T&amp; obj) { os &lt;&lt; obj &lt;&lt; ' '; } // modèle de membre
+};
+
+int main()
+{
+    std::vector&lt;int&gt; v{1,2,3};
+    std::for_each(v.begin(), v.end(), Printer(std::cout));
+    std::string s{&quot;abc&quot;};
+    std::ranges::for_each(s, Printer(std::cout));
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1 2 3 a b c
+</code></pre>
+<p>Les spécialisations partielles d'un modèle de membre peuvent apparaître aussi bien dans la portée de la classe que dans la portée de l'espace de noms englobant. Les spécialisations explicites peuvent apparaître dans toute portée où le modèle primaire peut apparaître.</p>
+<pre><code class="language-cpp">struct A
+{
+    template&lt;class T&gt; struct B;        // modèle de membre primaire
+    template&lt;class T&gt; struct B&lt;T*&gt; {}; // OK : spécialisation partielle
+//  template&lt;&gt; struct B&lt;int*&gt; {};      // OK via CWG 727 : spécialisation complète
+};
+template&lt;&gt; struct A::B&lt;int*&gt; {};       // OK
+template&lt;class T&gt; struct A::B&lt;T&amp;&gt; {};  // OK
+</code></pre>
+<p>Si la déclaration de classe englobante est à son tour un modèle de classe, lorsqu'un modèle de membre est défini en dehors du corps de la classe, il prend deux ensembles de paramètres de modèle : un pour la classe englobante, et un autre pour lui-même :</p>
+<pre><code class="language-cpp">template&lt;typename T1&gt;
+struct string
+{
+    // fonction membre modèle
+    template&lt;typename T2&gt;
+    int compare(const T2&amp;);
+    // les constructeurs peuvent aussi être des modèles
+    template&lt;typename T2&gt;
+    string(const std::basic_string&lt;T2&gt;&amp; s) { /*...*/ }
+};
+// définition hors de la classe de string&lt;T1&gt;::compare&lt;T2&gt;
+template&lt;typename T1&gt; // pour le modèle de classe englobant
+template&lt;typename T2&gt; // pour le modèle de membre
+int string&lt;T1&gt;::compare(const T2&amp; s) { /* ... */ }
+</code></pre>
+<h2 id="Member_function_templates">Modèles de fonctions membres</h2>
+<p><a href="destructor.html">Destructeurs</a> et <a href="copy_constructor.html">constructeurs de copie</a> ne peuvent pas être des modèles. Si un constructeur modèle est déclaré et peut être instancié avec la signature de type d'un constructeur de copie, le <a href="copy_constructor.html#Implicitly-declared_copy_constructor">constructeur de copie déclaré implicitement</a> est utilisé à la place.</p>
+<p>Un modèle de fonction membre ne peut pas être virtuel, et un modèle de fonction membre d'une classe dérivée ne peut pas redéfinir une fonction membre virtuelle de la classe de base.</p>
+<pre><code class="language-cpp">class Base
+{
+    virtual void f(int);
+};
+
+struct Derived : Base
+{
+    // ce modèle de membre ne redéfinit pas Base::f
+    template&lt;class T&gt; void f(T);
+
+    // une redéfinition non modèle peut appeler le modèle :
+    void f(int i) override
+    {
+         f&lt;&gt;(i);
+    }
+};
+</code></pre>
+<p>Une fonction membre non modèle et un modèle de fonction membre portant le même nom peuvent être déclarés. En cas de conflit (lorsqu'une spécialisation de modèle correspond exactement à la signature de la fonction non modèle), l'utilisation de ce nom et de ce type désigne le membre non modèle, sauf si une liste explicite d'arguments de modèle est fournie.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct A
+{
+    void f(int); // membre non modèle
+
+    template&lt;typename T2&gt;
+    void f(T2); // modèle de membre
+};
+
+// définition du membre modèle
+template&lt;typename T&gt;
+template&lt;typename T2&gt;
+void A&lt;T&gt;::f(T2)
+{
+    // du code
+}
+
+int main()
+{
+    A&lt;char&gt; ac;
+    ac.f('c'); // appelle la fonction modèle A&lt;char&gt;::f&lt;char&gt;(char)
+    ac.f(1);   // appelle la fonction non modèle A&lt;char&gt;::f(int)
+    ac.f&lt;&gt;(1); // appelle la fonction modèle A&lt;char&gt;::f&lt;int&gt;(int)
+}
+</code></pre>
+<p>Une définition hors de la classe d'un modèle de fonction membre doit être <em>équivalente</em> à la déclaration à l'intérieur de la classe (voir <a href="function_template.html#Function_template_overloading">surcharge des modèles de fonctions</a> pour la définition de l'équivalence), sinon elle est considérée comme une surcharge.</p>
+<pre><code class="language-cpp">struct X
+{
+    template&lt;class T&gt; T good(T n);
+    template&lt;class T&gt; T bad(T n);
+};
+
+template&lt;class T&gt; struct identity { using type = T; };
+
+// OK : déclaration équivalente
+template&lt;class V&gt;
+V X::good(V n) { return n; }
+
+// Error : non équivalent à aucune des déclarations à l'intérieur de X
+template&lt;class T&gt;
+T X::bad(typename identity&lt;T&gt;::type n) { return n; }
+</code></pre>
+<h2 id="Conversion_function_templates">Modèles de fonctions de conversion</h2>
+<p>Une <a href="cast_operator.html">fonction de conversion</a> définie par l'utilisateur peut être un modèle.</p>
+<pre><code class="language-cpp">struct A
+{
+    template&lt;typename T&gt;
+    operator T*(); // conversion vers un pointeur vers n'importe quel type
+};
+
+// définition hors de la classe
+template&lt;typename T&gt;
+A::operator T*() { return nullptr; }
+
+// spécialisation explicite pour char*
+template&lt;&gt;
+A::operator char*() { return nullptr; }
+
+// instanciation explicite
+template A::operator void*();
+
+int main()
+{
+    A a;
+    int* ip = a.operator int*(); // appel explicite à A::operator int*()
+}
+</code></pre>
+<p>Lors de la <a href="overload_resolution.html">résolution de surcharge</a>, les spécialisations des modèles de fonctions de conversion ne sont pas trouvées par <a href="lookup.html">recherche de nom</a>. À la place, tous les modèles de fonctions de conversion visibles sont considérés, et chaque spécialisation produite par la <a href="template_argument_deduction.html">déduction d'arguments de modèle</a> (qui a des règles particulières pour les modèles de fonctions de conversion) est utilisée comme si elle avait été trouvée par la recherche de nom.</p>
+<p>Les déclarations using dans les classes dérivées ne peuvent pas désigner des spécialisations de modèles de fonctions de conversion provenant des classes de base.</p>
+<blockquote>
+<p>Un modèle de fonction de conversion défini par l'utilisateur ne peut pas avoir un type de retour déduit :</p>
+<pre><code class="language-cpp">struct S
+{
+    operator auto() const { return 10; } // OK
+    template&lt;class T&gt; operator auto() const { return 42; } // error
+};
+</code></pre>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<blockquote>
+<h3 id="Member_variable_templates">Modèles de variables membres</h3>
+<p>Une déclaration de modèle de variable peut apparaître dans la portée de classe, auquel cas elle déclare un modèle de membre de donnée statique. Voir <a href="variable_template.html">modèles de variables</a> pour plus de détails.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1878.html">CWG 1878</a></td>
+<td>C++14</td>
+<td>operator auto était techniquement autorisé</td>
+<td>operator auto interdit</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

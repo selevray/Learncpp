@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Définitions externes et définitions provisoires — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="définitions-externes-et-définitions-provisoires">Définitions externes et définitions provisoires</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/extern">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Au niveau le plus haut d'une <a href="translation_phases.html">unité de traduction</a> (c'est-à-dire un fichier source avec tous les #include après le préprocesseur), chaque programme C est une suite de <a href="declarations.html">déclarations</a>, qui déclarent des fonctions et des objets ayant une <a href="storage_duration.html">liaison externe ou interne</a>. Ces déclarations sont appelées <em>déclarations externes</em> car elles apparaissent en dehors de toute fonction.</p>
+<pre><code class="language-c">extern int n; // déclaration externe à liaison externe
+int b = 1;    // définition externe à liaison externe
+static const char *c = &quot;abc&quot;; // définition externe à liaison interne
+
+int f(void)    // définition externe à liaison externe
+{
+    int a = 1; // non externe
+    return b;
+}
+
+static void x(void) // définition externe à liaison interne
+{
+}
+</code></pre>
+<p>Les objets déclarés par une déclaration externe ont une <a href="storage_duration.html">durée de stockage</a> statique, et ne peuvent donc pas utiliser les spécificateurs <code>auto</code> ou <code>register</code> sauf que <code>auto</code> peut être utilisé pour l'inférence de type <em>(depuis C23)</em>. Les identificateurs introduits par des déclarations externes ont une <a href="scope.html">portée de fichier</a>.</p>
+<h2 id="Tentative_definitions">Définitions provisoires</h2>
+<p>Une <em>définition provisoire</em> est une déclaration externe sans initialiseur, et soit sans <a href="storage_duration.html">spécificateur de classe de stockage</a>, soit avec le spécificateur <code>static</code>.</p>
+<p>Une <em>définition provisoire</em> est une déclaration qui peut ou non agir comme une définition. Si une véritable définition externe est trouvée plus tôt ou plus tard dans la même unité de traduction, alors la définition provisoire agit simplement comme une déclaration.</p>
+<pre><code class="language-c">int i1 = 1;     // définition, liaison externe
+int i1;         // définition provisoire, agit comme déclaration car i1 est définie
+extern int i1;  // déclaration, se réfère à la définition précédente
+
+extern int i2 = 3; // définition, liaison externe
+int i2;            // définition provisoire, agit comme déclaration car i2 est définie
+extern int i2;     // déclaration, se réfère à la définition à liaison externe
+</code></pre>
+<p>S'il n'existe aucune définition dans la même unité de traduction, alors la définition provisoire agit comme une véritable définition qui <a href="initialization.html#Empty_initialization">initialise à vide</a> l'objet.</p>
+<pre><code class="language-c">int i3;        // définition provisoire, liaison externe
+int i3;        // définition provisoire, liaison externe
+extern int i3; // déclaration, liaison externe
+// dans cette unité de traduction, i3 est définie comme si par « int i3 = 0; »
+</code></pre>
+<p>Contrairement aux déclarations <a href="storage_duration.html">extern</a>, qui ne modifient pas la liaison d'un identificateur si une déclaration précédente l'a établie, les définitions provisoires peuvent avoir une liaison différente d'une autre déclaration du même identificateur. Si deux déclarations du même identificateur sont dans la portée et ont des liaisons différentes, le comportement est indéfini :</p>
+<pre><code class="language-c">static int i4 = 2; // définition, liaison interne
+int i4;            // Comportement indéfini : liaison en désaccord avec la ligne précédente
+extern int i4;     // déclaration, se réfère à la définition à liaison interne
+
+static int i5; // définition provisoire, liaison interne
+int i5;        // Comportement indéfini : liaison en désaccord avec la ligne précédente
+extern int i5; // se réfère à la précédente, dont la liaison est interne
+</code></pre>
+<p>Une définition provisoire à liaison interne doit avoir un type complet.</p>
+<pre><code class="language-c">static int i[]; // Erreur, type incomplet dans une définition provisoire statique
+int i[]; // OK, équivalent à int i[1] = {0}; sauf si redéclaré plus loin dans ce fichier
+</code></pre>
+<h2 id="One_definition_rule">Règle de la définition unique</h2>
+<p>Chaque unité de traduction peut avoir zéro ou une définition externe de chaque identificateur à <a href="storage_duration.html">liaison interne</a> (un <code>static</code> global).</p>
+<p>Si un identificateur à liaison interne est utilisé dans une expression autre qu'une non-VLA, <em>(depuis C99)</em> <a href="sizeof.html"><code>sizeof</code></a>[, <a href="alignof.html"><code>_Alignof</code></a> <em>(depuis C11)</em> <em>(jusqu'à C23)</em> | , <a href="alignof.html"><code>alignof</code></a> <em>(depuis C23)</em> | , ou <a href="typeof_unqual.html"><code>typeof</code></a> <em>(depuis C23)</em>], il doit exister une et une seule définition externe pour cet identificateur dans l'unité de traduction.</p>
+<p>L'ensemble du programme peut avoir zéro ou une définition externe de chaque identificateur à <a href="storage_duration.html">liaison externe</a>.</p>
+<p>Si un identificateur à liaison externe est utilisé dans une expression autre qu'une non-VLA, <em>(depuis C99)</em> <a href="sizeof.html"><code>sizeof</code></a>[, <a href="alignof.html"><code>_Alignof</code></a> <em>(depuis C11)</em> <em>(jusqu'à C23)</em> | , <a href="alignof.html"><code>alignof</code></a> <em>(depuis C23)</em> | , ou <a href="typeof_unqual.html"><code>typeof</code></a> <em>(depuis C23)</em>], il doit exister une et une seule définition externe pour cet identificateur quelque part dans l'ensemble du programme.</p>
+<h2 id="Notes">Notes</h2>
+<blockquote>
+<p>Les définitions inline dans différentes unités de traduction ne sont pas soumises à la règle de la définition unique. Voir <a href="inline.html"><code>inline</code></a> pour les détails sur les définitions de fonctions inline.</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Voir <a href="storage_duration.html">durée de stockage et liaison</a> pour la signification du mot-clé <code>extern</code> avec des déclarations en portée de fichier</p>
+<p>Voir <a href="declarations.html#Definitions">définitions</a> pour la distinction entre déclarations et définitions.</p>
+<p>Les définitions provisoires ont été introduites pour uniformiser diverses approches antérieures à C89 de déclaration anticipée d'identificateurs à liaison interne.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.9 Définitions externes (p: TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.9 Définitions externes (p: 113-116)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.9 Définitions externes (p: 155-159)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.9 Définitions externes (p: 140-144)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.7 DÉFINITIONS EXTERNES</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

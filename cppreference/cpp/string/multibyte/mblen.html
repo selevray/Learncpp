@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::mblen — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="std-mblen"><code>std::mblen</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/multibyte/mblen">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">int mblen( const char* s, std::size_t n );
+</code></pre>
+<p>Détermine la taille, en octets, du caractère multioctet dont le premier octet est pointé par <code>s</code>.</p>
+<p>Si <code>s</code> est un pointeur nul, réinitialise l'état de conversion global et détermine si des séquences de décalage sont utilisées.</p>
+<p>Cette fonction est équivalente à l'appel <code>std::mbtowc(nullptr, s, n)</code>, sauf que l'état de conversion de <a href="mbtowc.html"><code>std::mbtowc</code></a> n'est pas affecté.</p>
+<h2 id="Notes">Notes</h2>
+<p>Chaque appel à <code>mblen</code> met à jour l'état de conversion global interne (un objet statique de type <a href="mbstate_t.html"><code>std::mbstate_t</code></a>, connu uniquement de cette fonction). Si l'encodage multioctet utilise des états de décalage, il faut veiller à éviter les retours en arrière ou les parcours multiples. Dans tous les cas, plusieurs threads ne doivent pas appeler <code>mblen</code> sans synchronisation : <a href="mbrlen.html"><code>std::mbrlen</code></a> peut être utilisé à la place.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers le caractère multioctet</li>
+<li><code>n</code> — limite du nombre d'octets de s pouvant être examinés</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Si <code>s</code> n'est pas un pointeur nul, retourne le nombre d'octets contenus dans le caractère multioctet, ou <code>-1</code> si les premiers octets pointés par <code>s</code> ne forment pas un caractère multioctet valide, ou <code>0</code> si <code>s</code> pointe sur le caractère nul <code>'\0'</code>.</p>
+<p>Si <code>s</code> est un pointeur nul, réinitialise son état de conversion interne pour représenter l'état de décalage initial et retourne <code>0</code> si l'encodage multioctet courant ne dépend pas d'un état (n'utilise pas de séquences de décalage), ou une valeur non nulle si l'encodage multioctet courant dépend d'un état (utilise des séquences de décalage).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;clocale&gt;
+#include &lt;cstdlib&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+#include &lt;string_view&gt;
+
+// le nombre de caractères dans une chaîne multioctet est la somme des mblen()
+// note : l'approche plus simple est std::mbstowcs(nullptr, s.c_str(), s.size())
+std::size_t strlen_mb(const std::string_view s)
+{
+    std::mblen(nullptr, 0); // réinitialiser l'état de conversion
+    std::size_t result = 0;
+    const char* ptr = s.data();
+    for (const char* const end = ptr + s.size(); ptr &lt; end; ++result)
+    {
+        const int next = std::mblen(ptr, end - ptr);
+        if (next == -1)
+            throw std::runtime_error(&quot;strlen_mb(): conversion error&quot;);
+        ptr += next;
+    }
+    return result;
+}
+
+void dump_bytes(const std::string_view str)
+{
+    std::cout &lt;&lt; std::hex &lt;&lt; std::uppercase &lt;&lt; std::setfill('0');
+    for (unsigned char c : str)
+        std::cout &lt;&lt; std::setw(2) &lt;&lt; static_cast&lt;int&gt;(c) &lt;&lt; ' ';
+    std::cout &lt;&lt; std::dec &lt;&lt; '\n';
+}
+
+int main()
+{
+    // permettre à mblen() de fonctionner avec l'encodage multioctet UTF-8
+    std::setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    // encodage multioctet étroit UTF-8
+    const std::string_view str = &quot;z\u00df\u6c34\U0001f34c&quot;; // ou u8&quot;zß水🍌&quot;
+    std::cout &lt;&lt; std::quoted(str) &lt;&lt; &quot; is &quot; &lt;&lt; strlen_mb(str)
+              &lt;&lt; &quot; characters, but as much as &quot; &lt;&lt; str.size() &lt;&lt; &quot; bytes: &quot;;
+    dump_bytes(str);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;zß水🍌&quot; is 4 characters, but as much as 10 bytes: 7A C3 9F E6 B0 B4 F0 9F 8D 8C
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbtowc.html">mbtowc</a></strong> — convertit le prochain caractère multioctet en caractère large <em>(fonction)</em></li>
+<li><strong><a href="mbrlen.html">mbrlen</a></strong> — renvoie le nombre d'octets du prochain caractère multioctet, étant donné l'état <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/multibyte/mblen.html">Documentation C</a> pour mblen</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>setjmp — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/program.html">Utilitaires de support du programme</a></nav>
+<h1 id="setjmp"><code>setjmp</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/program/setjmp">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;setjmp.h&gt;</strong></p>
+<pre><code class="language-c">#define setjmp(env) /* implementation-defined */
+</code></pre>
+<p>Sauvegarde le contexte d'exécution courant dans une variable <code>env</code> de type <a href="jmp_buf.html"><code>jmp_buf</code></a>. Cette variable peut ensuite être utilisée pour restaurer le contexte d'exécution courant à l'aide de la fonction <a href="longjmp.html"><code>longjmp</code></a>. Autrement dit, lorsqu'un appel à la fonction <a href="longjmp.html"><code>longjmp</code></a> est effectué, l'exécution reprend au point d'appel précis qui a construit la variable <a href="jmp_buf.html"><code>jmp_buf</code></a> passée à <a href="longjmp.html"><code>longjmp</code></a>. Dans ce cas, <code>setjmp</code> renvoie la valeur passée à <a href="longjmp.html"><code>longjmp</code></a>.</p>
+<p>L'invocation de <code>setjmp</code> ne doit apparaître que dans l'un des contextes suivants :</p>
+<ol>
+<li>
+<p>L'intégralité de l'expression de contrôle de <a href="../language/if.html"><code>if</code></a>, <a href="../language/switch.html"><code>switch</code></a>, <a href="../language/while.html"><code>while</code></a>, <a href="../language/do.html"><code>do-while</code></a>, <a href="../language/for.html"><code>for</code></a>.</p>
+<pre><code class="language-c">switch(setjmp(env)) { // ...
+</code></pre>
+</li>
+<li>
+<p>Un opérande d'un opérateur relationnel ou d'égalité, l'autre opérande étant une expression constante entière, l'expression résultante étant l'intégralité de l'expression de contrôle de <a href="../language/if.html"><code>if</code></a>, <a href="../language/switch.html"><code>switch</code></a>, <a href="../language/while.html"><code>while</code></a>, <a href="../language/do.html"><code>do-while</code></a>, <a href="../language/for.html"><code>for</code></a>.</p>
+<pre><code class="language-c">if(setjmp(env) &gt; 10) { // ...
+</code></pre>
+</li>
+<li>
+<p>L'opérande d'un opérateur unaire ! , l'expression résultante étant l'intégralité de l'expression de contrôle de <a href="../language/if.html"><code>if</code></a>, <a href="../language/switch.html"><code>switch</code></a>, <a href="../language/while.html"><code>while</code></a>, <a href="../language/do.html"><code>do-while</code></a>, <a href="../language/for.html"><code>for</code></a>.</p>
+<pre><code class="language-c">while(!setjmp(env)) { // ...
+</code></pre>
+</li>
+<li>
+<p>L'intégralité de l'expression d'une <a href="../language/statements.html#Expression_statements">instruction d'expression</a> (éventuellement convertie en <code>void</code>).</p>
+<pre><code class="language-c">setjmp(env);
+</code></pre>
+</li>
+</ol>
+<p>Si <code>setjmp</code> apparaît dans tout autre contexte, le comportement est indéfini.</p>
+<p>Au retour dans la portée de <code>setjmp</code> :</p>
+<ul>
+<li>tous les objets accessibles, les indicateurs d'état de virgule flottante et les autres composants de la machine abstraite ont les mêmes valeurs qu'au moment de l'exécution de <a href="longjmp.html"><code>longjmp</code></a>,</li>
+<li>sauf pour les variables locales non-<a href="../language/volatile.html"><code>volatile</code></a> de la fonction contenant l'appel de <code>setjmp</code>, dont les valeurs sont indéterminées si elles ont été modifiées depuis l'appel <code>setjmp</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>env</code> — variable dans laquelle sauvegarder l'état d'exécution du programme.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>0</code> si la macro a été appelée par le code d'origine et que le contexte d'exécution a été sauvegardé dans <code>env</code>.</p>
+<p>Valeur non nulle si un saut non local vient d'être effectué. La valeur de retour est la même que celle passée à <a href="longjmp.html"><code>longjmp</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les exigences ci-dessus interdisent d'utiliser la valeur de retour de <code>setjmp</code> dans le flux de données (par exemple pour initialiser ou affecter un objet avec celle-ci). La valeur de retour ne peut être utilisée que dans le flux de contrôle ou être ignorée.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;setjmp.h&gt;
+#include &lt;stdnoreturn.h&gt;
+
+jmp_buf my_jump_buffer;
+
+noreturn void foo(int status)
+{
+    printf(&quot;foo(%d) called\n&quot;, status);
+    longjmp(my_jump_buffer, status + 1); // retournera status+1 depuis setjmp
+}
+
+int main(void)
+{
+    volatile int count = 0; // les variables locales modifiées dans la portée de setjmp doivent être volatile
+    if (setjmp(my_jump_buffer) != 5) // comparer à une constante dans un if
+        foo(++count);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">foo(1) called
+foo(2) called
+foo(3) called
+foo(4) called
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.13.1.1 La macro setjmp (p : 191)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.13.1.1 La macro setjmp (p : 262-263)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.13.1.1 La macro setjmp (p : 243-244)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.6.1 La macro setjmp</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="longjmp.html">longjmp</a></strong> — saute à l'emplacement spécifié <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/utility/program/setjmp.html">Documentation C++</a> pour setjmp</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::view, std::ranges::enable_view, std::ranges::view_base — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-view-std-ranges-enable_view-std-ranges-view_base"><code>std::ranges::view, std::ranges::enable_view, std::ranges::view_base</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/view">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+concept view = ranges::range&lt;T&gt; &amp;&amp; std::movable&lt;T&gt; &amp;&amp; ranges::enable_view&lt;T&gt;;  // (1) (depuis C++20)
+
+template&lt;class T&gt;
+constexpr bool enable_view =
+    std::derived_from&lt;T, view_base&gt; || /*is-derived-from-view-interface*/&lt;T&gt;;  // (2) (depuis C++20)
+
+struct view_base { };  // (3) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Le concept <code>view</code> spécifie les exigences d'un type <a href="range.html"><code>range</code></a> ayant des propriétés sémantiques adaptées à la construction de pipelines d'adaptateurs d'intervalles.</p>
+</li>
+<li>
+<p>La variable template <code>enable_view</code> permet d'indiquer si un <a href="range.html"><code>range</code></a> est une <code>view</code>. <code>/*is-derived-from-view-interface*/&lt;T&gt;</code> vaut <code>true</code> si et seulement si <code>T</code> possède exactement une classe de base publique <code>ranges::view_interface&lt;U&gt;</code> pour un certain type <code>U</code>, et <code>T</code> n'a aucune classe de base de type <code>ranges::view_interface&lt;V&gt;</code> pour un autre type quelconque <code>V</code>.<br />
+Les utilisateurs peuvent spécialiser <code>enable_view</code> en <code>true</code> pour les types définis par le programme, non qualifiés cv, qui modélisent <code>view</code>, et en <code>false</code> pour les types qui ne le font pas. Ces spécialisations doivent être <a href="../language/constant_expression.html#Usable_in_constant_expressions">utilisables dans des expressions constantes</a> et avoir le type <code>const bool</code>.</p>
+</li>
+<li>
+<p>Dériver de <code>view_base</code> permet aux types <a href="range.html"><code>range</code></a> de modéliser <code>view</code>.</p>
+</li>
+</ol>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<ol>
+<li><code>T</code> modélise <code>view</code> seulement si :</li>
+</ol>
+<ul>
+<li>la construction par déplacement de <code>T</code> a une complexité temporelle constante, et</li>
+<li>si (\scriptsize N)N copies et/ou déplacements sont effectués à partir d'un objet <code>T</code> contenant (\scriptsize M)M éléments, alors ces (\scriptsize N)N objets ont une destruction en (\scriptsize \mathcal{O}{(N+M)})𝓞(N+M) (ce qui implique qu'un objet <code>view</code> déplacé depuis a une destruction en (\scriptsize \mathcal{O}{(1)})𝓞(1)), et</li>
+<li>soit <code>std::copy_constructible&lt;T&gt;</code> est <code>false</code>, soit la construction par copie de <code>T</code> a une complexité temporelle constante, et</li>
+<li>soit <code>std::copyable&lt;T&gt;</code> est <code>false</code>, soit l'affectation par copie de <code>T</code> n'a pas une complexité temporelle supérieure à celle d'une destruction suivie d'une construction par copie.</li>
+</ul>
+<h2 id="Specializations">Spécialisations</h2>
+<p>Les spécialisations de <code>enable_view</code> pour toutes les spécialisations des modèles standard suivants sont définies comme <code>true</code> :</p>
+<ul>
+<li><a href="../string/basic_string_view.html"><code>std::basic_string_view</code></a></li>
+<li><a href="../container/span.html"><code>std::span</code></a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="../utility/optional.html"><code>std::optional</code></a></li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Exemples de types <code>view</code> :</p>
+<ul>
+<li>Un type <a href="range.html"><code>range</code></a> qui encapsule une paire d'itérateurs, par exemple <code>std::ranges::subrange&lt;I&gt;</code>.</li>
+<li>Un type <a href="range.html"><code>range</code></a> qui détient ses éléments par <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> et partage la propriété avec toutes ses copies.</li>
+<li>Un type <a href="range.html"><code>range</code></a> qui génère ses éléments à la demande, par exemple <a href="iota_view.html"><code>std::ranges::iota_view</code></a>.</li>
+</ul>
+<p>Un conteneur copiable tel que <code>std::vector&lt;std::string&gt;</code> ne satisfait généralement pas les exigences sémantiques de <code>view</code>, car copier le conteneur copie tous les éléments, ce qui ne peut pas se faire en temps constant.</p>
+<p>Bien que les vues aient été initialement décrites comme des intervalles peu coûteux à copier et ne possédant pas leurs éléments, un type n'a pas besoin d'être copiable ni non propriétaire pour modéliser <code>view</code>. Cependant, il doit tout de même être peu coûteux à copier (s'il est copiable), à déplacer, à affecter et à détruire, afin que les <a href="../ranges.html#Range_adaptors">adaptateurs d'intervalles</a> n'aient pas de complexité inattendue.</p>
+<p>Par défaut, un type modélisant <a href="../concepts/movable.html"><code>movable</code></a> et <a href="range.html"><code>range</code></a> est considéré comme une vue s'il dérive publiquement et sans ambiguïté de <code>view_base</code>, ou d'exactement une spécialisation de <code>std::ranges::view_interface</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Une vue minimale.</p>
+<pre><code class="language-cpp">#include &lt;ranges&gt;
+
+struct ArchetypalView : std::ranges::view_interface&lt;ArchetypalView&gt;
+{
+    int* begin();
+    int* end();
+};
+
+static_assert(std::ranges::view&lt;ArchetypalView&gt;);
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P2325R3">P2325R3</a></td>
+<td>C++20</td>
+<td><code>view</code> requis <a href="../concepts/default_initializable.html"><code>default_initializable</code></a></td>
+<td>n'exige pas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3549">LWG 3549</a></td>
+<td>C++20</td>
+<td><code>enable_view</code> n'a pas détecté l'héritage de <code>view_interface</code></td>
+<td>detects</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2415R2">P2415R2</a></td>
+<td>C++20</td>
+<td>la restriction sur la complexité temporelle de la destruction était trop stricte</td>
+<td>relaxed</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

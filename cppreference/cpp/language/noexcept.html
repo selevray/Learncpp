@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>opérateur noexcept (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="opérateur-noexcept-depuis-c-11">opérateur noexcept (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/noexcept">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>L'opérateur <code>noexcept</code> effectue une vérification à la compilation qui renvoie <code>true</code> si une expression est déclarée comme ne levant aucune exception.</p>
+<p>Il peut être utilisé dans le <a href="noexcept_spec.html"><code>noexcept</code> spécificateur</a> d'un modèle de fonction pour déclarer que la fonction lèvera des exceptions pour certains types mais pas pour d'autres.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>noexcept(</code> <code>expression</code> <code>)</code> | | |
+|</p>
+<p>Renvoie une <a href="value_category.html#prvalue">prvalue</a> de type <code>bool</code>. Le résultat vaut <code>true</code> si [l'ensemble des <a href="except_spec.html">exceptions potentielles</a> de <code>expression</code> est vide <em>(jusqu'à C++17)</em> | <code>expression</code> est spécifié comme <a href="noexcept_spec.html">ne levant pas d'exception</a> <em>(depuis C++17)</em>], et <code>false</code> sinon.</p>
+<p><code>expression</code> est un <a href="expressions.html#Potentially-evaluated_expressions">opérande non évalué</a>.</p>
+<blockquote>
+<p>Si <code>expression</code> est une prvalue, une <a href="implicit_cast.html#Temporary_materialization">matérialisation temporaire</a> est appliquée.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Même si <code>noexcept(expr)</code> est <code>true</code>, l'évaluation de <code>expr</code> peut tout de même lever une exception à cause de la rencontre d'un comportement indéfini.</p>
+<blockquote>
+<p>Si <code>expression</code> est d'un type classe ou d'un tableau (éventuellement multidimensionnel) de tels types, la matérialisation temporaire exige que le destructeur ne soit pas supprimé et soit accessible.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/noexcept.html"><code>noexcept</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+void may_throw();
+void no_throw() noexcept;
+auto lmay_throw = []{};
+auto lno_throw = []() noexcept {};
+
+class T
+{
+public:
+    ~T(){} // le destructeur empêche le constructeur de déplacement
+           // le constructeur de copie est noexcept
+};
+
+class U
+{
+public:
+    ~U(){} // le destructeur empêche le constructeur de déplacement
+           // le constructeur de copie est noexcept(false)
+    std::vector&lt;int&gt; v;
+};
+
+class V
+{
+public:
+    std::vector&lt;int&gt; v;
+};
+
+int main()
+{
+    T t;
+    U u;
+    V v;
+
+    std::cout &lt;&lt; std::boolalpha &lt;&lt;
+        &quot;may_throw() is noexcept(&quot; &lt;&lt; noexcept(may_throw()) &lt;&lt; &quot;)\n&quot;
+        &quot;no_throw() is noexcept(&quot; &lt;&lt; noexcept(no_throw()) &lt;&lt; &quot;)\n&quot;
+        &quot;lmay_throw() is noexcept(&quot; &lt;&lt; noexcept(lmay_throw()) &lt;&lt; &quot;)\n&quot;
+        &quot;lno_throw() is noexcept(&quot; &lt;&lt; noexcept(lno_throw()) &lt;&lt; &quot;)\n&quot;
+        &quot;~T() is noexcept(&quot; &lt;&lt; noexcept(std::declval&lt;T&gt;().~T()) &lt;&lt; &quot;)\n&quot;
+        // note : les tests suivants exigent aussi que ~T() soit noexcept, car
+        // l'expression à l'intérieur de noexcept construit et détruit un temporaire
+        &quot;T(rvalue T) is noexcept(&quot; &lt;&lt; noexcept(T(std::declval&lt;T&gt;())) &lt;&lt; &quot;)\n&quot;
+        &quot;T(lvalue T) is noexcept(&quot; &lt;&lt; noexcept(T(t)) &lt;&lt; &quot;)\n&quot;
+        &quot;U(rvalue U) is noexcept(&quot; &lt;&lt; noexcept(U(std::declval&lt;U&gt;())) &lt;&lt; &quot;)\n&quot;
+        &quot;U(lvalue U) is noexcept(&quot; &lt;&lt; noexcept(U(u)) &lt;&lt; &quot;)\n&quot;
+        &quot;V(rvalue V) is noexcept(&quot; &lt;&lt; noexcept(V(std::declval&lt;V&gt;())) &lt;&lt; &quot;)\n&quot;
+        &quot;V(lvalue V) is noexcept(&quot; &lt;&lt; noexcept(V(v)) &lt;&lt; &quot;)\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">may_throw() is noexcept(false)
+no_throw() is noexcept(true)
+lmay_throw() is noexcept(false)
+lno_throw() is noexcept(true)
+~T() is noexcept(true)
+T(rvalue T) is noexcept(true)
+T(lvalue T) is noexcept(true)
+U(rvalue U) is noexcept(false)
+U(lvalue U) is noexcept(false)
+V(rvalue V) is noexcept(true)
+V(lvalue V) is noexcept(false)
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2722.html">CWG 2722</a></td>
+<td>C++17</td>
+<td>on ne savait pas clairement si la matérialisation temporaire est appliquée si <code>expression</code> est une prvalue</td>
+<td>elle est appliquée dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2792.html">CWG 2792</a></td>
+<td>C++11</td>
+<td>l'opérateur <code>noexcept</code> était requis pour déterminer si des exceptions peuvent être levées en cas de rencontre d'un comportement indéfini</td>
+<td>non requis</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="noexcept_spec.html">spécificateur <code>noexcept</code></a> (depuis C++11)</strong> — précise si une fonction peut lever des exceptions</li>
+<li><strong><a href="except_spec.html">Spécification dynamique d'exception</a> (jusqu'à C++17)</strong> — précise quelles exceptions sont levées par une fonction (obsolète en C++11)</li>
+</ul>
+
+</main>
+</body>
+</html>

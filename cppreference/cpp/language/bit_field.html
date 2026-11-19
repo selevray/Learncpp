@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Champ de bits — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="champ-de-bits">Champ de bits</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/bit_field">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Déclare un membre de données de classe avec une taille explicite, en bits. Les membres champs de bits adjacents peuvent (ou non) être compactés pour partager et chevaucher les octets individuels.</p>
+<p>Une déclaration de champ de bits est une <a href="data_members.html">déclaration de membre de données de classe</a> qui utilise le déclarateur suivant :</p>
+<p>|
+| |
+| <code>identifier</code> ﻿*(facultatif)* <code>attr</code> ﻿*(facultatif)* <code>:</code> <code>size</code> | (1) | |
+|
+| <code>identifier</code> ﻿*(facultatif)* <code>attr</code> ﻿*(facultatif)* <code>:</code> <code>size</code> <code>brace-or-equal-initializer</code> | (2) | (depuis C++20) |
+|</p>
+<p>Le <em>type</em> du champ de bits est introduit par le <code>decl-specifier-seq</code> de la <a href="declarations.html">syntaxe de déclaration</a>.</p>
+<ul>
+<li><code>attr</code> — (depuis C++11) suite de un nombre quelconque d'<a href="attributes.html">attributs</a></li>
+<li><code>identifier</code> — le nom du champ de bits en cours de déclaration. Le nom est facultatif : les champs de bits sans nom introduisent le nombre spécifié de <a href="objects.html#Object_representation_and_value_representation">bits de remplissage</a>.</li>
+<li><code>size</code> — une <a href="constant_expression.html#Integral_constant_expression">expression constante entière</a> de valeur supérieure ou égale à zéro. Lorsqu'elle est supérieure à zéro, c'est le nombre de bits qu'occupera ce champ de bits. La valeur zéro n'est autorisée que pour les champs de bits sans nom et a une <a href="bit_field.html#zero_size">signification particulière</a>.</li>
+<li><code>brace-or-equal-initializer</code> — <a href="data_members.html#Member_initialization">initialiseur de membre par défaut</a> à utiliser avec ce champ de bits</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Le type d'un champ de bits ne peut être qu'entier (y compris <code>bool</code>) ou de type énumération (éventuellement qualifié cv), un champ de bits sans nom ne peut pas être déclaré avec un type qualifié cv.</p>
+<p>Un champ de bits ne peut pas être un <a href="static.html">membre de données statique</a>.</p>
+<p>Il n'existe pas de <a href="value_category.html">prvalues</a> de champ de bits : la conversion lvalue-to-rvalue produit toujours un objet du type sous-jacent du champ de bits.</p>
+<p>Le nombre de bits d'un champ de bits fixe la limite de l'intervalle de valeurs qu'il peut contenir :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct S
+{
+    // champ non signé de trois bits, les valeurs autorisées sont 0...7
+    unsigned int b : 3;
+};
+
+int main()
+{
+    S s = {6};
+
+    ++s.b; // stocke la valeur 7 dans le champ de bits
+    std::cout &lt;&lt; s.b &lt;&lt; '\n';
+
+    ++s.b; // la valeur 8 ne tient pas dans ce champ de bits
+    std::cout &lt;&lt; s.b &lt;&lt; '\n'; // formellement défini par l'implémentation, généralement 0
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">7
+0
+</code></pre>
+<p>Plusieurs champs de bits adjacents sont généralement compactés ensemble (bien que ce comportement soit défini par l'implémentation) :</p>
+<pre><code class="language-cpp">#include &lt;bit&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+
+struct S
+{
+    // occupera généralement 2 octets :
+    unsigned char b1 : 3; // les 3 premiers bits (dans le 1er octet) sont b1
+    unsigned char    : 2; // les 2 bits suivants (dans le 1er octet) sont bloqués et inutilisés
+    unsigned char b2 : 6; // 6 bits pour b2 - ne tiennent pas dans le 1er octet =&gt; commence un 2e
+    unsigned char b3 : 2; // 2 bits pour b3 - les bits suivants (et derniers) du 2e octet
+};
+
+int main()
+{
+    std::cout &lt;&lt; sizeof(S) &lt;&lt; '\n'; // affiche généralement 2
+
+    S s;
+    // définit des valeurs de champs distinguables
+    s.b1 = 0b111;
+    s.b2 = 0b101111;
+    s.b3 = 0b11;
+
+    // affiche la disposition des champs de S
+    auto i = std::bit_cast&lt;std::uint16_t&gt;(s);
+    // affiche généralement 1110000011110111
+    // └┬┘├┘└┬┘└─┬──┘└┤
+    //                b1 u  a   b2  b3
+    // où « u » marque les bits inutilisés :2 spécifiés dans la struct, et
+    // « a » marque le remplissage ajouté par le compilateur pour aligner le champ suivant sur un octet.
+    // L'alignement sur l'octet se produit parce que le type de b2 est déclaré unsigned char ;
+    // si b2 était déclaré uint16_t, il n'y aurait pas de « a », et b2 serait collé à « u ».
+    for (auto b = i; b; b &gt;&gt;= 1) // affiche du bit de poids faible au bit de poids fort
+        std::cout &lt;&lt; (b &amp; 1);
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">2
+1110000011110111
+</code></pre>
+<p>Le champ de bits spécial sans nom de taille zéro peut être utilisé pour forcer la rupture du remplissage. Il indique que le champ de bits suivant commence au début de son unité d'allocation :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct S
+{
+    // occupera généralement 2 octets :
+    // 3 bits : valeur de b1
+    // 5 bits : inutilisés
+    // 2 bits : valeur de b2
+    // 6 bits : inutilisés
+    unsigned char b1 : 3;
+    unsigned char :0; // commence un nouvel octet
+    unsigned char b2 : 2;
+};
+
+int main()
+{
+    std::cout &lt;&lt; sizeof(S) &lt;&lt; '\n'; // affiche généralement 2
+                                    // afficherait généralement 1 si ce n'était le
+                                    // remplissage qui interrompt la ligne 11
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">2
+</code></pre>
+<p>Si la taille spécifiée du champ de bits est supérieure à la taille de son type, la valeur est limitée par le type : un <code>std::uint8_t b : 1000;</code> ne peut toujours contenir que des valeurs dans l'intervalle <code>[0,255]</code>. Les bits supplémentaires sont des <a href="objects.html#Object_representation_and_value_representation">bits de remplissage</a>.</p>
+<p>Comme les champs de bits ne commencent pas forcément au début d'un octet, l'adresse d'un champ de bits ne peut pas être prise. Les pointeurs et références non const vers des champs de bits sont impossibles. Lors de l'<a href="reference_initialization.html">initialisation d'une référence const</a> à partir d'un champ de bits, un temporaire est créé (son type est celui du champ de bits), initialisé par copie avec la valeur du champ de bits, et la référence est liée à ce temporaire.</p>
+<blockquote>
+<p>Il n'existe pas d'<a href="data_members.html#Member_initialization">initialiseurs de membres par défaut</a> pour les champs de bits : <code>int b : 1 = 0;</code> et <code>int b : 1 {0}</code> sont mal formés.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>En cas d'ambiguïté entre la taille du champ de bits et l'initialiseur de membre par défaut, la plus longue suite de jetons formant une taille valide est choisie :</p>
+<pre><code class="language-cpp">int a;
+const int b = 0;
+
+struct S
+{
+    // cas simples
+    int x1 : 8 = 42; // OK ; « = 42 » est un brace-or-equal-initializer
+    int x2 : 8 {42}; // OK ; « {42} » est un brace-or-equal-initializer
+
+    // ambiguities
+    int y1 : true ? 8 : a = 42;   // OK ; brace-or-equal-initializer est absent
+    int y2 : true ? 8 : b = 42;   // erreur : impossible d'affecter une valeur à const int
+    int y3 : (true ? 8 : b) = 42; // OK ; « = 42 » est un brace-or-equal-initializer
+    int z : 1 || new int{0};      // OK ; brace-or-equal-initializer est absent
+};
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Les propriétés suivantes des champs de bits sont <em>définies par l'implémentation</em> :</p>
+<ul>
+<li>La valeur résultant de l'affectation ou de l'initialisation d'un champ de bits signé avec une valeur hors intervalle, ou de l'incrémentation d'un champ de bits signé au-delà de son intervalle.</li>
+<li>Tout ce qui concerne les détails réels de l'allocation des champs de bits au sein de l'objet de classe.
+<ul>
+<li>Par exemple, sur certaines plateformes, les champs de bits ne chevauchent pas les octets, sur d'autres ils le font.</li>
+<li>De même, sur certaines plateformes, les champs de bits sont compactés de gauche à droite, sur d'autres de droite à gauche.</li>
+</ul>
+</li>
+</ul>
+<p>En langage C, la largeur d'un champ de bits ne peut pas dépasser la largeur du type sous-jacent, et le fait que <code>int</code> champs de bits qui ne sont pas explicitement <code>signed</code> ou <code>unsigned</code> soient signés ou non signés est défini par l'implémentation. Par exemple, <code>int b : 3;</code> peut avoir l'intervalle de valeurs <code>[0,7]</code> ou <code>[-4,3]</code> en C, mais seul ce dernier choix est autorisé en C++.</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/324.html">CWG 324</a></td>
+<td>C++98</td>
+<td>il n'était pas spécifié si la valeur de retour d'une affectation à un champ de bits est un champ de bits</td>
+<td>ajout des spécifications de champs de bits pour les opérateurs pouvant renvoyer des lvalues</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/739.html">CWG 739</a></td>
+<td>C++98</td>
+<td>la signature des champs de bits ni déclarés <code>signed</code> ni <code>unsigned</code> était définie par l'implémentation</td>
+<td>cohérente avec les types sous-jacents</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2229.html">CWG 2229</a></td>
+<td>C++98</td>
+<td>des champs de bits sans nom pouvaient être déclarés avec un type qualifié cv</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2511.html">CWG 2511</a></td>
+<td>C++98</td>
+<td>les qualificateurs cv n'étaient pas autorisés dans les types de champs de bits</td>
+<td>les champs de bits peuvent avoir des types énumération qualifiés cv</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>11.4.10 Champs de bits [class.bit]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>11.4.9 Champs de bits [class.bit]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>12.2.4 Champs de bits [class.bit]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>9.6 Champs de bits [class.bit]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>9.6 Champs de bits [class.bit]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>9.6 Champs de bits [class.bit]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>9.6 Champs de bits [class.bit]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../utility/bitset.html">bitset</a></strong> — implémente un tableau de bits de longueur constante <em>(modèle de classe)</em></li>
+<li><strong><a href="../container/vector_bool.html">vector&lt;bool&gt;</a></strong> — bitset dynamique économe en espace <em>(spécialisation de modèle de classe)</em></li>
+<li><strong><a href="../utility/bit.html"><strong>Manipulation de bits</strong></a> (depuis C++20)</strong> — utilitaires pour accéder, manipuler et traiter des bits individuels et des séquences de bits</li>
+</ul>
+<p><strong><a href="../../c/language/bit_field.html">Documentation C</a> pour Champs de bits</strong></p>
+
+</main>
+</body>
+</html>

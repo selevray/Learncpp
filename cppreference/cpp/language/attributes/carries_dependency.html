@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attribut C++ : carries_dependency (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/language.html">Langage C++</a> › <a href="../../../cpp/language/attributes.html">Séquence de spécificateurs d&#x27;attributs (depuis C++11)</a></nav>
+<h1 id="attribut-c-carries_dependency-depuis-c-11">Attribut C++ : carries_dependency (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/attributes/carries_dependency">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Indique que la chaîne de dépendance dans release-consume <a href="../../atomic/memory_order.html"><code>std::memory_order</code></a> se propage vers l'intérieur et vers l'extérieur de la fonction, ce qui permet au compilateur d'omettre des instructions de barrière mémoire inutiles.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>[[carries_dependency]]</code> | | |
+|</p>
+<h2 id="Explanation">Explication</h2>
+<p>Cet attribut peut apparaître dans deux situations :</p>
+<ol>
+<li>
+<p>il peut s'appliquer aux déclarations de paramètres d'une fonction ou d'expressions lambda, auquel cas il indique que l'initialisation du paramètre transmet la dépendance à la conversion lvalue-to-rvalue de cet objet.</p>
+</li>
+<li>
+<p>Il peut s'appliquer à la déclaration de fonction dans son ensemble, auquel cas il indique que la valeur de retour transmet la dépendance à l'évaluation de l'expression d'appel de fonction.</p>
+</li>
+</ol>
+<p>Cet attribut doit apparaître dans la première déclaration d'une fonction ou de l'un de ses paramètres dans toute unité de traduction. S'il n'est pas utilisé dans la première déclaration d'une fonction ou de l'un de ses paramètres dans une autre unité de traduction, le programme est mal formé ; aucun diagnostic requis.</p>
+<h2 id="Example">Exemple</h2>
+<p>Adapté presque sans modification de <a href="https://stackoverflow.com/a/6411703">SO</a>.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+
+void print(int* val)
+{
+    std::cout &lt;&lt; *val &lt;&lt; std::endl;
+}
+
+void print2(int* val [[carries_dependency]])
+{
+    std::cout &lt;&lt; *val &lt;&lt; std::endl;
+}
+
+int main()
+{
+    int x{42};
+    std::atomic&lt;int*&gt; p = &amp;x;
+    int* local = p.load(std::memory_order_consume);
+
+    if (local)
+    {
+        // La dépendance est explicite, donc le compilateur sait que local est
+        // déréférencé, et qu'il doit garantir que la chaîne de dépendance
+        // est préservée afin d'éviter une barrière (sur certaines architectures).
+        std::cout &lt;&lt; *local &lt;&lt; std::endl;
+    }
+
+    if (local)
+    {
+        // La définition de print est opaque (en supposant qu'elle n'est pas en ligne),
+        // donc le compilateur doit émettre une barrière afin de garantir que
+        // la lecture de *p dans print renvoie la valeur correcte.
+        print(local);
+    }
+
+    if (local)
+    {
+        // Le compilateur peut supposer que, bien que print2 soit également opaque,
+        // la dépendance entre le paramètre et la valeur déréférencée est
+        // préservée dans le flux d'instructions, et qu'aucune barrière n'est nécessaire (sur
+        // certaines architectures). Évidemment, la définition de print2 doit réellement
+        // préserver cette dépendance, donc l'attribut affectera aussi le
+        // code généré pour print2.
+        print2(local);
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">42
+42
+42
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>9.12.4 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>9.12.3 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>10.6.3 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>7.6.4 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>7.6.4 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../atomic/kill_dependency.html">kill_dependency</a> (C++11)</strong> — supprime l'objet spécifié de l'arbre de dépendances <a href="../../atomic/memory_order.html"><code>std::memory_order_consume</code></a> <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

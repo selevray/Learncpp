@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FILE — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/io.html">Entrées/sorties de fichiers</a></nav>
+<h1 id="file"><code>FILE</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/io/FILE">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdio.h&gt;</strong></p>
+<pre><code class="language-c">typedef /* unspecified */ FILE;
+</code></pre>
+<p>Chaque objet <code>FILE</code> désigne un flux C.</p>
+<p>La norme C ne précise pas si <code>FILE</code> est un type d'objet complet. Bien qu'il soit possible de copier un <code>FILE</code> valide, utiliser un pointeur vers une telle copie comme argument d'une fonction d'E/S invoque un comportement non spécifié. En d'autres termes, <code>FILE</code> peut être sémantiquement non copiable.</p>
+<p>Les flux d'E/S peuvent être utilisés pour l'entrée et la sortie aussi bien non formatées que formatées. De plus, les fonctions qui gèrent l'entrée et la sortie peuvent aussi être sensibles aux paramètres régionaux (locale), de sorte que les conversions wide/multioctets sont effectuées si nécessaire.</p>
+<h2 id="Stream_state">État du flux</h2>
+<p>Outre les informations propres au système nécessaires pour accéder au périphérique (<em>par exemple,</em> un descripteur de fichier POSIX), chaque objet <code>FILE</code> contient directement ou indirectement les éléments suivants :</p>
+<ol>
+<li>(C95) Largeur de caractère : non définie, étroite ou large.</li>
+<li>(C95) État d'analyse pour les conversions entre caractères multi-octets et caractères larges (un objet de type <a href="../string/multibyte/mbstate_t.html"><code>mbstate_t</code></a>)</li>
+<li>État de la mémoire tampon : sans tampon, tamponné par ligne, entièrement tamponné.</li>
+<li>La mémoire tampon, qui peut être remplacée par une mémoire tampon externe fournie par l'utilisateur.</li>
+<li>Mode d'E/S : entrée, sortie ou mise à jour (à la fois entrée et sortie).</li>
+<li>Indicateur de mode binaire/texte.</li>
+<li>Indicateur d'état de fin de fichier.</li>
+<li>Indicateur d'état d'erreur.</li>
+<li>Indicateur de position dans le fichier, accessible sous la forme d'un objet de type <a href="fpos_t.html"><code>fpos_t</code></a>, qui, pour les flux larges, inclut l'état d'analyse.</li>
+<li>(C11) Verrou réentrant utilisé pour empêcher les courses de données lorsque plusieurs threads lisent, écrivent, positionnent ou interrogent la position d'un flux.</li>
+</ol>
+<h3 id="Narrow_and_wide_orientation">Orientation étroite et large</h3>
+<p>Un flux nouvellement ouvert n'a pas d'orientation. Le premier appel à <code>fwide</code> ou à une fonction d'E/S quelconque établit l'orientation : une fonction d'E/S large rend le flux orienté large ; une fonction d'E/S étroite rend le flux orienté étroit. Une fois définie, l'orientation ne peut être modifiée qu'avec <a href="freopen.html"><code>freopen</code></a>. Les fonctions d'E/S étroites ne peuvent pas être appelées sur un flux orienté large ; les fonctions d'E/S larges ne peuvent pas être appelées sur un flux orienté étroit. Les fonctions d'E/S larges convertissent entre caractères larges et multioctets comme si elles appelaient <a href="../string/multibyte/mbrtowc.html"><code>mbrtowc</code></a> ou <a href="../string/multibyte/wcrtomb.html"><code>wcrtomb</code></a>, avec l'état de conversion décrit par le flux. Contrairement aux chaînes de caractères multioctets valides dans un programme, les séquences de caractères multioctets dans le fichier peuvent contenir des caractères nuls intégrés et n'ont pas besoin de commencer ou de finir dans l'état de décalage initial.</p>
+<p>L'état de conversion d'un flux orienté large est établi par la locale C installée au moment où l'orientation du flux est définie.</p>
+<h3 id="Binary_and_text_modes">Modes binaire et texte</h3>
+<p>Un <em>flux texte</em> est une séquence ordonnée de caractères pouvant être organisée en lignes ; une ligne peut être décomposée en zéro caractère ou plus, suivis d'un caractère de fin de ligne <code>'\n'</code> (« newline »). Le fait que la dernière ligne doive se terminer par <code>'\n'</code> est défini par l'implémentation. De plus, des caractères peuvent devoir être ajoutés, modifiés ou supprimés en entrée et en sortie afin de respecter les conventions de représentation du texte du système d'exploitation (en particulier, sous Windows, les flux C convertissent <code>'\n'</code> en <code>'\r\n'</code> en sortie, et convertissent <code>'\r\n'</code> en <code>'\n'</code> en entrée).</p>
+<p>Les données lues depuis un flux texte ne sont garanties égales aux données écrites précédemment dans ce flux que si chacune des conditions suivantes est vraie :</p>
+<ul>
+<li>Les données ne se composent que de caractères imprimables et/ou des caractères de contrôle <code>'\t'</code> et <code>'\n'</code> (en particulier, sous Windows, le caractère <code>'\0x1A'</code> termine l'entrée).</li>
+<li>Aucun caractère <code>'\n'</code> n'est immédiatement précédé de caractères d'espacement (ces espaces peuvent disparaître lorsque cette sortie est ensuite lue en entrée).</li>
+<li>Le dernier caractère est <code>'\n'</code>.</li>
+</ul>
+<p>Un <em>flux binaire</em> est une séquence ordonnée de caractères pouvant enregistrer de façon transparente des données internes. Les données lues depuis un flux binaire sont toujours égales aux données écrites précédemment dans ce flux, sauf qu'une implémentation peut ajouter un nombre indéterminé de caractères nuls à la fin du flux. Un flux binaire large n'a pas besoin de se terminer dans l'état de décalage initial.</p>
+<h2 id="Notes">Notes</h2>
+<p>POSIX exige explicitement que la facette <code>LC_CTYPE</code> de la locale C actuellement installée soit stockée dans l'objet <code>FILE</code> à l'instant où l'orientation du flux devient large ; POSIX exige que cette facette <code>LC_CTYPE</code> soit utilisée pour toutes les futures E/S sur ce flux jusqu'à ce que l'orientation soit modifiée, indépendamment de tout appel ultérieur à <a href="../locale/setlocale.html"><code>setlocale</code></a>.</p>
+<p>Il est prévu que chaque ligne de texte soit composée de données essentiellement lisibles par un humain. Les implémentations POSIX ne distinguent pas les flux texte et binaires (il n'existe aucune conversion particulière pour <code>'\n'</code> ni pour aucun autre caractère).</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.21 Entrées/sorties &lt;stdio.h&gt; (p : 217-247)</li>
+<li>7.29 Utilitaires étendus pour caractères multi-octets et larges &lt;wchar.h&gt; (p : 295-325)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.21 Entrées/sorties &lt;stdio.h&gt; (p : 296-339)</li>
+<li>7.29 Utilitaires étendus pour caractères multi-octets et larges &lt;wchar.h&gt; (p : 402-446)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.19 Entrées/sorties &lt;stdio.h&gt; (p : 262-305)</li>
+<li>7.24 Utilitaires étendus pour caractères multi-octets et larges &lt;wchar.h&gt; (p : 348-392)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.9 ENTRÉES/SORTIES &lt;stdio.h&gt;</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="std_streams.html">stdinstdoutstderr</a></strong> — expression de type <code>FILE*</code> associée au flux d'entrée expression de type <code>FILE*</code> associée au flux de sortie expression de type <code>FILE*</code> associée au flux de sortie d'erreur <em>(constante macro)</em></li>
+</ul>
+<p><strong><a href="../../cpp/io/c/FILE.html">Documentation C++</a> pour FILE</strong></p>
+
+</main>
+</body>
+</html>

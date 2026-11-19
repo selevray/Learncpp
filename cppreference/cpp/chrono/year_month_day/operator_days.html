@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::chrono::year_month_day::operator sys_days, std::chrono::year_month_day::operator local_days — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/chrono.html">Utilitaires de date et d&#x27;heure</a> › <a href="../../../cpp/chrono/year_month_day.html">std::chrono::year_month_day</a></nav>
+<h1 id="std-chrono-year_month_day-operator-sys_days-std-chrono-year_month_day-operator-local_days"><code>std::chrono::year_month_day::operator sys_days, std::chrono::year_month_day::operator local_days</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/chrono/year_month_day/operator_days">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">constexpr operator std::chrono::sys_days() const noexcept;  // (1) (depuis C++20)
+
+constexpr explicit operator std::chrono::local_days() const noexcept;  // (2) (depuis C++20)
+</code></pre>
+<p>Convertit <code>*this</code> en <a href="../time_point.html"><code>std::chrono::time_point</code></a> représentant la même date que cet <a href="../year_month_day.html"><code>year_month_day</code></a>.</p>
+<ol>
+<li>Si <code>ok()</code> est <code>true</code>, la valeur de retour contient un nombre de jours depuis l'époque <a href="../system_clock.html"><code>std::chrono::system_clock</code></a> (1970-01-01) jusqu'à <code>*this</code>. Le résultat est négatif si <code>*this</code> représente une date antérieure à celle-ci.</li>
+</ol>
+<p>Sinon, si l'année et le mois stockés sont valides (<code>year().ok() &amp;&amp; month().ok()</code> est <code>true</code>), alors la valeur retournée est <code>sys_days(year()/month()/1d) + (day() - 1d)</code>.</p>
+<p>Sinon (si <code>year().ok() &amp;&amp; month().ok()</code> est <code>false</code>), la valeur de retour n'est pas spécifiée.</p>
+<p>Un <code>std::chrono::sys_days</code> dans l'intervalle <code>[std::chrono::days{-12687428}, std::chrono::days{11248737}]</code>, converti en <a href="../year_month_day.html"><code>year_month_day</code></a> puis reconverti, donne la même valeur.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code> mais retourne <code>local_days</code> à la place. Équivalent à <code>return local_days(sys_days(*this).time_since_epoch());</code>.</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>La conversion vers <code>std::chrono::sys_days</code> puis le retour peuvent servir à normaliser un <a href="../year_month_day.html"><code>year_month_day</code></a> qui contient un jour invalide mais une année et un mois valides :</p>
+<pre><code class="language-cpp">using namespace std::chrono;
+auto ymd = 2017y/January/0;
+ymd = sys_days{ymd};
+// ymd vaut maintenant 2016y/December/31
+</code></pre>
+<p>La normalisation de l'année et du mois peut se faire en ajoutant (ou en soustrayant) zéro <code>std::chrono::months</code> :</p>
+<pre><code class="language-cpp">using namespace std::chrono;
+constexpr year_month_day normalize(year_month_day ymd)
+{
+    ymd += months{0}; // normalise l'année et le mois
+    return sys_days{ymd}; // normalise le jour
+}
+static_assert(normalize(2017y/33/59) == 2019y/10/29);
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    using namespace std::chrono;
+    const auto today = sys_days{std::chrono::floor&lt;days&gt;(system_clock::now())};
+    for (const year_month_day ymd : {{November/15/2020}, {November/15/2120}, today})
+    {
+        std::cout &lt;&lt; ymd;
+        const auto delta = (sys_days{ymd} - today).count();
+        (delta &lt; 0) ? std::cout &lt;&lt; &quot; was &quot; &lt;&lt; -delta &lt;&lt; &quot; day(s) ago\n&quot; :
+        (delta &gt; 0) ? std::cout &lt;&lt; &quot; is &quot; &lt;&lt; delta &lt;&lt; &quot; day(s) from now\n&quot;
+                    : std::cout &lt;&lt; &quot; is today!\n&quot;;
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">2020-11-15 was 1014 day(s) ago
+2120-11-15 is 35510 day(s) from now
+2023-08-26 is today!
+</code></pre>
+
+</main>
+</body>
+</html>

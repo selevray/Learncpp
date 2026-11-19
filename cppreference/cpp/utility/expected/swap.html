@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::expected&lt;T,E&gt;::swap — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/expected.html">std::expected</a></nav>
+<h1 id="std-expected-t-e-swap"><code>std::expected&lt;T,E&gt;::swap</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/expected/swap">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Modèle primaire</strong></p>
+<pre><code class="language-cpp">constexpr void swap( expected&amp; other ) noexcept(/* voir ci-dessous */);  // (1) (depuis C++23)
+</code></pre>
+<p><strong>void spécialisation partielle</strong></p>
+<pre><code class="language-cpp">constexpr void swap( expected&amp; other ) noexcept(/* voir ci-dessous */);  // (2) (depuis C++23)
+</code></pre>
+<p>Échange le contenu avec celui de <code>other</code>.</p>
+<ol>
+<li>Les valeurs contenues sont échangées comme suit :</li>
+</ol>
+<p><strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Valeur de <code>other.has_value()</code></strong></p>
+<p><strong><code>true</code></strong> | <strong><code>false</code></strong></p>
+<p><code>true</code>
+| <code>using std::swap;swap(val, rhs.val);</code>
+| voir ci-dessous</p>
+<p><code>false</code>
+| <code>other.swap(*this);</code>
+| <code>using std::swap;swap(unex, rhs.unex);</code></p>
+<p>Si <a href="operator_bool.html"><code>has_value()</code></a> est <code>true</code> et <code>other.has_value()</code> est <code>false</code>, équivalent à :</p>
+<p><code>// Cas 1 : les constructions par déplacement des valeurs inattendues ne lèvent pas d'exception : // “other.unex” sera restauré si la construction de “other.val” échoue if constexpr (std::is_nothrow_move_constructible_v&lt;E&gt;) { E temp(std::move(other.unex)); std::destroy_at(std::addressof(other.unex)); try { std::construct_at(std::addressof(other.val), std::move(val)); // peut lever une exception std::destroy_at(std::addressof(val)); std::construct_at(std::addressof(unex), std::move(temp)); } catch(...) { std::construct_at(std::addressof(other.unex), std::move(temp)); throw; } } // Cas 2 : les constructions par déplacement des valeurs attendues ne lèvent pas d'exception : // « this-&gt;val » sera restauré si la construction de « this-&gt;unex » échoue else { T temp(std::move(val)); std::destroy_at(std::addressof(val)); try { std::construct_at(std::addressof(unex), std::move(other.unex)); // peut lever une exception std::destroy_at(std::addressof(other.unex)); std::construct_at(std::addressof(other.val), std::move(temp)); } catch(...) { std::construct_at(std::addressof(val), std::move(temp)); throw; } } has_val = false; rhs.has_val = true;</code></p>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les valeurs suivantes sont <code>true</code> :</p>
+<ul>
+<li><code>std::is_swappable_v&lt;T&gt;</code></li>
+<li><code>std::is_swappable_v&lt;E&gt;</code></li>
+<li><code>std::is_move_constructible_v&lt;T&gt; &amp;&amp; std::is_move_constructible_v&lt;E&gt;</code></li>
+<li><code>std::is_nothrow_move_constructible_v&lt;T&gt; || std::is_nothrow_move_constructible_v&lt;E&gt;</code></li>
+</ul>
+<ol start="2">
+<li>Les valeurs inattendues sont échangées comme suit :</li>
+</ol>
+<p><strong>Valeur de<br />
+<a href="operator_bool.html"><code>has_value()</code></a></strong> | <strong>Valeur de <code>other.has_value()</code></strong></p>
+<p><strong><code>true</code></strong> | <strong><code>false</code></strong></p>
+<p><code>true</code>
+| <code>using std::swap;swap(val, rhs.val);</code>
+| <code>std::construct_at(std::addressof(unex), std::move(rhs.unex));std::destroy_at(std::addressof(rhs.unex));has_val = false;rhs.has_val = true;</code></p>
+<p><code>false</code>
+| <code>other.swap(*this);</code>
+| <code>using std::swap;swap(unex, rhs.unex);</code></p>
+<p>Cette surcharge ne participe à la résolution de surcharge que si <code>std::is_swappable_v&lt;E&gt;</code> et <code>std::is_move_constructible_v&lt;E&gt;</code> sont tous deux <code>true</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — l'objet <code>expected</code> avec lequel échanger le contenu</li>
+</ul>
+<h2 id="Exceptions">Exceptions</h2>
+<p>1)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept( std::is_nothrow_move_constructible_v&lt;T&gt; &amp;&amp; std::is_nothrow_swappable_v&lt;T&gt; &amp;&amp; std::is_nothrow_move_constructible_v&lt;E&gt; &amp;&amp; std::is_nothrow_swappable_v&lt;E&gt; )</code></p>
+<p>2)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept( std::is_nothrow_move_constructible_v&lt;E&gt; &amp;&amp; std::is_nothrow_swappable_v&lt;E&gt; )</code></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;expected&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+using Ex = std::expected&lt;std::string, int&gt;;
+
+void show(const Ex&amp; ex1, const Ex&amp; ex2)
+{
+    for (int i{}; i &lt; 2; ++i)
+    {
+        std::cout &lt;&lt; (i ? &quot;ex2&quot; : &quot;ex1&quot;);
+        if (const Ex&amp; ex = (i ? ex2 : ex1); ex.has_value())
+            std::cout &lt;&lt; &quot;.has_value() = &quot; &lt;&lt; *ex &lt;&lt; '\n';
+        else
+            std::cout &lt;&lt; &quot;.error() = &quot; &lt;&lt; ex.error() &lt;&lt; '\n';
+    }
+}
+
+int main()
+{
+    Ex ex1(&quot;\N{CAT FACE}&quot;);
+    Ex ex2{&quot;\N{GREEN HEART}&quot;};
+    show(ex1, ex2);
+    ex1.swap(ex2);
+    std::cout &lt;&lt; &quot;ex1.swap(ex2);\n&quot;;
+    show(ex1, ex2);
+    std::cout &lt;&lt; '\n';
+
+    ex2 = std::unexpected(13);
+    show(ex1, ex2);
+    std::cout &lt;&lt; &quot;ex1.swap(ex2);\n&quot;;
+    ex1.swap(ex2);
+    show(ex1, ex2);
+    std::cout &lt;&lt; '\n';
+
+    ex2 = std::unexpected(19937);
+    show(ex1, ex2);
+    std::cout &lt;&lt; &quot;ex1.swap(ex2);\n&quot;;
+    ex1.swap(ex2);
+    show(ex1, ex2);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">ex1.has_value() = 🐱
+ex2.has_value() = 💚
+ex1.swap(ex2);
+ex1.has_value() = 💚
+ex2.has_value() = 🐱
+
+ex1.has_value() = 💚
+ex2.error() = 13
+ex1.swap(ex2);
+ex1.error() = 13
+ex2.has_value() = 💚
+
+ex1.error() = 13
+ex2.error() = 19937
+ex1.swap(ex2);
+ex1.error() = 19937
+ex2.error() = 13
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="swap2.html">swap(std::expected)</a> (C++23)</strong> — spécialise l'algorithme <a href="../swap.html"><code>std::swap</code></a> <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

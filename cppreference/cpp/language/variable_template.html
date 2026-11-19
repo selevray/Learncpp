@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modèle de variable (depuis C++14) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="modèle-de-variable-depuis-c-14">Modèle de variable (depuis C++14)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/variable_template">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un modèle de variable définit une famille de variables ou de membres de données statiques.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>variable-declaration</code> | (1) | |
+|
+| <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>requires</code> <code>constraint</code> <code>variable-declaration</code> | (2) | (depuis C++20) |
+|</p>
+<ul>
+<li><code>variable-declaration</code> — une <a href="declarations.html">déclaration</a> de variable. Le nom de la variable déclarée devient un nom de modèle.</li>
+<li><code>parameter-list</code> — une liste non vide, séparée par des virgules, de <a href="template_parameters.html">paramètres de modèle</a>, chacun étant soit un <a href="template_parameters.html#Non-type_template_parameter">paramètre non type</a>, un <a href="template_parameters.html#Type_template_parameter">paramètre de type</a>, un <a href="template_parameters.html#Template_template_parameter">paramètre de modèle</a>, ou un <a href="parameter_pack.html">pack de paramètres</a> de l'un de ces types.</li>
+<li><code>constraint</code> — une <a href="constraints.html">expression de contrainte</a> qui restreint les paramètres de modèle acceptés par ce modèle de variable</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Une variable instanciée à partir d'un modèle de variable est appelée une <em>variable instanciée</em>. Un membre de données statique instancié à partir d'un modèle de membre de données statique est appelé un <em>membre de données statique instancié</em>.</p>
+<p>Un modèle de variable peut être introduit par une déclaration de modèle à portée d'espace de noms, où <code>variable-declaration</code> déclare une variable.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+constexpr T pi = T(3.1415926535897932385L); // modèle de variable
+
+template&lt;class T&gt;
+T circular_area(T r) // modèle de fonction
+{
+    return pi&lt;T&gt; * r * r; // pi&lt;T&gt; est une instanciation de modèle de variable
+}
+</code></pre>
+<p>Utilisé dans une portée de classe, un modèle de variable déclare un modèle de membre de données statique.</p>
+<pre><code class="language-cpp">using namespace std::literals;
+struct matrix_constants
+{
+    template&lt;class T&gt;
+    using pauli = hermitian_matrix&lt;T, 2&gt;; // modèle d'alias
+
+    template&lt;class T&gt; // modèle de membre de données statique
+    static constexpr pauli&lt;T&gt; sigmaX = {{0, 1}, {1, 0}};
+
+    template&lt;class T&gt;
+    static constexpr pauli&lt;T&gt; sigmaY = {{0, -1i}, {1i, 0}};
+
+    template&lt;class T&gt;
+    static constexpr pauli&lt;T&gt; sigmaZ = {{1, 0}, {0, -1}};
+};
+</code></pre>
+<p>Comme pour les autres <a href="static.html">membres statiques</a>, la définition d'un modèle de membre de données statique peut être requise. Cette définition est fournie en dehors de la définition de la classe. Une déclaration de modèle d'un membre de données statique à portée d'espace de noms peut aussi être une définition d'un <a href="member_template.html">membre de données non modèle d'un modèle de classe</a> :</p>
+<pre><code class="language-cpp">struct limits
+{
+    template&lt;typename T&gt;
+    static const T min; // déclaration d'un modèle de membre de données statique
+};
+
+template&lt;typename T&gt;
+const T limits::min = { }; // définition d'un modèle de membre de données statique
+
+template&lt;class T&gt;
+class X
+{
+    static T s; // déclaration d'un membre de données statique non modèle d'un modèle de classe
+};
+
+template&lt;class T&gt;
+T X&lt;T&gt;::s = 0; // définition d'un membre de données non modèle d'un modèle de classe
+</code></pre>
+<p>Sauf si un modèle de variable a fait l'objet d'une <a href="template_specialization.html">spécialisation explicite</a> ou d'une instanciation explicite, il est instancié implicitement lorsqu'une spécialisation du modèle de variable est référencée dans un contexte qui exige qu'une <a href="definition.html#ODR-use">définition de variable existe</a>, ou si l'existence de la définition affecte la sémantique du programme, c'est-à-dire si la variable est <a href="constant_expression.html#Functions_and_variables_needed_for_constant_evaluation">nécessaire à l'évaluation constante</a> par une expression (la définition peut ne pas être utilisée).</p>
+<p>L'existence d'une définition d'une variable est considérée comme affectant la sémantique du programme si la variable est nécessaire à l'évaluation constante par une expression, même si l'évaluation constante de l'expression n'est pas requise ou si l'évaluation de l'expression constante n'utilise pas la définition.</p>
+<h2 id="Notes">Notes</h2>
+<p>Jusqu'à l'introduction des modèles de variable en C++14, les variables paramétrées étaient généralement implémentées soit comme membres de données statiques de modèles de classe, soit comme modèles de fonction constexpr renvoyant les valeurs désirées.</p>
+<p>Les modèles de variable ne peuvent pas être utilisés comme <a href="template_parameters.html#Template_template_arguments">arguments de modèle de modèle</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_variable_templates"><code>__cpp_variable_templates</code></a></td>
+<td><a href="../compiler_support/14.html#cpp_variable_templates_201304L"><code>201304L</code></a></td>
+<td><em>(C++14)</em></td>
+<td>Modèles de variable</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2255.html">CWG 2255</a></td>
+<td>C++14</td>
+<td>il n'était pas clair si une spécialisation d'un modèle de membre de données statique est un membre de données statique</td>
+<td>c'est le cas</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

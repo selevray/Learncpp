@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::parallel::reduce — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a></nav>
+<h1 id="std-experimental-parallel-reduce"><code>std::experimental::parallel::reduce</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/reduce">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/numeric&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class InputIt &gt;
+typename std::iterator_traits&lt;InputIt&gt;::value_type reduce(
+    InputIt first, InputIt last );  // (1) (TS sur le parallélisme)
+
+template&lt; class ExecutionPolicy, class InputIterator &gt;
+typename std::iterator_traits&lt;InputIt&gt;::value_type reduce(
+    ExecutionPolicy&amp;&amp; policy, InputIt first, InputIt last );  // (2) (TS sur le parallélisme)
+
+template&lt; class InputIt, class T &gt;
+T reduce( InputIt first, InputIt last, T init );  // (3) (TS sur le parallélisme)
+
+template&lt; class ExecutionPolicy, class InputIt, class T &gt;
+T reduce( ExecutionPolicy&amp;&amp; policy, InputIt first, InputIt last, T init );  // (4) (TS sur le parallélisme)
+
+template&lt; class InputIt, class T, class BinaryOp &gt;
+T reduce( InputIt first, InputIt last, T init, BinaryOp binary_op );  // (5) (TS sur le parallélisme)
+
+template&lt; class ExecutionPolicy, class InputIt, class T, class BinaryOp &gt;
+T reduce( ExecutionPolicy&amp;&amp; policy,
+          InputIt first, InputIt last, T init, BinaryOp binary_op );  // (6) (TS sur le parallélisme)
+</code></pre>
+<ol>
+<li>
+<p>Identique à <code>reduce(first, last, typename std::iterator_traits&lt;InputIt&gt;::value_type{})</code>.</p>
+</li>
+<li>
+<p>Identique à <code>reduce(first, last, init, std::plus&lt;&gt;())</code>.</p>
+</li>
+<li>
+<p>Réduit l'intervalle <code>[first,last)</code>, éventuellement permuté et agrégé de manière non spécifiée, avec la valeur initiale <code>init</code> sur <code>binary_op</code>.</p>
+</li>
+</ol>
+<p>2,4,6) Identique à <code>(1,3,5)</code>, mais exécuté selon <code>policy</code>.</p>
+<p>Le comportement est non déterministe si <code>binary_op</code> n'est pas associatif ou n'est pas commutatif.</p>
+<p>Le comportement est indéfini si <code>binary_op</code> modifie un élément ou invalide un itérateur dans <code>[first,last)</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments auquel appliquer l'algorithme</li>
+<li><code>init</code> — la valeur initiale de la somme généralisée</li>
+<li><code>policy</code> — la <a href="parallelism.html#Execution_policies">politique d'exécution</a></li>
+<li><code>binary_op</code> — opération binaire <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a> qui sera appliquée dans un ordre non spécifié au résultat de la déréférenciation des itérateurs d'entrée, aux résultats des autres <code>binary_op</code> et <code>init</code></li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Somme généralisée de <code>init</code> et <code>*first</code>, <code>*(first + 1)</code>, ... <code>*(last - 1)</code> sur <code>binary_op</code>,</p>
+<p>où la somme généralisée GSUM(op, a1, ..., aN) est définie comme suit :</p>
+<ul>
+<li>if N=1, a1</li>
+<li>si N &gt; 1, op(GSUM(op, b1, ..., bK), GSUM(op, bM, ..., bN)) où
+<ul>
+<li>b1, ..., bN peut être n'importe quelle permutation de a1, ..., aN et</li>
+<li>1 &lt; K+1 = M ≤ N</li>
+</ul>
+</li>
+</ul>
+<p>en d'autres termes, les éléments de l'intervalle peuvent être regroupés et réarrangés dans un ordre arbitraire.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>O(last - first) applications de <code>binary_op</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<ul>
+<li>
+<p>Si l'exécution d'une fonction invoquée dans le cadre de l'algorithme lève une exception,</p>
+<ul>
+<li>si <code>policy</code> est <code>parallel_vector_execution_policy</code>, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée.</li>
+<li>si <code>policy</code> est <code>sequential_execution_policy</code> ou <code>parallel_execution_policy</code>, l'algorithme se termine en levant un <a href="https://en.cppreference.com/mwiki/index.php?title=cpp/experimental/exception_list&amp;action=edit&amp;redlink=1"><code>exception_list</code></a> contenant toutes les exceptions non interceptées. S'il n'y a eu qu'une seule exception non interceptée, l'algorithme peut la relancer sans l'envelopper dans <code>exception_list</code>. Le travail que l'algorithme effectuera avant de revenir après la première exception rencontrée n'est pas spécifié.</li>
+<li>si <code>policy</code> est un autre type, le comportement est défini par l'implémentation.</li>
+</ul>
+</li>
+<li>
+<p>Si l'algorithme ne parvient pas à allouer de la mémoire (pour lui-même ou pour construire un <code>exception_list</code> lors du traitement d'une exception utilisateur), <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> est levée.</p>
+</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Si l'intervalle est vide, <code>init</code> est renvoyé, sans modification.</p>
+<ul>
+<li>Si <code>policy</code> est une instance de <code>sequential_execution_policy</code>, toutes les opérations sont effectuées dans le thread appelant.</li>
+<li>Si <code>policy</code> est une instance de <code>parallel_execution_policy</code>, les opérations peuvent être effectuées dans un nombre non spécifié de threads, séquencées de manière indéterminée les unes par rapport aux autres.</li>
+<li>Si <code>policy</code> est une instance de <code>parallel_vector_execution_policy</code>, l'exécution peut être à la fois parallélisée et vectorisée : les frontières du corps de fonction ne sont pas respectées et le code utilisateur peut être recouvert et combiné de manière arbitraire (en particulier, cela implique qu'un Callable fourni par l'utilisateur ne doit pas acquérir un mutex pour accéder à une ressource partagée).</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>reduce est la version à ordre non garanti de <a href="../algorithm/accumulate.html"><code>std::accumulate</code></a> :</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;experimental/execution_policy&gt;
+#include &lt;experimental/numeric&gt;
+#include &lt;iostream&gt;
+#include &lt;numeric&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;double&gt; v(10'000'007, 0.5);
+
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double result = std::accumulate(v.begin(), v.end(), 0.0);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration&lt;double, std::milli&gt; ms = t2 - t1;
+        std::cout &lt;&lt; std::fixed &lt;&lt; &quot;std::accumulate result &quot; &lt;&lt; result
+                  &lt;&lt; &quot; took &quot; &lt;&lt; ms.count() &lt;&lt; &quot; ms\n&quot;;
+    }
+
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        double result = std::experimental::parallel::reduce(
+                            std::experimental::parallel::par,
+                            v.begin(), v.end());
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration&lt;double, std::milli&gt; ms = t2 - t1;
+        std::cout &lt;&lt; &quot;parallel::reduce result &quot;
+                  &lt;&lt; result &lt;&lt; &quot; took &quot; &lt;&lt; ms.count() &lt;&lt; &quot; ms\n&quot;;
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">std::accumulate result 5000003.50000 took 12.7365 ms
+parallel::reduce result 5000003.50000 took 5.06423 ms
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../algorithm/accumulate.html">accumulate</a></strong> — additionne ou replie un intervalle d'éléments <em>(modèle de fonction)</em></li>
+<li><strong><a href="../algorithm/transform.html">transform</a></strong> — applique une fonction à un intervalle d'éléments, en stockant les résultats dans un intervalle de destination <em>(modèle de fonction)</em></li>
+<li><strong><a href="transform_reduce.html">transform_reduce</a> (parallelism TS)</strong> — applique un foncteur, puis réduit dans le désordre <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

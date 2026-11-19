@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::scoped_lock — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-scoped_lock"><code>std::scoped_lock</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/scoped_lock">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... MutexTypes &gt;
+class scoped_lock;  // (depuis C++17)
+</code></pre>
+<p>La classe <code>scoped_lock</code> est un wrapper de mutex qui fournit un mécanisme pratique de style <a href="https://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization">RAII</a> pour posséder zéro ou plusieurs mutex pendant la durée d'un bloc délimité.</p>
+<p>Lorsqu'un objet <code>scoped_lock</code> est créé, il tente de prendre la propriété des mutex qui lui sont donnés. Lorsque le contrôle quitte la portée dans laquelle l'objet <code>scoped_lock</code> a été créé, le <code>scoped_lock</code> est détruit et les mutex sont libérés. Si plusieurs mutex sont donnés, un algorithme d'évitement d'interblocage est utilisé comme par <a href="lock.html"><code>std::lock</code></a>.</p>
+<p>La classe <code>scoped_lock</code> n'est pas copiable.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>MutexTypes</code> — les types des mutex à verrouiller. Les types doivent satisfaire aux exigences <a href="../named_req/Lockable.html"><em>Lockable</em></a> sauf si <code>sizeof...(MutexTypes) == 1</code>, auquel cas le seul type doit satisfaire <a href="../named_req/BasicLockable.html"><em>BasicLockable</em></a></li>
+</ul>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li>
+<p><strong><code>mutex_type</code><br />
+<em>(présent sous condition)</em></strong> —</p>
+<p>Si <code>sizeof...(MutexTypes) == 1</code>, le type membre <code>mutex_type</code> est identique à <code>Mutex</code>, le seul type de <code>MutexTypes...</code>. Sinon, il n'existe aucun membre <code>mutex_type</code>.</p>
+</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="scoped_lock/scoped_lock.html">(constructeur)</a></strong> — construit un <code>scoped_lock</code>, en verrouillant éventuellement les mutex donnés <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_lock/~scoped_lock.html">(destructeur)</a></strong> — détruit l'objet <code>scoped_lock</code>, déverrouille les mutex sous-jacents <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — non copiable par affectation <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Une erreur courante chez les débutants consiste à « oublier » de donner un nom à une variable <code>scoped_lock</code>, par exemple <code>std::scoped_lock(mtx);</code> (qui construit par défaut un objet <code>scoped_lock</code> nommé <code>mtx</code>) ou <code>std::scoped_lock{mtx};</code> (qui construit un objet prvalue immédiatement détruit), ce qui fait qu'aucun verrou détenant un mutex n'est réellement construit pour le reste de la portée.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_scoped_lock"><code>__cpp_lib_scoped_lock</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_scoped_lock_201703L"><code>201703L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><a href="scoped_lock.html#Top"><code>std::scoped_lock</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant utilise <code>std::scoped_lock</code> pour verrouiller des paires de mutex sans interblocage, de manière RAII.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+using namespace std::chrono_literals;
+
+struct Employee
+{
+    std::vector&lt;std::string&gt; lunch_partners;
+    std::string id;
+    std::mutex m;
+    Employee(std::string id) : id(id) {}
+    std::string partners() const
+    {
+        std::string ret = &quot;Employee &quot; + id + &quot; has lunch partners: &quot;;
+        for (int count{}; const auto&amp; partner : lunch_partners)
+            ret += (count++ ? &quot;, &quot; : &quot;&quot;) + partner;
+        return ret;
+    }
+};
+
+void send_mail(Employee&amp;, Employee&amp;)
+{
+    // Simule une opération de messagerie longue
+    std::this_thread::sleep_for(1s);
+}
+
+void assign_lunch_partner(Employee&amp; e1, Employee&amp; e2)
+{
+    static std::mutex io_mutex;
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(io_mutex);
+        std::cout &lt;&lt; e1.id &lt;&lt; &quot; and &quot; &lt;&lt; e2.id &lt;&lt; &quot; are waiting for locks&quot; &lt;&lt; std::endl;
+    }
+
+    {
+        // Utiliser std::scoped_lock pour acquérir deux verrous sans se soucier de
+        // que d'autres appels à assign_lunch_partner ne nous bloquent
+        // et il fournit aussi un mécanisme pratique de style RAII
+
+        std::scoped_lock lock(e1.m, e2.m);
+
+        // Code équivalent 1 (utilisant std::lock et std::lock_guard)
+        // std::lock(e1.m, e2.m);
+        // std::lock_guard&lt;std::mutex&gt; lk1(e1.m, std::adopt_lock);
+        // std::lock_guard&lt;std::mutex&gt; lk2(e2.m, std::adopt_lock);
+
+        // Code équivalent 2 (si des unique_locks sont nécessaires, par exemple pour les variables de condition)
+        // std::unique_lock&lt;std::mutex&gt; lk1(e1.m, std::defer_lock);
+        // std::unique_lock&lt;std::mutex&gt; lk2(e2.m, std::defer_lock);
+        // std::lock(lk1, lk2);
+        {
+            std::lock_guard&lt;std::mutex&gt; lk(io_mutex);
+            std::cout &lt;&lt; e1.id &lt;&lt; &quot; and &quot; &lt;&lt; e2.id &lt;&lt; &quot; got locks&quot; &lt;&lt; std::endl;
+        }
+        e1.lunch_partners.push_back(e2.id);
+        e2.lunch_partners.push_back(e1.id);
+    }
+
+    send_mail(e1, e2);
+    send_mail(e2, e1);
+}
+
+int main()
+{
+    Employee alice(&quot;Alice&quot;), bob(&quot;Bob&quot;), christina(&quot;Christina&quot;), dave(&quot;Dave&quot;);
+
+    // Affecte en parallèle dans des threads car l'envoi des affectations de déjeuner aux utilisateurs
+    // prend beaucoup de temps
+    std::vector&lt;std::thread&gt; threads;
+    threads.emplace_back(assign_lunch_partner, std::ref(alice), std::ref(bob));
+    threads.emplace_back(assign_lunch_partner, std::ref(christina), std::ref(bob));
+    threads.emplace_back(assign_lunch_partner, std::ref(christina), std::ref(alice));
+    threads.emplace_back(assign_lunch_partner, std::ref(dave), std::ref(bob));
+
+    for (auto&amp; thread : threads)
+        thread.join();
+    std::cout &lt;&lt; alice.partners() &lt;&lt; '\n'  &lt;&lt; bob.partners() &lt;&lt; '\n'
+              &lt;&lt; christina.partners() &lt;&lt; '\n' &lt;&lt; dave.partners() &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Alice and Bob are waiting for locks
+Alice and Bob got locks
+Christina and Bob are waiting for locks
+Christina and Alice are waiting for locks
+Dave and Bob are waiting for locks
+Dave and Bob got locks
+Christina and Alice got locks
+Christina and Bob got locks
+Employee Alice has lunch partners: Bob, Christina
+Employee Bob has lunch partners: Alice, Dave, Christina
+Employee Christina has lunch partners: Alice, Bob
+Employee Dave has lunch partners: Bob
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2981">LWG 2981</a></td>
+<td>C++17</td>
+<td>un guide de déduction redondant de <code>scoped_lock&lt;MutexTypes...&gt;</code> a été fourni</td>
+<td>removed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="unique_lock.html">unique_lock</a> (C++11)</strong> — implémente un wrapper de propriété de mutex déplaçable <em>(modèle de classe)</em></li>
+<li><strong><a href="lock_guard.html">lock_guard</a> (C++11)</strong> — implémente un wrapper de propriété de mutex strictement basé sur la portée <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

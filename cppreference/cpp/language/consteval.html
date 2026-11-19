@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spécificateur consteval (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="spécificateur-consteval-depuis-c-20">spécificateur consteval (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/consteval">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<ul>
+<li><code>consteval</code> - indique qu'une fonction est une <em>fonction immédiate</em>, c'est-à-dire que chaque appel à la fonction doit produire une constante de compilation</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Le spécificateur <code>consteval</code> déclare une fonction ou un modèle de fonction comme <em>fonction immédiate</em>, c'est-à-dire que chaque appel <a href="expressions.html#Potentially-evaluated_expressions">potentiellement évalué</a> à la fonction doit (directement ou indirectement) produire une <a href="constant_expression.html">expression constante</a> à la compilation.</p>
+<p>Une fonction immédiate est une <a href="constexpr.html#constexpr_function">fonction constexpr</a>, soumise à ses exigences selon le cas. Comme <code>constexpr</code>, un spécificateur <code>consteval</code> implique <code>inline</code>. Cependant, il ne peut pas être appliqué aux destructeurs, aux fonctions d'allocation ni aux fonctions de désallocation.</p>
+<p>Une déclaration de fonction ou de modèle de fonction spécifiant <code>consteval</code> ne peut pas aussi spécifier <code>constexpr</code>, et toute redéclaration de cette fonction ou de ce modèle de fonction doit aussi spécifier <code>consteval</code>.</p>
+<p>Une invocation <a href="expressions.html#Potentially-evaluated_expressions">potentiellement évaluée</a> d'une fonction immédiate dont la portée de bloc la plus interne n'est pas une <a href="scope.html#Function_parameter_scope">portée de paramètres de fonction</a> d'une fonction immédiate ou la branche vraie d'une instruction <a href="if.html#Consteval_if">if consteval</a> <em>(depuis C++23)</em> doit produire une expression constante ; une telle invocation est appelée une <em>invocation immédiate</em>.</p>
+<pre><code class="language-cpp">consteval int sqr(int n)
+{
+    return n*n;
+}
+constexpr int r = sqr(100); // OK
+
+int x = 100;
+int r2 = sqr(x);            // Error: l'appel ne produit pas une constante
+
+consteval int sqrsqr(int n)
+{
+    return sqr(sqr(n));     // Pas une expression constante à ce stade, mais OK
+}
+
+constexpr int dblsqr(int n)
+{
+    return 2 * sqr(n);      // Error: la fonction englobante n'est pas consteval
+                            // et sqr(n) n'est pas une constante
+}
+</code></pre>
+<p>Une <a href="name.html#In_expressions">expression d'identifiant</a> qui désigne une fonction immédiate ne peut apparaître que dans une sous-expression d'une invocation immédiate ou dans un <em>contexte de fonction immédiate</em> (c'est-à-dire un contexte mentionné ci-dessus, dans lequel un appel à une fonction immédiate n'a pas besoin d'être une expression constante). Un pointeur ou une référence vers une fonction immédiate peut être obtenu, mais ne peut pas sortir de l'évaluation de l'expression constante :</p>
+<pre><code class="language-cpp">consteval int f() { return 42; }
+consteval auto g() { return &amp;f; }
+consteval int h(int (*p)() = g()) { return p(); }
+constexpr int r = h();  // OK
+constexpr auto e = g(); // mal formé : un pointeur vers une fonction immédiate est
+                        // pas un résultat autorisé d'une expression constante
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><strong>Macro de test de fonctionnalité</strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_consteval"><code>__cpp_consteval</code></a> | <a href="../compiler_support/20.html#cpp_consteval_201811L"><code>201811L</code></a> | <em>(C++20)</em> | Fonctions immédiates</p>
+<p><a href="../compiler_support/23.html#cpp_consteval_202211L"><code>202211L</code></a> | <em>(C++23)</em><br />
+<em>(DR20)</em> | Faire remonter <code>consteval</code></p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/consteval.html"><code>consteval</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Cette fonction peut être évaluée à la compilation, si l'entrée
+// est connue à la compilation. Sinon, elle est exécutée à l'exécution.
+constexpr unsigned factorial(unsigned n)
+{
+    return n &lt; 2 ? 1 : n * factorial(n - 1);
+}
+
+// Avec consteval, nous imposons que la fonction soit évaluée à la compilation.
+consteval unsigned combination(unsigned m, unsigned n)
+{
+    return factorial(n) / factorial(m) / factorial(n - m);
+}
+
+static_assert(factorial(6) == 720);
+static_assert(combination(4, 8) == 70);
+
+int main(int argc, const char*[])
+{
+    constexpr unsigned x{factorial(4)};
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+
+    [[maybe_unused]]
+    unsigned y = factorial(argc); // OK
+//  unsigned z = combination(argc, 7); // erreur : 'argc' n'est pas une expression constante
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">24
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="constexpr.html">spécificateur <code>constexpr</code></a> (depuis C++11)</strong> — spécifie que la valeur d'une variable ou d'une fonction peut être calculée à la compilation</li>
+<li><strong><a href="constinit.html"><code>constinit</code> spécificateur</a> (C++20)</strong> — affirme qu'une variable a une initialisation statique, c'est-à-dire une <a href="zero_initialization.html">initialisation à zéro</a> et une <a href="constant_initialization.html">initialisation constante</a></li>
+<li><strong><a href="constant_expression.html">expression constante</a></strong> — définit une <a href="expressions.html">expression</a> qui peut être évaluée à la compilation</li>
+</ul>
+
+</main>
+</body>
+</html>

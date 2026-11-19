@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::try_lock — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-try_lock"><code>std::try_lock</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/try_lock">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Lockable1, class Lockable2, class... LockableN &gt;
+int try_lock( Lockable1&amp; lock1, Lockable2&amp; lock2, LockableN&amp;... lockn );  // (depuis C++11)
+</code></pre>
+<p>Tente de verrouiller chacun des objets <a href="../named_req/Lockable.html"><em>Lockable</em></a> donnés <code>lock1</code>, <code>lock2</code>, <code>...</code>, <code>lockn</code> en appelant <code>try_lock</code> dans l'ordre, en commençant par le premier.</p>
+<p>Si un appel à <code>try_lock</code> échoue, aucun autre appel à <code>try_lock</code> n'est effectué, <code>unlock</code> est appelée pour les objets verrouillés, et un index, basé sur <code>0</code>, de l'objet dont le verrouillage a échoué est renvoyé.</p>
+<p>Si un appel à <code>try_lock</code> lève une exception, <code>unlock</code> est appelée pour les objets verrouillés avant de relancer l'exception.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>lock1, lock2, ..., lockn</code> — les objets <a href="../named_req/Lockable.html"><em>Lockable</em></a> à verrouiller</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>-1</code> en cas de succès, ou valeur d'index, basée sur <code>0</code>, de l'objet dont le verrouillage a échoué.</p>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant utilise <code>std::try_lock</code> pour calculer périodiquement et réinitialiser des compteurs s'exécutant dans des threads séparés.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    int foo_count = 0;
+    std::mutex foo_count_mutex;
+    int bar_count = 0;
+    std::mutex bar_count_mutex;
+    int overall_count = 0;
+    bool done = false;
+    std::mutex done_mutex;
+
+    auto increment = [](int&amp; counter, std::mutex&amp; m, const char* desc)
+    {
+        for (int i = 0; i &lt; 10; ++i)
+        {
+            std::unique_lock&lt;std::mutex&gt; lock(m);
+            ++counter;
+            std::cout &lt;&lt; desc &lt;&lt; &quot;: &quot; &lt;&lt; counter &lt;&lt; '\n';
+            lock.unlock();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    };
+
+    std::thread increment_foo(increment, std::ref(foo_count),
+        std::ref(foo_count_mutex), &quot;foo&quot;);
+    std::thread increment_bar(increment, std::ref(bar_count),
+        std::ref(bar_count_mutex), &quot;bar&quot;);
+
+    std::thread update_overall([&amp;]()
+    {
+        done_mutex.lock();
+        while (!done)
+        {
+            done_mutex.unlock();
+            int result = std::try_lock(foo_count_mutex, bar_count_mutex);
+            if (result == -1)
+            {
+                overall_count += foo_count + bar_count;
+                foo_count = 0;
+                bar_count = 0;
+                std::cout &lt;&lt; &quot;overall: &quot; &lt;&lt; overall_count &lt;&lt; '\n';
+                foo_count_mutex.unlock();
+                bar_count_mutex.unlock();
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            done_mutex.lock();
+        }
+        done_mutex.unlock();
+    });
+
+    increment_foo.join();
+    increment_bar.join();
+    done_mutex.lock();
+    done = true;
+    done_mutex.unlock();
+    update_overall.join();
+
+    std::cout &lt;&lt; &quot;Done processing\n&quot;
+              &lt;&lt; &quot;foo: &quot; &lt;&lt; foo_count &lt;&lt; '\n'
+              &lt;&lt; &quot;bar: &quot; &lt;&lt; bar_count &lt;&lt; '\n'
+              &lt;&lt; &quot;overall: &quot; &lt;&lt; overall_count &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">bar: 1
+foo: 1
+foo: 2
+bar: 2
+foo: 3
+overall: 5
+bar: 1
+foo: 1
+bar: 2
+foo: 2
+bar: 3
+overall: 10
+bar: 1
+foo: 1
+bar: 2
+foo: 2
+overall: 14
+bar: 1
+foo: 1
+bar: 2
+overall: 17
+foo: 1
+bar: 1
+foo: 2
+overall: 20
+Done processing
+foo: 0
+bar: 0
+overall: 20
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="lock.html">lock</a> (C++11)</strong> — verrouille les mutex spécifiés, bloque si l'un d'eux est indisponible <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

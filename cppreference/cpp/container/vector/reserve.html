@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::vector&lt;T,Allocator&gt;::reserve — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/vector.html">std::vector</a></nav>
+<h1 id="std-vector-t-allocator-reserve"><code>std::vector&lt;T,Allocator&gt;::reserve</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/vector/reserve">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void reserve( size_type new_cap );  // (constexpr depuis C++20)
+</code></pre>
+<p>Augmente la capacité du vecteur (le nombre total d'éléments que le vecteur peut contenir sans nécessiter de réallocation) à une valeur supérieure ou égale à <code>new_cap</code>. Si <code>new_cap</code> est supérieur à la <a href="capacity.html"><code>capacity()</code></a> actuelle, un nouvel espace de stockage est alloué, sinon la fonction ne fait rien.</p>
+<p><code>reserve()</code> ne modifie pas la taille du vecteur.</p>
+<p>Si <code>new_cap</code> est supérieur à <a href="capacity.html"><code>capacity()</code></a>, tous les itérateurs (y compris l'itérateur <a href="end.html"><code>end()</code></a>) et toutes les références aux éléments sont invalidés. Sinon, aucun itérateur ni aucune référence n'est invalidé.</p>
+<p>Après un appel à <code>reserve()</code>, les insertions ne déclencheront pas de réallocation sauf si l'insertion rendait la taille du vecteur supérieure à la valeur de <a href="capacity.html"><code>capacity()</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>new_cap</code> — nouvelle capacité du vecteur, en nombre d'éléments</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>T</code> doit satisfaire les exigences de <a href="../../named_req/MoveInsertable.html"><em>MoveInsertable</em></a> vers <code>*this</code>. (depuis C++11)</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<ul>
+<li><a href="../../error/length_error.html"><code>std::length_error</code></a> if <code>new_cap &gt; max_size()</code>.</li>
+<li>Toute exception levée par <code>Allocator::allocate()</code> (généralement <a href="../../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a>).</li>
+</ul>
+<p>Si une exception est levée, cette fonction n'a aucun effet (<a href="../../language/exceptions.html#Exception_safety">garantie forte d'exception</a>).</p>
+<blockquote>
+<p>Si le constructeur de déplacement de <code>T</code> n'est pas <code>noexcept</code> et que T n'est pas <a href="../../named_req/CopyInsertable.html"><em>CopyInsertable</em></a> dans <code>*this</code>, vector utilisera le constructeur de déplacement pouvant lever une exception. S'il lève une exception, la garantie est abandonnée et les effets sont non spécifiés.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Complexity">Complexité</h2>
+<p>Au plus linéaire en <a href="size.html"><code>size()</code></a> du conteneur.</p>
+<h2 id="Notes">Notes</h2>
+<p>Utiliser correctement <code>reserve()</code> peut éviter des réallocations inutiles, mais une utilisation inappropriée de <code>reserve()</code> (par exemple l'appeler avant chaque appel à <a href="push_back.html"><code>push_back()</code></a>) peut en fait augmenter le nombre de réallocations (en faisant croître la capacité linéairement plutôt qu'exponentiellement) et entraîner une complexité de calcul et une baisse de performance accrues. Par exemple, une fonction qui reçoit un vecteur arbitraire par référence et y ajoute des éléments ne devrait généralement <em>pas</em> appeler <code>reserve()</code> sur le vecteur, car elle ne connaît pas les caractéristiques d'utilisation du vecteur.</p>
+<p>Lors de l'insertion d'un intervalle, la version pour intervalles de <a href="insert.html"><code>insert()</code></a> est généralement préférable car elle préserve le comportement correct de croissance de la capacité, contrairement à <code>reserve()</code> suivi d'une série de <a href="push_back.html"><code>push_back()</code></a>.</p>
+<p><code>reserve()</code> ne peut pas être utilisé pour réduire la capacité du conteneur ; à cet effet, <a href="shrink_to_fit.html"><code>shrink_to_fit()</code></a> est fourni.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;new&gt;
+#include &lt;vector&gt;
+
+// allocateur minimal C++11 avec sortie de débogage
+template&lt;class Tp&gt;
+struct NAlloc
+{
+    typedef Tp value_type;
+
+    NAlloc() = default;
+    template&lt;class T&gt;
+    NAlloc(const NAlloc&lt;T&gt;&amp;) {}
+
+    Tp* allocate(std::size_t n)
+    {
+        n *= sizeof(Tp);
+        Tp* p = static_cast&lt;Tp*&gt;(::operator new(n));
+        std::cout &lt;&lt; &quot;allocating &quot; &lt;&lt; n &lt;&lt; &quot; bytes @ &quot; &lt;&lt; p &lt;&lt; '\n';
+        return p;
+    }
+
+    void deallocate(Tp* p, std::size_t n)
+    {
+        std::cout &lt;&lt; &quot;deallocating &quot; &lt;&lt; n * sizeof *p &lt;&lt; &quot; bytes @ &quot; &lt;&lt; p &lt;&lt; &quot;\n\n&quot;;
+        ::operator delete(p);
+    }
+};
+
+template&lt;class T, class U&gt;
+bool operator==(const NAlloc&lt;T&gt;&amp;, const NAlloc&lt;U&gt;&amp;) { return true; }
+
+template&lt;class T, class U&gt;
+bool operator!=(const NAlloc&lt;T&gt;&amp;, const NAlloc&lt;U&gt;&amp;) { return false; }
+
+int main()
+{
+    constexpr int max_elements = 32;
+
+    std::cout &lt;&lt; &quot;using reserve: \n&quot;;
+    {
+        std::vector&lt;int, NAlloc&lt;int&gt;&gt; v1;
+        v1.reserve(max_elements); // réserve au moins max_elements * sizeof(int) octets
+
+        for (int n = 0; n &lt; max_elements; ++n)
+            v1.push_back(n);
+    }
+
+    std::cout &lt;&lt; &quot;not using reserve: \n&quot;;
+    {
+        std::vector&lt;int, NAlloc&lt;int&gt;&gt; v1;
+
+        for (int n = 0; n &lt; max_elements; ++n)
+        {
+            if (v1.size() == v1.capacity())
+                std::cout &lt;&lt; &quot;size() == capacity() == &quot; &lt;&lt; v1.size() &lt;&lt; '\n';
+            v1.push_back(n);
+        }
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">using reserve:
+allocating 128 bytes @ 0xa6f840
+deallocating 128 bytes @ 0xa6f840
+
+not using reserve:
+size() == capacity() == 0
+allocating 4 bytes @ 0xa6f840
+
+size() == capacity() == 1
+allocating 8 bytes @ 0xa6f860
+deallocating 4 bytes @ 0xa6f840
+
+size() == capacity() == 2
+allocating 16 bytes @ 0xa6f840
+deallocating 8 bytes @ 0xa6f860
+
+size() == capacity() == 4
+allocating 32 bytes @ 0xa6f880
+deallocating 16 bytes @ 0xa6f840
+
+size() == capacity() == 8
+allocating 64 bytes @ 0xa6f8b0
+deallocating 32 bytes @ 0xa6f880
+
+size() == capacity() == 16
+allocating 128 bytes @ 0xa6f900
+deallocating 64 bytes @ 0xa6f8b0
+
+deallocating 128 bytes @ 0xa6f900
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue329">LWG 329</a></td>
+<td>C++98</td>
+<td>une réallocation peut être déclenchée si une insertion rend la taille du vecteur supérieure à la taille spécifiée lors du dernier appel à <code>reserve()</code></td>
+<td>ne se déclenche que si la taille du vecteur devient supérieure à <a href="capacity.html"><code>capacity()</code></a></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2033">LWG 2033</a></td>
+<td>C++11</td>
+<td><code>T</code> n'était pas tenu d'être <a href="../../named_req/MoveInsertable.html"><em>MoveInsertable</em></a></td>
+<td>required</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="capacity.html">capacity</a></strong> — renvoie le nombre d'éléments pouvant être contenus dans le stockage actuellement alloué <em>(fonction membre publique)</em></li>
+<li><strong><a href="max_size.html">max_size</a></strong> — renvoie le nombre maximal possible d'éléments <em>(fonction membre publique)</em></li>
+<li><strong><a href="resize.html">resize</a></strong> — modifie le nombre d'éléments stockés <em>(fonction membre publique)</em></li>
+<li><strong><a href="shrink_to_fit.html">shrink_to_fit</a><em>(DR</em>)</strong>* — réduit l'utilisation de la mémoire en libérant la mémoire inutilisée <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

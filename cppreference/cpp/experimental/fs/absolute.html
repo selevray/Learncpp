@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::filesystem::absolute, std::experimental::filesystem::system_complete — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../cpp/experimental/fs.html">Bibliothèque du système de fichiers</a></nav>
+<h1 id="std-experimental-filesystem-absolute-std-experimental-filesystem-system_complete"><code>std::experimental::filesystem::absolute, std::experimental::filesystem::system_complete</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/fs/absolute">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/filesystem&gt;</strong></p>
+<pre><code class="language-cpp">path absolute( const path&amp; p, const path&amp; base = current_path() );  // (1) (TS sur le système de fichiers)
+
+path system_complete( const path&amp; p );
+path system_complete( const path&amp; p, error_code&amp; ec );  // (2) (TS sur le système de fichiers)
+</code></pre>
+<ol>
+<li>Renvoie le chemin absolu de <code>p</code> relativement à <code>base</code> selon les règles suivantes :</li>
+</ol>
+<ul>
+<li>Si <code>p</code> possède à la fois un nom de racine et un répertoire racine (par exemple <code>&quot;C:\users&quot;</code>), le chemin est renvoyé sans modification.</li>
+<li>Si <code>p</code> possède un nom de racine non suivi d'un répertoire racine (par exemple <code>&quot;C:text.txt&quot;</code>), alors <code>base</code> est inséré entre le nom de racine de <code>p</code> et le reste de <code>p</code>. Formellement, <code>p.root_name() / fs::absolute(base).root_directory() / fs::absolute(base).relative_path() / p.relative_path()</code> est renvoyé,</li>
+<li>Si <code>p</code> ne possède pas de nom de racine, mais possède un répertoire racine (par exemple <code>&quot;/var/tmp/file.txt&quot;</code> sur un système POSIX ou <code>&quot;\users\ABC\Document.doc&quot;</code> sous Windows), alors le nom de racine de <code>base</code>, s'il en possède un, est placé devant <code>p</code> (sur un système POSIX, <code>p</code> n'est pas modifié ; sous Windows, <code>&quot;\users\ABC\Document.doc&quot;</code> devient <code>&quot;C:\users\ABC\Document.doc&quot;</code>). Formellement, <code>fs::absolute(base).root_name() / p</code> est renvoyé.</li>
+<li>Si <code>p</code> ne possède ni nom de racine ni répertoire racine (par exemple <code>&quot;../file.txt&quot;</code>), alors l'intégralité de <code>base</code> est placée devant <code>p</code>. Formellement, <code>absolute(base) / p</code> est renvoyé.</li>
+</ul>
+<ol start="2">
+<li>Obtient le chemin absolu identifiant le fichier auquel l'API d'ouverture de fichiers du système d'exploitation accéderait pour le nom de chemin <code>p</code>. Sur les systèmes POSIX, cela équivaut à <code>(1)</code> avec le <code>base</code> par défaut (<code>fs::current_path()</code>). Sous Windows, chaque lecteur logique possède son propre répertoire de travail courant ; ainsi, si <code>p</code> n'est pas déjà absolu et possède un composant de nom de racine (par exemple <code>&quot;E:filename.txt&quot;</code>), c'est le répertoire de travail courant de ce lecteur qui est utilisé, lequel a pu être défini par un programme exécuté précédemment.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — chemin à convertir en forme absolue</li>
+<li><code>base</code> — chemin (pas nécessairement absolu) servant de point de départ</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Renvoie un chemin absolu (mais pas nécessairement canonique) formé en combinant <code>p</code> et <code>base</code>, comme décrit ci-dessus.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge qui ne prend pas de paramètre <code>error_code&amp;</code> lève <a href="filesystem_error.html">filesystem_error</a> en cas d'erreurs de l'API du système d'exploitation sous-jacente, construite avec <code>p</code> comme premier argument, <code>base</code> comme second argument, et le code d'erreur du système d'exploitation comme argument de code d'erreur. <code>std::bad_alloc</code> peut être levée si l'allocation mémoire échoue. La surcharge prenant un paramètre <code>error_code&amp;</code> le fixe au code d'erreur de l'API du système d'exploitation si un appel à cette API échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient. Cette surcharge a<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept</code></p>
+<h2 id="Notes">Notes</h2>
+<p>Sur les systèmes qui prennent en charge les noms de racine (par exemple Windows), le résultat de l'appel de <code>absolute</code> sur un chemin relatif possédant un nom de racine (par exemple <code>&quot;D:file.txt&quot;</code>) lorsque le nom de racine de <code>base</code> est différent aboutira généralement à un chemin inexistant.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;filesystem&gt;
+#include &lt;iostream&gt;
+namespace fs = std::experimental::filesystem;
+
+int main()
+{
+    fs::path p = &quot;C:cl.exe&quot;;
+    std::cout &lt;&lt; &quot;Current path is &quot; &lt;&lt; fs::current_path() &lt;&lt; '\n'
+              &lt;&lt; &quot;Absolute path for &quot; &lt;&lt; p &lt;&lt; &quot; is &quot; &lt;&lt; fs::absolute(p) &lt;&lt; '\n'
+	      &lt;&lt; &quot;System complete path for &quot; &lt;&lt; p &lt;&lt; &quot; is &quot;
+              &lt;&lt; fs::system_complete(p) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Current path is &quot;D:/local/ConsoleApplication1&quot;
+Absolute path for &quot;C:cl.exe&quot; is &quot;C:/local/ConsoleApplication1/cl.exe&quot;
+System complete path for &quot;C:cl.exe&quot; is &quot;C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\cl.exe&quot;
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="canonical.html">canonical</a></strong> — compose un chemin canonique <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

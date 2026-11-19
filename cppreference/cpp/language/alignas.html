@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>alignas spécificateur (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="alignas-spécificateur-depuis-c-11">alignas spécificateur (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/alignas">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Spécifie l'<a href="objects.html#Alignment">exigence d'alignement</a> d'un type ou d'un objet.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>alignas(</code> <code>expression</code> <code>)</code> | | |
+|
+| <code>alignas(</code> <code>type-id</code> <code>)</code> | | |
+|
+| <code>alignas(</code> <code>pack</code> <code>...</code> <code>)</code> | | |
+|</p>
+<ol>
+<li>
+<p><code>expression</code> doit être une <a href="constant_expression.html#Integral_constant_expression">expression constante entière</a> qui s'évalue à zéro, ou à une valeur valide pour un <a href="objects.html#Alignment">alignement</a> ou un alignement étendu.</p>
+</li>
+<li>
+<p>Équivalent à <code>alignas(alignof( type-id ))</code>.</p>
+</li>
+<li>
+<p>Équivalent à plusieurs spécificateurs alignas appliqués à la même déclaration, un pour chaque membre du <a href="parameter_pack.html">pack de paramètres</a>, qui peut être un pack de paramètres de type ou de paramètre non-type.</p>
+</li>
+</ol>
+<h2 id="Explanation">Explication</h2>
+<p>Le spécificateur <code>alignas</code> peut être appliqué à :</p>
+<ul>
+<li>la déclaration ou la définition d'une <a href="classes.html">classe</a> ;</li>
+<li>la déclaration d'un membre de donnée de classe qui n'est pas un champ de bits ;</li>
+<li>la déclaration d'une variable, sauf qu'il ne peut pas être appliqué à ce qui suit :
+<ul>
+<li>un paramètre de fonction ;</li>
+<li>le paramètre d'exception d'une clause catch.</li>
+</ul>
+</li>
+</ul>
+<p>L'objet ou le type déclaré par une telle déclaration aura son <a href="objects.html#Alignment">exigence d'alignement</a> égale à la plus stricte (la plus grande) <code>expression</code> non nulle de tous les spécificateurs <code>alignas</code> utilisés dans la déclaration, sauf si cela affaiblirait l'alignement naturel du type.</p>
+<p>Si le plus strict (le plus grand) <code>alignas</code> d'une déclaration est plus faible que l'alignement qu'elle aurait sans aucun spécificateur <code>alignas</code> (c'est-à-dire plus faible que son alignement naturel ou plus faible que <code>alignas</code> sur une autre déclaration du même objet ou type), le programme est mal formé :</p>
+<pre><code class="language-cpp">struct alignas(8) S {};
+struct alignas(1) U { S s; }; // erreur : l'alignement de U aurait été 8 sans alignas(1)
+</code></pre>
+<p>Les alignements non nuls invalides, tels que <code>alignas(3)</code>, sont mal formés.</p>
+<p>Les alignements non nuls valides plus faibles qu'un autre <code>alignas</code> sur la même déclaration sont ignorés.</p>
+<p><code>alignas(0)</code> est toujours ignoré.</p>
+<h2 id="Notes">Notes</h2>
+<p>Depuis la norme ISO C11, le langage C possède le mot-clé <code>_Alignas</code> et définit <code>alignas</code> comme une macro du préprocesseur se développant en ce mot-clé dans l'en-tête <a href="../../c/types.html"><code>&lt;stdalign.h&gt;</code></a>.</p>
+<p>En C++, c'est un mot-clé, et</p>
+<blockquote>
+<p>les en-têtes <a href="../header/cstdalign.html"><code>&lt;stdalign.h&gt;</code></a> et <a href="../header/cstdalign.html"><code>&lt;cstdalign&gt;</code></a> ne définissent pas une telle macro. Ils définissent cependant la constante macro <code>__alignas_is_defined</code>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>l'en-tête <a href="../header/cstdalign.html"><code>&lt;stdalign.h&gt;</code></a> ne définit pas une telle macro. Il définit cependant la constante macro <code>__alignas_is_defined</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/alignas.html"><code>alignas</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Chaque objet de type struct_float sera aligné
+// sur une frontière alignof(float) (généralement 4) :
+struct alignas(float) struct_float
+{
+    // votre définition ici
+};
+
+// Chaque objet de type sse_t sera aligné sur une frontière de 32 octets :
+struct alignas(32) sse_t
+{
+    float sse_data[4];
+};
+
+int main()
+{
+    struct default_aligned
+    {
+        float data[4];
+    } a, b, c;
+    sse_t x, y, z;
+
+    std::cout
+        &lt;&lt; &quot;alignof(struct_float) = &quot; &lt;&lt; alignof(struct_float) &lt;&lt; '\n'
+        &lt;&lt; &quot;sizeof(sse_t) = &quot; &lt;&lt; sizeof(sse_t) &lt;&lt; '\n'
+        &lt;&lt; &quot;alignof(sse_t) = &quot; &lt;&lt; alignof(sse_t) &lt;&lt; '\n'
+        &lt;&lt; std::hex &lt;&lt; std::showbase
+        &lt;&lt; &quot;&amp;a: &quot; &lt;&lt; &amp;a &lt;&lt; &quot;\n&quot;
+           &quot;&amp;b: &quot; &lt;&lt; &amp;b &lt;&lt; &quot;\n&quot;
+           &quot;&amp;c: &quot; &lt;&lt; &amp;c &lt;&lt; &quot;\n&quot;
+           &quot;&amp;x: &quot; &lt;&lt; &amp;x &lt;&lt; &quot;\n&quot;
+           &quot;&amp;y: &quot; &lt;&lt; &amp;y &lt;&lt; &quot;\n&quot;
+           &quot;&amp;z: &quot; &lt;&lt; &amp;z &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">alignof(struct_float) = 4
+sizeof(sse_t) = 32
+alignof(sse_t) = 32
+&amp;a: 0x7fffcec89930
+&amp;b: 0x7fffcec89940
+&amp;c: 0x7fffcec89950
+&amp;x: 0x7fffcec89960
+&amp;y: 0x7fffcec89980
+&amp;z: 0x7fffcec899a0
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1437.html">CWG 1437</a></td>
+<td>C++11</td>
+<td>alignas pourrait être utilisé dans les déclarations d'alias</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2354.html">CWG 2354</a></td>
+<td>C++11</td>
+<td>alignas pourrait être appliqué à la déclaration d'une énumération</td>
+<td>prohibited</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>9.12.4 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>9.12.3 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>10.6.3 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>7.6.4 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>7.6.4 Attribut carries dependency [dcl.attr.depend]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><code>alignof</code> (C++11)</strong> — interroge les exigences d'alignement d'un type <em>(opérateur)</em></li>
+<li><strong><a href="../types/alignment_of.html">alignment_of</a> (C++11)</strong> — obtient les exigences d'alignement du type <em>(modèle de classe)</em></li>
+</ul>
+<p><strong><a href="../../c/language/alignas.html">Documentation C</a> pour _Alignas, alignas</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::space_info — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-space_info"><code>std::filesystem::space_info</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/space_info">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">struct space_info {
+    std::uintmax_t capacity;
+    std::uintmax_t free;
+    std::uintmax_t available;
+};  // (depuis C++17)
+</code></pre>
+<p>Représente les informations du système de fichiers telles que déterminées par <a href="space.html"><code>filesystem::space</code></a>.</p>
+<h2 id="Member_objects">Objets membres</h2>
+<ul>
+<li><strong>capacity</strong> — taille totale du système de fichiers, en octets <em>(objet membre public)</em></li>
+<li><strong>free</strong> — espace libre sur le système de fichiers, en octets <em>(objet membre public)</em></li>
+<li><strong>available</strong> — espace libre disponible pour un processus non privilégié (peut être égal ou inférieur à <code>free</code>) <em>(objet membre public)</em></li>
+</ul>
+<h2 id="Non-member_functions">Fonctions non membres</h2>
+<ul>
+<li><strong><strong>operator==</strong> (C++20)</strong> — compare deux <code>space_info</code> <em>(fonction)</em></li>
+</ul>
+<h2 id="operator.3D.3D.28std::filesystem::space_info.29">operator==(std::filesystem::space_info)</h2>
+<pre><code class="language-cpp">friend bool operator==( const space_info&amp;, const space_info&amp; ) = default;  // (depuis C++20)
+</code></pre>
+<p>Vérifie si <code>capacity</code>, <code>free</code> et <code>available</code> des deux arguments sont respectivement égaux.</p>
+<p>Cette fonction n'est pas visible par la recherche <a href="../language/unqualified_lookup.html">non qualifiée</a> ordinaire ni par la <a href="../language/qualified_lookup.html">recherche qualifiée</a>, et ne peut être trouvée que par la <a href="../language/adl.html">recherche dépendante des arguments</a> lorsque std::filesystem::space_info est une classe associée aux arguments.</p>
+<p>L'opérateur <code>!=</code> est <a href="../language/default_comparisons.html#Other_defaulted_comparison_operators">synthétisé</a> à partir de <code>operator==</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdint&gt;
+#include &lt;filesystem&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+std::uintmax_t disk_usage_percent(const std::filesystem::space_info&amp; si,
+                                  bool is_privileged = false) noexcept
+{
+    if (constexpr std::uintmax_t X(-1);
+        si.capacity == 0 || si.free == 0 || si.available == 0 ||
+        si.capacity == X || si.free == X || si.available == X
+    )
+        return 100;
+
+    std::uintmax_t unused_space = si.free, capacity = si.capacity;
+    if (!is_privileged)
+    {
+        const std::uintmax_t privileged_only_space = si.free - si.available;
+        unused_space -= privileged_only_space;
+        capacity -= privileged_only_space;
+    }
+    const std::uintmax_t used_space{capacity - unused_space};
+    return 100 * used_space / capacity;
+}
+
+void print_disk_space_info(auto const&amp; dirs, int width = 14)
+{
+    (std::cout &lt;&lt; std::left).imbue(std::locale(&quot;en_US.UTF-8&quot;));
+
+    for (const auto s : {&quot;Capacity&quot;, &quot;Free&quot;, &quot;Available&quot;, &quot;Use%&quot;, &quot;Dir&quot;})
+        std::cout &lt;&lt; &quot;│ &quot; &lt;&lt; std::setw(width) &lt;&lt; s &lt;&lt; ' ';
+
+    for (std::cout &lt;&lt; '\n'; auto const&amp; dir : dirs)
+    {
+        std::error_code ec;
+        const std::filesystem::space_info si = std::filesystem::space(dir, ec);
+        for (auto x : {si.capacity, si.free, si.available, disk_usage_percent(si)})
+            std::cout &lt;&lt; &quot;│ &quot; &lt;&lt; std::setw(width) &lt;&lt; static_cast&lt;std::intmax_t&gt;(x) &lt;&lt; ' ';
+        std::cout &lt;&lt; &quot;│ &quot; &lt;&lt; dir &lt;&lt; '\n';
+    }
+}
+
+int main()
+{
+    const auto dirs = {&quot;/dev/null&quot;, &quot;/tmp&quot;, &quot;/home&quot;, &quot;/proc&quot;, &quot;/null&quot;};
+    print_disk_space_info(dirs);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">│ Capacity       │ Free           │ Available      │ Use%           │ Dir
+│ 84,417,331,200 │ 42,732,986,368 │ 40,156,028,928 │ 50             │ /dev/null
+│ 84,417,331,200 │ 42,732,986,368 │ 40,156,028,928 │ 50             │ /tmp
+│ -1             │ -1             │ -1             │ 100            │ /home
+│ 0              │ 0              │ 0              │ 100            │ /proc
+│ -1             │ -1             │ -1             │ 100            │ /null
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="space.html">space</a> (C++17)</strong> — détermine l'espace libre disponible sur le système de fichiers <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

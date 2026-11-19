@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::packaged_task — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-packaged_task"><code>std::packaged_task</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/packaged_task">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;future&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class &gt; class packaged_task; //non défini  // (1) (depuis C++11)
+
+template&lt; class R, class ...ArgTypes &gt;
+class packaged_task&lt;R(ArgTypes...)&gt;;  // (2) (depuis C++11)
+</code></pre>
+<p>Le modèle de classe <code>std::packaged_task</code> encapsule toute cible <a href="../named_req/Callable.html"><em>Callable</em></a> (fonction, expression lambda, expression bind ou un autre objet fonction) afin qu'elle puisse être invoquée de manière asynchrone. Sa valeur de retour ou l'exception levée est stockée dans un état partagé auquel on peut accéder via des objets <a href="future.html"><code>std::future</code></a>.</p>
+<blockquote>
+<p>Comme <a href="../utility/functional/function.html"><code>std::function</code></a>, <code>std::packaged_task</code> est un conteneur polymorphe compatible avec les allocateurs : la cible appelable stockée peut être allouée sur le tas ou avec un allocateur fourni.</p>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="packaged_task/packaged_task.html">(constructeur)</a></strong> — construit l'objet tâche <em>(fonction membre publique)</em></li>
+<li><strong><a href="packaged_task/~packaged_task.html">(destructeur)</a></strong> — détruit l'objet tâche <em>(fonction membre publique)</em></li>
+<li><strong><a href="packaged_task/operator%3D.html">operator=</a></strong> — déplace l'objet tâche <em>(fonction membre publique)</em></li>
+<li><strong><a href="packaged_task/valid.html">valid</a></strong> — vérifie si l'objet tâche possède une fonction valide <em>(fonction membre publique)</em></li>
+<li><strong><a href="packaged_task/swap.html">swap</a></strong> — échange deux objets tâche <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Obtention du résultat {#Getting_the_result}</strong></p>
+<ul>
+<li><strong><a href="packaged_task/get_future.html">get_future</a></strong> — renvoie un <a href="future.html"><code>std::future</code></a> associé au résultat promis <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Exécution {#Execution}</strong></p>
+<ul>
+<li><strong><a href="packaged_task/operator%28%29.html">operator()</a></strong> — exécute la fonction <em>(fonction membre publique)</em></li>
+<li><strong><a href="packaged_task/make_ready_at_thread_exit.html">make_ready_at_thread_exit</a></strong> — exécute la fonction en garantissant que le résultat n'est prêt qu'après la fin du thread courant <em>(fonction membre publique)</em></li>
+<li><strong><a href="packaged_task/reset.html">reset</a></strong> — réinitialise l'état en abandonnant les résultats éventuellement stockés des exécutions précédentes <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Non-member_functions">Fonctions non membres</h2>
+<ul>
+<li><strong><a href="packaged_task/swap2.html">std::swap(std::packaged_task)</a> (C++11)</strong> — spécialise l'algorithme <a href="../utility/swap.html"><code>std::swap</code></a> <em>(modèle de fonction)</em></li>
+</ul>
+<h2 id="Helper_classes">Classes auxiliaires</h2>
+<ul>
+<li><strong><a href="packaged_task/uses_allocator.html">std::uses_allocator&lt;std::packaged_task&gt;</a> (C++11) (until C++17)</strong> — spécialise le trait de type <a href="../memory/uses_allocator.html"><code>std::uses_allocator</code></a> <em>(spécialisation de modèle de classe)</em></li>
+</ul>
+<h2 id="Deduction_guides.28since_C.2B.2B17.29"><a href="packaged_task/deduction_guides.html">Guides de déduction</a> (depuis C++17)</h2>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;functional&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+// fonction unique pour éviter la désambiguïsation de l'ensemble de surcharges de std::pow
+int f(int x, int y) { return std::pow(x, y); }
+
+void task_lambda()
+{
+    std::packaged_task&lt;int(int, int)&gt; task([](int a, int b)
+    {
+        return std::pow(a, b);
+    });
+    std::future&lt;int&gt; result = task.get_future();
+
+    task(2, 9);
+
+    std::cout &lt;&lt; &quot;task_lambda:\t&quot; &lt;&lt; result.get() &lt;&lt; '\n';
+}
+
+void task_bind()
+{
+    std::packaged_task&lt;int()&gt; task(std::bind(f, 2, 11));
+    std::future&lt;int&gt; result = task.get_future();
+
+    task();
+
+    std::cout &lt;&lt; &quot;task_bind:\t&quot; &lt;&lt; result.get() &lt;&lt; '\n';
+}
+
+void task_thread()
+{
+    std::packaged_task&lt;int(int, int)&gt; task(f);
+    std::future&lt;int&gt; result = task.get_future();
+
+    std::thread task_td(std::move(task), 2, 10);
+    task_td.join();
+
+    std::cout &lt;&lt; &quot;task_thread:\t&quot; &lt;&lt; result.get() &lt;&lt; '\n';
+}
+
+int main()
+{
+    task_lambda();
+    task_bind();
+    task_thread();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">task_lambda: 512
+task_bind:   2048
+task_thread: 1024
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3117">LWG 3117</a></td>
+<td>C++17</td>
+<td>les guides de déduction pour <code>packaged_task</code> étaient manquants</td>
+<td>added</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="future.html">future</a> (C++11)</strong> — attend une valeur définie de manière asynchrone <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

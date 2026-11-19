@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::advance — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/iterator.html">Bibliothèque des itérateurs</a></nav>
+<h1 id="std-ranges-advance"><code>std::ranges::advance</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/ranges/advance">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_or_output_iterator I &gt;
+constexpr void advance( I&amp; i, std::iter_difference_t&lt;I&gt; n );  // (1) (depuis C++20)
+
+template&lt; std::input_or_output_iterator I, std::sentinel_for&lt;I&gt; S &gt;
+constexpr void advance( I&amp; i, S bound );  // (2) (depuis C++20)
+
+template&lt; std::input_or_output_iterator I, std::sentinel_for&lt;I&gt; S &gt;
+constexpr std::iter_difference_t&lt;I&gt; advance( I&amp; i, std::iter_difference_t&lt;I&gt; n, S bound );  // (3) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Incrémente l'itérateur <code>i</code> donné <code>n</code> fois.</p>
+</li>
+<li>
+<p>Incrémente l'itérateur <code>i</code> donné jusqu'à ce que <code>i == bound</code>.</p>
+</li>
+<li>
+<p>Incrémente l'itérateur <code>i</code> donné <code>n</code> fois, ou jusqu'à ce que <code>i == bound</code>, selon ce qui survient en premier.</p>
+</li>
+</ol>
+<p>Si <code>n</code> est négatif, l'itérateur est décrémenté. Dans ce cas, <code>I</code> doit modéliser <a href="../bidirectional_iterator.html"><code>std::bidirectional_iterator</code></a>, et <code>S</code> doit être du même type que <code>I</code> si <code>bound</code> est fourni, sinon le comportement est indéfini.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../../algorithm/ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>i</code> — itérateur à avancer</li>
+<li><code>bound</code> — sentinelle marquant la fin de l'intervalle <code>i</code>, est un itérateur vers</li>
+<li><code>n</code> — nombre d'incréments maximal de <code>i</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol start="3">
+<li>La différence entre <code>n</code> et la distance réelle <code>i</code> parcourue.</li>
+</ol>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire.</p>
+<p>Cependant, si <code>I</code> modélise en outre <a href="../random_access_iterator.html"><code>std::random_access_iterator</code></a>, ou si <code>S</code> modélise <code>std::sized_sentinel_for&lt;I&gt;</code>, ou si <code>I</code> et <code>S</code> modélisent <code>std::assignable_from&lt;I&amp;, S&gt;</code>, la complexité est constante.</p>
+<h2 id="Notes">Notes</h2>
+<p>Le comportement est indéfini si la séquence spécifiée d'incréments ou de décréments exige d'incrémenter un itérateur non incrémentable (tel que l'itérateur past-the-end), ou de décrémenter un itérateur non décrémentable (tel que l'itérateur front ou l'itérateur singulier).</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct advance_fn
+{
+    template&lt;std::input_or_output_iterator I&gt;
+    constexpr void operator()(I&amp; i, std::iter_difference_t&lt;I&gt; n) const
+    {
+        if constexpr (std::random_access_iterator&lt;I&gt;)
+            i += n;
+        else
+        {
+            while (n &gt; 0)
+            {
+                --n;
+                ++i;
+            }
+
+            if constexpr (std::bidirectional_iterator&lt;I&gt;)
+            {
+                while (n &lt; 0)
+                {
+                    ++n;
+                    --i;
+                }
+            }
+        }
+    }
+
+    template&lt;std::input_or_output_iterator I, std::sentinel_for&lt;I&gt; S&gt;
+    constexpr void operator()(I&amp; i, S bound) const
+    {
+        if constexpr (std::assignable_from&lt;I&amp;, S&gt;)
+            i = std::move(bound);
+        else if constexpr (std::sized_sentinel_for&lt;S, I&gt;)
+            (*this)(i, bound - i);
+        else
+            while (i != bound)
+                ++i;
+    }
+
+    template&lt;std::input_or_output_iterator I, std::sentinel_for&lt;I&gt; S&gt;
+    constexpr std::iter_difference_t&lt;I&gt;
+    operator()(I&amp; i, std::iter_difference_t&lt;I&gt; n, S bound) const
+    {
+        if constexpr (std::sized_sentinel_for&lt;S, I&gt;)
+        {
+            // std::abs n'est pas constexpr jusqu'à C++23
+            auto abs = [](const std::iter_difference_t&lt;I&gt; x) { return x &lt; 0 ? -x : x; };
+
+            if (const auto dist = abs(n) - abs(bound - i); dist &lt; 0)
+            {
+                (*this)(i, bound);
+                return -dist;
+            }
+
+            (*this)(i, n);
+            return 0;
+        }
+        else
+        {
+            while (n &gt; 0 &amp;&amp; i != bound)
+            {
+                --n;
+                ++i;
+            }
+
+            if constexpr (std::bidirectional_iterator&lt;I&gt;)
+            {
+                while (n &lt; 0 &amp;&amp; i != bound)
+                {
+                    ++n;
+                    --i;
+                }
+            }
+
+            return n;
+        }
+    }
+};
+
+inline constexpr auto advance = advance_fn();
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v {3, 1, 4};
+
+    auto vi = v.begin();
+
+    std::ranges::advance(vi, 2);
+    std::cout &lt;&lt; &quot;1) value: &quot; &lt;&lt; *vi &lt;&lt; '\n' &lt;&lt; std::boolalpha;
+
+    std::ranges::advance(vi, v.end());
+    std::cout &lt;&lt; &quot;2) vi == v.end(): &quot; &lt;&lt; (vi == v.end()) &lt;&lt; '\n';
+
+    std::ranges::advance(vi, -3);
+    std::cout &lt;&lt; &quot;3) value: &quot; &lt;&lt; *vi &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;4) diff: &quot; &lt;&lt; std::ranges::advance(vi, 2, v.end())
+              &lt;&lt; &quot;, value: &quot; &lt;&lt; *vi &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;5) diff: &quot; &lt;&lt; std::ranges::advance(vi, 4, v.end())
+              &lt;&lt; &quot;, vi == v.end(): &quot; &lt;&lt; (vi == v.end()) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1) value: 4
+2) vi == v.end(): true
+3) value: 3
+4) diff: 0, value: 4
+5) diff: 3, vi == v.end(): true
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="next.html">ranges::next</a> (C++20)</strong> — incrémente un itérateur d'une distance donnée ou jusqu'à une borne <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="prev.html">ranges::prev</a> (C++20)</strong> — décrémente un itérateur d'une distance donnée ou jusqu'à une borne <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="distance.html">ranges::distance</a> (C++20)</strong> — renvoie la distance entre un itérateur et une sentinelle, ou entre le début et la fin d'un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../advance.html">advance</a></strong> — fait avancer un itérateur de la distance donnée <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

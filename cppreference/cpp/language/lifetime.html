@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Durée de vie — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="durée-de-vie">Durée de vie</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/lifetime">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Chaque <a href="objects.html">objet</a> et <a href="reference.html">référence</a> a une <em>durée de vie</em>, qui est une propriété d'exécution : pour tout objet ou référence, il existe un point d'exécution du programme où sa durée de vie commence, et un moment où elle se termine.</p>
+<p>La durée de vie d'un objet commence lorsque :</p>
+<ul>
+<li>un stockage ayant l'alignement et la taille appropriés à son type est obtenu, et</li>
+<li>son initialisation (le cas échéant) est terminée (y compris l'<a href="default_initialization.html">initialisation par défaut</a> sans constructeur ou avec un <a href="default_constructor.html#Trivial_default_constructor">constructeur par défaut trivial</a>), sauf que
+<ul>
+<li>si l'objet est un <a href="union.html#Member_lifetime">membre d'union</a> ou un sous-objet de celui-ci, sa durée de vie ne commence que si ce membre d'union est le membre initialisé de l'union, ou s'il est rendu actif,</li>
+<li>si l'objet est imbriqué dans un objet union, sa durée de vie peut commencer si l'objet union englobant est affecté ou construit par une fonction membre spéciale triviale,</li>
+<li>la durée de vie d'un objet tableau peut également commencer s'il est alloué par <a href="../memory/allocator/allocate.html"><code>std::allocator::allocate</code></a>.</li>
+</ul>
+</li>
+</ul>
+<p>Certaines opérations <a href="objects.html#Object_creation">créent implicitement des objets</a> de <a href="type-id.html#Implicit-lifetime_type">types à durée de vie implicite</a> dans une région donnée de stockage et en démarrent la durée de vie. Si un sous-objet d'un objet créé implicitement n'est pas d'un type à durée de vie implicite, sa durée de vie ne commence pas implicitement.</p>
+<p>La durée de vie d'un objet se termine lorsque :</p>
+<ul>
+<li>s'il est d'un type non classe, l'objet est détruit (éventuellement via un appel de pseudo-destructeur), ou</li>
+<li>s'il est d'un type classe, l'appel du <a href="destructor.html">destructeur</a> commence, ou</li>
+<li>le stockage occupé par l'objet est libéré, ou est <a href="lifetime.html#Storage_reuse">réutilisé</a> par un objet qui n'est pas imbriqué dans celui-ci.</li>
+</ul>
+<p>La durée de vie d'un objet est égale ou est imbriquée dans la durée de vie de son stockage, voir <a href="storage_duration.html">durée de stockage</a>.</p>
+<p>La durée de vie d'une <a href="reference.html">référence</a> commence lorsque son initialisation est terminée et se termine comme s'il s'agissait d'un objet scalaire.</p>
+<p>Remarque : la durée de vie de l'objet référencé peut se terminer avant la fin de la durée de vie de la référence, ce qui rend possibles des <a href="reference.html#Dangling_references">références pendantes</a>.</p>
+<p>Les durées de vie des membres de données non statiques et des sous-objets de base commencent et se terminent selon l'<a href="initializer_list.html#Initialization_order">ordre d'initialisation de la classe</a>.</p>
+<h2 id="Temporary_object_lifetime">Durée de vie des objets temporaires</h2>
+<p>Des objets temporaires sont créés lorsqu'une prvalue est <a href="implicit_cast.html#Temporary_materialization">matérialisée</a> afin de pouvoir être utilisée comme glvalue, ce qui se produit <em>(depuis C++17)</em> dans les situations suivantes :</p>
+<ul>
+<li><a href="reference_initialization.html">liaison d'une référence à une prvalue</a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="list_initialization.html">initialisation</a> d'un objet de type <code>std::initializer_list&lt;T&gt;</code> à partir d'une <a href="initialization.html">liste d'initialisation entre accolades</a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>renvoi d'une prvalue depuis une fonction</li>
+<li><a href="expressions.html#Conversions">conversion</a> qui crée une prvalue (<a href="explicit_cast.html">y compris</a> <code>T(a, b, c)</code> et <code>T{}</code>)</li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="lambda.html">expression lambda</a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li><a href="copy_initialization.html">initialisation par copie</a> qui nécessite la conversion de l'initialisateur,</li>
+<li><a href="reference_initialization.html">initialisation de référence</a> vers un type différent mais convertible, ou vers un champ de bits.</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>lors de l'<a href="operator_member_access.html#Built-in_member_access_operators">accès à un membre</a> sur une prvalue de classe</li>
+<li>lors d'une <a href="array.html#Array-to-pointer_decay">conversion tableau-vers-pointeur</a> ou d'un <a href="operator_member_access.html#Built-in_subscript_operator">indexage</a> sur une prvalue de tableau</li>
+<li>pour les opérandes non évalués dans <a href="sizeof.html"><code>sizeof</code></a> et <a href="typeid.html"><code>typeid</code></a></li>
+<li>lorsqu'une prvalue apparaît comme une <a href="expressions.html#Discarded-value_expressions">expression de valeur ignorée</a></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<p>Par ailleurs, des objets temporaires sont créés :</p>
+<ul>
+<li>si l'implémentation le permet, lors du passage ou du renvoi d'un objet de type trivialement copiable dans une <a href="operator_other.html#Built-in_function_call_operator">expression d'appel de fonction</a> (ceci permet de passer des structures dans les registres du processeur)</li>
+</ul>
+<p>La matérialisation d'un objet temporaire est généralement retardée autant que possible afin d'éviter la création d'objets temporaires inutiles : voir <a href="copy_elision.html">élision de copie</a>.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Tous les objets temporaires sont détruits en dernière étape de l'évaluation de l'<a href="expressions.html#Full-expressions">expression complète</a> qui contient (lexicalement) le point où ils ont été créés ; et si plusieurs objets temporaires ont été créés, ils sont détruits dans l'ordre inverse de leur création. Ceci reste vrai même si cette évaluation se termine par le lancement d'une exception.</p>
+<p>Il existe les exceptions suivantes à cette règle :</p>
+<ul>
+<li>La durée de vie d'un objet temporaire peut être prolongée par liaison à une référence, voir <a href="reference_initialization.html#Lifetime_of_a_temporary">initialisation de référence</a> pour plus de détails.</li>
+<li>La durée de vie d'un objet temporaire créé lors de l'évaluation des arguments par défaut d'un constructeur par défaut ou de copie utilisé pour initialiser ou copier un élément d'un tableau se termine avant que l'élément suivant du tableau ne commence son initialisation.</li>
+</ul>
+<blockquote>
+<ul>
+<li>La durée de vie d'un objet temporaire créé dans une déclaration de <a href="structured_binding.html">liaison structurée</a> (introduite par l'initialisateur d'une variable de nom unique) est prolongée jusqu'à la fin de la déclaration de liaison structurée.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>La durée de vie d'un objet temporaire créé dans le <code>range-initializer</code> d'une instruction <a href="range-for.html">range-<code>for</code></a> qui serait autrement détruit à la fin du <code>range-initializer</code> est prolongée jusqu'à la fin du corps de la boucle.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Storage_reuse">Réutilisation du stockage</h2>
+<p>Un programme n'est pas tenu d'appeler le destructeur d'un objet pour terminer sa durée de vie si l'objet est <a href="destructor.html#Trivial_destructor">trivialement destructible</a> (attention, le comportement correct du programme peut dépendre du destructeur). Cependant, si un programme termine explicitement la durée de vie d'un objet non trivialement destructible qui est une variable, il doit s'assurer qu'un nouvel objet du même type est construit sur place (par exemple via un placement <code>new</code>) avant que le destructeur ne puisse être appelé implicitement, c'est-à-dire à la sortie de portée ou à cause d'une exception pour les objets automatiques, à la sortie du thread pour les objets thread-local, <em>(depuis C++11)</em> ou à la fin du programme pour les objets statiques ; sinon le comportement est indéfini.</p>
+<pre><code class="language-cpp">class T {}; // trivial
+
+struct B
+{
+    ~B() {} // non trivial
+};
+
+void x()
+{
+    long long n; // automatique, trivial
+    new (&amp;n) double(3.14); // réutilisation avec un type différent acceptable
+} // okay
+
+void h()
+{
+    B b; // automatique non trivialement destructible
+    b.~B(); // fin de durée de vie (non requise, car sans effets de bord)
+    new (&amp;b) T; // mauvais type : acceptable jusqu'à l'appel du destructeur
+} // appel du destructeur : comportement indéfini
+</code></pre>
+<p>Il y a comportement indéfini à réutiliser le stockage occupé ou ayant été occupé par un objet complet const de durée de stockage statique, thread-local, <em>(depuis C++11)</em> ou automatique, car ces objets peuvent être stockés en mémoire en lecture seule :</p>
+<pre><code class="language-cpp">struct B
+{
+    B(); // non trivial
+    ~B(); // non trivial
+};
+const B b; // const static
+
+void h()
+{
+    b.~B(); // fin de la durée de vie de b
+    new (const_cast&lt;B*&gt;(&amp;b)) const B; // comportement indéfini : tentative de réutilisation d'un const
+}
+</code></pre>
+<p>Lors de l'évaluation d'une <a href="new.html">expression new</a>, le stockage est considéré comme réutilisé après son renvoi par la <a href="../memory/new/operator_new.html">fonction d'allocation</a>, mais avant l'évaluation de l'<code>initializer</code> de l'expression new :</p>
+<pre><code class="language-cpp">struct S
+{
+    int m;
+};
+
+void f()
+{
+    S x{1};
+    new(&amp;x) S(x.m); // comportement indéfini : le stockage est réutilisé
+}
+</code></pre>
+<p>Si un nouvel objet est créé à l'adresse occupée par un autre objet, alors tous les pointeurs, toutes les références et le nom de l'objet original feront automatiquement référence au nouvel objet et, une fois que la durée de vie du nouvel objet commence, pourront être utilisés pour manipuler le nouvel objet, mais seulement si l'objet original est remplaçable de manière transparente par le nouvel objet.</p>
+<p>Si toutes les conditions suivantes sont satisfaites, l'objet <code>x</code> est <em>remplaçable de manière transparente</em> par l'objet <code>y</code> :</p>
+<ul>
+<li>Le stockage de <code>y</code> recouvre exactement l'emplacement de stockage qu'occupait <code>x</code>.</li>
+<li><code>y</code> est du même type que <code>x</code> (en ignorant les qualificateurs cv de premier niveau).</li>
+<li><code>x</code> n'est pas un objet const complet.</li>
+<li>Ni <code>x</code> ni <code>y</code> ne sont un sous-objet de classe de base, ni un sous-objet membre déclaré avec <code>[[no_unique_address]]</code> <em>(depuis C++20)</em>.</li>
+<li>L'une des conditions suivantes est satisfaite :
+<ul>
+<li><code>x</code> et <code>y</code> sont tous deux des objets complets.</li>
+<li><code>x</code> et <code>y</code> sont des sous-objets directs des objets <code>ox</code> et <code>oy</code> respectivement, et <code>ox</code> est remplaçable de manière transparente par <code>oy</code>.</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-cpp">struct C
+{
+    int i;
+    void f();
+    const C&amp; operator=(const C&amp;);
+};
+
+const C&amp; C::operator=(const C&amp; other)
+{
+    if (this != &amp;other)
+    {
+        this-&gt;~C();          // la durée de vie de *this se termine
+        new (this) C(other); // nouvel objet de type C créé
+        f();                 // bien défini
+    }
+    return *this;
+}
+
+C c1;
+C c2;
+c1 = c2; // bien défini
+c1.f();  // bien défini ; c1 fait référence à un nouvel objet de type C
+</code></pre>
+<blockquote>
+<p>Si les conditions énumérées ci-dessus ne sont pas remplies, un pointeur valide vers le nouvel objet peut tout de même être obtenu en appliquant la barrière d'optimisation de pointeur <a href="../utility/launder.html"><code>std::launder</code></a> :</p>
+<pre><code class="language-cpp">struct A
+{
+    virtual int transmogrify();
+};
+
+struct B : A
+{
+    int transmogrify() override { ::new(this) A; return 2; }
+};
+
+inline int A::transmogrify() { ::new(this) B; return 1; }
+
+void test()
+{
+    A i;
+    int n = i.transmogrify();
+    // int m = i.transmogrify(); // comportement indéfini :
+    // le nouvel objet A est un sous-objet de base, tandis que l'ancien est un objet complet
+    int m = std::launder(&amp;i)-&gt;transmogrify(); // OK
+    assert(m + n == 3);
+}
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>De même, si un objet est créé dans le stockage d'un membre de classe ou d'un élément de tableau, l'objet créé n'est un sous-objet (membre ou élément) de l'objet englobant de l'objet original que si :</p>
+<ul>
+<li>la durée de vie de l'objet englobant a commencé et ne s'est pas terminée</li>
+<li>le stockage du nouvel objet recouvre exactement le stockage de l'objet original</li>
+<li>le nouvel objet est du même type que l'objet original (en ignorant la qualification cv).</li>
+</ul>
+<blockquote>
+<p>Sinon, le nom du sous-objet original ne peut pas être utilisé pour accéder au nouvel objet sans <a href="../utility/launder.html"><code>std::launder</code></a> :</p>
+<p>Cette section est incomplète<br />
+Raison : un exemple approprié</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h3 id="Providing_storage">Fourniture de stockage</h3>
+<p>À titre particulier, des objets peuvent être créés dans des tableaux de <code>unsigned char</code>ou <a href="../types/byte.html"><code>std::byte</code></a> <em>(depuis C++17)</em> (auquel cas on dit que le tableau <em>fournit le stockage</em> pour l'objet) si</p>
+<ul>
+<li>la durée de vie du tableau a commencé et ne s'est pas terminée</li>
+<li>le stockage du nouvel objet tient entièrement dans le tableau</li>
+<li>il n'existe aucun objet tableau satisfaisant ces contraintes imbriqué dans le tableau.</li>
+</ul>
+<p>Si cette portion du tableau fournissait précédemment le stockage à un autre objet, la durée de vie de cet objet se termine car son stockage a été réutilisé ; cependant, la durée de vie du tableau lui-même ne se termine pas (son stockage n'est pas considéré comme ayant été réutilisé).</p>
+<pre><code class="language-cpp">template&lt;typename... T&gt;
+struct AlignedUnion
+{
+    alignas(T...) unsigned char data[max(sizeof(T)...)];
+};
+
+int f()
+{
+    AlignedUnion&lt;int, char&gt; au;
+    int *p = new (au.data) int;     // OK, au.data fournit le stockage
+    char *c = new (au.data) char(); // OK, termine la durée de vie de *p
+    char *d = new (au.data + 1) char();
+    return *c + *d; // OK
+}
+</code></pre>
+<h2 id="Access_outside_of_lifetime">Accès en dehors de la durée de vie</h2>
+<p>Avant que la durée de vie d'un objet ait commencé mais après que le stockage que l'objet occupera a été alloué, ou après que la durée de vie d'un objet s'est terminée et avant que le stockage qu'il occupait soit réutilisé ou libéré, les comportements des utilisations suivantes de l'expression glvalue qui identifie cet objet sont indéfinis, sauf si l'objet est en cours de construction ou de destruction (un ensemble de règles distinct s'applique) :</p>
+<ol>
+<li>Conversion lvalue-vers-rvalue (par exemple appel d'une fonction qui prend une valeur).</li>
+<li>Accès à un membre de données non statique ou appel d'une fonction membre non statique.</li>
+<li>Liaison d'une référence à un sous-objet de classe de base virtuelle.</li>
+<li>Expressions <a href="dynamic_cast.html"><code>dynamic_cast</code></a> ou <a href="typeid.html"><code>typeid</code></a>.</li>
+</ol>
+<p>Les règles ci-dessus s'appliquent également aux pointeurs (la liaison d'une référence à une base virtuelle est remplacée par une conversion implicite en pointeur vers la base virtuelle), avec deux règles supplémentaires :</p>
+<ol>
+<li><a href="static_cast.html"><code>static_cast</code></a> d'un pointeur vers un stockage sans objet n'est autorisé que lors d'un transtypage vers <code>void*</code> (éventuellement qualifié cv).</li>
+<li>Les pointeurs vers du stockage sans objet, convertis en pointeurs vers <code>void*</code> potentiellement qualifié cv, ne peuvent être <a href="static_cast.html"><code>static_cast</code></a> que vers des pointeurs vers <code>char</code> potentiellement qualifié cv, ou vers <code>unsigned char</code> potentiellement qualifié cv, ou vers <a href="../types/byte.html"><code>std::byte</code></a>, potentiellement qualifié cv <em>(depuis C++17)</em>.</li>
+</ol>
+<p>Pendant la construction et la destruction, il est généralement permis d'appeler des fonctions membres non statiques, d'accéder aux membres de données non statiques et d'utiliser <a href="typeid.html"><code>typeid</code></a> et <a href="dynamic_cast.html"><code>dynamic_cast</code></a>. Cependant, comme la durée de vie n'a pas encore commencé (pendant la construction) ou est déjà terminée (pendant la destruction), seules certaines opérations spécifiques sont autorisées. Pour une restriction, voir <a href="virtual.html#During_construction_and_destruction">appels de fonctions virtuelles pendant la construction et la destruction</a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Jusqu'à la résolution de <a href="https://cplusplus.github.io/CWG/issues/2256.html">CWG issue 2256</a>, les règles de fin de durée de vie diffèrent entre les objets non classes (fin de la durée de stockage) et les objets classes (ordre inverse de construction) :</p>
+<pre><code class="language-cpp">struct A
+{
+    int* p;
+    ~A() { std::cout &lt;&lt; *p; } // comportement indéfini depuis CWG2256 : n ne survit pas à a
+                              // bien défini jusqu'à CWG2256 : affiche 123
+};
+
+void f()
+{
+    A a;
+    int n = 123; // si n ne survivait pas à a, ceci pouvait être optimisé (store mort)
+    a.p = &amp;n;
+}
+</code></pre>
+<p>Jusqu'à la résolution de <a href="https://wg21.link/p1971r0#RU007">RU007</a>, un membre non statique de type qualifié const ou de type référence empêche son objet englobant d'être remplaçable de manière transparente, ce qui rend <a href="../container/vector.html"><code>std::vector</code></a> et <a href="../container/deque.html"><code>std::deque</code></a> difficiles à implémenter :</p>
+<pre><code class="language-cpp">struct X { const int n; };
+union U { X x; float f; };
+
+void tong()
+{
+    U u = { {1} };
+    u.f = 5.f;                          // OK : crée un nouveau sous-objet de 'u'
+    X *p = new (&amp;u.x) X {2};            // OK : crée un nouveau sous-objet de 'u'
+    assert(p-&gt;n == 2);                  // OK
+    assert(u.x.n == 2);                 // non défini jusqu'à RU007 :
+                                        // « u.x » ne désigne pas le nouveau sous-objet
+    assert(*std::launder(&amp;u.x.n) == 2); // OK même jusqu'à RU007
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/119.html">CWG 119</a></td>
+<td>C++98</td>
+<td>un objet d'un type classe avec un constructeur non trivial ne peut commencer sa durée de vie qu'une fois l'appel du constructeur terminé</td>
+<td>la durée de vie commençait aussi pour d'autres initialisations</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/201.html">CWG 201</a></td>
+<td>C++98</td>
+<td>la durée de vie d'un objet temporaire dans un argument par défaut d'un constructeur par défaut devait se terminer lorsque l'initialisation du tableau était achevée</td>
+<td>la durée de vie se termine avant l'initialisation de l'élément suivant (résout également <a href="https://cplusplus.github.io/CWG/issues/124.html">CWG issue 124</a>)</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/274.html">CWG 274</a></td>
+<td>C++98</td>
+<td>une lvalue désignant un objet hors de sa durée de vie pouvait être utilisée comme opérande de static_cast seulement si la conversion aboutissait finalement à <code>char&amp;</code> ou <code>unsigned char&amp;</code> sans qualificatif cv</td>
+<td>qualifié cv <code>char&amp;</code> et <code>unsigned char&amp;</code> également autorisés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/597.html">CWG 597</a></td>
+<td>C++98</td>
+<td>les comportements suivants étaient indéfinis : 1. un pointeur vers un objet hors de sa durée de vie est implicitement converti en pointeur vers une classe de base non virtuelle 2. une lvalue désignant un objet hors de sa durée de vie est liée à une référence vers une classe de base non virtuelle 3. une lvalue désignant un objet hors de sa durée de vie est utilisée comme opérande d'un <code>static_cast</code> (avec quelques exceptions)</td>
+<td>rendue bien définie</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2012.html">CWG 2012</a></td>
+<td>C++98</td>
+<td>la durée de vie des références était spécifiée comme correspondant à la durée de stockage, exigeant que les références extern soient vivantes avant l'exécution de leurs initialiseurs</td>
+<td>la durée de vie commence à l'initialisation</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2107.html">CWG 2107</a></td>
+<td>C++98</td>
+<td>la résolution de <a href="https://cplusplus.github.io/CWG/issues/124.html">CWG issue 124</a> n'a pas été appliquée aux constructeurs de copie</td>
+<td>applied</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2256.html">CWG 2256</a></td>
+<td>C++98</td>
+<td>la durée de vie des objets trivialement destructibles était incohérente avec celle des autres objets</td>
+<td>rendue cohérente</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2470.html">CWG 2470</a></td>
+<td>C++98</td>
+<td>plusieurs tableaux pouvaient fournir le stockage d'un même objet</td>
+<td>un seul en fournit un</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2489.html">CWG 2489</a></td>
+<td>C++98</td>
+<td><code>char[]</code> ne peut pas fournir de stockage, mais des objets pouvaient être implicitement créés dans son stockage</td>
+<td>des objets ne peuvent pas être implicitement créés dans le stockage de <code>char[]</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2527.html">CWG 2527</a></td>
+<td>C++98</td>
+<td>si un destructeur n'est pas invoqué en raison de la réutilisation du stockage et que le programme dépend de ses effets de bord, le comportement était indéfini</td>
+<td>le comportement est bien défini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2721.html">CWG 2721</a></td>
+<td>C++98</td>
+<td>le moment exact de la réutilisation du stockage était peu clair pour le placement <code>new</code></td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2849.html">CWG 2849</a></td>
+<td>C++23</td>
+<td>les objets paramètres de fonction étaient considérés comme des objets temporaires pour l'extension de durée de vie des objets temporaires dans une boucle sur intervalle<code>for</code></td>
+<td>ils n'étaient pas considérés comme des objets temporaires</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2854.html">CWG 2854</a></td>
+<td>C++98</td>
+<td>les objets exception étaient des objets temporaires</td>
+<td>ils ne sont pas des objets temporaires</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2867.html">CWG 2867</a></td>
+<td>C++17</td>
+<td>la durée de vie des objets temporaires créés dans les déclarations de liaisons structurées n'était pas étendue</td>
+<td>étendue jusqu'à la fin de la déclaration</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0137R1">P0137R1</a></td>
+<td>C++98</td>
+<td>la création d'un objet dans un tableau de <code>unsigned char</code> réutilisait son stockage</td>
+<td>son stockage n'est pas réutilisé</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0593R6">P0593R6</a></td>
+<td>C++98</td>
+<td>un appel de pseudo-destructeur n'avait aucun effet</td>
+<td>il détruit l'objet</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P1971R0">P1971R0</a></td>
+<td>C++98</td>
+<td>un membre non statique de type qualifié const ou de type référence empêchait son objet englobant d'être remplaçable de manière transparente</td>
+<td>restriction supprimée</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2103R0">P2103R0</a></td>
+<td>C++98</td>
+<td>la remplaçabilité transparente n'imposait pas de conserver la structure d'origine</td>
+<td>requires</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>6.7.3 Durée de vie des objets [basic.life]</li>
+<li>11.9.5 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>6.7.3 Durée de vie des objets [basic.life]</li>
+<li>11.10.4 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>6.8 Durée de vie des objets [basic.life]</li>
+<li>15.7 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>3 Durée de vie des objets [basic.life]</li>
+<li>12.7 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>3.8 Durée de vie des objets [basic.life]</li>
+<li>12.7 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>3.8 Durée de vie des objets [basic.life]</li>
+<li>12.7 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>3.8 Durée de vie des objets [basic.life]</li>
+<li>12.7 Construction et destruction [class.cdtor]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/language/lifetime.html">Documentation C</a> pour Durée de vie</strong></p>
+
+</main>
+</body>
+</html>

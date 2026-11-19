@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::execution::sequenced_policy, std::execution::parallel_policy, std::execution::parallel_unsequenced_policy, std::execution::unsequenced_policy — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-execution-sequenced_policy-std-execution-parallel_policy-std-execution-parallel_unsequenced_policy-std-execution-unsequenced_policy"><code>std::execution::sequenced_policy, std::execution::parallel_policy, std::execution::parallel_unsequenced_policy, std::execution::unsequenced_policy</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/execution_policy_tag_t">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;execution&gt;</strong></p>
+<pre><code class="language-cpp">class sequenced_policy { /* unspecified */ };  // (1) (depuis C++17)
+
+class parallel_policy { /* unspecified */ };  // (2) (depuis C++17)
+
+class parallel_unsequenced_policy { /* unspecified */ };  // (3) (depuis C++17)
+
+class unsequenced_policy { /* unspecified */ };  // (4) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Le type de politique d'exécution utilisé comme type unique pour lever l'ambiguïté de la surcharge des algorithmes parallèles et exiger que l'exécution d'un algorithme parallèle ne puisse pas être parallélisée. Les invocations des fonctions d'accès aux éléments dans les algorithmes parallèles appelés avec cette politique (généralement spécifiée comme <a href="execution_policy_tag.html"><code>std::execution::seq</code></a>) sont indéterminément séquencées dans le thread appelant.</p>
+</li>
+<li>
+<p>Le type de politique d'exécution utilisé comme type unique pour lever l'ambiguïté de la surcharge des algorithmes parallèles et indiquer que l'exécution d'un algorithme parallèle peut être parallélisée. Les invocations des fonctions d'accès aux éléments dans les algorithmes parallèles appelés avec cette politique (généralement spécifiée comme <a href="execution_policy_tag.html"><code>std::execution::par</code></a>) peuvent être exécutées soit dans le thread appelant, soit dans un thread créé implicitement par la bibliothèque pour prendre en charge l'exécution de l'algorithme parallèle. Les invocations s'exécutant dans le même thread sont indéterminément séquencées les unes par rapport aux autres. Si les threads d'exécution créés par <a href="../thread/thread.html"><code>std::thread</code></a> ou <a href="../thread/jthread.html"><code>std::jthread</code></a> garantissent une progression concurrente, alors les threads d'exécution créés par la bibliothèque garantissent une progression parallèle. Sinon, la garantie de progression fournie est définie par l'implémentation. Note : la progression parallèle garantit que si un thread d'exécution effectue un pas, il finira par en effectuer un autre, ce qui permet aux threads d'entrer dans des sections critiques et de prendre des verrous, car le thread qui détient le verrou sera à nouveau ordonnancé et pourra le libérer.</p>
+</li>
+<li>
+<p>Le type de politique d'exécution utilisé comme type unique pour lever l'ambiguïté de la surcharge des algorithmes parallèles et indiquer que l'exécution d'un algorithme parallèle peut être parallélisée, vectorisée ou migrée entre threads (par exemple par un ordonnanceur à vol de continuation). Les invocations des fonctions d'accès aux éléments dans les algorithmes parallèles appelés avec cette politique peuvent être exécutées de manière non ordonnée, dans des threads non spécifiés, et non séquencées les unes par rapport aux autres au sein de chaque thread. L'invocation de fonctions d'accès aux éléments dans les algorithmes parallèles appelés avec cette politique ne doit pas invoquer d'opérations non sûres pour la vectorisation, comme celles spécifiées par la bibliothèque standard pour la synchronisation, y compris celles de <a href="../atomic/atomic.html"><code>std::atomic</code></a> et d'autres primitives de concurrence. Si les threads d'exécution créés par <a href="../thread/thread.html"><code>std::thread</code></a> ou <a href="../thread/jthread.html"><code>std::jthread</code></a> garantissent une progression concurrente, alors les threads d'exécution créés par la bibliothèque garantissent une progression faiblement parallèle. Sinon, la garantie de progression fournie est celle du thread invoquant l'algorithme parallèle. Note : la progression faiblement parallèle garantit qu'un des threads d'exécution ayant effectué un pas en effectuera un autre, ce qui ne permet pas aux threads d'entrer dans des sections critiques ni de prendre des verrous, car le thread qui détient le verrou peut ne pas être ordonnancé à nouveau avant qu'un thread tentant de prendre le verrou ait quitté.</p>
+</li>
+<li>
+<p>Le type de politique d'exécution utilisé comme type unique pour lever l'ambiguïté de la surcharge des algorithmes parallèles et indiquer que l'exécution d'un algorithme parallèle peut être vectorisée, par exemple exécutée sur un seul thread à l'aide d'instructions opérant sur plusieurs données à la fois.</p>
+</li>
+</ol>
+<p>Pendant l'exécution d'un algorithme parallèle avec l'une de ces politiques d'exécution, si l'invocation d'une fonction d'accès aux éléments se termine par une exception non interceptée, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée, mais les implémentations peuvent définir des politiques d'exécution supplémentaires qui traitent les exceptions différemment.</p>
+<h2 id="Notes">Notes</h2>
+<p>Lors de l'utilisation d'une politique d'exécution parallèle, il incombe au programmeur d'éviter les courses de données et les interblocages :</p>
+<pre><code class="language-cpp">int a[] = {0, 1};
+std::vector&lt;int&gt; v;
+std::for_each(std::execution::par, std::begin(a), std::end(a), [&amp;](int i)
+{
+    v.push_back(i * 2 + 1); // Erreur : course de données
+});
+</code></pre>
+<pre><code class="language-cpp">std::atomic&lt;int&gt; x {0};
+int a[] = {1, 2};
+std::for_each(std::execution::par, std::begin(a), std::end(a), [&amp;](int)
+{
+    x.fetch_add(1, std::memory_order_relaxed);
+    while (x.load(std::memory_order_relaxed) == 1) { } // Erreur : suppose un ordre d'exécution
+});
+</code></pre>
+<pre><code class="language-cpp">int x = 0;
+std::mutex m;
+int a[] = {1, 2};
+std::for_each(std::execution::par, std::begin(a), std::end(a), [&amp;](int)
+{
+    std::lock_guard&lt;std::mutex&gt; guard(m);
+    ++x; // correct
+});
+</code></pre>
+<p>Les politiques d'exécution non séquencées sont le seul cas où des appels de fonction sont <em>non séquencés</em> les uns par rapport aux autres, ce qui signifie qu'ils peuvent être entrelacés. Dans toutes les autres situations en C++, ils sont <a href="../language/eval_order.html">indéterminément séquencés</a> (ne peuvent pas être entrelacés). Pour cette raison, il est interdit aux utilisateurs d'allouer ou de désallouer de la mémoire, d'acquérir des mutex, d'utiliser des spécialisations de <a href="../atomic/atomic.html"><code>std::atomic</code></a> non sans verrou, ou, plus généralement, d'effectuer des opérations <em>non sûres pour la vectorisation</em> lorsqu'ils utilisent ces politiques (les fonctions non sûres pour la vectorisation sont celles qui se synchronisent avec une autre fonction, par exemple <a href="../thread/mutex/unlock.html"><code>std::mutex::unlock</code></a> se synchronise avec le <a href="../thread/mutex/lock.html"><code>std::mutex::lock</code></a> suivant).</p>
+<pre><code class="language-cpp">int x = 0;
+std::mutex m;
+int a[] = {1, 2};
+std::for_each(std::execution::par_unseq, std::begin(a), std::end(a), [&amp;](int)
+{
+    std::lock_guard&lt;std::mutex&gt; guard(m); // Erreur : le constructeur de lock_guard appelle m.lock()
+    ++x;
+});
+</code></pre>
+<p>Si l'implémentation ne peut pas paralléliser ou vectoriser (par exemple faute de ressources), toutes les politiques d'exécution standard peuvent se replier sur une exécution séquentielle.</p>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="execution_policy_tag.html">seqparpar_unsequnseq</a> (C++17) (C++17) (C++17) (C++20)</strong> — objets de politique d'exécution globaux <em>(constante)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

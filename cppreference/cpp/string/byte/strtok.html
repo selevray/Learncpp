@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::strtok — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="std-strtok"><code>std::strtok</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/byte/strtok">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstring&gt;</strong></p>
+<pre><code class="language-cpp">char* strtok( char* str, const char* delim );
+</code></pre>
+<p>Trouve le jeton suivant dans la chaîne d'octets terminée par un caractère nul pointée par <code>str</code>. Les caractères séparateurs sont identifiés par la chaîne d'octets terminée par un caractère nul pointée par <code>delim</code>.</p>
+<p>Cette fonction est conçue pour être appelée plusieurs fois afin d'obtenir des jetons successifs de la même chaîne.</p>
+<ul>
+<li>
+<p>Si <code>str</code> n'est pas un pointeur nul, l'appel est traité comme le premier appel à <code>strtok</code> pour cette chaîne particulière. La fonction recherche le premier caractère qui n'est <em>pas</em> contenu dans <code>delim</code>.</p>
+<ul>
+<li>Si aucun tel caractère n'est trouvé, il n'y a aucun jeton dans <code>str</code> et la fonction renvoie un pointeur nul.</li>
+<li>Si un tel caractère est trouvé, il constitue le <em>début du jeton</em>. La fonction recherche ensuite, à partir de ce point, le premier caractère qui <em>est</em> contenu dans <code>delim</code>.
+<ul>
+<li>Si aucun tel caractère n'est trouvé, <code>str</code> ne comporte qu'un seul jeton, et les appels futurs à <code>strtok</code> renverront un pointeur nul.</li>
+<li>Si un tel caractère est trouvé, il est <em>remplacé</em> par le caractère nul <code>'\0'</code> et le pointeur vers le caractère suivant est stocké dans un emplacement statique pour les invocations suivantes.</li>
+</ul>
+</li>
+<li>La fonction renvoie ensuite le pointeur vers le début du jeton.</li>
+</ul>
+</li>
+<li>
+<p>Si <code>str</code> est un pointeur nul, l'appel est traité comme un appel ultérieur à <code>strtok</code> : la fonction reprend là où elle s'était arrêtée lors de l'invocation précédente. Le comportement est le même que si le pointeur précédemment stocké était passé comme <code>str</code>.</p>
+</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>str</code> — pointeur vers la chaîne d'octets terminée par un caractère nul à découper en jetons</li>
+<li><code>delim</code> — pointeur vers la chaîne d'octets terminée par un caractère nul identifiant les délimiteurs</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Pointeur vers le début du jeton suivant, ou un <code>nullptr</code> s'il n'y a plus de jetons.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction est destructive : elle écrit les caractères <code>'\0'</code> dans les éléments de la chaîne <code>str</code>. En particulier, un <a href="../../language/string_literal.html">littéral de chaîne</a> ne peut pas être utilisé comme premier argument de <code>std::strtok</code>.</p>
+<p>Chaque appel à cette fonction modifie une variable statique : elle n'est pas thread-safe.</p>
+<p>Contrairement à la plupart des autres découpeurs, les délimiteurs dans <code>std::strtok</code> peuvent être différents pour chaque jeton suivant, et peuvent même dépendre du contenu des jetons précédents.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">char* strtok(char* str, const char* delim)
+{
+    static char* buffer;
+
+    if (str != nullptr)
+        buffer = str;
+
+    buffer += std::strspn(buffer, delim);
+
+    if (*buffer == '\0')
+        return nullptr;
+
+    char* const tokenBegin = buffer;
+
+    buffer += std::strcspn(buffer, delim);
+
+    if (*buffer != '\0')
+        *buffer++ = '\0';
+
+    return tokenBegin;
+}
+</code></pre>
+<p>Les implémentations réelles de cette fonction de la bibliothèque C++ délèguent à la bibliothèque C, où elle peut être implémentée directement (comme dans <a href="https://github.com/bminor/musl/blob/master/src/string/strtok.c">MUSL libc</a>), ou en termes de sa version réentrante (comme dans <a href="https://github.com/bminor/glibc/blob/master/string/strtok.c">GNU libc</a>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstring&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    char input[] = &quot;one + two * (three - four)!&quot;;
+    const char* delimiters = &quot;! +- (*)&quot;;
+    char* token = std::strtok(input, delimiters);
+    while (token)
+    {
+        std::cout &lt;&lt; std::quoted(token) &lt;&lt; ' ';
+        token = std::strtok(nullptr, delimiters);
+    }
+
+    std::cout &lt;&lt; &quot;\nContents of the input string now:\n\&quot;&quot;;
+    for (std::size_t n = 0; n &lt; sizeof input; ++n)
+    {
+        if (const char c = input[n]; c != '\0')
+            std::cout &lt;&lt; c;
+        else
+            std::cout &lt;&lt; &quot;\\0&quot;;
+    }
+    std::cout &lt;&lt; &quot;\&quot;\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">&quot;one&quot; &quot;two&quot; &quot;three&quot; &quot;four&quot;
+Contents of the input string now:
+&quot;one\0+ two\0* (three\0- four\0!\0&quot;
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="strpbrk.html">strpbrk</a></strong> — trouve la première position de n'importe quel caractère d'un ensemble de séparateurs <em>(fonction)</em></li>
+<li><strong><a href="strcspn.html">strcspn</a></strong> — renvoie la longueur du segment initial maximal composé uniquement de caractères ne figurant pas dans une autre chaîne d'octets , <em>(fonction)</em></li>
+<li><strong><a href="strspn.html">strspn</a></strong> — renvoie la longueur du segment initial maximal composé uniquement de caractères figurant dans une autre chaîne d'octets , <em>(fonction)</em></li>
+<li><strong><a href="../../ranges/split_view.html">ranges::split_viewviews::split</a> (C++20)</strong> — une <a href="../../ranges/view.html"><code>view</code></a> sur les sous-intervalles obtenus en découpant un autre <a href="../../ranges/view.html"><code>view</code></a> à l'aide d'un délimiteur <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/byte/strtok.html">Documentation C</a> pour strtok</strong></p>
+
+</main>
+</body>
+</html>

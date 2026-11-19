@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::optional&lt;T&gt;::operator= — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../cpp/experimental/optional.html">std::experimental::optional</a></nav>
+<h1 id="std-experimental-optional-t-operator"><code>std::experimental::optional&lt;T&gt;::operator=</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/optional/operator=">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">optional&amp; operator=( std::experimental::nullopt_t ) noexcept;  // (1) (TS des fondamentaux de la bibliothèque)
+
+optional&amp; operator=( const optional&amp; other );  // (2) (TS des fondamentaux de la bibliothèque)
+
+optional&amp; operator=( optional&amp;&amp; other ) noexcept(/* voir ci-dessous */);  // (3) (TS des fondamentaux de la bibliothèque)
+
+template&lt; class U &gt;
+optional&amp; operator=( U&amp;&amp; value );  // (4) (TS des fondamentaux de la bibliothèque)
+</code></pre>
+<p>Remplace le contenu de <code>*this</code> par le contenu de <code>other</code>.</p>
+<ol>
+<li>Si <code>*this</code> contient une valeur avant l'appel, la valeur contenue est détruite en appelant son destructeur, comme si l'on appelait <code>val-&gt;T::~T()</code>. <code>*this</code> ne contient pas de valeur après cet appel.</li>
+</ol>
+<p>2,3) Affecte l'état de <code>other</code>.</p>
+<ul>
+<li>Si <code>*this</code> et <code>other</code> ne contiennent tous deux pas de valeur, la fonction n'a aucun effet.</li>
+<li>Si <code>*this</code> contient une valeur mais que <code>other</code> n'en contient pas, la valeur contenue est détruite en appelant son destructeur. <code>*this</code> ne contient pas de valeur après l'appel.</li>
+<li>Si <code>other</code> contient une valeur, alors selon que <code>*this</code> contient ou non une valeur, la valeur contenue est soit <a href="../../language/direct_initialization.html">initialisée directement</a>, soit affectée à partir de <code>*other</code> <code>(2)</code> ou de <code>std::move(*other)</code> <code>(3)</code>. Notez qu'un optionnel déplacé <em>contient toujours une valeur</em>.</li>
+</ul>
+<ol start="4">
+<li>Affectation parfaitement transmise, réservée à la déduction : selon que <code>*this</code> contient une valeur avant l'appel, la valeur contenue est soit initialisée directement à partir de <code>std::forward&lt;U&gt;(value)</code>, soit affectée à partir de <code>std::forward&lt;U&gt;(value)</code>. La fonction ne participe pas à la résolution de surcharge sauf si <code>std::is_same&lt;std::decay_t&lt;U&gt;, T&gt;::value</code> est <code>true</code>.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — un autre objet <code>optional</code> dont la valeur contenue doit être affectée</li>
+<li><code>value</code> — valeur à affecter à la valeur contenue</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>T</code> doit satisfaire aux exigences de <a href="../../named_req/CopyAssignable.html"><em>CopyAssignable</em></a> et de <a href="../../named_req/CopyConstructible.html"><em>CopyConstructible</em></a> pour utiliser la surcharge (2).</li>
+<li><code>T</code> doit satisfaire aux exigences de <a href="../../named_req/MoveAssignable.html"><em>MoveAssignable</em></a> et de <a href="../../named_req/MoveConstructible.html"><em>MoveConstructible</em></a> pour utiliser la surcharge (3).</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>2-4) Lève toute exception levée par le constructeur ou l'opérateur d'affectation de <code>T</code>. Si une exception est levée, l'état d'initialisation de <code>*this</code> (et de <code>other</code> dans le cas de (2)) est inchangé, c'est-à-dire que si l'objet contenait une valeur, il en contient toujours une, et inversement. Le contenu de <code>value</code> et les valeurs contenues de <code>*this</code> et <code>other</code> dépendent des garanties de sûreté d'exception de l'opération à l'origine de l'exception (constructeur de copie, affectation par déplacement, etc.).<br />
+<code>(3)</code> a la déclaration <code>noexcept</code> suivante :<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept(std::is_nothrow_move_assignable&lt;T&gt;::value &amp;&amp; std::is_nothrow_move_constructible&lt;T&gt;::value)</code></p>
+<h2 id="Notes">Notes</h2>
+<p>Un objet optionnel <code>op</code> peut être transformé en optionnel vide à l'aide de <code>op = {};</code> et de <code>op = nullopt;</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;experimental/optional&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::experimental::optional&lt;const char*&gt; s1 = &quot;abc&quot;, s2; // constructor
+    s2 = s1; // assignment
+    s1 = &quot;def&quot;; // affectation avec décroissance (U = char[4], T = const char*)
+    std::cout &lt;&lt; *s2 &lt;&lt; ' ' &lt;&lt; *s1 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">abc def
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="emplace.html">emplace</a></strong> — construit la valeur contenue sur place <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

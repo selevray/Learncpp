@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spécificateur constinit (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="spécificateur-constinit-depuis-c-20">spécificateur constinit (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/constinit">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<ul>
+<li><code>constinit</code> - affirme qu'une variable a une initialisation statique, c'est-à-dire une <a href="zero_initialization.html">initialisation à zéro</a> et une <a href="constant_initialization.html">initialisation constante</a>, sinon le programme est mal formé.</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Le spécificateur <code>constinit</code> déclare une variable de <a href="storage_duration.html">durée de stockage</a> statique ou de thread.</p>
+<blockquote>
+<p>Le spécificateur <code>constinit</code> peut aussi être appliqué aux déclarations de <a href="structured_binding.html">liaison structurée</a>. Dans ce cas, <code>constinit</code> est également appliqué à la <a href="structured_binding.html#Binding_process">variable de nom unique</a> introduite par la déclaration.</p>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Si une variable est déclarée avec <code>constinit</code>, sa <a href="initialization.html">déclaration d'initialisation</a> doit être appliquée avec <code>constinit</code>. Si une variable déclarée avec <code>constinit</code> a une <a href="initialization.html#Dynamic_initialization">initialisation dynamique</a> (même si elle est <a href="initialization.html#Early_dynamic_initialization">réalisée comme une initialisation statique</a>), le programme est mal formé.</p>
+<p>Si aucune déclaration <code>constinit</code> n'est accessible au point de la déclaration d'initialisation, le programme est mal formé, aucun diagnostic requis.</p>
+<p><code>constinit</code> ne peut pas être utilisé avec <code>constexpr</code>. Lorsque la variable déclarée est une référence, <code>constinit</code> est équivalent à <code>constexpr</code>. Lorsque la variable déclarée est un objet, <code>constexpr</code> exige que l'objet ait une initialisation statique et une destruction constante et rend l'objet qualifié const, en revanche, <code>constinit</code> n'exige pas de destruction constante ni de qualification const. Ainsi, un objet d'un type ayant des constructeurs constexpr et sans destructeur constexpr (par exemple <code>std::shared_ptr&lt;T&gt;</code>) peut être déclaré avec <code>constinit</code> mais pas avec <code>constexpr</code>.</p>
+<pre><code class="language-cpp">const char* g() { return &quot;dynamic initialization&quot;; }
+constexpr const char* f(bool p) { return p ? &quot;constant initializer&quot; : g(); }
+
+constinit const char* c = f(true);     // OK
+// constinit const char* d = f(false); // erreur
+</code></pre>
+<p><code>constinit</code> peut aussi être utilisé dans une déclaration non initialisante pour indiquer au compilateur qu'une variable <code>thread_local</code> est déjà initialisée, <a href="storage_duration.html#Static_local_variables">réduisant la surcharge</a> qui serait sinon engendrée par une variable de garde cachée.</p>
+<pre><code class="language-cpp">extern thread_local constinit int x;
+int f() { return x; } // aucune vérification d'une variable de garde nécessaire
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_constinit"><code>__cpp_constinit</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_constinit_201907L"><code>201907L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><code>constinit</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/constinit.html"><code>constinit</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+
+constexpr int square(int i)
+{
+    return i * i;
+}
+
+int twice(int i)
+{
+    return i + i;
+}
+
+constinit int sq = square(2);    // OK : l'initialisation est faite à la compilation
+// constinit int x_x = twice(2); // Error: compile time initializer required
+
+int square_4_gen()
+{
+    static constinit int pow = square(4);
+
+    // constinit int prev = pow; // Erreur : constinit ne peut être appliqué qu'à une
+                                 // variable à durée de stockage statique ou de thread
+    int prev = pow;
+    pow = pow * pow;
+    return prev;
+}
+
+int main()
+{
+    assert(sq == 4);
+    sq = twice(1); // Contrairement à constexpr, cette valeur peut être modifiée plus tard à l'exécution
+    assert(sq == 2);
+
+    assert(square_4_gen() == 16);
+    assert(square_4_gen() == 256);
+    assert(square_4_gen() == 65536);
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2543.html">CWG 2543</a></td>
+<td>C++20</td>
+<td>le comportement n'était pas clair si la variable déclarée avec <code>constinit</code> est initialisée dynamiquement dans le cadre de l'initialisation statique</td>
+<td>le programme est mal formé dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="consteval.html"><code>consteval</code> spécificateur</a> (C++20)</strong> — spécifie qu'une fonction est une <em>fonction immédiate</em>, c'est-à-dire que chaque appel à la fonction doit se faire dans une évaluation constante</li>
+<li><strong><a href="constexpr.html">spécificateur <code>constexpr</code></a> (depuis C++11)</strong> — spécifie que la valeur d'une variable ou d'une fonction peut être calculée à la compilation</li>
+<li><strong><a href="constant_expression.html">expression constante</a></strong> — définit une <a href="expressions.html">expression</a> qui peut être évaluée à la compilation</li>
+<li><strong><a href="constant_initialization.html">initialisation constante</a></strong> — fixe les valeurs initiales des variables <a href="storage_duration.html">statiques</a> à une constante de compilation</li>
+<li><strong><a href="zero_initialization.html">initialisation à zéro</a></strong> — fixe la valeur initiale d'un objet à zéro</li>
+</ul>
+
+</main>
+</body>
+</html>

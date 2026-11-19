@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::assignable_from — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/concepts.html">Bibliothèque des concepts (depuis C++20)</a></nav>
+<h1 id="std-assignable_from"><code>std::assignable_from</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/concepts/assignable_from">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;concepts&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class LHS, class RHS &gt;
+concept assignable_from =
+    std::is_lvalue_reference_v&lt;LHS&gt; &amp;&amp;
+    std::common_reference_with&lt;
+        const std::remove_reference_t&lt;LHS&gt;&amp;,
+        const std::remove_reference_t&lt;RHS&gt;&amp;&gt; &amp;&amp;
+    requires(LHS lhs, RHS&amp;&amp; rhs) {
+        { lhs = std::forward&lt;RHS&gt;(rhs) } -&gt; std::same_as&lt;LHS&gt;;
+    };  // (depuis C++20)
+</code></pre>
+<p>Le concept <code>assignable_from&lt;LHS, RHS&gt;</code> spécifie qu'une expression du type et de la catégorie de valeur spécifiés par <code>RHS</code> peut être affectée à une expression lvalue dont le type est spécifié par <code>LHS</code>.</p>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Soient</p>
+<ul>
+<li><code>lhs</code>, une lvalue qui fait référence à un objet <code>lcopy</code> tel que <code>decltype((lhs))</code> vaut <code>LHS</code>,</li>
+<li><code>rhs</code>, une expression telle que <code>decltype((rhs))</code> est <code>RHS</code>,</li>
+<li><code>rcopy</code>, un objet distinct égal à <code>rhs</code>,</li>
+</ul>
+<p><code>assignable_from&lt;LHS, RHS&gt;</code> n'est modélisé que si</p>
+<ul>
+<li><code>std::addressof(lhs = rhs) == std::addressof(lcopy)</code> (c'est-à-dire que l'expression d'affectation produit une lvalue faisant référence à l'opérande de gauche) ;</li>
+<li>Après évaluation de <code>lhs = rhs</code> :
+<ul>
+<li><code>lhs</code> est égal à <code>rcopy</code>, sauf si <code>rhs</code> est une xvalue non const faisant référence à <code>lcopy</code> (c'est-à-dire si l'affectation est une auto-affectation par déplacement),</li>
+<li>si <code>rhs</code> est une glvalue :
+<ul>
+<li>Si c'est une xvalue non const, l'objet auquel elle fait référence se trouve dans un état valide mais non spécifié ;</li>
+<li>Sinon, l'objet auquel elle fait référence n'est pas modifié ;</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="Equality_preservation">Préservation de l'égalité</h2>
+<p>Les expressions déclarées dans les <a href="../language/requires.html"><code>requires</code> expressions</a> des concepts de la bibliothèque standard doivent être <a href="../concepts.html#Equality_preservation">préservant l'égalité</a> (sauf mention contraire).</p>
+<h2 id="Notes">Notes</h2>
+<p>L'affectation n'a pas nécessairement à être une fonction totale. En particulier, si l'affectation à un objet <code>x</code> peut entraîner la modification d'un autre objet <code>y</code>, alors <code>x = y</code> n'est probablement pas dans le domaine de <code>=</code>. Cela se produit typiquement lorsque l'opérande de droite appartient directement ou indirectement à l'opérande de gauche (par exemple avec des pointeurs intelligents vers des nœuds d'une structure de données basée sur des nœuds, ou avec quelque chose comme <code>std::vector&lt;std::any&gt;</code>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;concepts&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    // Utilisation de base classique, vérifie l'affectation à une référence lvalue
+    static_assert(std::is_assignable_v&lt;int&amp;, int&gt;);
+    static_assert(std::assignable_from&lt;int&amp;, int&gt;);
+
+    static_assert(std::is_assignable_v&lt;std::string&amp;, std::string&gt;);
+    static_assert(std::assignable_from&lt;std::string&amp;, std::string&gt;);
+
+    // Les types fondamentaux ne prennent pas en charge l'affectation à une rvalue
+    static_assert(!std::is_assignable_v&lt;int, int&gt;);
+    static_assert(!std::assignable_from&lt;int, int&gt;);
+
+    // std::assignable_from n'accepte pas toutes les expressions d'affectation valides :
+
+    // affectation à une référence rvalue
+    static_assert(std::is_assignable_v&lt;std::string&amp;&amp;, std::string&gt;);
+    static_assert(!std::assignable_from&lt;std::string&amp;&amp;, std::string&gt;);
+
+    // affectation à une rvalue
+    static_assert(std::is_assignable_v&lt;std::string, std::string&gt;);
+    static_assert(!std::assignable_from&lt;std::string, std::string&gt;);
+
+    // std::atomic::operator= renvoie par valeur
+    static_assert(std::is_assignable_v&lt;std::atomic&lt;int&gt;&amp;, int&gt;);
+    static_assert(!std::assignable_from&lt;std::atomic&lt;int&gt;&amp;, int&gt;);
+}
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>18.4.8 Concept <code>assignable_from</code> [concept.assignable]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>18.4.8 Concept <code>assignable_from</code> [concept.assignable]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../types/is_assignable.html">is_assignableis_trivially_assignableis_nothrow_assignable</a> (C++11) (C++11) (C++11)</strong> — vérifie si un type possède un opérateur d'affectation pour un argument spécifique <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

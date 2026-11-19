@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::weak_ptr&lt;T&gt;::~weak_ptr — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/weak_ptr.html">std::weak_ptr</a></nav>
+<h1 id="std-weak_ptr-t-weak_ptr"><code>std::weak_ptr&lt;T&gt;::~weak_ptr</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/weak_ptr/~weak_ptr">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">~weak_ptr();  // (depuis C++11)
+</code></pre>
+<p>Détruit l'objet <code>weak_ptr</code>. N'a aucun effet sur l'objet géré.</p>
+<h2 id="Example">Exemple</h2>
+<p>Le programme montre l'effet de « désamorcer » le cycle de <a href="../shared_ptr.html"><code>std::shared_ptr</code></a>s.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;variant&gt;
+
+class Node
+{
+    char id;
+    std::variant&lt;std::weak_ptr&lt;Node&gt;, std::shared_ptr&lt;Node&gt;&gt; ptr;
+public:
+    Node(char id) : id{id} {}
+    ~Node() { std::cout &lt;&lt; &quot;  '&quot; &lt;&lt; id &lt;&lt; &quot;' reclaimed\n&quot;; }
+    /*...*/
+    void assign(std::weak_ptr&lt;Node&gt; p) { ptr = p; }
+    void assign(std::shared_ptr&lt;Node&gt; p) { ptr = p; }
+};
+
+enum class shared { all, some };
+
+void test_cyclic_graph(const shared x)
+{
+    auto A = std::make_shared&lt;Node&gt;('A');
+    auto B = std::make_shared&lt;Node&gt;('B');
+    auto C = std::make_shared&lt;Node&gt;('C');
+
+    A-&gt;assign(B);
+    B-&gt;assign(C);
+
+    if (shared::all == x)
+    {
+        C-&gt;assign(A);
+        std::cout &lt;&lt; &quot;All links are shared pointers&quot;;
+    }
+    else
+    {
+        C-&gt;assign(std::weak_ptr&lt;Node&gt;(A));
+        std::cout &lt;&lt; &quot;One link is a weak_ptr&quot;;
+    }
+    /*...*/
+    std::cout &lt;&lt; &quot;\nLeaving...\n&quot;;
+}
+
+int main()
+{
+    test_cyclic_graph(shared::some);
+    test_cyclic_graph(shared::all); // provoque une fuite mémoire
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">One link is a weak_ptr
+Leaving...
+  'A' reclaimed
+  'B' reclaimed
+  'C' reclaimed
+All links are shared pointers
+Leaving...
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../shared_ptr/~shared_ptr.html">(destructeur)</a></strong> — détruit l'objet possédé si plus aucun <code>shared_ptr</code> ne le lie <em>(fonction membre publique de <code>std::shared_ptr&lt;T&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::split_view&lt;V,Pattern&gt;::split_view — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a> › <a href="../../../cpp/ranges/split_view.html">std::ranges::views::split, std::ranges::split_view</a></nav>
+<h1 id="std-ranges-split_view-v-pattern-split_view"><code>std::ranges::split_view&lt;V,Pattern&gt;::split_view</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/split_view/split_view">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">split_view()
+    requires std::default_initializable&lt;V&gt; &amp;&amp;
+             std::default_initializable&lt;Pattern&gt; = default;  // (1) (depuis C++20)
+
+constexpr explicit split_view( V base, Pattern pattern );  // (2) (depuis C++20)
+
+template&lt; ranges::forward_range R &gt;
+    requires std::constructible_from&lt;V, views::all_t&lt;R&gt;&gt; &amp;&amp;
+             std::constructible_from&lt;Pattern, ranges::single_view&lt;
+                                                  ranges::range_value_t&lt;R&gt;&gt;&gt;
+constexpr explicit split_view( R&amp;&amp; r, ranges::range_value_t&lt;R&gt; e );  // (3) (depuis C++20)
+</code></pre>
+<p>Construit un <code>split_view</code>.</p>
+<p>Soit <code>base_</code> la vue sous-jacente et <code>pattern_</code> le délimiteur.</p>
+<ol>
+<li>
+<p>Constructeur par défaut. <a href="../../language/value_initialization.html">Initialise par valeur</a> <code>base_</code> et <code>pattern_</code> avec leurs initialiseurs par défaut respectifs.</p>
+</li>
+<li>
+<p>Initialise <code>base_</code> avec <code>std::move(base)</code> et <code>pattern_</code> avec <code>std::move(pattern)</code>.</p>
+</li>
+<li>
+<p>Initialise <code>base_</code> avec <code>views::all(std::forward&lt;R&gt;(r))</code> et <code>pattern_</code> avec <code>ranges::single_view{std::move(e)}</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>base</code> — la vue (à découper)</li>
+<li><code>pattern</code> — vue à utiliser comme délimiteur</li>
+<li><code>e</code> — élément à utiliser comme délimiteur</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;cctype&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;ranges&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    {
+        auto view = std::views::iota(1, 20)
+                  | std::views::transform([](int x) { return x % 5; });
+        auto splitts = std::views::split(view, 0); // (2)
+        for (const auto&amp; split : splitts)
+        {
+            std::cout &lt;&lt; &quot;{ &quot;;
+            std::ranges::copy(split, std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;));
+            std::cout &lt;&lt; &quot;} &quot;;
+        }
+    }
+    std::cout &lt;&lt; '\n';
+
+    {
+        const std::vector nums{1, -1, -1, 2, 3, -1, -1, 4, 5, 6};
+        const std::array delim{-1, -1};
+        auto splitter = std::views::split(nums, delim); // (3)
+        for (const auto&amp; split : splitter)
+        {
+            std::cout &lt;&lt; &quot;{ &quot;;
+            std::ranges::copy(split, std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;));
+            std::cout &lt;&lt; &quot;} &quot;;
+        }
+    }
+    std::cout &lt;&lt; '\n';
+
+    {
+        constexpr std::string_view JupiterMoons
+        {
+            &quot;Callisto, Europa, Ganymede, Io, and 91 more&quot;
+        };
+        constexpr std::string_view delim{&quot;, &quot;};
+        std::ranges::split_view moons_extractor{JupiterMoons, delim}; // (3)
+        auto is_moon = std::views::filter([](auto str)
+        {
+            return std::isupper(str[0]);
+        });
+        std::cout &lt;&lt; &quot;Some moons of Jupiter: &quot;;
+        for (const auto moon : moons_extractor | is_moon)
+            std::cout &lt;&lt; std::string_view(moon) &lt;&lt; ' ';
+    }
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">{ 1 2 3 4 } { 1 2 3 4 } { 1 2 3 4 } { 1 2 3 4 }
+{ 1 } { 2 3 } { 4 5 6 }
+Some moons of Jupiter: Callisto Europa Ganymede Io
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3714">LWG 3714</a> (<a href="https://wg21.link/P2711R1">P2711R1</a>)</td>
+<td>C++20</td>
+<td>le constructeur à plusieurs paramètres n'était pas explicit</td>
+<td>rendus explicites</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../lazy_split_view/lazy_split_view.html">(constructeur)</a></strong> — construit un <code>lazy_split_view</code> <em>(fonction membre publique de <code>std::ranges::lazy_split_view&lt;V,Pattern&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

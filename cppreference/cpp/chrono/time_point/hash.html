@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::hash&lt;std::chrono::time_point&gt; — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/chrono.html">Utilitaires de date et d&#x27;heure</a> › <a href="../../../cpp/chrono/time_point.html">std::chrono::time_point</a></nav>
+<h1 id="std-hash-std-chrono-time_point"><code>std::hash&lt;std::chrono::time_point&gt;</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/chrono/time_point/hash">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;chrono&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Clock, class Duration &gt;
+struct hash&lt;std::chrono::time_point&lt;Clock, Duration&gt;&gt;;  // (depuis C++26)
+</code></pre>
+<p>La spécialisation de modèle de <a href="../../utility/hash.html"><code>std::hash</code></a> pour <a href="../time_point.html"><code>std::chrono::time_point</code></a> permet aux utilisateurs d'obtenir les empreintes (hashes) des objets de type <code>std::chrono::time_point&lt;Clock, Duration&gt;</code>. Cette spécialisation est <a href="../../utility/hash.html">activée</a> si et seulement si <code>std::hash&lt;Duration&gt;</code> est activé.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_chrono"><code>__cpp_lib_chrono</code></a></td>
+<td><a href="../../compiler_support/26.html#cpp_lib_chrono_202306L"><code>202306L</code></a></td>
+<td><em>(C++26)</em></td>
+<td>Prise en charge du <a href="../../utility/hash.html">hachage</a> pour les classes de valeurs <code>std::chrono</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+#include &lt;unordered_map&gt;
+
+struct my_system_clock : std::chrono::system_clock
+{
+    using time_point = std::chrono::time_point&lt;my_system_clock&gt;;
+
+    static time_point now() noexcept
+    {
+        return time_point{std::chrono::system_clock::now().time_since_epoch()};
+    }
+
+    template&lt;class CharT, class Traits&gt;
+    friend auto operator&lt;&lt;(std::basic_ostream&lt;CharT, Traits&gt;&amp; os, const time_point&amp; tp)
+        -&gt; decltype(os)
+    {
+        return os &lt;&lt; std::chrono::system_clock::time_point{tp.time_since_epoch()};
+    }
+};
+
+using my_system_clock_tp = std::chrono::time_point&lt;my_system_clock&gt;;
+
+#if __cpp_lib_chrono &lt; 202306L
+// une spécialisation personnalisée de std::hash peut être injectée dans l'espace de noms std
+template&lt;&gt;
+struct std::hash&lt;my_system_clock_tp&gt;
+{
+    std::size_t operator()(const my_system_clock_tp&amp; d) const noexcept
+    {
+        return d.time_since_epoch().count();
+    }
+};
+#endif
+
+int main()
+{
+    using namespace std::chrono_literals;
+
+    std::unordered_map&lt;my_system_clock_tp, std::string&gt; log;
+
+    for (int i{}; i != 4; ++i)
+    {
+        std::this_thread::sleep_for(100ms);
+        log[my_system_clock::now()] = &quot;event #&quot; + std::to_string(i);
+    }
+
+    for (auto const&amp; [time, message] : log)
+        std::cout &lt;&lt; '[' &lt;&lt; time &lt;&lt; &quot;], message: &quot; &lt;&lt; message &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">[2024-03-22 10:47:14.966238436], message: event #3
+[2024-03-22 10:47:14.866096194], message: event #2
+[2024-03-22 10:47:14.765965786], message: event #1
+[2024-03-22 10:47:14.665817365], message: event #0
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../utility/hash.html">hash</a> (C++11)</strong> — objet fonction de hachage <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

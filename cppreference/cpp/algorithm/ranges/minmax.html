@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::minmax, std::ranges::minmax_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-minmax-std-ranges-minmax_result"><code>std::ranges::minmax, std::ranges::minmax_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/minmax">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class Proj = std::identity,
+          std::indirect_strict_weak_order&lt;
+              std::projected&lt;const T*, Proj&gt;&gt; Comp = ranges::less &gt;
+constexpr ranges::minmax_result&lt;const T&amp;&gt;
+    minmax( const T&amp; a, const T&amp; b, Comp comp = {}, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; std::copyable T, class Proj = std::identity,
+          std::indirect_strict_weak_order&lt;
+              std::projected&lt;const T*, Proj&gt;&gt; Comp = ranges::less &gt;
+constexpr ranges::minmax_result&lt;T&gt;
+    minmax( std::initializer_list&lt;T&gt; r, Comp comp = {}, Proj proj = {} );  // (2) (depuis C++20)
+
+template&lt; ranges::input_range R, class Proj = std::identity,
+          std::indirect_strict_weak_order&lt;
+              std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt; Comp = ranges::less &gt;
+requires std::indirectly_copyable_storable&lt;ranges::iterator_t&lt;R&gt;, ranges::range_value_t&lt;R&gt;*&gt;
+constexpr ranges::minmax_result&lt;ranges::range_value_t&lt;R&gt;&gt;
+    minmax( R&amp;&amp; r, Comp comp = {}, Proj proj = {} );  // (3) (depuis C++20)
+</code></pre>
+<p><strong>Types auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+using minmax_result = ranges::min_max_result&lt;T&gt;;  // (4) (depuis C++20)
+</code></pre>
+<p>Renvoie la plus petite et la plus grande des valeurs projetées données.</p>
+<ol>
+<li>
+<p>Renvoie des références vers le plus petit et le plus grand de <code>a</code> et <code>b</code>.</p>
+</li>
+<li>
+<p>Renvoie la plus petite et la plus grande des valeurs de la liste d'initialisation <code>r</code>.</p>
+</li>
+<li>
+<p>Renvoie la plus petite et la plus grande des valeurs de l'intervalle <code>r</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>a, b</code> — les valeurs à comparer</li>
+<li><code>r</code> — une plage non vide de valeurs à comparer</li>
+<li><code>comp</code> — comparaison à appliquer aux éléments projetés</li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li><code>{b, a}</code> si, selon leur valeur projetée respective, <code>b</code> est plus petit que <code>a</code> ; sinon elle renvoie <code>{a, b}</code>.</li>
+</ol>
+<p>2,3) <code>{s, l}</code>, où <code>s</code> et <code>l</code> sont respectivement la plus petite et la plus grande valeur de <code>r</code>, selon leur valeur projetée. Si plusieurs valeurs sont équivalentes à la plus petite ou à la plus grande, renvoie la plus petite valeur la plus à gauche et la plus grande valeur la plus à droite. Si la plage est vide (ce que détermine <code>ranges::distance(r)</code>), le comportement est indéfini.</p>
+<h2 id="Complexity">Complexité</h2>
+<ol>
+<li>Exactement une comparaison et deux applications de la projection.</li>
+</ol>
+<p>2,3) Au plus <code>3 / 2 * ranges::distance(r)</code> comparaisons et deux fois plus d'applications de la projection.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct minmax_fn
+{
+    template&lt;class T, class Proj = std::identity,
+             std::indirect_strict_weak_order&lt;
+                 std::projected&lt;const T*, Proj&gt;&gt; Comp = ranges::less&gt;
+    constexpr ranges::minmax_result&lt;const T&amp;&gt;
+         operator()(const T&amp; a, const T&amp; b, Comp comp = {}, Proj proj = {}) const
+    {
+        if (std::invoke(comp, std::invoke(proj, b), std::invoke(proj, a)))
+            return {b, a};
+
+        return {a, b};
+    }
+
+    template&lt;std::copyable T, class Proj = std::identity,
+             std::indirect_strict_weak_order&lt;
+                 std::projected&lt;const T*, Proj&gt;&gt; Comp = ranges::less&gt;
+    constexpr ranges::minmax_result&lt;T&gt;
+        operator()(std::initializer_list&lt;T&gt; r, Comp comp = {}, Proj proj = {}) const
+    {
+        auto result = ranges::minmax_element(r, std::ref(comp), std::ref(proj));
+        return {*result.min, *result.max};
+    }
+
+    template&lt;ranges::input_range R, class Proj = std::identity,
+             std::indirect_strict_weak_order&lt;
+                 std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt; Comp = ranges::less&gt;
+    requires std::indirectly_copyable_storable&lt;ranges::iterator_t&lt;R&gt;,
+                                               ranges::range_value_t&lt;R&gt;*&gt;
+    constexpr ranges::minmax_result&lt;ranges::range_value_t&lt;R&gt;&gt;
+        operator()(R&amp;&amp; r, Comp comp = {}, Proj proj = {}) const
+    {
+        auto result = ranges::minmax_element(r, std::ref(comp), std::ref(proj));
+        return {std::move(*result.min), std::move(*result.max)};
+    }
+};
+
+inline constexpr minmax_fn minmax;
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Pour la surcharge <code>(1)</code>, si l'un des paramètres est un temporaire, la référence renvoyée devient une référence pendante à la fin de l'expression complète qui contient l'appel à <code>minmax</code> :</p>
+<pre><code class="language-cpp">int n = 1;
+auto p = std::ranges::minmax(n, n + 1);
+int m = p.min; // ok
+int x = p.max; // comportement indéfini
+
+// Notez que les liaisons structurées ont le même problème
+auto [mm, xx] = std::ranges::minmax(n, n + 1);
+xx; // comportement indéfini
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;random&gt;
+
+int main()
+{
+    namespace ranges = std::ranges;
+
+    constexpr std::array v{3, 1, 4, 1, 5, 9, 2, 6, 5};
+
+    std::random_device rd;
+    std::mt19937_64 generator(rd());
+    std::uniform_int_distribution&lt;&gt; distribution(0, ranges::distance(v)); // [0..9]
+
+    // auto bounds = ranges::minmax(distribution(generator), distribution(generator));
+    // UB : références pendantes : bounds.min et bounds.max ont le type `const int&amp;`.
+
+    const int x1 = distribution(generator);
+    const int x2 = distribution(generator);
+    auto bounds = ranges::minmax(x1, x2); // OK : références obtenues vers les lvalues x1 et x2
+
+    std::cout &lt;&lt; &quot;v[&quot; &lt;&lt; bounds.min &lt;&lt; &quot;:&quot; &lt;&lt; bounds.max &lt;&lt; &quot;]: &quot;;
+    for (int i = bounds.min; i &lt; bounds.max; ++i)
+        std::cout &lt;&lt; v[i] &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    auto [min, max] = ranges::minmax(v);
+    std::cout &lt;&lt; &quot;smallest: &quot; &lt;&lt; min &lt;&lt; &quot;, &quot; &lt;&lt; &quot;largest: &quot; &lt;&lt; max &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">v[3:9]: 1 5 9 2 6 5
+smallest: 1, largest: 9
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="min.html">ranges::min</a> (C++20)</strong> — renvoie la plus petite des valeurs données <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="max.html">ranges::max</a> (C++20)</strong> — renvoie la plus grande des valeurs données <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="minmax_element.html">ranges::minmax_element</a> (C++20)</strong> — renvoie les éléments les plus petit et le plus grand d'un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="clamp.html">ranges::clamp</a> (C++20)</strong> — borne une valeur entre une paire de valeurs limites <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../minmax.html">minmax</a> (C++11)</strong> — renvoie le plus petit et le plus grand de deux éléments <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

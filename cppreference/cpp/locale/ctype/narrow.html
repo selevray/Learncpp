@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ctype&lt;CharT&gt;::narrow, do_narrow — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/ctype.html">std::ctype</a></nav>
+<h1 id="std-ctype-chart-narrow-do_narrow"><code>std::ctype&lt;CharT&gt;::narrow, do_narrow</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/ctype/narrow">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+char narrow( CharT c, char dflt ) const;  // (1)
+
+public:
+const CharT* narrow( const CharT* beg, const CharT* end,
+                     char dflt, char* dst ) const;  // (2)
+
+protected:
+virtual char do_narrow( CharT c, char dflt ) const;  // (3)
+
+protected:
+virtual const CharT* do_narrow( const CharT* beg, const CharT* end,
+                                char dflt, char* dst ) const;  // (4)
+</code></pre>
+<p>1,2) Fonction membre publique, appelle la fonction membre virtuelle protégée correspondante <code>do_narrow</code> surcharge de la classe la plus dérivée. La surcharge (1) appelle <code>do_narrow(c, dflt)</code>, la surcharge (2) appelle <code>do_narrow(beg, end, dflt, dst)</code>.</p>
+<ol start="3">
+<li>
+<p>Convertit le caractère (éventuellement large) <code>c</code> en représentation multioctet si le caractère peut être représenté par un seul octet (par exemple, les caractères ASCII en codage UTF-8 sont des octets simples). Renvoie <code>dflt</code> si une telle conversion n'existe pas.</p>
+</li>
+<li>
+<p>Pour chaque caractère du tableau de caractères <code>[beg,end)</code>, écrit les caractères réduits (ou <code>dflt</code> lorsque la réduction échoue) aux emplacements successifs du tableau de caractères pointé par <code>dst</code>.</p>
+</li>
+</ol>
+<p>La réduction réussit toujours et est toujours réversible (en appelant <a href="widen.html"><code>widen()</code></a>) pour tous les caractères du [<a href="../../language/charset.html#Basic_source_character_set">jeu de caractères source de base</a> <em>(jusqu'à C++23)</em> | <a href="../../language/charset.html#Basic_character_set">jeu de caractères de base</a> <em>(depuis C++23)</em>].</p>
+<ul>
+<li>c'est-à-dire que <code>do_widen(do_narrow(c, 0)) == c</code> est toujours vrai pour tout caractère <code>c</code> du [<a href="../../language/charset.html#Basic_source_character_set">jeu de caractères source de base</a> <em>(jusqu'à C++23)</em> | <a href="../../language/charset.html#Basic_character_set">jeu de caractères de base</a> <em>(depuis C++23)</em>].</li>
+</ul>
+<p>La réduction, si elle réussit, préserve toutes les catégories de classification de caractères connues de <a href="is.html"><code>is()</code></a>.</p>
+<ul>
+<li>c'est-à-dire que <code>is(m, c) || !ctc.is(m, do_narrow(c, dflt))</code> est toujours <code>true</code> pour toute catégorie nommée <code>ctype</code> avec une facette <code>ctype&lt;char&gt;</code> <code>ctc</code> et une valeur <code>ctype_base::mask</code> <code>m</code> (sauf si <code>do_narrow</code> renvoie <code>dflt</code>).</li>
+</ul>
+<p>La réduction de tout caractère chiffre garantit que si le résultat est soustrait du littéral de caractère <code>'0'</code>, la différence est égale à la valeur numérique du caractère d'origine.</p>
+<ul>
+<li>c'est-à-dire que pour tout caractère chiffre <code>c</code>, l'expression <code>(do_narrow(c, dflt) - '0')</code> évalue à la valeur numérique du caractère.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>c</code> — caractère à convertir</li>
+<li><code>dflt</code> — valeur par défaut à produire si la conversion échoue</li>
+<li><code>beg</code> — pointeur vers le premier caractère d'un tableau de caractères à convertir</li>
+<li><code>end</code> — pointeur vers la fin (un au-delà du dernier élément) du tableau de caractères à convertir</li>
+<li><code>dst</code> — pointeur vers le premier élément du tableau de caractères à remplir</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>1,3) Caractère réduit ou <code>dflt</code> si la réduction échoue.</p>
+<p>2,4) <code>end</code></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+void try_narrow(const std::ctype&lt;wchar_t&gt;&amp; f, wchar_t c)
+{
+    char n = f.narrow(c, 0);
+    if (n)
+        std::wcout &lt;&lt; '\'' &lt;&lt; c &lt;&lt; &quot;' narrowed to &quot; &lt;&lt; +(unsigned char)n &lt;&lt; '\n';
+    else
+        std::wcout &lt;&lt; '\'' &lt;&lt; c &lt;&lt; &quot;' could not be narrowed\n&quot;;
+}
+
+int main()
+{
+    std::locale::global(std::locale(&quot;en_US.utf8&quot;));
+    std::wcout.imbue(std::locale());
+    std::wcout &lt;&lt; std::hex &lt;&lt; std::showbase &lt;&lt; &quot;In US English UTF-8 locale:\n&quot;;
+    auto&amp; f = std::use_facet&lt;std::ctype&lt;wchar_t&gt;&gt;(std::locale());
+    try_narrow(f, L'A');
+    try_narrow(f, L'Ａ');
+    try_narrow(f, L'ě');
+
+    std::locale::global(std::locale(&quot;cs_CZ.iso88592&quot;));
+    auto&amp; f2 = std::use_facet&lt;std::ctype&lt;wchar_t&gt;&gt;(std::locale());
+    std::wcout &lt;&lt; &quot;In Czech ISO-8859-2 locale:\n&quot;;
+    try_narrow(f2, L'A');
+    try_narrow(f2, L'Ａ');
+    try_narrow(f2, L'ě');
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">In US English UTF-8 locale:
+'A' narrowed to 0x41
+'Ａ' could not be narrowed
+'ě' could not be narrowed
+In Czech ISO-8859-2 locale:
+'A' narrowed to 0x41
+'Ａ' could not be narrowed
+'ě' narrowed to 0xec
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue126">LWG 126</a></td>
+<td>C++98</td>
+<td>1. le code représentant la réversibilité était <code>do_widen(do_narrow(c), 0) == c</code> 2. le code représentant la préservation des catégories était `is(m, c)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue153">LWG 153</a></td>
+<td>C++98</td>
+<td><code>narrow</code> appelait toujours la surcharge (4)</td>
+<td>appelle la surcharge correspondante</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="widen.html">widen</a></strong> — invoque <code>do_widen</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="../../io/basic_ios/narrow.html">narrow</a></strong> — convertit les caractères en version étroite <em>(fonction membre publique de <code>std::basic_ios&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../../string/multibyte/wctob.html">wctob</a></strong> — rétrécit un caractère large en caractère étroit monooctet, si possible <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exigences nommées C++ : Swappable — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/named_req.html">Exigences nommées</a></nav>
+<h1 id="exigences-nommées-c-swappable">Exigences nommées C++ : Swappable</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/named_req/Swappable">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Toute lvalue ou rvalue de ce type peut être échangée avec toute lvalue ou rvalue d'un autre type, à l'aide de l'appel de fonction non qualifié <code>swap()</code> dans le contexte où <a href="../utility/swap.html"><code>std::swap</code></a> et les <code>swap()</code> définis par l'utilisateur sont tous deux visibles.</p>
+<h2 id="Requirements">Exigences</h2>
+<p>Le type U est échangeable avec le type T si, pour tout objet u de type U et tout objet t de type T,</p>
+<table>
+<thead>
+<tr>
+<th>Expression</th>
+<th>Exigences</th>
+<th>Sémantique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#include &lt;algorithm&gt; // until C++11 #include &lt;utility&gt; // since C++11 using std::swap; swap(u, t);</code></td>
+<td>Après l'appel, la valeur de <code>t</code> est la valeur détenue par <code>u</code> avant l'appel, et la valeur de <code>u</code> est la valeur détenue par <code>t</code> avant l'appel.</td>
+<td>Appelle la fonction nommée <code>swap()</code> trouvée par résolution de surcharge parmi toutes les fonctions portant ce nom trouvées par <a href="../language/adl.html">recherche dépendante des arguments</a> et les deux modèles <a href="../utility/swap.html"><code>std::swap</code></a> définis dans l'en-tête [<a href="../header/algorithm.html"><code>&lt;algorithm&gt;</code></a> <em>(jusqu'à C++11)</em></td>
+</tr>
+<tr>
+<td><code>#include &lt;algorithm&gt; // until C++11 #include &lt;utility&gt; // since C++11 using std::swap; swap(t, u);</code></td>
+<td>Identique</td>
+<td>Identique</td>
+</tr>
+</tbody>
+</table>
+<p>De nombreuses fonctions de la bibliothèque standard (par exemple, de nombreux algorithmes) attendent que leurs arguments satisfassent <em>Swappable</em>, ce qui signifie que chaque fois que la bibliothèque standard effectue un échange, elle utilise l'équivalent de <code>using std::swap; swap(t, u);</code>.</p>
+<p>Les implémentations typiques font l'une des deux choses suivantes :</p>
+<ol>
+<li>
+<p>Définissent un swap non membre dans l'espace de noms englobant, qui peut déléguer à un swap membre si l'accès à des membres de données non publics est nécessaire.</p>
+</li>
+<li>
+<p>Définissent une <a href="../language/friend.html">fonction amie</a> dans la classe (cette approche masque le swap propre à la classe à la recherche de noms autre que ADL).</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Il n'est pas spécifié si [<a href="../header/algorithm.html"><code>&lt;algorithm&gt;</code></a> <em>(jusqu'à C++11)</em> | <a href="../header/utility.html"><code>&lt;utility&gt;</code></a> <em>(depuis C++11)</em>] est effectivement inclus lorsque les fonctions de la bibliothèque standard effectuent l'échange ; l'utilisateur ne doit donc pas s'attendre à ce que <code>swap()</code> fourni par l'utilisateur soit inclus.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+struct IntVector
+{
+    std::vector&lt;int&gt; v;
+
+    IntVector&amp; operator=(IntVector) = delete; // non affectable
+
+    void swap(IntVector&amp; other)
+    {
+        v.swap(other.v);
+    }
+
+    void operator()(auto rem, auto term = &quot; &quot;)
+    {
+        std::cout &lt;&lt; rem &lt;&lt; &quot;{{&quot;;
+        for (int n{}; int e : v)
+            std::cout &lt;&lt; (n++ ? &quot;, &quot; : &quot;&quot;) &lt;&lt; e;
+        std::cout &lt;&lt; &quot;}}&quot; &lt;&lt; term;
+    }
+};
+
+void swap(IntVector&amp; v1, IntVector&amp; v2)
+{
+    v1.swap(v2);
+}
+
+int main()
+{
+    IntVector v1{{1, 1, 1, 1}}, v2{{2222, 2222}};
+
+    auto prn = [&amp;]{ v1(&quot;v1&quot;, &quot;, &quot;), v2(&quot;v2&quot;, &quot;;\n&quot;); };
+
+//  std::swap(v1, v2); // Erreur du compilateur ! std::swap exige MoveAssignable
+    prn();
+    std::iter_swap(&amp;v1, &amp;v2); // OK : la bibliothèque appelle swap() non qualifié
+    prn();
+    std::ranges::swap(v1, v2); // OK : la bibliothèque appelle swap() non qualifié
+    prn();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">v1{{1, 1, 1, 1}}, v2{{2222, 2222}};
+v1{{2222, 2222}}, v2{{1, 1, 1, 1}};
+v1{{1, 1, 1, 1}}, v2{{2222, 2222}};
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue226">LWG 226</a></td>
+<td>C++98</td>
+<td>on ne savait pas clairement comment la bibliothèque standard utilise <code>swap</code></td>
+<td>précisé pour utiliser à la fois <code>std::</code> et <code>swap</code> trouvé par ADL</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../types/is_swappable.html">is_swappable_withis_swappableis_nothrow_swappable_withis_nothrow_swappable</a> (C++17) (C++17) (C++17) (C++17)</strong> — vérifie si des objets d'un type peuvent être échangés avec des objets du même type ou d'un type différent <em>(modèle de classe)</em></li>
+<li><strong><a href="../concepts/swappable.html">swappableswappable_with</a> (C++20)</strong> — spécifie qu'un type peut être échangé, ou que deux types peuvent être échangés entre eux <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

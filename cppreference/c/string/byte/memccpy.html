@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>memccpy — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="memccpy"><code>memccpy</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/byte/memccpy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;string.h&gt;</strong></p>
+<pre><code class="language-c">void* memccpy( void* restrict dest, const void* restrict src, int c, size_t count );  // (depuis C23)
+</code></pre>
+<p>Copie des octets depuis l'objet pointé par <code>src</code> vers l'objet pointé par <code>dest</code>, en s'arrêtant dès que <em>l'une</em> des deux conditions suivantes est remplie :</p>
+<ul>
+<li><code>count</code> octets ont été copiés</li>
+<li>l'octet <code>(unsigned char)c</code> est trouvé (et copié).</li>
+</ul>
+<p>Les objets <code>src</code> et <code>dest</code> sont interprétés comme des tableaux de <code>unsigned char</code>.</p>
+<p>Le comportement est indéfini si <em>l'une</em> des conditions suivantes est remplie :</p>
+<ul>
+<li>un accès se produit au-delà de la fin du tableau <code>dest</code> ;</li>
+<li>les objets se chevauchent (ce qui constitue une violation du contrat <a href="../../language/restrict.html"><code>restrict</code></a>)</li>
+<li><code>dest</code> ou <code>src</code> est un pointeur invalide ou nul</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>dest</code> — pointeur vers l'objet de destination de la copie</li>
+<li><code>src</code> — pointeur vers l'objet source de la copie</li>
+<li><code>c</code> — octet terminal, converti en <code>unsigned char</code> au premier</li>
+<li><code>count</code> — nombre d'octets à copier</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Si l'octet <code>(unsigned char)c</code> a été trouvé, <code>memccpy</code> renvoie un pointeur vers l'octet suivant dans <code>dest</code> après <code>(unsigned char)c</code>. Sinon il renvoie un pointeur nul.</p>
+<h2 id="Notes">Notes</h2>
+<p>La fonction est identique à <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/memccpy.html">POSIX <code>memccpy</code></a>.</p>
+<p><code>memccpy(dest, src, 0, count)</code> se comporte de manière similaire à <code>strncpy(dest, src, count)</code>, sauf que la première renvoie un pointeur vers la <em>fin</em> du tampon écrit, et ne complète pas par des zéros le tableau de destination. Ainsi, <code>memccpy</code> est utile pour concaténer efficacement plusieurs chaînes.</p>
+<pre><code class="language-c">char bigString[1000];
+char* end = bigString + sizeof bigString;
+
+char* p = memccpy(bigString, &quot;John, &quot;, '\0', sizeof bigString - 1);
+if (p)
+    p = memccpy(p - 1, &quot;Paul, &quot;, '\0', end - p);
+if (p)
+    p = memccpy(p - 1, &quot;George, &quot;, '\0', end - p);
+if (p)
+    p = memccpy(p - 1, &quot;Joel &quot;, '\0', end - p);
+if (!p)
+    end[-1] = '\0';
+
+puts(bigString); // John, Paul, George, Joel
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;ctype.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    const char src[] = &quot;Stars: Altair, Sun, Vega.&quot;;
+    const char terminal[] = {':', ' ', ',', '.', '!'};
+    char dest[sizeof src];
+    const char alt = '@';
+
+    for (size_t i = 0; i != sizeof terminal; ++i)
+    {
+        void* to = memccpy(dest, src, terminal[i], sizeof dest);
+
+        printf(&quot;Terminal '%c' (%s):\t\&quot;&quot;, terminal[i], to ? &quot;found&quot; : &quot;absent&quot;);
+
+        // si le caractère `terminal` n'est pas trouvé - afficher la totalité de `dest`
+        to = to ? to : dest + sizeof dest;
+
+        for (char* from = dest; from != to; ++from)
+            putchar(isprint(*from) ? *from : alt);
+
+        puts(&quot;\&quot;&quot;);
+    }
+
+    puts(&quot;\n&quot; &quot;Separate star names from distances (ly):&quot;);
+    const char *star_distance[] = {
+        &quot;Arcturus : 37&quot;, &quot;Vega : 25&quot;, &quot;Capella : 43&quot;, &quot;Rigel : 860&quot;, &quot;Procyon : 11&quot;
+    };
+    char names_only[64];
+    char *first = names_only;
+    char *last = names_only + sizeof names_only;
+
+    for (size_t t = 0; t != (sizeof star_distance) / (sizeof star_distance[0]); ++t)
+    {
+        if (first)
+            first = memccpy(first, star_distance[t], ' ', last - first);
+        else
+            break;
+    }
+
+    if (first)
+    {
+        *first = '\0';
+        puts(names_only);
+    }
+    else
+        puts(&quot;Buffer is too small.&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Terminal ':' (found):   &quot;Stars:&quot;
+Terminal ' ' (found):   &quot;Stars: &quot;
+Terminal ',' (found):   &quot;Stars: Altair,&quot;
+Terminal '.' (found):   &quot;Stars: Altair, Sun, Vega.&quot;
+Terminal '!' (absent):  &quot;Stars: Altair, Sun, Vega.@&quot;
+
+Separate star names from distances (ly):
+Arcturus Vega Capella Rigel Procyon
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="memcpy.html">memcpymemcpy_s</a> (C11)</strong> — copie un tampon dans un autre <em>(fonction)</em></li>
+<li><strong><a href="../wide/wmemcpy.html">wmemcpywmemcpy_s</a> (C95) (C11)</strong> — copie un certain nombre de caractères larges entre deux tableaux sans recouvrement <em>(fonction)</em></li>
+<li><strong><a href="memmove.html">memmovememmove_s</a> (C11)</strong> — déplace un tampon vers un autre <em>(fonction)</em></li>
+<li><strong><a href="strcpy.html">strcpystrcpy_s</a> (C11)</strong> — copie une chaîne dans une autre <em>(fonction)</em></li>
+<li><strong><a href="strcat.html">strcatstrcat_s</a> (C11)</strong> — concatène deux chaînes <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

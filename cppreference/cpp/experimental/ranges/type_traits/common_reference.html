@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::ranges::common_reference — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../../assets/style.css">
+<script src="../../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../../cpp.html">Référence C++</a> › <a href="../../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../../cpp/experimental/ranges.html">Extensions de la bibliothèque des plages</a></nav>
+<h1 id="std-experimental-ranges-common_reference"><code>std::experimental::ranges::common_reference</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/ranges/type_traits/common_reference">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/ranges/type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... T &gt;
+struct common_reference;  // (ranges TS)
+</code></pre>
+<p>Détermine le type référence commun des types <code>T...</code>, c'est-à-dire le type vers lequel tous les types de <code>T...</code> peuvent être convertis ou liés. Si un tel type existe (selon les règles ci-dessous), le membre <code>type</code> désigne ce type. Sinon, il n'existe aucun membre <code>type</code>. Le comportement est indéfini si l'un des types de <code>T...</code> est un type incomplet autre que <code>void</code> (éventuellement qualifié cv).</p>
+<p>Pour des types référence, <code>common_reference</code> tente de trouver un type référence auquel tous les types référence fournis peuvent être liés, mais peut renvoyer un type non référence s'il ne trouve pas un tel type référence.</p>
+<ul>
+<li>Si <code>sizeof...(T)</code> vaut zéro, il n'existe aucun membre <code>type</code>.</li>
+<li>Si <code>sizeof...(T)</code> vaut un (c'est-à-dire que <code>T...</code> ne contient qu'un seul type <code>T0</code>), le membre <code>type</code> désigne le même type que <code>T0</code>.</li>
+<li>Si <code>sizeof...(T)</code> vaut deux (c'est-à-dire que <code>T...</code> contient deux types <code>T1</code> et <code>T2</code>) :
+<ul>
+<li>Si <code>T1</code> et <code>T2</code> sont tous deux des types référence, et que le <em>type référence commun simple</em> <code>S</code> de <code>T1</code> et <code>T2</code> (tel que défini ci-dessous) existe, alors le type membre <code>type</code> désigne <code>S</code> ;</li>
+<li>Sinon, si <code>basic_common_reference&lt;T1R, T2R, T1Q, T2Q&gt;::type</code> existe, où <code>TiR</code> est <code>std::remove_cv_t&lt;std::remove_reference_t&lt;Ti&gt;&gt;</code> et <code>TiQ</code> est un modèle d'alias tel que <code>TiQ&lt;TiR&gt;</code> est <code>Ti</code>, alors le type membre <code>type</code> désigne ce type ;</li>
+<li>Sinon, si <code>decltype(false? val&lt;T1&gt;() : val&lt;T2&gt;())</code>, où <code>val</code> est un modèle de fonction <code>template&lt;class T&gt; T val();</code>, désigne un type valide, alors le type membre <code>type</code> désigne ce type ;</li>
+<li>Sinon, si <code>ranges::common_type_t&lt;T1, T2&gt;</code> est un type valide, alors le type membre <code>type</code> désigne ce type ;</li>
+<li>Sinon, il n'existe aucun type membre.</li>
+</ul>
+</li>
+<li>Si <code>sizeof...(T)</code> est supérieur à deux (c'est-à-dire que <code>T...</code> est constitué des types <code>T1, T2, R...</code>), alors, si <code>ranges::common_reference_t&lt;T1, T2&gt;</code> existe, le membre <code>type</code> désigne <code>ranges::common_reference_t&lt;ranges::common_reference_t&lt;T1, T2&gt;, R...&gt;</code> si un tel type existe. Dans tous les autres cas, il n'existe aucun membre <code>type</code>.</li>
+</ul>
+<p>Le <em>type référence commun simple</em> de deux types référence <code>T1</code> et <code>T2</code> est défini comme suit :</p>
+<ul>
+<li>Si <code>T1</code> est <code>cv1 X &amp;</code> et <code>T2</code> est <code>cv2 Y &amp;</code> (c'est-à-dire que les deux sont des types référence lvalue) : leur type référence commun simple est <code>decltype(false? std::declval&lt;cv12 X &amp;&gt;() : std::declval&lt;cv12 Y &amp;&gt;())</code>, où <em>cv12</em> est l'union de <em>cv1</em> et de <em>cv2</em>, si ce type existe et est un type référence.</li>
+<li>Si <code>T1</code> et <code>T2</code> sont tous deux des types référence rvalue : si le type référence commun simple de <code>T1 &amp;</code> et <code>T2 &amp;</code> (déterminé selon le point précédent) existe, alors soit <code>C</code> le type référence rvalue correspondant à ce type. Si <code>std::is_convertible&lt;T1, C&gt;::value</code> et <code>std::is_convertible&lt;T2, C&gt;::value</code> sont tous deux <code>true</code>, alors le type référence commun simple de <code>T1</code> et <code>T2</code> est <code>C</code>.</li>
+<li>Sinon, l'un des deux types doit être un type référence lvalue <code>A &amp;</code> et l'autre un type référence rvalue <code>B &amp;&amp;</code> (<code>A</code> et <code>B</code> peuvent être qualifiés cv). Soit <code>D</code> le type référence commun simple de <code>A &amp;</code> et <code>B const &amp;</code>, s'il existe. Si <code>D</code> existe et que <code>std::is_convertible&lt;B &amp;&amp;, D&gt;::value</code> est <code>true</code>, alors le type référence commun simple est <code>D</code>.</li>
+<li>Sinon, il n'existe aucun type référence commun simple.</li>
+</ul>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>type</code></strong> — le type référence commun pour tous les <code>T...</code></li>
+</ul>
+<h2 id="Helper_types">Types auxiliaires</h2>
+<pre><code class="language-cpp">template&lt; class... T &gt;
+using common_reference_t = typename common_reference&lt;T...&gt;::type;
+
+template&lt; class T, class U, template&lt;class&gt; class TQual, template&lt;class&gt; class UQual &gt;
+struct basic_common_reference {};
+</code></pre>
+<p>Le modèle de classe <code>basic_common_reference</code> est un point de personnalisation qui permet aux utilisateurs d'influencer le résultat de <code>common_reference</code> pour les types définis par l'utilisateur (typiquement des références mandataires). Le modèle primaire est vide.</p>
+<h2 id="Specializations">Spécialisations</h2>
+<p>Un programme peut spécialiser <code>basic_common_reference&lt;T, U, TQual, UQual&gt;</code> sur les deux premiers paramètres <code>T</code> et <code>U</code> si <code>std::is_same&lt;T, std::decay_t&lt;T&gt;&gt;</code> et <code>std::is_same&lt;U, std::decay_t&lt;U&gt;&gt;</code> sont tous deux vrais et qu'au moins l'un d'eux dépend d'un type défini par le programme.</p>
+<p>Si une telle spécialisation possède un membre nommé <code>type</code>, il doit s'agir d'un type membre public et non ambigu désignant un type vers lequel <code>TQual&lt;T&gt;</code> et <code>UQual&lt;U&gt;</code> sont tous deux convertibles. De plus, <code>ranges::basic_common_reference&lt;T, U, TQual, UQual&gt;::type</code> et <code>ranges::basic_common_reference&lt;U, T, UQual, TQual&gt;::type</code> doivent désigner le même type.</p>
+<p>Un programme ne peut pas spécialiser <code>basic_common_reference</code> sur le troisième ou le quatrième paramètre, ni spécialiser <code>common_reference</code> lui-même. Un programme qui ajoute des spécialisations en violation de ces règles a un comportement indéfini.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../../types/common_type.html">common_type</a> (C++11)</strong> — détermine le type commun d'un groupe de types <em>(modèle de classe)</em></li>
+<li><strong><a href="common_type.html">common_type</a></strong> — déterminer le type commun d'un ensemble de types <em>(modèle de classe)</em></li>
+<li><strong><a href="../concepts/CommonReference.html">CommonReference</a></strong> — spécifie que deux types partagent un type de référence commun <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

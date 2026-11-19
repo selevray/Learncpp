@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::unordered_set&lt;Key,Hash,KeyEqual,Allocator&gt;::find — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/unordered_set.html">std::unordered_set</a></nav>
+<h1 id="std-unordered_set-key-hash-keyequal-allocator-find"><code>std::unordered_set&lt;Key,Hash,KeyEqual,Allocator&gt;::find</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/unordered_set/find">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">iterator find( const Key&amp; key );  // (1) (depuis C++11)
+
+const_iterator find( const Key&amp; key ) const;  // (2) (depuis C++11)
+
+template&lt; class K &gt;
+iterator find( const K&amp; x );  // (3) (depuis C++20)
+
+template&lt; class K &gt;
+const_iterator find( const K&amp; x ) const;  // (4) (depuis C++20)
+</code></pre>
+<p>1,2) Trouve un élément dont la clé est équivalente à <code>key</code>.</p>
+<p>3,4) Recherche un élément dont la clé est <em>équivalente</em> à la valeur <code>x</code>. Cette surcharge ne participe à la résolution de surcharge que si <code>Hash::is_transparent</code> et <code>KeyEqual::is_transparent</code> sont valides et désignent chacun un type. Cela suppose qu'un tel <code>Hash</code> est appelable avec les types <code>K</code> et <code>Key</code>, et que le <code>KeyEqual</code> est transparent, ce qui, ensemble, permet d'appeler cette fonction sans construire d'instance de <code>Key</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>key</code> — valeur de clé de l'élément à rechercher</li>
+<li><code>x</code> — une valeur de n'importe quel type pouvant être comparée de façon transparente à une clé</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur vers l'élément demandé. Si aucun élément de ce type n'est trouvé, l'itérateur past-the-end (voir <a href="end.html"><code>end()</code></a>) est renvoyé.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Constante en moyenne, linéaire au pire par rapport à la taille du conteneur.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_generic_unordered_lookup"><code>__cpp_lib_generic_unordered_lookup</code></a></td>
+<td><a href="../../compiler_support/20.html#cpp_lib_generic_unordered_lookup_201811L"><code>201811L</code></a></td>
+<td><em>(C++20)</em></td>
+<td>Recherche par comparaison hétérogène dans les <a href="../../container.html#Unordered_associative_containers">conteneurs associatifs non ordonnés</a> ; surcharges <code>(3,4)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;source_location&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;unordered_set&gt;
+
+using namespace std::literals;
+
+namespace logger { bool enabled{false}; }
+
+inline void who(const std::source_location sloc = std::source_location::current())
+{
+    if (logger::enabled)
+        std::cout &lt;&lt; sloc.function_name() &lt;&lt; '\n';
+}
+
+struct string_hash // Hachage transparent de C++20
+{
+    using hash_type = std::hash&lt;std::string_view&gt;;
+    using is_transparent = void;
+
+    std::size_t operator()(const char* str) const
+    {
+        who();
+        return hash_type{}(str);
+    }
+    std::size_t operator()(std::string_view str) const
+    {
+        who();
+        return hash_type{}(str);
+    }
+    std::size_t operator()(std::string const&amp; str) const
+    {
+        who();
+        return hash_type{}(str);
+    }
+};
+
+int main()
+{
+    std::unordered_set&lt;int&gt; example{1, 2, -10};
+
+    std::cout &lt;&lt; &quot;Simple comparison demo:\n&quot; &lt;&lt; std::boolalpha;
+    if (auto search = example.find(2); search != example.end())
+        std::cout &lt;&lt; &quot;Found &quot; &lt;&lt; *search &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; &quot;Not found\n&quot;;
+
+    std::unordered_set&lt;std::string, string_hash, std::equal_to&lt;&gt;&gt; set{&quot;one&quot;s, &quot;two&quot;s};
+
+    logger::enabled = true;
+    std::cout &lt;&lt; &quot;Heterogeneous lookup for unordered containers (transparent hashing):\n&quot;
+              &lt;&lt; (set.find(&quot;one&quot;)   != set.end()) &lt;&lt; '\n'
+              &lt;&lt; (set.find(&quot;one&quot;s)  != set.end()) &lt;&lt; '\n'
+              &lt;&lt; (set.find(&quot;one&quot;sv) != set.end()) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Simple comparison demo:
+Found 2
+Heterogeneous lookup for unordered containers (transparent hashing):
+std::size_t string_hash::operator()(const char*) const
+true
+std::size_t string_hash::operator()(const std::string&amp;) const
+true
+std::size_t string_hash::operator()(std::string_view) const
+true
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="count.html">count</a></strong> — renvoie le nombre d'éléments correspondant à une clé spécifique <em>(fonction membre publique)</em></li>
+<li><strong><a href="equal_range.html">equal_range</a></strong> — renvoie l'intervalle des éléments correspondant à une clé spécifique <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

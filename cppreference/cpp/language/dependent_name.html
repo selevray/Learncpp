@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noms dépendants — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="noms-dépendants">Noms dépendants</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/dependent_name">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>À l'intérieur de la définition d'un <a href="templates.html">modèle</a> (aussi bien <a href="class_template.html">modèle de classe</a> que <a href="function_template.html">modèle de fonction</a>), la signification de certaines constructions peut différer d'une instanciation à l'autre. En particulier, les types et les expressions peuvent dépendre des types des paramètres de modèle de type et des valeurs des paramètres de modèle non-type.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct X : B&lt;T&gt; // « B&lt;T&gt; » dépend de T
+{
+    typename T::A* pa; // « T::A » dépend de T
+                       // (voir ci-dessous la signification de cet usage de « typename »)
+
+    void f(B&lt;T&gt;* pb)
+    {
+        static int i = B&lt;T&gt;::i; // « B&lt;T&gt;::i » dépend de T
+        pb-&gt;j++; // « pb-&gt;j » dépend de T
+    }
+};
+</code></pre>
+<p>La <a href="lookup.html">recherche</a> de noms et la liaison diffèrent pour les noms dépendants et les noms non dépendants.</p>
+<h2 id="Binding_rules">Règles de liaison</h2>
+<p>Les noms non dépendants sont recherchés et liés au point de définition du modèle. Cette liaison est maintenue même si, au point d'instanciation, il existe une meilleure correspondance :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+void g(double) { std::cout &lt;&lt; &quot;g(double)\n&quot;; }
+
+template&lt;class T&gt;
+struct S
+{
+    void f() const
+    {
+        g(1); // « g » est un nom non dépendant, lié maintenant
+    }
+};
+
+void g(int) { std::cout &lt;&lt; &quot;g(int)\n&quot;; }
+
+int main()
+{
+    g(1);  // appelle g(int)
+
+    S&lt;int&gt; s;
+    s.f(); // appelle g(double)
+}
+</code></pre>
+<p>Si la signification d'un nom non dépendant change entre le contexte de définition et le point d'instanciation d'une spécialisation du modèle, le programme est mal formé, aucun diagnostic requis. Cela est possible dans les situations suivantes :</p>
+<ul>
+<li>un type utilisé dans un nom non dépendant est <a href="incomplete_type.html">incomplet</a> au point de définition mais complet au point d'instanciation</li>
+</ul>
+<blockquote>
+<ul>
+<li>la recherche d'un nom dans la définition du modèle a trouvé une <a href="using_declaration.html">déclaration using</a>, mais la recherche dans la portée correspondante de l'instanciation ne trouve aucune déclaration, car la déclaration using était une expansion de paquet et le paquet correspondant est vide</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>une instanciation utilise un argument par défaut ou un argument de modèle par défaut qui n'avait pas été défini au point de définition</li>
+<li>une <a href="constant_expression.html">expression constante</a> au point d'instanciation utilise la valeur d'un objet const de type entier ou énumération non scopée, la valeur d'un objet constexpr, la valeur d'une référence, ou la définition d'une fonction constexpr <em>(depuis C++11)</em>, et cet objet/référence/fonction <em>(depuis C++11)</em> n'était pas défini au point de définition</li>
+<li>le modèle utilise, au point d'instanciation, une spécialisation de modèle de classe non dépendante ou une spécialisation de modèle de variable <em>(depuis C++14)</em>, et ce modèle qu'il utilise est soit instancié à partir d'une spécialisation partielle qui n'était pas définie au point de définition, soit désigne une spécialisation explicite qui n'était pas déclarée au point de définition</li>
+</ul>
+<p>La liaison des noms dépendants est reportée jusqu'à ce que la recherche ait lieu.</p>
+<h2 id="Lookup_rules">Règles de recherche</h2>
+<p>La <a href="lookup.html">recherche</a> d'un nom dépendant utilisé dans un modèle est reportée jusqu'à ce que les arguments de modèle soient connus, moment auquel</p>
+<ul>
+<li>la recherche non ADL examine les déclarations de fonctions à liaison externe visibles depuis le contexte de définition du modèle</li>
+<li><a href="adl.html">ADL</a> examine les déclarations de fonctions à liaison externe visibles depuis le contexte de définition du modèle ou depuis le contexte d'instanciation du modèle</li>
+</ul>
+<p>(en d'autres termes, ajouter une nouvelle déclaration de fonction après la définition du modèle ne la rend pas visible, sauf via ADL).</p>
+<p>Le but de cette règle est d'aider à prévenir les violations de l'<a href="definition.html#One_Definition_Rule">ODR</a> pour les instanciations de modèles :</p>
+<pre><code class="language-cpp">// une bibliothèque externe
+namespace E
+{
+    template&lt;typename T&gt;
+    void writeObject(const T&amp; t)
+    {
+        std::cout &lt;&lt; &quot;Value = &quot; &lt;&lt; t &lt;&lt; '\n';
+    }
+}
+
+// unité de traduction 1 :
+// Le programmeur 1 veut permettre à E::writeObject de fonctionner avec vector&lt;int&gt;
+namespace P1
+{
+    std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const std::vector&lt;int&gt;&amp; v)
+    {
+        for (int n : v)
+            os &lt;&lt; n &lt;&lt; ' ';
+        return os;
+    }
+
+    void doSomething()
+    {
+        std::vector&lt;int&gt; v;
+        E::writeObject(v); // Erreur : ne trouvera pas P1::operator&lt;&lt;
+    }
+}
+
+// unité de traduction 2 :
+// Le programmeur 2 veut permettre à E::writeObject de fonctionner avec vector&lt;int&gt;
+namespace P2
+{
+    std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const std::vector&lt;int&gt;&amp; v)
+    {
+        for (int n : v)
+            os &lt;&lt; n &lt;&lt; ':';
+        return os &lt;&lt; &quot;[]&quot;;
+    }
+
+    void doSomethingElse()
+    {
+        std::vector&lt;int&gt; v;
+        E::writeObject(v); // Erreur : ne trouvera pas P2::operator&lt;&lt;
+    }
+}
+</code></pre>
+<p>Dans l'exemple ci-dessus, si la recherche non ADL de <code>operator&lt;&lt;</code> était autorisée depuis le contexte d'instanciation, l'instanciation de <code>E::writeObject&lt;vector&lt;int&gt;&gt;</code> aurait deux définitions différentes : l'une utilisant <code>P1::operator&lt;&lt;</code> et l'autre utilisant <code>P2::operator&lt;&lt;</code>. Une telle violation de l'ODR pourrait ne pas être détectée par l'éditeur de liens, conduisant à l'utilisation de l'une ou l'autre dans les deux instances.</p>
+<p>Pour que ADL examine un espace de noms défini par l'utilisateur, soit <a href="../container/vector.html"><code>std::vector</code></a> doit être remplacé par une classe définie par l'utilisateur, soit son type d'élément doit être une classe définie par l'utilisateur :</p>
+<pre><code class="language-cpp">namespace P1
+{
+    // si C est une classe définie dans l'espace de noms P1
+    std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const std::vector&lt;C&gt;&amp; v)
+    {
+        for (C n : v)
+            os &lt;&lt; n;
+        return os;
+    }
+
+    void doSomething()
+    {
+        std::vector&lt;C&gt; v;
+        E::writeObject(v); // OK : instancie writeObject(std::vector&lt;P1::C&gt;)
+                           //     ce qui trouve P1::operator&lt;&lt; via ADL
+    }
+}
+</code></pre>
+<p>Remarque : cette règle rend impraticable la surcharge d'opérateurs pour les types de la bibliothèque standard :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+// Mauvaise idée : opérateur dans l'espace de noms global, mais ses arguments sont dans std::
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, std::pair&lt;int, double&gt; p)
+{
+    return os &lt;&lt; p.first &lt;&lt; ',' &lt;&lt; p.second;
+}
+
+int main()
+{
+    typedef std::pair&lt;int, double&gt; elem_t;
+    std::vector&lt;elem_t&gt; v(10);
+    std::cout &lt;&lt; v[0] &lt;&lt; '\n'; // OK, la recherche ordinaire trouve ::operator&lt;&lt;
+    std::copy(v.begin(), v.end(),
+              std::ostream_iterator&lt;elem_t&gt;(std::cout, &quot; &quot;));
+    // Erreur : à la fois la recherche ordinaire depuis le point de définition de
+    // std::ostream_iterator et l'ADL ne considéreront que l'espace de noms std,
+    // et trouvera de nombreuses surcharges de std::operator&lt;&lt;, donc la recherche sera effectuée.
+    // La résolution de surcharge ne parviendra alors pas à trouver operator&lt;&lt; pour elem_t
+    // dans l'ensemble trouvé par la recherche.
+}
+</code></pre>
+<p>Remarque : une recherche limitée (mais pas la liaison) des noms dépendants a également lieu au moment de la définition du modèle, si nécessaire pour les distinguer des noms non dépendants et pour déterminer s'ils sont membres de l'instanciation courante ou membres d'une spécialisation inconnue. Les informations obtenues par cette recherche peuvent servir à détecter des erreurs, voir ci-dessous.</p>
+<h2 id="Dependent_types">Types dépendants</h2>
+<p>Les types suivants sont des <em>types dépendants</em>﻿ :</p>
+<ul>
+<li>paramètre de modèle</li>
+<li>un membre d'une spécialisation inconnue (voir ci-dessous)</li>
+<li>une classe/énumération imbriquée qui est un membre dépendant d'une spécialisation inconnue (voir ci-dessous)</li>
+<li>une version qualifiée cv d'un type dépendant</li>
+<li>un type composé construit à partir d'un type dépendant</li>
+<li>un type tableau dont le type d'élément est dépendant ou dont la borne (si elle existe) est dépendante de la valeur</li>
+</ul>
+<blockquote>
+<ul>
+<li>un type fonction dont les paramètres incluent un ou plusieurs <a href="parameter_pack.html">paquets de paramètres</a> de fonction</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>un type fonction dont la spécification d'exception est dépendante de la valeur</li>
+<li>un <a href="templates.html#template-id">template-id</a> où
+<ul>
+<li>le nom du modèle est un paramètre de modèle, ou</li>
+<li>l'un des arguments de modèle est dépendant du type ou dépendant de la valeur, ou est une expansion de paquet <em>(depuis C++11)</em> (même si le template-id est utilisé sans sa liste d'arguments, comme <a href="injected-class-name.html">nom de classe injecté</a>)</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>le résultat de <a href="decltype.html"><code>decltype</code></a> appliqué à une expression dépendante du type</li>
+</ul>
+<p>Le résultat de <code>decltype</code> appliqué à une expression dépendante du type est un type dépendant unique. Deux tels résultats désignent le même type seulement si leurs expressions sont <a href="function_template.html#Function_template_overloading">équivalentes</a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>le <a href="pack_indexing.html#Pack_indexing_specifier">spécificateur d'indexation de paquet</a> appliqué à une expression constante dépendante du type</li>
+</ul>
+<p>Le spécificateur d'indexation de paquet appliqué à une expression constante dépendante du type est un type dépendant unique. Deux tels spécificateurs d'indexation de paquet désignent le même type seulement si leurs expressions constantes sont équivalentes. Sinon, deux tels spécificateurs désignent le même type seulement si leurs indices ont la même valeur.</p>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Remarque : un membre typedef d'une instanciation courante n'est dépendant que lorsque le type auquel il se réfère l'est.</p>
+<h2 id="Type-dependent_expressions">Expressions dépendantes du type</h2>
+<p>Les expressions suivantes sont <em>dépendantes du type</em> :</p>
+<ul>
+<li>une expression dont une sous-expression quelconque est une expression dépendante du type</li>
+<li><code>this</code>, si la classe est un type dépendant.</li>
+<li>une <a href="name.html">expression d'identificateur</a> qui n'est pas un <a href="constraints.html">concept-id</a> et <em>(depuis C++20)</em>
+<ul>
+<li>contient un identificateur pour lequel la recherche de nom trouve au moins une déclaration dépendante</li>
+<li>contient un <a href="templates.html#template-id">template-id</a> dépendant</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>contient l'identificateur spécial <code>__func__</code> (si une fonction englobante est un modèle, une fonction membre non modèle d'un modèle de classe, ou une lambda générique <em>(depuis C++14)</em>)</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>contient le nom d'une <a href="cast_operator.html">fonction de conversion</a> vers un type dépendant</li>
+<li>contient un spécificateur de nom imbriqué ou un <a href="name.html">qualified-id</a> qui est un membre d'une spécialisation inconnue</li>
+<li>désigne un membre dépendant de l'instanciation courante qui est un membre donnée statique de type « tableau de borne inconnue »</li>
+</ul>
+<blockquote>
+<ul>
+<li>contient un identificateur pour lequel la recherche de nom trouve une ou plusieurs déclarations de fonctions membres de l'instanciation courante déclarées avec <a href="function.html#Return_type_deduction">déduction du type de retour</a></li>
+</ul>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>contient un identificateur pour lequel la recherche de nom trouve une <a href="structured_binding.html">déclaration de liaison structurée</a> dont l'initialiseur est dépendant du type</li>
+<li>contient un identificateur pour lequel la recherche de nom trouve un paramètre de modèle non-type dont le type contient le type substitut <code>auto</code></li>
+<li>contient un identificateur pour lequel la recherche de nom trouve une variable déclarée avec un type contenant un type substitut (par exemple <code>auto</code> membre donnée statique), dont l'initialiseur est dépendant du type,</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>contient un identificateur pour lequel la recherche de nom trouve un <a href="parameter_pack.html">paquet</a></li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<ul>
+<li>toute expression de conversion vers un type dépendant</li>
+<li><a href="new.html"><code>new</code> expression</a> qui crée un objet d'un type dépendant</li>
+<li>expression d'accès à un membre qui désigne un membre de l'instanciation courante dont le type est dépendant</li>
+<li>expression d'accès à un membre qui désigne un membre d'une spécialisation inconnue</li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="fold.html">expression de pliage</a></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><a href="pack_indexing.html#Pack_indexing_expression">expression d'indexation de paquet</a> si son expression d'identifiant est une expression dépendante du type</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Les expressions suivantes ne sont jamais dépendantes du type, car les types de ces expressions ne peuvent pas l'être :</p>
+<ul>
+<li><a href="expressions.html#Literals">literals</a></li>
+<li>appels de pseudo-destructeurs</li>
+<li><a href="sizeof.html"><code>sizeof</code></a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="sizeof....html"><code>sizeof...</code></a></li>
+<li><a href="alignof.html"><code>alignof</code></a></li>
+<li><a href="noexcept.html"><code>noexcept</code></a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li><a href="throw.html"><code>throw</code></a></li>
+<li><a href="typeid.html"><code>typeid</code></a></li>
+<li><a href="delete.html"><code>delete</code></a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="requires.html"><code>requires</code></a></li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Value-dependent_expressions">Expressions dépendantes de la valeur</h2>
+<p>Les expressions suivantes sont <em>dépendantes de la valeur</em> :</p>
+<ul>
+<li>une expression utilisée dans un contexte où une <a href="constant_expression.html">expression constante</a> est requise, et dont une sous-expression quelconque est dépendante de la valeur</li>
+<li>une <a href="name.html">expression d'identifiant</a> qui satisfait l'une des conditions suivantes :</li>
+</ul>
+<blockquote>
+<ul>
+<li>Il s'agit d'un <a href="constraints.html">concept-id</a> et au moins un de ses arguments est dépendant.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>
+<p>Elle est dépendante du type.</p>
+</li>
+<li>
+<p>Il s'agit du nom d'un paramètre de modèle non de type.</p>
+</li>
+<li>
+<p>Elle désigne un membre donnée statique qui est un membre dépendant de l'instanciation courante et qui n'est pas initialisé.</p>
+</li>
+<li>
+<p>Elle désigne une fonction membre statique qui est un membre dépendant de l'instanciation courante.</p>
+</li>
+<li>
+<p>Il s'agit d'une constante de type [entier ou énumération <em>(jusqu'à C++11)</em> | littéral <em>(depuis C++11)</em>], initialisée à partir d'une expression dépendante de la valeur.</p>
+</li>
+<li>
+<p>les expressions suivantes dont l'opérande est une expression dépendante du type :</p>
+<ul>
+<li><a href="sizeof.html"><code>sizeof</code></a></li>
+<li><a href="typeid.html"><code>typeid</code></a></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="alignof.html"><code>alignof</code></a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>
+<p>les expressions suivantes dont l'opérande est un type-id dépendant :</p>
+<ul>
+<li><a href="sizeof.html"><code>sizeof</code></a></li>
+<li><a href="typeid.html"><code>typeid</code></a></li>
+</ul>
+</li>
+<li>
+<p>les expressions suivantes dont le type cible est dépendant ou dont l'opérande est une expression dépendante du type :</p>
+<ul>
+<li><a href="explicit_cast.html">conversion de style C</a></li>
+<li><a href="static_cast.html"><code>static_cast</code></a></li>
+<li><a href="const_cast.html"><code>const_cast</code></a></li>
+<li><a href="reinterpret_cast.html"><code>reinterpret_cast</code></a></li>
+<li><a href="dynamic_cast.html"><code>dynamic_cast</code></a></li>
+</ul>
+</li>
+<li>
+<p>expression de <a href="explicit_cast.html">conversion de style fonctionnel</a> dont le type cible est dépendant ou dont une expression dépendante de la valeur est entourée de parenthèsesou d'accolades <em>(depuis C++11)</em></p>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="sizeof....html"><code>sizeof...</code></a> expressiondont l'opérande n'est pas un <a href="structured_binding.html">paquet de liaisons structurées</a> <em>(depuis C++26)</em></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><a href="fold.html">expression de pliage</a></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>expression d'adresse dont l'argument est un <a href="name.html">identifiant qualifié</a> qui désigne un membre dépendant de l'instanciation courante</li>
+<li>expression d'adresse dont l'argument est une expression quelconque qui, évaluée comme une <a href="constant_expression.html">expression constante</a> de base, désigne une <a href="templates.html#Templated_entity">entité patron</a> qui est un objet à durée de stockage statique ou thread <em>(depuis C++11)</em> ou une fonction membre.</li>
+</ul>
+<h2 id="Dependent_names">Noms dépendants</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : le préambule de [temp.dep], qui manque, expression d'identifiant suivie d'une liste entre parenthèses...</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : reformuler pour la rendre plus claire (ou du moins moins intimidante), et profiter de l'occasion pour appliquer le <a href="https://cplusplus.github.io/CWG/issues/591.html">problème CWG 591</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Current_instantiation">Instanciation courante</h2>
+<p>Dans la définition d'un modèle de classe (y compris ses fonctions membres et ses classes imbriquées), certains noms peuvent être déduits comme désignant l'<em>instanciation courante</em>. Cela permet de détecter certaines erreurs au point de définition plutôt qu'à l'instanciation, et supprime l'obligation d'utiliser les désambiguïsateurs <code>typename</code> et <code>template</code> pour les noms dépendants, voir ci-dessous.</p>
+<p>Seuls les noms suivants peuvent désigner l'instanciation courante :</p>
+<ul>
+<li>dans la définition d'un modèle de classe, d'une classe imbriquée d'un modèle de classe, d'un membre d'un modèle de classe ou d'un membre d'une classe imbriquée d'un modèle de classe :
+<ul>
+<li>le nom injecté de la classe du modèle de classe ou de la classe imbriquée</li>
+</ul>
+</li>
+<li>dans la définition d'un modèle de classe primaire ou d'un membre d'un modèle de classe primaire :
+<ul>
+<li>le nom du modèle de classe suivi d'une liste d'arguments de modèle (ou d'une spécialisation de modèle d'alias équivalente) pour le modèle primaire, où chaque argument est équivalent (défini ci-dessous) à son paramètre correspondant.</li>
+</ul>
+</li>
+<li>dans la définition d'une classe imbriquée d'un modèle de classe :
+<ul>
+<li>le nom de la classe imbriquée utilisé comme membre de l'instanciation courante</li>
+</ul>
+</li>
+<li>dans la définition d'une spécialisation partielle de modèle de classe ou d'un membre d'une spécialisation partielle de modèle de classe :
+<ul>
+<li>le nom du modèle de classe suivi d'une liste d'arguments de modèle de la spécialisation partielle, où chaque argument est équivalent à son paramètre correspondant</li>
+</ul>
+</li>
+<li>dans la définition d'une <a href="templates.html#Templated_entity">fonction patron</a> :
+<ul>
+<li>le nom d'une <a href="class.html#Local_classes">classe locale</a></li>
+</ul>
+</li>
+</ul>
+<p>Un argument de modèle est équivalent à un paramètre de modèle si</p>
+<ul>
+<li>pour un <a href="template_parameters.html#Type_template_parameter">paramètre de type</a>, l'argument de modèle désigne le même type que le paramètre de modèle.</li>
+<li>pour un <a href="template_parameters.html#Non-type_template_parameter">paramètre non de type</a>, l'argument de modèle est un <a href="name.html">identifiant</a> qui désigne une variable équivalente au paramètre de modèle. Une variable est équivalente à un paramètre de modèle si
+<ul>
+<li>elle a le même type que le paramètre de modèle (sans tenir compte des qualificateurs cv) et</li>
+<li>son initialiseur consiste en un identifiant unique qui désigne le paramètre de modèle ou, récursivement, une telle variable.</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+class A
+{
+    A* p1;      // A est l'instanciation courante
+    A&lt;T&gt;* p2;   // A&lt;T&gt; est l'instanciation courante
+    ::A&lt;T&gt;* p4; // ::A&lt;T&gt; est l'instanciation courante
+    A&lt;T*&gt; p3;   // A&lt;T*&gt; n'est pas l'instanciation courante
+
+    class B
+    {
+        B* p1;                 // B est l'instanciation courante
+        A&lt;T&gt;::B* p2;           // A&lt;T&gt;::B est l'instanciation courante
+        typename A&lt;T*&gt;::B* p3; // A&lt;T*&gt;::B n'est pas l'instanciation courante
+    };
+};
+
+template&lt;class T&gt;
+class A&lt;T*&gt;
+{
+    A&lt;T*&gt;* p1; // A&lt;T*&gt; est l'instanciation courante
+    A&lt;T&gt;* p2;  // A&lt;T&gt; n'est pas l'instanciation courante
+};
+
+template&lt;int I&gt;
+struct B
+{
+    static const int my_I = I;
+    static const int my_I2 = I + 0;
+    static const int my_I3 = my_I;
+    static const long my_I4 = I;
+    static const int my_I5 = (I);
+
+    B&lt;my_I&gt;* b1;  // B&lt;my_I&gt; est l'instanciation courante :
+                  //   my_I a le même type que I,
+                  //   et il est initialisé avec uniquement I
+    B&lt;my_I2&gt;* b2; // B&lt;my_I2&gt; n'est pas l'instanciation courante :
+                  //   I + 0 n'est pas un identifiant unique
+    B&lt;my_I3&gt;* b3; // B&lt;my_I3&gt; est l'instanciation courante :
+                  //   my_I3 a le même type que I,
+                  //   et il est initialisé avec uniquement my_I (ce qui équivaut à I)
+    B&lt;my_I4&gt;* b4; // B&lt;my_I4&gt; n'est pas l'instanciation courante :
+                  //   le type de my_I4 (long) n'est pas le même que le type de I (int)
+    B&lt;my_I5&gt;* b5; // B&lt;my_I5&gt; n'est pas l'instanciation courante :
+                  //   (I) n'est pas un identifiant unique
+};
+</code></pre>
+<p>Notez qu'une classe de base peut être l'instanciation courante si une classe imbriquée dérive de son modèle de classe englobant. Les classes de base qui sont des types dépendants mais qui ne sont pas l'instanciation courante sont des <em>classes de base dépendantes</em> :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A
+{
+    typedef int M;
+
+    struct B
+    {
+        typedef void M;
+
+        struct C;
+    };
+};
+
+template&lt;class T&gt;
+struct A&lt;T&gt;::B::C : A&lt;T&gt;
+{
+    M m; // OK, A&lt;T&gt;::M
+};
+</code></pre>
+<p>Un nom est classé comme membre de l'instanciation courante s'il s'agit</p>
+<ul>
+<li>d'un nom non qualifié trouvé par <a href="unqualified_lookup.html">recherche non qualifiée</a> dans l'instanciation courante ou dans sa base non dépendante.</li>
+<li>d'un <a href="qualified_lookup.html">nom qualifié</a>, si le qualificateur (le nom à gauche de <code>::</code>) désigne l'instanciation courante et que la recherche trouve le nom dans l'instanciation courante ou dans sa base non dépendante</li>
+<li>d'un nom utilisé dans une expression d'accès à un membre de classe (<code>y</code> dans <code>x.y</code> ou <code>xp-&gt;y</code>), où l'expression d'objet (<code>x</code> ou <code>*xp</code>) désigne l'instanciation courante et que la recherche trouve le nom dans l'instanciation courante ou dans sa base non dépendante</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+class A
+{
+    static const int i = 5;
+
+    int n1[i];       // i désigne un membre de l'instanciation courante
+    int n2[A::i];    // A::i désigne un membre de l'instanciation courante
+    int n3[A&lt;T&gt;::i]; // A&lt;T&gt;::i désigne un membre de l'instanciation courante
+
+    int f();
+};
+
+template&lt;class T&gt;
+int A&lt;T&gt;::f()
+{
+    return i; // i désigne un membre de l'instanciation courante
+}
+</code></pre>
+<p>Les membres de l'instanciation courante peuvent être à la fois dépendants et non dépendants.</p>
+<p>Si la recherche d'un membre de l'instanciation courante donne un résultat différent entre le point d'instanciation et le point de définition, la recherche est ambiguë. Notez toutefois que lorsqu'un nom de membre est utilisé, il n'est pas automatiquement converti en expression d'accès à un membre de classe ; seules les expressions d'accès explicites désignent des membres de l'instanciation courante :</p>
+<pre><code class="language-cpp">struct A { int m; };
+struct B { int m; };
+
+template&lt;typename T&gt;
+struct C : A, T
+{
+    int f() { return this-&gt;m; } // trouve A::m dans le contexte de définition du modèle
+    int g() { return m; }       // trouve A::m dans le contexte de définition du modèle
+};
+
+template int C&lt;B&gt;::f(); // erreur : trouve à la fois A::m et B::m
+
+template int C&lt;B&gt;::g(); // OK : transformation en syntaxe d'accès à un membre de classe
+                        // n'apparaît pas dans le contexte de définition du modèle
+</code></pre>
+<h2 id="Unknown_specializations">Spécialisations inconnues</h2>
+<p>Dans une définition de modèle, certains noms sont considérés comme appartenant à une <em>spécialisation inconnue</em>, en particulier :</p>
+<ul>
+<li>un <a href="qualified_lookup.html">nom qualifié</a>, si un nom situé à gauche de <code>::</code> est un type dépendant qui n'est pas un membre de l'instanciation courante</li>
+<li>un <a href="qualified_lookup.html">nom qualifié</a> dont le qualificateur est l'instanciation courante, dont le nom ne se trouve ni dans l'instanciation courante ni dans l'une de ses classes de base non dépendantes, et qu'il existe une classe de base dépendante</li>
+<li>un nom de membre dans une expression d'accès à un membre de classe (le <code>y</code> dans <code>x.y</code> ou <code>xp-&gt;y</code>), si le type de l'expression d'objet (<code>x</code> ou <code>*xp</code>) est un type dépendant et n'est pas l'instanciation courante</li>
+<li>un nom de membre dans une expression d'accès à un membre de classe (le <code>y</code> dans <code>x.y</code> ou <code>xp-&gt;y</code>), si le type de l'expression d'objet (<code>x</code> ou <code>*xp</code>) est l'instanciation courante, dont le nom ne se trouve ni dans l'instanciation courante ni dans l'une de ses classes de base non dépendantes, et qu'il existe une classe de base dépendante</li>
+</ul>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct Base {};
+
+template&lt;typename T&gt;
+struct Derived : Base&lt;T&gt;
+{
+    void f()
+    {
+        // Derived&lt;T&gt; désigne l'instanciation courante
+        // il n'existe pas de « unknown_type » dans l'instanciation courante
+        // mais il existe une base dépendante (Base&lt;T&gt;)
+        // Par conséquent, « unknown_type » est un membre d'une spécialisation inconnue
+        typename Derived&lt;T&gt;::unknown_type z;
+    }
+};
+
+template&lt;&gt;
+struct Base&lt;int&gt; // cette spécialisation le fournit
+{
+    typedef int unknown_type;
+};
+</code></pre>
+<p>Cette classification permet de détecter les erreurs suivantes au point de définition du modèle (et non à son instanciation) :</p>
+<ul>
+<li>Si une définition de modèle contient un <a href="qualified_lookup.html">nom qualifié</a> dont le qualificateur désigne l'instanciation courante et que le nom n'est ni un membre de l'instanciation courante ni un membre de spécialisation inconnue, le programme est mal formé (aucun diagnostic requis), même si le modèle n'est jamais instancié.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+class A
+{
+    typedef int type;
+
+    void f()
+    {
+        A&lt;T&gt;::type i; // OK : « type » est un membre de l'instanciation courante
+        typename A&lt;T&gt;::other j; // Error:
+
+        // « other » n'est pas un membre de l'instanciation courante
+        // et ce n'est pas un membre d'une spécialisation inconnue
+        // car A&lt;T&gt; (qui désigne l'instanciation courante),
+        // n'a pas de bases dépendantes dans lesquelles « other » pourrait se cacher.
+    }
+};
+</code></pre>
+<ul>
+<li>Si une définition de modèle contient une expression d'accès à un membre dont l'expression d'objet est l'instanciation courante, mais que le nom n'est ni un membre de l'instanciation courante ni un membre de spécialisation inconnue, le programme est mal formé, même si le modèle n'est jamais instancié.</li>
+</ul>
+<p>Les membres de spécialisation inconnue sont toujours dépendants, et sont recherchés et liés au point d'instanciation comme tous les noms dépendants (voir ci-dessus)</p>
+<h2 id="The_typename_disambiguator_for_dependent_names">Le désambiguïsateur <code>typename</code> pour les noms dépendants</h2>
+<p>Dans une déclaration ou une définition de modèle, y compris de modèle d'alias, un nom qui n'est pas un membre de l'instanciation courante et qui dépend d'un paramètre de modèle n'est pas considéré comme un type, sauf si le mot-clé <code>typename</code> est utilisé ou s'il a déjà été établi comme un nom de type, par exemple avec une déclaration typedef ou en étant utilisé pour nommer une classe de base.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+int p = 1;
+
+template&lt;typename T&gt;
+void foo(const std::vector&lt;T&gt; &amp;v)
+{
+    // std::vector&lt;T&gt;::const_iterator est un nom dépendant,
+    typename std::vector&lt;T&gt;::const_iterator it = v.begin();
+
+    // sans « typename », ce qui suit est analysé comme une multiplication
+    // du membre de donnée « const_iterator », dépendant du type,
+    // et d'une variable « p ». Comme il existe une « p » globale visible
+    // à ce point, ce modèle de définition se compile.
+    std::vector&lt;T&gt;::const_iterator* p;
+
+    typedef typename std::vector&lt;T&gt;::const_iterator iter_t;
+    iter_t * p2; // « iter_t » est un nom dépendant, mais on sait qu'il s'agit d'un nom de type
+}
+
+template&lt;typename T&gt;
+struct S
+{
+    typedef int value_t; // membre de l'instanciation courante
+
+    void f()
+    {
+        S&lt;T&gt;::value_t n{}; // S&lt;T&gt; est dépendant, mais « typename » n'est pas nécessaire
+        std::cout &lt;&lt; n &lt;&lt; '\n';
+    }
+};
+
+int main()
+{
+    std::vector&lt;int&gt; v;
+    foo(v); // l'instanciation du modèle échoue : il n'existe pas de membre de donnée
+            // nommé « const_iterator » dans le type std::vector&lt;int&gt;
+    S&lt;int&gt;().f();
+}
+</code></pre>
+<p>Le mot-clé <code>typename</code> ne peut être utilisé de cette manière que devant des noms qualifiés (par exemple <code>T::x</code>), mais ces noms n'ont pas besoin d'être dépendants.</p>
+<p>La <a href="qualified_lookup.html">recherche de nom qualifié</a> habituelle est utilisée pour l'identifiant précédé de <code>typename</code>. Contrairement au cas du <a href="elaborated_type_specifier.html">spécificateur de type élaboré</a>, les règles de recherche ne changent pas malgré le qualificateur :</p>
+<pre><code class="language-cpp">struct A // A possède une variable membre X et un type imbriqué struct X
+{
+    struct X {};
+    int X;
+};
+
+struct B
+{
+    struct X {}; // B possède un type imbriqué struct X
+};
+
+template&lt;class T&gt;
+void f(T t)
+{
+    typename T::X x;
+}
+
+void foo()
+{
+    A a;
+    B b;
+    f(b); // OK : instancie f&lt;B&gt;, T::X désigne B::X
+    f(a); // erreur : impossible d'instancier f&lt;A&gt; :
+          // car la recherche de nom qualifiée de A::X trouve le membre de donnée
+}
+</code></pre>
+<p>Le mot-clé <code>typename</code> peut être utilisé même en dehors des modèles.</p>
+<pre><code class="language-cpp">#include &lt;vector&gt;
+
+int main()
+{
+    // Les deux OK (après résolution de CWG 382)
+    typedef typename std::vector&lt;int&gt;::const_iterator iter_t;
+    typename std::vector&lt;int&gt; v;
+}
+</code></pre>
+<blockquote>
+<p>Dans certains contextes, seuls des noms de types peuvent apparaître validement. Dans ces contextes, un nom qualifié dépendant est supposé désigner un type et aucun <code>typename</code> n'est requis :</p>
+<ul>
+<li>
+<p>Un nom qualifié utilisé comme <a href="declarations.html#Specifiers">spécificateur de déclaration</a> dans le (niveau supérieur du) <code>decl-specifier-seq</code> de :</p>
+</li>
+<li>
+<p>une <a href="declarations.html#Simple_declaration">déclaration simple</a> ou une <a href="function.html#Function_definition">définition de fonction</a> à portée d'espace de noms ;</p>
+</li>
+<li>
+<p>une <a href="class.html#Member_specification">déclaration de membre de classe</a> ;</p>
+</li>
+<li>
+<p>une <a href="function.html#Parameter_list">déclaration de paramètre</a> dans une <a href="class.html#Member_specification">déclaration de membre de classe</a> (y compris les déclarations d'amie de fonctions), en dehors des arguments par défaut ;</p>
+</li>
+<li>
+<p>une <a href="function.html#Parameter_list">déclaration de paramètre</a> d'un <a href="function.html">déclarateur de fonction ou de modèle de fonction</a> dont le nom est qualifié, en dehors des arguments par défaut ;</p>
+</li>
+<li>
+<p>une <a href="function.html#Parameter_list">déclaration de paramètre</a> d'une <a href="lambda.html">expression lambda</a>, en dehors des arguments par défaut ;</p>
+</li>
+<li>
+<p>une déclaration de paramètre d'une expression <a href="constraints.html#Requires_expressions"><code>requires</code></a> ;</p>
+</li>
+<li>
+<p>le type dans la déclaration d'un <a href="template_parameters.html#Non-type_template_parameter">paramètre de modèle non de type</a> ;</p>
+</li>
+<li>
+<p>Un nom qualifié qui apparaît dans un <a href="type-id.html#Type_naming">type-id</a>, lorsque le plus petit type-id englobant est :</p>
+</li>
+<li>
+<p>le <code>type</code> dans une <a href="new.html">expression new</a> qui ne met pas son type entre parenthèses ;</p>
+</li>
+<li>
+<p>le <code>type-id</code> dans une <a href="type_alias.html">déclaration d'alias</a> ;</p>
+</li>
+<li>
+<p>un <a href="function.html">type de retour de fin</a>,</p>
+</li>
+<li>
+<p>un <a href="template_parameters.html#Type_template_parameter">argument par défaut d'un paramètre de modèle de type</a>, ou</p>
+</li>
+<li>
+<p>le <code>type-id</code> d'un <a href="static_cast.html"><code>static_cast</code></a>, <a href="dynamic_cast.html"><code>dynamic_cast</code></a>, <a href="const_cast.html"><code>const_cast</code></a> ou <a href="reinterpret_cast.html"><code>reinterpret_cast</code></a>.</p>
+</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="The_template_disambiguator_for_dependent_names">Le désambiguïsateur <code>template</code> pour les noms dépendants</h2>
+<p>De même, dans la définition d'un modèle, un nom dépendant qui n'est pas membre de l'instanciation courante n'est pas considéré comme un nom de modèle, sauf si le mot-clé de désambiguïsation <code>template</code> est utilisé ou s'il a déjà été établi comme nom de modèle :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct S
+{
+    template&lt;typename U&gt;
+    void foo() {}
+};
+
+template&lt;typename T&gt;
+void bar()
+{
+    S&lt;T&gt; s;
+    s.foo&lt;T&gt;();          // erreur : &lt; analysé comme l'opérateur d'infériorité
+    s.template foo&lt;T&gt;(); // OK
+}
+</code></pre>
+<p>Le mot-clé <code>template</code> ne peut être utilisé de cette manière qu'après les opérateurs <code>::</code> (résolution de portée), <code>-&gt;</code> (accès membre via un pointeur) et <code>.</code> (accès membre) ; les exemples suivants sont tous valides :</p>
+<ul>
+<li><code>T::template foo&lt;X&gt;();</code></li>
+<li><code>s.template foo&lt;X&gt;();</code></li>
+<li><code>this-&gt;template foo&lt;X&gt;();</code></li>
+<li><code>typename T::template iterator&lt;int&gt;::value_type v;</code></li>
+</ul>
+<p>Comme c'est le cas avec <code>typename</code>, le préfixe <code>template</code> est autorisé même si le nom n'est pas dépendant ou si l'utilisation n'apparaît pas dans la portée d'un modèle.</p>
+<p>Même si le nom à gauche de <code>::</code> désigne un espace de noms, le désambiguïsateur de modèle est autorisé :</p>
+<pre><code class="language-cpp">template&lt;typename&gt;
+struct S {};
+
+::template S&lt;void&gt; q; // autorisé, mais inutile
+</code></pre>
+<blockquote>
+<p>En raison des règles spéciales de <a href="unqualified_lookup.html">recherche de nom non qualifié</a> pour les noms de modèles dans les expressions d'accès membre, lorsqu'un nom de modèle non dépendant apparaît dans une expression d'accès membre (après <code>-&gt;</code> ou après <code>.</code>), le désambiguïsateur est inutile s'il existe un modèle de classe ou alias <em>(depuis C++11)</em> de même nom trouvé par la recherche ordinaire dans le contexte de l'expression. Toutefois, si le modèle trouvé par la recherche dans le contexte de l'expression diffère de celui trouvé dans le contexte de la classe, le programme est mal formé <em>(jusqu'à C++11)</em></p>
+<pre><code class="language-cpp">template&lt;int&gt;
+struct A { int value; };
+
+template&lt;class T&gt;
+void f(T t)
+{
+    t.A&lt;0&gt;::value; // La recherche ordinaire de A trouve un modèle de classe.
+                   // A&lt;0&gt;::value désigne un membre de la classe A&lt;0&gt;
+    // t.A &lt; 0;    // Erreur : « &lt; » est traité comme le début d'une liste d'arguments de modèle
+}
+</code></pre>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/template.html"><code>template</code></a>,
+<a href="../keywords/typename.html"><code>typename</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/206.html">CWG 206</a></td>
+<td>C++98</td>
+<td>il n'était pas spécifié à quel moment les contraintes sémantiques sont appliquées lorsqu'un type utilisé dans un nom non dépendant est incomplet au point où un modèle est défini mais est complet au point où une instanciation est effectuée</td>
+<td>le programme est mal formé et aucun diagnostic n'est requis dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/224.html">CWG 224</a></td>
+<td>C++98</td>
+<td>la définition des types dépendants reposait sur la forme du nom plutôt que sur la recherche</td>
+<td>définition remaniée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/382.html">CWG 382</a></td>
+<td>C++98</td>
+<td>le désambiguïsateur <code>typename</code> n'était autorisé que dans la portée d'un modèle</td>
+<td>également autorisé en dehors des modèles</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/468.html">CWG 468</a></td>
+<td>C++98</td>
+<td>le désambiguïsateur <code>template</code> n'était autorisé que dans la portée d'un modèle</td>
+<td>également autorisé en dehors des modèles</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/502.html">CWG 502</a></td>
+<td>C++98</td>
+<td>il n'était pas spécifié si les énumérations imbriquées sont dépendantes</td>
+<td>dépendantes comme les classes imbriquées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1047.html">CWG 1047</a></td>
+<td>C++98</td>
+<td>les expressions <code>typeid</code> n'étaient jamais dépendantes de la valeur</td>
+<td>dépendantes de la valeur si l' opérande est dépendant du type</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1160.html">CWG 1160</a></td>
+<td>C++98</td>
+<td>il n'était pas spécifié si un nom désigne l'instanciation courante lorsqu'un template-id correspondant à un modèle primaire ou à une spécialisation partielle apparaît dans la définition d'un membre du modèle</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1413.html">CWG 1413</a></td>
+<td>C++98</td>
+<td>les membres de données statiques non initialisés, les fonctions membres statiques et l'adresse d'un membre d'un modèle de classe n'étaient pas listés comme dépendants de la valeur</td>
+<td>listed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1471.html">CWG 1471</a></td>
+<td>C++98</td>
+<td>un type imbriqué d'une base non dépendante de l'instanciation courante était dépendant</td>
+<td>il n'est pas dépendant</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1850.html">CWG 1850</a></td>
+<td>C++98</td>
+<td>la liste des cas où la signification peut changer entre le contexte de définition et le point d'instanciation était incomplète</td>
+<td>rendue complète</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1929.html">CWG 1929</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si le désambiguïsateur <code>template</code> peut suivre un <code>::</code> lorsque le nom à sa gauche désigne un espace de noms</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2066.html">CWG 2066</a></td>
+<td>C++98</td>
+<td><code>this</code> n'était jamais dépendant de la valeur</td>
+<td>il peut être dépendant de la valeur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2100.html">CWG 2100</a></td>
+<td>C++98</td>
+<td>l'adresse d'un membre de données statique d'un modèle de classe n'était pas listée comme dépendante de la valeur</td>
+<td>listed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2109.html">CWG 2109</a></td>
+<td>C++98</td>
+<td>les expressions d'identifiants dépendantes du type pouvaient ne pas être dépendantes de la valeur</td>
+<td>elles sont toujours dépendantes de la valeur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2276.html">CWG 2276</a></td>
+<td>C++98</td>
+<td>un type de fonction dont la spécification d'exception est dépendante de la valeur n'était pas un type dépendant</td>
+<td>c'est le cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2307.html">CWG 2307</a></td>
+<td>C++98</td>
+<td>un paramètre de modèle non de type entre parenthèses utilisé comme argument de modèle était équivalent à ce paramètre de modèle</td>
+<td>plus équivalent</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2457.html">CWG 2457</a></td>
+<td>C++11</td>
+<td>un type de fonction avec un pack de paramètres de fonction n'était pas un type dépendant</td>
+<td>c'est le cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2785.html">CWG 2785</a></td>
+<td>C++20</td>
+<td>les expressions <code>requires</code> peuvent être dépendantes du type</td>
+<td>elles ne sont jamais dépendantes du type</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2905.html">CWG 2905</a></td>
+<td>C++11</td>
+<td>une expression <code>noexcept</code> n'était dépendante de la valeur que si son opérande est dépendant de la valeur</td>
+<td>elle est dépendante de la valeur si son opérande fait intervenir un paramètre de modèle</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2936.html">CWG 2936</a></td>
+<td>C++98</td>
+<td>les noms des classes locales des fonctions modélisées ne faisaient pas partie de l'instanciation courante</td>
+<td>ils le sont</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

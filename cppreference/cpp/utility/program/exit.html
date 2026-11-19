@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::exit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/program.html">Utilitaires de support du programme</a></nav>
+<h1 id="std-exit"><code>std::exit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/program/exit">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">void exit( int exit_code );  // (jusqu'à C++11)
+
+[[noreturn]] void exit( int exit_code );  // (depuis C++11)
+</code></pre>
+<p>Provoque la terminaison normale du programme.</p>
+<p>Plusieurs étapes de nettoyage sont effectuées :</p>
+<blockquote>
+<ol>
+<li>Les objets à durée de stockage statique sont détruits et les fonctions enregistrées par l'appel à <a href="atexit.html"><code>std::atexit</code></a> sont appelées :</li>
+</ol>
+<p>a) Les objets non locaux à durée de stockage statique sont détruits dans l'ordre inverse de la fin de leur constructeur.</p>
+<p>b) Les fonctions enregistrées avec <a href="atexit.html"><code>std::atexit</code></a> sont appelées dans l'ordre inverse de leur enregistrement, sauf qu'une fonction est appelée après toutes les fonctions enregistrées précédemment qui avaient déjà été appelées au moment de son enregistrement.</p>
+<p>c) Pour chaque fonction <code>f</code> enregistrée avec <a href="atexit.html"><code>std::atexit</code></a> et chaque objet non local <code>obj</code> à durée de stockage statique,</p>
+<ul>
+<li>si <code>f</code> est enregistrée avant l'initialisation de <code>obj</code>, <code>f</code> ne sera appelée qu'après la destruction de <code>obj</code> ;</li>
+<li>si <code>f</code> est enregistrée après l'initialisation de <code>obj</code>, <code>f</code> ne sera appelée qu'avant la destruction de <code>obj</code>.</li>
+</ul>
+<p>d) Pour chaque objet local <code>obj</code> à durée de stockage statique, <code>obj</code> est détruit comme si une fonction appelant le destructeur de <code>obj</code> avait été enregistrée avec <a href="atexit.html"><code>std::atexit</code></a> à la fin du constructeur de <code>obj</code>.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<ol>
+<li>Les destructeurs des objets à <a href="../../language/storage_duration.html">durée de stockage</a> thread local associés au thread courant, les destructeurs des objets à durée de stockage statique et les fonctions enregistrées avec <a href="atexit.html"><code>std::atexit</code></a> sont exécutés de façon concurrente, tout en respectant les garanties suivantes :</li>
+</ol>
+<p>a) Le dernier destructeur des objets thread local est <a href="../../language/eval_order.html">séquencé avant</a> le premier destructeur d'un objet statique.</p>
+<p>b) Si la fin du constructeur ou de l'<a href="../../language/initialization.html#Dynamic_initialization">initialisation dynamique</a> de l'objet thread local ou statique A est séquencée avant celle de l'objet thread local ou statique B, la fin de la destruction de B est séquencée avant le début de la destruction de A.</p>
+<p>c) Si la fin de l'initialisation d'un objet statique A est séquencée avant l'appel à <a href="atexit.html"><code>std::atexit</code></a> pour une fonction F, l'appel à F pendant la terminaison est séquencé avant le début de la destruction de A.</p>
+<p>d) Si l'appel à <a href="atexit.html"><code>std::atexit</code></a> pour une fonction F est séquencé avant la fin de l'initialisation d'un objet statique A, le début de la destruction de A est séquencé avant l'appel à F pendant la terminaison.</p>
+<p>e) Si un appel à <a href="atexit.html"><code>std::atexit</code></a> pour une fonction F1 est séquencé avant l'appel à <a href="atexit.html"><code>std::atexit</code></a> pour une fonction F2, alors l'appel à F2 pendant la terminaison est séquencé avant l'appel à F1.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>Dans ce qui précède,
+<ul>
+<li>Si une fonction enregistrée avec <code>atexit</code> ou un destructeur d'objet statique/thread local lève une exception, <a href="../../error/terminate.html"><code>std::terminate</code></a> est appelée.</li>
+<li>Si le compilateur a choisi de déplacer l'initialisation dynamique d'un objet vers la phase d'initialisation statique de l'<a href="../../language/initialization.html">initialisation non locale</a>, le séquencement de la destruction respecte son initialisation dynamique théorique.</li>
+<li>Si un objet statique local à un bloc (de portée de bloc) a été détruit, puis que cette fonction est appelée depuis le destructeur d'un autre objet statique et que le flot de contrôle passe par la définition de cet objet (ou s'il est utilisé indirectement, via un pointeur ou une référence), le comportement est indéfini.</li>
+<li>Si un objet statique local à un bloc a été initialisé pendant la construction d'un sous-objet d'une classe ou d'un tableau, il n'est détruit qu'après la destruction de tous les sous-objets de cette classe ou de tous les éléments de ce tableau.</li>
+</ul>
+</li>
+</ul>
+<ol start="2">
+<li>
+<p>Tous les flux C sont vidés et fermés.</p>
+</li>
+<li>
+<p>Les fichiers créés par <a href="../../io/c/tmpfile.html"><code>std::tmpfile</code></a> sont supprimés.</p>
+</li>
+<li>
+<p>Le contrôle est rendu à l'environnement hôte. Si <code>exit_code</code> vaut <code>0</code> ou <a href="EXIT_status.html"><code>EXIT_SUCCESS</code></a>, un statut défini par l'implémentation indiquant une terminaison réussie est renvoyé. Si <code>exit_code</code> vaut <a href="EXIT_status.html"><code>EXIT_FAILURE</code></a>, un statut défini par l'implémentation indiquant une terminaison non réussie est renvoyé. Dans les autres cas, une valeur de statut définie par l'implémentation est renvoyée.</p>
+</li>
+</ol>
+<p>La pile n'est pas déroulée : les destructeurs des variables à <a href="../../language/storage_duration.html">durée de stockage</a> automatique ne sont pas appelés.</p>
+<h2 id="Relationship_with_the_main_function">Relation avec la fonction main</h2>
+<p>Le retour depuis la <a href="../../language/main_function.html">fonction main</a>, soit par une instruction <code>return</code>, soit en atteignant la fin de la fonction, effectue la terminaison normale de la fonction (appelle les destructeurs des variables à <a href="../../language/storage_duration.html">durée de stockage</a> automatique), puis exécute <code>std::exit</code>, en passant l'argument de l'instruction return (ou <code>0</code> si un retour implicite a été utilisé) comme <code>exit_code</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>exit_code</code> — statut de sortie du programme</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;iostream&gt;
+
+struct Static
+{
+    ~Static()
+    {
+        std::cout &lt;&lt; &quot;Static destructor\n&quot;;
+    }
+};
+
+struct Local
+{
+    ~Local()
+    {
+        std::cout &lt;&lt; &quot;Local destructor\n&quot;;
+    }
+};
+
+Static static_variable; // Le destructeur de cet objet *sera* appelé
+
+void atexit_handler()
+{
+    std::cout &lt;&lt; &quot;atexit handler\n&quot;;
+}
+
+int main()
+{
+    Local local_variable; // Le destructeur de cet objet *ne sera pas* appelé
+    const int result = std::atexit(atexit_handler); // Le gestionnaire sera appelé
+
+    if (result != 0)
+    {
+        std::cerr &lt;&lt; &quot;atexit registration failed\n&quot;;
+        return EXIT_FAILURE;
+    }
+
+    std::cout &lt;&lt; &quot;test\n&quot;;
+    std::exit(EXIT_FAILURE);
+
+    std::cout &lt;&lt; &quot;this line will *not* be executed\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">test
+atexit handler
+Static destructor
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3">LWG 3</a></td>
+<td>C++98</td>
+<td>pendant le nettoyage, le comportement n'était pas clair lorsque (1) une fonction est enregistrée avec <a href="atexit.html"><code>std::atexit</code></a> ou (2) un objet statique local est initialisé</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="abort.html">abort</a></strong> — provoque une terminaison anormale du programme (sans nettoyage) <em>(fonction)</em></li>
+<li><strong><a href="atexit.html">atexit</a></strong> — enregistre une fonction à appeler lors de l'invocation normale de <code>std::exit()</code> <em>(fonction)</em></li>
+<li><strong><a href="quick_exit.html">quick_exit</a> (C++11)</strong> — provoque une fin rapide du programme sans nettoyage complet <em>(fonction)</em></li>
+<li><strong><a href="at_quick_exit.html">at_quick_exit</a> (C++11)</strong> — enregistre une fonction à appeler lors de l'invocation normale de <a href="quick_exit.html"><code>std::quick_exit</code></a> <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/program/exit.html">Documentation C</a> de exit</strong></p>
+
+</main>
+</body>
+</html>

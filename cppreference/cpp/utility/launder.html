@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::launder — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-launder"><code>std::launder</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/launder">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;new&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+constexpr T* launder( T* p ) noexcept;  // (depuis C++17)
+</code></pre>
+<p>Barrière de dévirtualisation relative à <code>p</code>. Retourne un pointeur vers un objet situé à la même adresse que celle représentée par <code>p</code>, l'objet pouvant être un nouveau sous-objet de classe de base dont la classe la plus dérivée est différente de celle de l'objet <code>*p</code> d'origine.</p>
+<p>Formellement, étant donné</p>
+<ul>
+<li>le pointeur <code>p</code> représente l'adresse <code>A</code> d'un octet en mémoire</li>
+<li>un objet <code>x</code> est situé à l'adresse <code>A</code></li>
+<li><code>x</code> est dans sa <a href="../language/lifetime.html">durée de vie</a></li>
+<li>le type de <code>x</code> est le même que <code>T</code>, en ignorant les qualificateurs cv à chaque niveau</li>
+<li>chaque octet qui serait accessible via le résultat est accessible via p (des octets sont accessibles via un pointeur pointant vers un objet <code>y</code> si ces octets se trouvent dans le stockage d'un objet <code>z</code> qui est <a href="../language/static_cast.html#pointer-interconvertible">interconvertible en pointeur</a> avec <code>y</code>, ou dans le tableau immédiatement englobant dont <code>z</code> est un élément).</li>
+</ul>
+<p>Alors <code>std::launder(p)</code> retourne une valeur de type <code>T*</code> qui pointe vers l'objet <code>x</code>. Sinon, le comportement est indéfini.</p>
+<p>Le programme est mal formé si <code>T</code> est un type fonction ou (éventuellement qualifié cv) <code>void</code>.</p>
+<p><code>std::launder</code> peut être utilisé dans une <a href="../language/constant_expression.html">expression constante de base</a> si et seulement si la valeur (convertie) de son argument peut être utilisée à la place de l'appel de fonction. En d'autres termes, <code>std::launder</code> n'assouplit pas les restrictions de l'évaluation à la compilation.</p>
+<h2 id="Notes">Notes</h2>
+<p><code>std::launder</code> n'a aucun effet sur son argument. Sa valeur de retour doit être utilisée pour accéder à l'objet. Ainsi, il est toujours une erreur d'ignorer la valeur de retour.</p>
+<p>Les utilisations typiques de <code>std::launder</code> incluent :</p>
+<ul>
+<li>Obtenir un pointeur vers un objet créé dans le stockage d'un objet existant du même type, lorsque les pointeurs vers l'ancien objet ne peuvent pas être <a href="../language/lifetime.html#Storage_reuse">réutilisés</a> (par exemple parce que l'un des objets est un sous-objet de classe de base) ;</li>
+<li>Obtenir un pointeur vers un objet créé par <code>new</code> placement à partir d'un pointeur vers un objet fournissant le stockage de cet objet.</li>
+</ul>
+<p>La restriction d'<em>accessibilité</em> garantit que <code>std::launder</code> ne peut pas être utilisé pour accéder à des octets non accessibles via le pointeur d'origine, évitant ainsi toute interférence avec l'analyse d'échappement du compilateur.</p>
+<pre><code class="language-cpp">int x[10];
+auto p = std::launder(reinterpret_cast&lt;int(*)[10]&gt;(&amp;x[0])); // OK
+
+int x2[2][10];
+auto p2 = std::launder(reinterpret_cast&lt;int(*)[10]&gt;(&amp;x2[0][0]));
+// Comportement indéfini : x2[1] serait accessible via le pointeur résultant vers x2[0]
+// mais n'est pas accessible depuis la source
+
+struct X { int a[10]; } x3, x4[2]; // disposition standard ; supposer l'absence de remplissage (padding)
+auto p3 = std::launder(reinterpret_cast&lt;int(*)[10]&gt;(&amp;x3.a[0])); // OK
+auto p4 = std::launder(reinterpret_cast&lt;int(*)[10]&gt;(&amp;x4[0].a[0]));
+// Comportement indéfini : x4[1] serait accessible via le pointeur résultant vers x4[0].a
+// (qui est interconvertible par pointeur avec x4[0]) mais n'est pas accessible depuis la source
+
+struct Y { int a[10]; double y; } x5;
+auto p5 = std::launder(reinterpret_cast&lt;int(*)[10]&gt;(&amp;x5.a[0]));
+// Comportement indéfini : x5.y serait accessible via le pointeur résultant vers x5.a
+// mais n'est pas accessible depuis la source
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstddef&gt;
+#include &lt;new&gt;
+
+struct Base
+{
+    virtual int transmogrify();
+};
+
+struct Derived : Base
+{
+    int transmogrify() override
+    {
+        new(this) Base;
+        return 2;
+    }
+};
+
+int Base::transmogrify()
+{
+    new(this) Derived;
+    return 1;
+}
+
+static_assert(sizeof(Derived) == sizeof(Base));
+
+int main()
+{
+    // Cas 1 : le nouvel objet n'a pas pu remplacer transparemment l'ancien, car
+    // il s'agit d'un sous-objet de base alors que l'ancien objet est un objet complet.
+    Base base;
+    int n = base.transmogrify();
+    // int m = base.transmogrify(); // comportement indéfini
+    int m = std::launder(&amp;base)-&gt;transmogrify(); // OK
+    assert(m + n == 3);
+
+    // Cas 2 : accès à un nouvel objet dont le stockage est fourni
+    // par un tableau d'octets, via un pointeur vers ce tableau.
+    struct Y { int z; };
+    alignas(Y) std::byte s[sizeof(Y)];
+    Y* q = new(&amp;s) Y{2};
+    const int f = reinterpret_cast&lt;Y*&gt;(&amp;s)-&gt;z; // L'accès aux membres de classe est indéfini
+                                               // behavior: reinterpret_cast&lt;Y*&gt;(&amp;s)
+                                               // a pour valeur « pointer to s » et ne
+                                               // pointe pas vers un objet Y
+    const int g = q-&gt;z; // OK
+    const int h = std::launder(reinterpret_cast&lt;Y*&gt;(&amp;s))-&gt;z; // OK
+
+    [](...){}(f, g, h); // évoque l'effet de [[maybe_unused]]
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2859">LWG 2859</a></td>
+<td>C++17</td>
+<td>la définition de <em>reachable</em> ne tenait pas compte de l'arithmétique des pointeurs à partir d'un objet pointer-interconvertible</td>
+<td>included</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3495">LWG 3495</a></td>
+<td>C++17</td>
+<td><code>std::launder</code> pourrait rendre déréférençable un pointeur vers un membre inactif dans une expression constante</td>
+<td>forbidden</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

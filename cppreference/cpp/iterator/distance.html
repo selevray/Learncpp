@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::distance — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/iterator.html">Bibliothèque des itérateurs</a></nav>
+<h1 id="std-distance"><code>std::distance</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/distance">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class InputIt &gt;
+typename std::iterator_traits&lt;InputIt&gt;::difference_type
+    distance( InputIt first, InputIt last );  // (constexpr depuis C++17)
+</code></pre>
+<p>Retourne le nombre de sauts de <code>first</code> à <code>last</code>.</p>
+<p>Si <code>InputIt</code> n'est pas <a href="../named_req/RandomAccessIterator.html"><em>LegacyRandomAccessIterator</em></a>, le comportement est indéfini si <code>last</code> n'est pas <a href="../iterator.html#Ranges">accessible</a> depuis <code>first</code>.</p>
+<p>Si <code>InputIt</code> est <a href="../named_req/RandomAccessIterator.html"><em>LegacyRandomAccessIterator</em></a>, le comportement est indéfini si <code>first</code> et <code>last</code> ne sont accessibles ni l'un depuis l'autre.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first</code> — itérateur pointant vers le premier élément</li>
+<li><code>last</code> — itérateur pointant vers la fin de l'intervalle</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire les exigences de <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>. L'opération est plus efficace si <code>InputIt</code> satisfait en outre les exigences de <a href="../named_req/RandomAccessIterator.html"><em>LegacyRandomAccessIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le nombre d'incréments nécessaires pour aller de <code>first</code> à <code>last</code>.</p>
+<blockquote>
+<p>La valeur peut être négative si des itérateurs à accès aléatoire sont utilisés et que <code>first</code> est accessible depuis <code>last</code>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire.</p>
+<p>Cependant, si <code>InputIt</code> satisfait en plus les exigences de <a href="../named_req/RandomAccessIterator.html"><em>LegacyRandomAccessIterator</em></a>, la complexité est constante.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Voir aussi les implémentations dans <a href="https://github.com/gcc-mirror/gcc/blob/d9375e490072d1aae73a93949aa158fcd2a27018/libstdc%2B%2B-v3/include/bits/stl_iterator_base_funcs.h#L135">libstdc++</a> et <a href="https://github.com/llvm-mirror/libcxx/blob/a12cb9d211019d99b5875b6d8034617cbc24c2cc/include/iterator#L611">libc++</a>.</p>
+<p><strong>Implémentation C++98 par distribution de balises, avec <code>constexpr</code> supprimé</strong></p>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt;class It&gt;
+    constexpr // requis depuis C++17
+    typename std::iterator_traits&lt;It&gt;::difference_type
+        do_distance(It first, It last, std::input_iterator_tag)
+    {
+        typename std::iterator_traits&lt;It&gt;::difference_type result = 0;
+        while (first != last)
+        {
+            ++first;
+            ++result;
+        }
+        return result;
+    }
+
+    template&lt;class It&gt;
+    constexpr // requis depuis C++17
+    typename std::iterator_traits&lt;It&gt;::difference_type
+        do_distance(It first, It last, std::random_access_iterator_tag)
+    {
+        return last - first;
+    }
+} // espace de noms detail
+
+template&lt;class It&gt;
+constexpr // depuis C++17
+typename std::iterator_traits&lt;It&gt;::difference_type
+    distance(It first, It last)
+{
+    return detail::do_distance(first, last,
+                               typename std::iterator_traits&lt;It&gt;::iterator_category());
+}
+</code></pre>
+<p><strong>Implémentation C++17 via <code>if constexpr</code></strong></p>
+<pre><code class="language-cpp">template&lt;class It&gt;
+constexpr typename std::iterator_traits&lt;It&gt;::difference_type
+    distance(It first, It last)
+{
+    using category = typename std::iterator_traits&lt;It&gt;::iterator_category;
+    static_assert(std::is_base_of_v&lt;std::input_iterator_tag, category&gt;);
+
+    if constexpr (std::is_base_of_v&lt;std::random_access_iterator_tag, category&gt;)
+        return last - first;
+    else
+    {
+        typename std::iterator_traits&lt;It&gt;::difference_type result = 0;
+        while (first != last)
+        {
+            ++first;
+            ++result;
+        }
+        return result;
+    }
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v{3, 1, 4};
+    std::cout &lt;&lt; &quot;distance(first, last) = &quot;
+              &lt;&lt; std::distance(v.begin(), v.end()) &lt;&lt; '\n'
+              &lt;&lt; &quot;distance(last, first) = &quot;
+              &lt;&lt; std::distance(v.end(), v.begin()) &lt;&lt; '\n';
+              // le comportement est indéfini (jusqu'à LWG940)
+
+    static constexpr auto il = {3, 1, 4};
+    // Depuis C++17, `distance` peut être utilisé dans un contexte constexpr.
+    static_assert(std::distance(il.begin(), il.end()) == 3);
+    static_assert(std::distance(il.end(), il.begin()) == -3);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">distance(first, last) = 3
+distance(last, first) = -3
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue940">LWG 940</a></td>
+<td>C++98</td>
+<td>la formulation était peu claire pour le cas où <code>first</code> est accessible depuis <code>last</code></td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="advance.html">advance</a></strong> — fait avancer un itérateur de la distance donnée <em>(modèle de fonction)</em></li>
+<li><strong><a href="../algorithm/count.html">countcount_if</a></strong> — renvoie le nombre d'éléments satisfaisant des critères spécifiques <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/distance.html">ranges::distance</a> (C++20)</strong> — renvoie la distance entre un itérateur et une sentinelle, ou entre le début et la fin d'un intervalle <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

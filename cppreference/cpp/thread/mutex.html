@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::mutex — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-mutex"><code>std::mutex</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/mutex">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">class mutex;  // (depuis C++11)
+</code></pre>
+<p>La classe <code>mutex</code> est une primitive de synchronisation qui peut être utilisée pour protéger des données partagées contre des accès simultanés de plusieurs threads.</p>
+<p><code>mutex</code> offre une sémantique de propriété exclusive et non récursive :</p>
+<ul>
+<li>Un thread appelant <em>possède</em> un <code>mutex</code> depuis le moment où il appelle avec succès soit <a href="mutex/lock.html"><code>lock</code></a>, soit <a href="mutex/try_lock.html"><code>try_lock</code></a>, jusqu'à ce qu'il appelle <a href="mutex/unlock.html"><code>unlock</code></a>.</li>
+<li>Lorsqu'un thread possède un <code>mutex</code>, tous les autres threads seront bloqués (lors des appels à <a href="mutex/lock.html"><code>lock</code></a>) ou recevront une valeur de retour <code>false</code> (pour <a href="mutex/try_lock.html"><code>try_lock</code></a>) s'ils tentent de revendiquer la propriété du <code>mutex</code>.</li>
+<li>Un thread appelant ne doit pas posséder le <code>mutex</code> avant d'appeler <a href="mutex/lock.html"><code>lock</code></a> ou <a href="mutex/try_lock.html"><code>try_lock</code></a>.</li>
+</ul>
+<p>Le comportement d'un programme est indéfini si un <code>mutex</code> est détruit alors qu'il est encore possédé par un thread, ou si un thread se termine alors qu'il possède un <code>mutex</code>. La classe <code>mutex</code> satisfait toutes les exigences de <a href="../named_req/Mutex.html"><em>Mutex</em></a> et de <a href="../named_req/StandardLayoutType.html"><em>StandardLayoutType</em></a>.</p>
+<p><code>std::mutex</code> n'est ni copiable ni déplaçable.</p>
+<h2 id="Nested_types">Types imbriqués</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>native_handle_type</code> <em>(optional</em>)</strong>* — défini par l'implémentation</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="mutex/mutex.html">(constructeur)</a></strong> — construit le mutex <em>(fonction membre publique)</em></li>
+<li><strong><a href="mutex/~mutex.html">(destructeur)</a></strong> — détruit le mutex <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — non copiable par affectation <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Verrouillage {#Locking}</strong></p>
+<ul>
+<li><strong><a href="mutex/lock.html">lock</a></strong> — verrouille le mutex, bloque si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="mutex/try_lock.html">try_lock</a></strong> — tente de verrouiller le mutex, retourne si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="mutex/unlock.html">unlock</a></strong> — déverrouille le mutex <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Descripteur natif {#Native_handle}</strong></p>
+<ul>
+<li><strong><a href="mutex/native_handle.html">native_handle</a></strong> — retourne l'objet de descripteur natif sous-jacent défini par l'implémentation <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><code>std::mutex</code> n'est généralement pas utilisée directement : <a href="unique_lock.html"><code>std::unique_lock</code></a>, <a href="lock_guard.html"><code>std::lock_guard</code></a>, ou <a href="scoped_lock.html"><code>std::scoped_lock</code></a> <em>(depuis C++17)</em> gèrent le verrouillage de manière plus sûre vis-à-vis des exceptions.</p>
+<h2 id="Example">Exemple</h2>
+<p>Cet exemple montre comment un <code>mutex</code> peut être utilisé pour protéger un <a href="../container/map.html"><code>std::map</code></a> partagé entre deux threads.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;map&gt;
+#include &lt;mutex&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+
+std::map&lt;std::string, std::string&gt; g_pages;
+std::mutex g_pages_mutex;
+
+void save_page(const std::string&amp; url)
+{
+    // simule une longue récupération de page
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::string result = &quot;fake content&quot;;
+
+    std::lock_guard&lt;std::mutex&gt; guard(g_pages_mutex);
+    g_pages[url] = result;
+}
+
+int main()
+{
+    std::thread t1(save_page, &quot;http://foo&quot;);
+    std::thread t2(save_page, &quot;http://bar&quot;);
+    t1.join();
+    t2.join();
+
+    // il est désormais sûr d'accéder à g_pages sans verrou, car les threads ont été joints
+    for (const auto&amp; [url, page] : g_pages)
+        std::cout &lt;&lt; url &lt;&lt; &quot; =&gt; &quot; &lt;&lt; page &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">http://bar =&gt; fake content
+http://foo =&gt; fake content
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="recursive_mutex.html">recursive_mutex</a> (C++11)</strong> — fournit un mécanisme d'exclusion mutuelle pouvant être verrouillé récursivement par le même thread <em>(classe)</em></li>
+<li><strong><a href="lock_guard.html">lock_guard</a> (C++11)</strong> — implémente un wrapper de propriété de mutex strictement basé sur la portée <em>(modèle de classe)</em></li>
+<li><strong><a href="unique_lock.html">unique_lock</a> (C++11)</strong> — implémente un wrapper de propriété de mutex déplaçable <em>(modèle de classe)</em></li>
+<li><strong><a href="scoped_lock.html">scoped_lock</a> (C++17)</strong> — wrapper RAII évitant les interblocages pour plusieurs mutex <em>(modèle de classe)</em></li>
+<li><strong><a href="condition_variable.html">condition_variable</a> (C++11)</strong> — fournit une variable de condition associée à un <a href="unique_lock.html"><code>std::unique_lock</code></a> <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

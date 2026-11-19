@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::pmr::set_default_resource — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-pmr-set_default_resource"><code>std::pmr::set_default_resource</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/set_default_resource">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory_resource&gt;</strong></p>
+<pre><code class="language-cpp">std::pmr::memory_resource* set_default_resource( std::pmr::memory_resource* r ) noexcept;  // (depuis C++17)
+</code></pre>
+<p>Si <code>r</code> n'est pas nul, définit le pointeur de ressource mémoire par défaut à <code>r</code> ; sinon, définit le pointeur de ressource mémoire par défaut à <code>std::pmr::new_delete_resource()</code>.</p>
+<p>Le <em>pointeur de ressource mémoire par défaut</em> est utilisé par certaines fonctionnalités lorsqu'aucune ressource mémoire explicite n'est fournie. La valeur initiale du pointeur de ressource mémoire par défaut est la valeur de retour de <a href="new_delete_resource.html"><code>std::pmr::new_delete_resource</code></a>.</p>
+<p>Cette fonction est thread-safe. Chaque appel à <code>std::pmr::set_default_resource</code> <em>se synchronise avec</em> (voir <a href="../atomic/memory_order.html"><code>std::memory_order</code></a>) les appels ultérieurs à <code>std::pmr::set_default_resource</code> et <a href="get_default_resource.html"><code>std::pmr::get_default_resource</code></a>.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Retourne la valeur précédente du pointeur de ressource mémoire par défaut.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cstddef&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;memory_resource&gt;
+#include &lt;vector&gt;
+
+class noisy_allocator : public std::pmr::memory_resource
+{
+    void* do_allocate(std::size_t bytes, std::size_t alignment) override
+    {
+        std::cout &lt;&lt; &quot;+ Allocating &quot; &lt;&lt; bytes &lt;&lt; &quot; bytes @ &quot;;
+        void* p = std::pmr::new_delete_resource()-&gt;allocate(bytes, alignment);
+        std::cout &lt;&lt; p &lt;&lt; '\n';
+        return p;
+    }
+
+    void do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override
+    {
+        std::cout &lt;&lt; &quot;- Deallocating &quot; &lt;&lt; bytes &lt;&lt; &quot; bytes @ &quot; &lt;&lt; p &lt;&lt; '\n';
+        return std::pmr::new_delete_resource()-&gt;deallocate(p, bytes, alignment);
+    }
+
+    bool do_is_equal(const std::pmr::memory_resource&amp; other) const noexcept override
+    {
+        return std::pmr::new_delete_resource()-&gt;is_equal(other);
+    }
+};
+
+int main()
+{
+    constexpr int push_back_limit{16};
+    noisy_allocator mem;
+    std::pmr::set_default_resource(&amp;mem);
+
+    {
+        std::cout &lt;&lt; &quot;Entering scope #1 (without buffer on stack)...\n&quot;;
+        std::cout &lt;&lt; &quot;Creating vector v...\n&quot;;
+        std::pmr::vector&lt;std::uint16_t&gt; v{1, 2, 3, 4};
+        std::cout &lt;&lt; &quot;v.data() @ &quot; &lt;&lt; v.data() &lt;&lt; '\n';
+
+        std::cout &lt;&lt; &quot;Requesting more...\n&quot;;
+        for (int i{0}; i != push_back_limit; ++i)
+        {
+            v.push_back(i);
+            std::cout &lt;&lt; &quot;v.size(): &quot; &lt;&lt; v.size() &lt;&lt; '\n';
+        }
+        std::cout &lt;&lt; &quot;Exiting scope #1...\n&quot;;
+    }
+
+    std::cout &lt;&lt; '\n';
+
+    {
+        std::cout &lt;&lt; &quot;Entering scope #2 (with buffer on stack)...\n&quot;;
+
+        std::uint8_t buffer[16];
+        std::cout &lt;&lt; &quot;Allocating buffer on stack: &quot; &lt;&lt; sizeof buffer &lt;&lt; &quot; bytes @ &quot;
+                  &lt;&lt; static_cast&lt;void*&gt;(buffer) &lt;&lt; '\n';
+        std::pmr::monotonic_buffer_resource mem_res{std::data(buffer), std::size(buffer)};
+
+        std::cout &lt;&lt; &quot;Creating vector v...\n&quot;;
+        std::pmr::vector&lt;std::uint16_t&gt; v{{1, 2, 3, 4}, &amp;mem_res};
+        std::cout &lt;&lt; &quot;v.data() @ &quot; &lt;&lt; v.data() &lt;&lt; '\n'; // égal à l'adresse de `buffer`
+
+        std::cout &lt;&lt; &quot;Requesting more...\n&quot;;
+        for (int i{0}; i != push_back_limit; ++i)
+        {
+            v.push_back(i);
+            std::cout &lt;&lt; &quot;v.size(): &quot; &lt;&lt; v.size() &lt;&lt; '\n';
+        }
+        std::cout &lt;&lt; &quot;Exiting scope #2...\n&quot;;
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Entering scope #1 (without buffer on stack)...
+Creating vector v...
++ Allocating 8 bytes @ 0x1f75c30
+v.data() @ 0x1f75c30
+Requesting more...
++ Allocating 16 bytes @ 0x1f75c50
+- Deallocating 8 bytes @ 0x1f75c30
+v.size(): 5
+v.size(): 6
+v.size(): 7
+v.size(): 8
++ Allocating 32 bytes @ 0x1f75c70
+- Deallocating 16 bytes @ 0x1f75c50
+v.size(): 9
+v.size(): 10
+v.size(): 11
+v.size(): 12
+v.size(): 13
+v.size(): 14
+v.size(): 15
+v.size(): 16
++ Allocating 64 bytes @ 0x1f75ca0
+- Deallocating 32 bytes @ 0x1f75c70
+v.size(): 17
+v.size(): 18
+v.size(): 19
+v.size(): 20
+Exiting scope #1...
+- Deallocating 64 bytes @ 0x1f75ca0
+
+Entering scope #2 (with buffer on stack)...
+Allocating buffer on stack: 16 bytes @ 0x7fffbe9f8240
+Creating vector v...
+v.data() @ 0x7fffbe9f8240
+Requesting more...
++ Allocating 64 bytes @ 0x1f75ca0
+v.size(): 5
+v.size(): 6
+v.size(): 7
+v.size(): 8
+v.size(): 9
+v.size(): 10
+v.size(): 11
+v.size(): 12
+v.size(): 13
+v.size(): 14
+v.size(): 15
+v.size(): 16
++ Allocating 128 bytes @ 0x1f75cf0
+v.size(): 17
+v.size(): 18
+v.size(): 19
+v.size(): 20
+Exiting scope #2...
+- Deallocating 128 bytes @ 0x1f75cf0
+- Deallocating 64 bytes @ 0x1f75ca0
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="get_default_resource.html">get_default_resource</a> (C++17)</strong> — obtient la <a href="memory_resource.html"><code>std::pmr::memory_resource</code></a> par défaut <em>(fonction)</em></li>
+<li><strong><a href="new_delete_resource.html">new_delete_resource</a> (C++17)</strong> — retourne une <a href="memory_resource.html"><code>std::pmr::memory_resource</code></a> statique à l'échelle du programme qui utilise les <a href="new/operator_new.html"><code>operator new</code></a> et <a href="new/operator_delete.html"><code>operator delete</code></a> globaux pour allouer et désallouer la mémoire <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

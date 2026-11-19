@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contraintes et concepts (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="contraintes-et-concepts-depuis-c-20">Contraintes et concepts (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/constraints">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les <a href="class_template.html">modèles de classe</a>, <a href="function_template.html">modèles de fonction</a> (y compris les <a href="lambda.html">lambdas génériques</a>) et autres <a href="templates.html#Templated_entity">fonctions templatisées</a> (généralement membres de modèles de classe) peuvent être associés à une <em>contrainte</em>, qui spécifie les exigences sur les arguments de modèle, et qui peut être utilisée pour sélectionner les surcharges de fonctions et les spécialisations de modèles les plus appropriées.</p>
+<p>Les ensembles nommés de telles <a href="requires.html">exigences</a> sont appelés <em>concepts</em>. Chaque concept est un prédicat, évalué à la compilation, et devient une partie de l'interface d'un modèle où il est utilisé comme contrainte :</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;concepts&gt;
+#include &lt;functional&gt;
+#include &lt;string&gt;
+
+// Déclaration du concept « Hashable », satisfait par tout type « T »
+// tel que, pour les valeurs « a » de type « T », l'expression std::hash&lt;T&gt;{}(a)
+// compile et son résultat est convertible en std::size_t
+template&lt;typename T&gt;
+concept Hashable = requires(T a)
+{
+    { std::hash&lt;T&gt;{}(a) } -&gt; std::convertible_to&lt;std::size_t&gt;;
+};
+
+struct meow {};
+
+// Modèle de fonction C++20 contraint :
+template&lt;Hashable T&gt;
+void f(T) {}
+//
+// Alternatives pour appliquer la même contrainte :
+// template&lt;typename T&gt;
+//     requires Hashable&lt;T&gt;
+// void f(T) {}
+//
+// template&lt;typename T&gt;
+// void f(T) requires Hashable&lt;T&gt; {}
+//
+// void f(Hashable auto /* parameter-name */) {}
+
+int main()
+{
+    using std::operator&quot;&quot;s;
+
+    f(&quot;abc&quot;s);    // OK, std::string satisfait Hashable
+    // f(meow{}); // Error : meow ne satisfait pas Hashable
+}
+</code></pre>
+<p>Les violations de contraintes sont détectées à la compilation, tôt dans le processus d'instanciation du modèle, ce qui conduit à des messages d'erreur faciles à suivre :</p>
+<pre><code class="language-cpp">std::list&lt;int&gt; l = {3, -1, 10};
+std::sort(l.begin(), l.end());
+// Diagnostic typique du compilateur sans concepts :
+// invalid operands to binary expression ('std::_List_iterator&lt;int&gt;' and
+// 'std::_List_iterator&lt;int&gt;')
+//                           std::__lg(__last - __first) * 2);
+//                                     ~~~~~~ ^ ~~~~~~~
+// ... 50 lignes de sortie ...
+//
+// Diagnostic typique du compilateur avec concepts :
+// error: cannot call std::sort with std::_List_iterator&lt;int&gt;
+// note:  concept RandomAccessIterator&lt;std::_List_iterator&lt;int&gt;&gt; n'est pas satisfait
+</code></pre>
+<p>Le but des concepts est de modéliser des catégories sémantiques (Number, Range, RegularFunction) plutôt que des restrictions syntaxiques (HasPlus, Array). Selon <a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#t20-avoid-concepts-without-meaningful-semantics">ISO C++ core guideline T.20</a>, « La capacité de spécifier une sémantique significative est une caractéristique définissant un véritable concept, par opposition à une contrainte syntaxique. »</p>
+<h2 id="Concepts">Concepts</h2>
+<p>Un concept est un ensemble nommé de <a href="requires.html">exigences</a>. La définition d'un concept doit apparaître dans une portée d'espace de noms.</p>
+<p>La définition d'un concept a la forme</p>
+<p><code>template &lt;</code> <code>template-parameter-list</code> <code>&gt;</code></p>
+<p><code>concept</code> <code>concept-name attr</code> ﻿*(facultatif)* <code>=</code> <code>constraint-expression;</code></p>
+<ul>
+<li><code>attr</code> — suite de zéro ou plusieurs <a href="attributes.html">attributs</a></li>
+</ul>
+<pre><code class="language-cpp">// concept
+template&lt;class T, class U&gt;
+concept Derived = std::is_base_of&lt;U, T&gt;::value;
+</code></pre>
+<p>Les concepts ne peuvent pas se référer récursivement à eux-mêmes et ne peuvent pas être contraints :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept V = V&lt;T*&gt;; // error: recursive concept
+
+template&lt;class T&gt;
+concept C1 = true;
+template&lt;C1 T&gt;
+concept Error1 = true; // Error : C1 T tente de contraindre une définition de concept
+template&lt;class T&gt; requires C1&lt;T&gt;
+concept Error2 = true; // Error : la clause requires tente de contraindre un concept
+</code></pre>
+<p>Les instanciations explicites, les spécialisations explicites ou les spécialisations partielles de concepts ne sont pas autorisées (la signification de la définition originale d'une contrainte ne peut pas être modifiée).</p>
+<p>Les concepts peuvent être nommés dans une id-expression. La valeur de l'id-expression est <code>true</code> si l'expression de contrainte est satisfaite, et <code>false</code> sinon.</p>
+<p>Les concepts peuvent aussi être nommés dans une type-constraint, faisant partie</p>
+<ul>
+<li><a href="template_parameters.html#Type_template_parameter">d'une déclaration de paramètre de modèle de type</a>,</li>
+<li><a href="auto.html">d'un spécificateur de type substitut</a>,</li>
+<li><a href="requires.html#Compound_Requirements">d'une exigence composée</a>.</li>
+</ul>
+<p>Dans un <code>type-constraint</code>, un concept prend un argument de modèle de moins que ce que sa liste de paramètres exige, car le type déduit du contexte est implicitement utilisé comme premier argument du concept.</p>
+<pre><code class="language-cpp">template&lt;class T, class U&gt;
+concept Derived = std::is_base_of&lt;U, T&gt;::value;
+
+template&lt;Derived&lt;Base&gt; T&gt;
+void f(T); // T est contrainte par Derived&lt;T, Base&gt;
+</code></pre>
+<h2 id="Constraints">Contraintes</h2>
+<p>Une contrainte est une suite d'opérations logiques et d'opérandes qui spécifie des exigences sur les arguments de modèle. Elles peuvent apparaître dans des <a href="requires.html"><code>requires</code> expressions</a> ou directement comme corps de concepts.</p>
+<p>Il existe [trois <em>(jusqu'à C++26)</em> | quatre <em>(depuis C++26)</em>] types de contraintes :</p>
+<p>conjonctions 1)</p>
+<p>disjonctions 2)</p>
+<ol start="3">
+<li>contraintes atomiques</li>
+</ol>
+<blockquote>
+<ol start="4">
+<li>contraintes d'expansion de pliage</li>
+</ol>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>La contrainte associée à une déclaration est déterminée en <a href="constraints.html#Constraint_normalization">normalisant</a> une expression ET logique dont les opérandes sont, dans l'ordre suivant :</p>
+<ol>
+<li>l'expression de contrainte introduite pour chaque <a href="template_parameters.html#Type_template_parameter">paramètre de modèle de type</a> contraint ou paramètre de modèle non type déclaré avec un <a href="auto.html">type substitut</a> contraint, dans l'ordre d'apparition ;</li>
+<li>l'expression de contrainte de la clause <a href="constraints.html#Requires_clauses"><code>requires</code></a> qui suit la liste des paramètres de modèle ;</li>
+<li>l'expression de contrainte introduite pour chaque paramètre dont le <a href="auto.html">type substitut</a> est contraint dans une déclaration de <a href="function_template.html#Abbreviated_function_template">modèle de fonction abrégé</a> ;</li>
+<li>l'expression de contrainte de la clause <a href="constraints.html#Requires_clauses"><code>requires</code></a> finale.</li>
+</ol>
+<p>Cet ordre détermine l'ordre dans lequel les contraintes sont instanciées lors de la vérification de la satisfaction.</p>
+<h3 id="Redeclarations">Redéclarations</h3>
+<p>Une déclaration contrainte ne peut être redéclarée qu'avec la même forme syntaxique. Aucun diagnostic n'est requis :</p>
+<pre><code class="language-cpp">// Ces deux premières déclarations de f sont correctes
+template&lt;Incrementable T&gt;
+void f(T) requires Decrementable&lt;T&gt;;
+
+template&lt;Incrementable T&gt;
+void f(T) requires Decrementable&lt;T&gt;; // OK, redéclaration
+
+// L'inclusion de cette troisième déclaration de f, logiquement équivalente mais syntaxiquement différente,
+// est mal formée, aucun diagnostic requis
+template&lt;typename T&gt;
+    requires Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt;
+void f(T);
+
+// Les deux déclarations suivantes ont des contraintes différentes :
+// la première déclaration a Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt;
+// la seconde déclaration a Decrementable&lt;T&gt; &amp;&amp; Incrementable&lt;T&gt;
+// Bien qu'elles soient logiquement équivalentes.
+
+template&lt;Incrementable T&gt;
+void g(T) requires Decrementable&lt;T&gt;;
+
+template&lt;Decrementable T&gt;
+void g(T) requires Incrementable&lt;T&gt;; // mal formé, aucun diagnostic requis
+</code></pre>
+<h3 id="Conjunctions">Conjonctions</h3>
+<p>La conjonction de deux contraintes est formée en utilisant l'opérateur <code>&amp;&amp;</code> dans l'expression de contrainte :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+concept Integral = std::is_integral&lt;T&gt;::value;
+template&lt;class T&gt;
+concept SignedIntegral = Integral&lt;T&gt; &amp;&amp; std::is_signed&lt;T&gt;::value;
+template&lt;class T&gt;
+concept UnsignedIntegral = Integral&lt;T&gt; &amp;&amp; !SignedIntegral&lt;T&gt;;
+</code></pre>
+<p>Une conjonction de deux contraintes n'est satisfaite que si les deux contraintes le sont. Les conjonctions sont évaluées de gauche à droite et court-circuitées (si la contrainte de gauche n'est pas satisfaite, la substitution des arguments de modèle dans la contrainte de droite n'est pas tentée : cela empêche les échecs dus à une substitution en dehors du contexte immédiat).</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+constexpr bool get_value() { return T::value; }
+
+template&lt;typename T&gt;
+    requires (sizeof(T) &gt; 1 &amp;&amp; get_value&lt;T&gt;())
+void f(T);   // #1
+
+void f(int); // #2
+
+void g()
+{
+    f('A'); // OK, appelle #2. Lors de la vérification des contraintes de #1,
+            // 'sizeof(char) &gt; 1' n'est pas satisfait, donc get_value&lt;T&gt;() n'est pas vérifié
+}
+</code></pre>
+<h3 id="Disjunctions">Disjonctions</h3>
+<p>La disjonction de deux contraintes est formée en utilisant l'opérateur <code>||</code> dans l'expression de contrainte :</p>
+<p>Une disjonction de deux contraintes est satisfaite si l'une des deux contraintes l'est. Les disjonctions sont évaluées de gauche à droite et court-circuitées (si la contrainte de gauche est satisfaite, la substitution des arguments de modèle dans la contrainte de droite n'est pas tentée).</p>
+<pre><code class="language-cpp">template&lt;class T = void&gt;
+    requires EqualityComparable&lt;T&gt; || Same&lt;T, void&gt;
+struct equal_to;
+</code></pre>
+<h3 id="Atomic_constraints">Contraintes atomiques</h3>
+<p>Une contrainte atomique est constituée d'une expression <code>E</code> et d'une correspondance entre les paramètres de modèle qui apparaissent dans <code>E</code> et des arguments de modèle impliquant les paramètres de modèle de l'entité contrainte, appelée sa <em>correspondance de paramètres</em>.</p>
+<p>Les contraintes atomiques sont formées lors de la <a href="constraints.html#Constraint_normalization">normalisation des contraintes</a>. <code>E</code> n'est jamais une expression ET logique ou OU logique (celles-ci forment respectivement des conjonctions et des disjonctions).</p>
+<p>La satisfaction d'une contrainte atomique est vérifiée en substituant la correspondance de paramètres et les arguments de modèle dans l'expression <code>E</code>. Si la substitution aboutit à un type ou une expression invalide, la contrainte n'est pas satisfaite. Sinon, <code>E</code>, après une conversion lvalue-to-rvalue éventuelle, doit être une expression constante prvalue de type <code>bool</code>, et la contrainte est satisfaite si et seulement si elle s'évalue à <code>true</code>.</p>
+<p>Le type de <code>E</code> après substitution doit être exactement <code>bool</code>. Aucune conversion n'est autorisée :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct S
+{
+    constexpr operator bool() const { return true; }
+};
+
+template&lt;typename T&gt;
+    requires (S&lt;T&gt;{})
+void f(T);   // #1
+
+void f(int); // #2
+
+void g()
+{
+    f(0); // error: S&lt;int&gt;{} n'a pas le type bool lors de la vérification de #1,
+          // même si #2 correspond mieux
+}
+</code></pre>
+<p>Deux contraintes atomiques sont considérées comme <em>identiques</em> si elles sont formées à partir de la même expression au niveau du code source et si leurs correspondances de paramètres sont équivalentes.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+constexpr bool is_meowable = true;
+
+template&lt;class T&gt;
+constexpr bool is_cat = true;
+
+template&lt;class T&gt;
+concept Meowable = is_meowable&lt;T&gt;;
+
+template&lt;class T&gt;
+concept BadMeowableCat = is_meowable&lt;T&gt; &amp;&amp; is_cat&lt;T&gt;;
+
+template&lt;class T&gt;
+concept GoodMeowableCat = Meowable&lt;T&gt; &amp;&amp; is_cat&lt;T&gt;;
+
+template&lt;Meowable T&gt;
+void f1(T); // #1
+
+template&lt;BadMeowableCat T&gt;
+void f1(T); // #2
+
+template&lt;Meowable T&gt;
+void f2(T); // #3
+
+template&lt;GoodMeowableCat T&gt;
+void f2(T); // #4
+
+void g()
+{
+    f1(0); // erreur, ambiguïté :
+           // le is_meowable&lt;T&gt; dans Meowable et BadMeowableCat forme des
+           // contraintes atomiques distinctes qui ne sont pas identiques (et ne se subsument donc pas mutuellement)
+
+    f2(0); // OK, appelle #4, plus contrainte que #3
+           // GoodMeowableCat a obtenu son is_meowable&lt;T&gt; de Meowable
+}
+</code></pre>
+<blockquote>
+<h4 id="Fold_expanded_constraints">Contraintes d'expansion de pliage</h4>
+<p>Une <em>contrainte d'expansion de pliage</em> est formée à partir d'une contrainte <code>C</code> et d'un opérateur de pliage (soit <code>&amp;&amp;</code>, soit <code>||</code>). Une contrainte d'expansion de pliage est une <a href="parameter_pack.html">expansion de pack</a>.</p>
+<p>Soit <code>N</code> le nombre d'éléments dans les paramètres de l'expansion de pack :</p>
+<ul>
+<li>Si l'expansion de pack est invalide (par exemple en développant des packs de tailles différentes), la contrainte d'expansion de pliage n'est pas satisfaite.</li>
+<li>Si <code>N</code> vaut <code>0</code>, la contrainte d'expansion de pliage est satisfaite si l'opérateur de pliage est <code>&amp;&amp;</code>, ou non satisfaite si l'opérateur de pliage est <code>||</code>.</li>
+<li>Pour une contrainte d'expansion de pliage avec un <code>N</code> positif, pour chaque <code>i</code> dans <code>[1,N]</code>, chaque paramètre de l'expansion de pack est remplacé par le <code>i</code>e élément correspondant, dans l'ordre croissant :</li>
+<li>Pour les contraintes d'expansion de pliage dont l'opérateur de pliage est <code>&amp;&amp;</code>, si le remplacement du <code>j</code>e élément viole <code>C</code>, la contrainte d'expansion de pliage n'est pas satisfaite. Dans ce cas, aucune substitution n'a lieu pour un <code>i</code> supérieur à <code>j</code>. Sinon, la contrainte d'expansion de pliage est satisfaite.</li>
+<li>Pour les contraintes d'expansion de pliage dont l'opérateur de pliage est <code>||</code>, si le remplacement du <code>j</code>e élément satisfait <code>C</code>, la contrainte d'expansion de pliage est satisfaite. Dans ce cas, aucune substitution n'a lieu pour un <code>i</code> supérieur à <code>j</code>. Sinon, la contrainte d'expansion de pliage n'est pas satisfaite.</li>
+</ul>
+<pre><code class="language-cpp">template &lt;class T&gt; concept A = std::is_move_constructible_v&lt;T&gt;;
+template &lt;class T&gt; concept B = std::is_copy_constructible_v&lt;T&gt;;
+template &lt;class T&gt; concept C = A&lt;T&gt; &amp;&amp; B&lt;T&gt;;
+
+// en C++23, ces deux surcharges de g() ont des contraintes atomiques distinctes
+// qui ne sont pas identiques et ne se subsument donc pas mutuellement : les appels à g() sont ambigus
+// en C++26, les pliages sont développés et la contrainte de la surcharge #2 (move et copy
+// requis), subsume la contrainte de la surcharge #1 (seul le move est requis)
+template &lt;class... T&gt;
+requires (A&lt;T&gt; &amp;&amp; ...) void g(T...); // #1
+
+template &lt;class... T&gt;
+requires (C&lt;T&gt; &amp;&amp; ...) void g(T...); // #2
+</code></pre>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<h3 id="Constraint_normalization">Normalisation des contraintes</h3>
+<p>La <em>normalisation des contraintes</em> est le processus qui transforme une expression de contrainte en une suite de conjonctions et de disjonctions de contraintes atomiques. La <em>forme normale</em> d'une expression est définie comme suit :</p>
+<ul>
+<li>La forme normale d'une expression <code>(E)</code> est la forme normale de <code>E</code>.</li>
+<li>La forme normale d'une expression <code>E1 &amp;&amp; E2</code> est la conjonction des formes normales de <code>E1</code> et <code>E2</code>.</li>
+<li>La forme normale d'une expression <code>E1 || E2</code> est la disjonction des formes normales de <code>E1</code> et <code>E2</code>.</li>
+<li>La forme normale d'une expression <code>C&lt;A1, A2, ... , AN&gt;</code>, où <code>C</code> désigne un concept, est la forme normale de l'expression de contrainte de <code>C</code>, après substitution de <code>A1</code>, <code>A2</code>, ... , <code>AN</code> aux paramètres de modèle respectifs de <code>C</code> dans les correspondances de paramètres de chaque contrainte atomique de <code>C</code>. Si une substitution quelconque dans les correspondances de paramètres aboutit à un type ou une expression invalide, le programme est mal formé, aucun diagnostic n'est requis.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept A = T::value || true;
+
+template&lt;typename U&gt;
+concept B = A&lt;U*&gt;; // OK : normalisée en la disjonction de
+                   // - T::value (avec la correspondance T -&gt; U*) et
+                   // - true (avec une correspondance vide).
+                   // Aucun type invalide dans la correspondance, alors que
+                   // T::value est mal formé pour tous les types pointeurs
+
+template&lt;typename V&gt;
+concept C = B&lt;V&amp;&gt;; // Se normalise en la disjonction de
+                   // - T::value (avec la correspondance T-&gt; V&amp;*) et
+                   // - true (avec une correspondance vide).
+                   // Type invalide V&amp;* formé dans la correspondance =&gt; mal formé, aucun diagnostic requis
+</code></pre>
+<blockquote>
+<ul>
+<li>La forme normale des expressions <code>(E &amp;&amp; ...)</code> et <code>(... &amp;&amp; E)</code> est une contrainte d'expansion de pliage, où <code>C</code> est la forme normale de <code>E</code> et l'opérateur de pliage est <code>&amp;&amp;</code>.</li>
+<li>La forme normale des expressions <code>(E || ...)</code> et <code>(... || E)</code> est une contrainte d'expansion de pliage, où <code>C</code> est la forme normale de <code>E</code> et l'opérateur de pliage est <code>||</code>.</li>
+<li>Les formes normales des expressions <code>(E1 &amp;&amp; ... &amp;&amp; E2)</code> et <code>(E1 || ... || E2)</code> sont les formes normales de</li>
+<li><code>(E1 &amp;&amp; ...) &amp;&amp; E2</code> et <code>(E1 || ...) || E2</code> respectivement, si <code>E1</code> contient un pack non développé, ou</li>
+<li><code>E1 &amp;&amp; (... &amp;&amp; E2)</code> et <code>E1 || (... || E2)</code> respectivement sinon.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<ul>
+<li>La forme normale de toute autre expression <code>E</code> est la contrainte atomique dont l'expression est <code>E</code> et dont la correspondance de paramètres est la correspondance identité. Cela inclut toutes les <a href="fold.html">expressions de pliage</a>, même celles pliant sur les opérateurs <code>&amp;&amp;</code> ou <code>||</code>.</li>
+</ul>
+<p>Les surcharges définies par l'utilisateur de <code>&amp;&amp;</code> ou <code>||</code> n'ont aucun effet sur la normalisation des contraintes.</p>
+<h2 id="requires_clauses">clauses <code>requires</code></h2>
+<p>Le mot-clé <a href="../keyword/requires.html"><code>requires</code></a> sert à introduire une clause <em><code>requires</code></em>, qui spécifie des contraintes sur les arguments de modèle ou sur une déclaration de fonction.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(T&amp;&amp;) requires Eq&lt;T&gt;; // peut apparaître comme dernier élément d'un déclarateur de fonction
+
+template&lt;typename T&gt; requires Addable&lt;T&gt; // ou juste après une liste de paramètres de modèle
+T add(T a, T b) { return a + b; }
+</code></pre>
+<p>Dans ce cas, le mot-clé <code>requires</code> doit être suivi d'une expression constante quelconque (il est donc possible d'écrire <code>requires true</code>), mais l'intention est qu'un concept nommé (comme dans l'exemple ci-dessus), une conjonction ou une disjonction de concepts nommés, ou une <a href="requires.html">expression requires</a> soit utilisée.</p>
+<p>L'expression doit avoir l'une des formes suivantes :</p>
+<ul>
+<li>Une <a href="expressions.html#Primary_expressions">expression primaire</a>, par exemple <code>Swappable&lt;T&gt;</code>, <code>std::is_integral&lt;T&gt;::value</code>, <code>(std::is_object_v&lt;Args&gt; &amp;&amp; ...)</code>, ou toute expression entre parenthèses.</li>
+<li>Une suite d'expressions primaires reliées par l'opérateur <code>&amp;&amp;</code>.</li>
+<li>Une suite des expressions précédentes reliées par l'opérateur <code>||</code>.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+constexpr bool is_meowable = true;
+
+template&lt;class T&gt;
+constexpr bool is_purrable() { return true; }
+
+template&lt;class T&gt;
+void f(T) requires is_meowable&lt;T&gt;; // OK
+
+template&lt;class T&gt;
+void g(T) requires is_purrable&lt;T&gt;(); // erreur, is_purrable&lt;T&gt;() n'est pas une expression primaire
+
+template&lt;class T&gt;
+void h(T) requires (is_purrable&lt;T&gt;()); // OK
+</code></pre>
+<h2 id="Partial_ordering_of_constraints">Ordre partiel des contraintes</h2>
+<p>Avant toute analyse supplémentaire, les contraintes sont <a href="constraints.html#Constraint_normalization">normalisées</a> en substituant le corps de chaque concept nommé et de chaque <a href="requires.html">expression requires</a>, jusqu'à ce qu'il ne reste qu'une suite de conjonctions et de disjonctions de contraintes atomiques.</p>
+<p>Une contrainte <code>P</code> est dite <em>subsumer</em> la contrainte <code>Q</code> s'il peut être démontré que <code>P</code> <a href="https://en.wikipedia.org/wiki/Logical_consequence">implique</a> <code>Q</code>, à l'identité près des contraintes atomiques de P et Q. (Les types et expressions ne sont pas analysés pour l'équivalence : <code>N &gt; 0</code> ne subsume pas <code>N &gt;= 0</code>).</p>
+<p>Plus précisément, <code>P</code> est d'abord converti en forme normale disjonctive et <code>Q</code> en forme normale conjonctive. <code>P</code> subsume <code>Q</code> si et seulement si :</p>
+<ul>
+<li>chaque clause disjonctive de la forme normale disjonctive de <code>P</code> subsume chaque clause conjonctive de la forme normale conjonctive de <code>Q</code>, où</li>
+<li>une clause disjonctive subsume une clause conjonctive si et seulement s'il existe une contrainte atomique <code>U</code> dans la clause disjonctive et une contrainte atomique <code>V</code> dans la clause conjonctive telles que <code>U</code> subsume <code>V</code> ;</li>
+<li>une contrainte atomique <code>A</code> subsume une contrainte atomique <code>B</code> si et seulement si elles sont identiques selon les règles décrites <a href="constraints.html#Atomic_constraints">ci-dessus</a>.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Une contrainte d'expansion de pliage <code>A</code> subsume une autre contrainte d'expansion de pliage <code>B</code> si elles ont le même opérateur de pliage, la contrainte <code>C</code> de <code>A</code> subsume celle de <code>B</code>, et si <code>C</code> contiennent toutes deux un pack non développé équivalent.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>La relation de subsomption définit un ordre partiel des contraintes, utilisé pour déterminer :</p>
+<ul>
+<li>le meilleur candidat viable pour une fonction non template dans la <a href="overload_resolution.html">résolution de surcharge</a></li>
+<li>l'<a href="overloaded_address.html">adresse d'une fonction non template</a> dans un ensemble de surcharges</li>
+<li>la meilleure correspondance pour un argument de modèle de modèle</li>
+<li>l'ordre partiel des spécialisations de modèles de classe</li>
+<li><a href="function_template.html#Function_template_overloading">ordre partiel</a> des modèles de fonction</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : liens retour depuis ce qui précède vers ici</td>
+</tr>
+</tbody>
+</table>
+<p>Si les déclarations <code>D1</code> et <code>D2</code> sont contraintes et que les contraintes associées à <code>D1</code> subsument les contraintes associées à <code>D2</code> (ou si <code>D2</code> n'est pas contrainte), alors <code>D1</code> est dite <em>au moins aussi contrainte</em> que <code>D2</code>. Si <code>D1</code> est au moins aussi contrainte que <code>D2</code>, et si <code>D2</code> n'est pas au moins aussi contrainte que <code>D1</code>, alors <code>D1</code> est <em>plus contrainte</em> que <code>D2</code>.</p>
+<p>Si toutes les conditions suivantes sont satisfaites, une fonction non modèle <code>F1</code> est <em>plus contrainte selon l'ordre partiel</em> qu'une fonction non modèle <code>F2</code> :</p>
+<ul>
+<li>Elles ont la même liste de types de paramètres, en omettant les types des <a href="member_functions.html#Explicit_object_parameter">paramètres objets explicites</a> <em>(depuis C++23)</em>.</li>
+<li>S'il s'agit de fonctions membres, toutes deux sont membres directs de la même classe.</li>
+<li>Si toutes deux sont des fonctions membres non statiques, elles ont les mêmes types pour leurs paramètres objets.</li>
+<li><code>F1</code> est plus contrainte que <code>F2</code>.</li>
+</ul>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept Decrementable = requires(T t) { --t; };
+template&lt;typename T&gt;
+concept RevIterator = Decrementable&lt;T&gt; &amp;&amp; requires(T t) { *t; };
+
+// RevIterator subsume Decrementable, mais pas l'inverse
+
+template&lt;Decrementable T&gt;
+void f(T); // #1
+
+template&lt;RevIterator T&gt;
+void f(T); // #2, plus contraint que #1
+
+f(0);       // int satisfait uniquement Decrementable, sélectionne #1
+f((int*)0); // int* satisfait les deux contraintes, sélectionne #2 comme plus contraint
+
+template&lt;class T&gt;
+void g(T); // #3 (unconstrained)
+
+template&lt;Decrementable T&gt;
+void g(T); // #4
+
+g(true); // bool ne satisfait pas Decrementable, sélectionne #3
+g(0);    // int satisfait Decrementable, sélectionne #4 car il est plus contraint
+
+template&lt;typename T&gt;
+concept RevIterator2 = requires(T t) { --t; *t; };
+
+template&lt;Decrementable T&gt;
+void h(T); // #5
+
+template&lt;RevIterator2 T&gt;
+void h(T); // #6
+
+h((int*)0); // ambiguous
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><strong>Macro de test de fonctionnalité</strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_concepts"><code>__cpp_concepts</code></a> | <a href="../compiler_support/20.html#cpp_concepts_201907L"><code>201907L</code></a> | <em>(C++20)</em> | <a href="constraints.html#top">Contraintes</a></p>
+<p><a href="../compiler_support/20.html#cpp_concepts_202002L"><code>202002L</code></a> | <em>(C++20)</em> | <a href="member_functions.html#Special_member_functions">Fonctions membres spéciales conditionnellement triviales</a></p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/concept.html"><code>concept</code></a>,
+<a href="../keyword/requires.html"><code>requires</code></a>,
+<a href="../keywords/typename.html"><code>typename</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2428.html">CWG 2428</a></td>
+<td>C++20</td>
+<td>impossible d'appliquer des attributs aux concepts</td>
+<td>allowed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li>
+<p><a href="../experimental/constraints.html">Concepts TS</a></p>
+</li>
+<li>
+<p><a href="../named_req.html">Exigences nommées</a></p>
+</li>
+<li>
+<p><strong><a href="requires.html">Expression requires</a> (C++20)</strong> — produit une expression prvalue de type <code>bool</code> qui décrit les contraintes</p>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

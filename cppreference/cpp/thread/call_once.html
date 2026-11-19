@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::call_once — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-call_once"><code>std::call_once</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/call_once">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Callable, class... Args &gt;
+void call_once( std::once_flag&amp; flag, Callable&amp;&amp; f, Args&amp;&amp;... args );  // (depuis C++11)
+</code></pre>
+<p>Exécute l'objet <a href="../named_req/Callable.html"><em>Callable</em></a> <code>f</code> exactement une fois, même s'il est appelé simultanément depuis plusieurs threads.</p>
+<p>En détail :</p>
+<ul>
+<li>
+<p>Si, au moment où <code>std::call_once</code> est appelée, <code>flag</code> indique que <code>f</code> a déjà été appelée, <code>std::call_once</code> retourne immédiatement (un tel appel à <code>std::call_once</code> est dit <em>passif</em>).</p>
+</li>
+<li>
+<p>Sinon, <code>std::call_once</code> appelle <code>INVOKE(std::forward&lt;Callable&gt;(f), std::forward&lt;Args&gt;(args)...)</code>. Contrairement au constructeur de <a href="thread.html"><code>std::thread</code></a> ou à <a href="async.html"><code>std::async</code></a>, les arguments ne sont ni déplacés ni copiés, car ils n'ont pas besoin d'être transférés à un autre fil d'exécution (un tel appel à <code>std::call_once</code> est dit <em>actif</em>).</p>
+<ul>
+<li>Si cette invocation lève une exception, celle-ci est propagée à l'appelant de <code>std::call_once</code>, et <code>flag</code> n'est pas basculé, de sorte qu'un autre appel sera tenté (un tel appel à <code>std::call_once</code> est dit <em>exceptionnel</em> ﻿).</li>
+<li>Si cette invocation retourne normalement (un tel appel à <code>std::call_once</code> est dit <em>de retour</em>), <code>flag</code> est basculé, et tous les autres appels à <code>std::call_once</code> avec le même <code>flag</code> sont garantis d'être <em>passifs</em>.</li>
+</ul>
+</li>
+</ul>
+<p>Tous les appels <em>actifs</em> sur le même <code>flag</code> forment un ordre total unique composé de zéro ou plusieurs appels <em>exceptionnels</em>, suivis d'un seul appel <em>de retour</em>. La fin de chaque appel <em>actif</em> se synchronise avec l'appel <em>actif</em> suivant dans cet ordre.</p>
+<p>Le retour de l'appel <em>de retour</em> se synchronise avec les retours de tous les appels <em>passifs</em> sur le même <code>flag</code> : cela signifie que tous les appels concurrents à <code>std::call_once</code> sont garantis d'observer tous les effets de bord produits par l'appel <em>actif</em>, sans synchronisation supplémentaire.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>flag</code> — un objet, pour lequel exactement une fonction est exécutée</li>
+<li><code>f</code> — objet <a href="../named_req/Callable.html"><em>Callable</em></a> à invoquer</li>
+<li><code>args...</code> — arguments à passer à la fonction</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<ul>
+<li><a href="../error/system_error.html"><code>std::system_error</code></a> si une condition empêche les appels à <code>std::call_once</code> de s'exécuter comme spécifié.</li>
+<li>Toute exception levée par <code>f</code>.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Si des appels concurrents à <code>std::call_once</code> passent des fonctions <code>f</code> différentes, il n'est pas spécifié quelle <code>f</code> sera appelée. La fonction sélectionnée s'exécute dans le même thread que l'invocation de <code>std::call_once</code> à laquelle elle a été passée.</p>
+<p>L'initialisation des <a href="../language/storage_duration.html#Static_local_variables">variables statiques locales à une fonction</a> est garantie de n'avoir lieu qu'une seule fois, même lorsqu'elle est appelée depuis plusieurs threads, et peut être plus efficace que le code équivalent utilisant <code>std::call_once</code>.</p>
+<p>L'équivalent POSIX de cette fonction est <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_once.html"><code>pthread_once</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;thread&gt;
+
+std::once_flag flag1, flag2;
+
+void simple_do_once()
+{
+    std::call_once(flag1, [](){ std::cout &lt;&lt; &quot;Simple example: called once\n&quot;; });
+}
+
+void may_throw_function(bool do_throw)
+{
+    if (do_throw)
+    {
+        std::cout &lt;&lt; &quot;Throw: call_once will retry\n&quot;; // ceci peut apparaître plus d'une fois
+        throw std::exception();
+    }
+    std::cout &lt;&lt; &quot;Did not throw, call_once will not attempt again\n&quot;; // garanti une seule fois
+}
+
+void do_once(bool do_throw)
+{
+    try
+    {
+        std::call_once(flag2, may_throw_function, do_throw);
+    }
+    catch (...) {}
+}
+
+int main()
+{
+    std::thread st1(simple_do_once);
+    std::thread st2(simple_do_once);
+    std::thread st3(simple_do_once);
+    std::thread st4(simple_do_once);
+    st1.join();
+    st2.join();
+    st3.join();
+    st4.join();
+
+    std::thread t1(do_once, true);
+    std::thread t2(do_once, true);
+    std::thread t3(do_once, false);
+    std::thread t4(do_once, true);
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Simple example: called once
+Throw: call_once will retry
+Throw: call_once will retry
+Throw: call_once will retry
+Did not throw, call_once will not attempt again
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2080">LWG 2080</a></td>
+<td>C++11</td>
+<td><a href="../error/invalid_argument.html"><code>std::invalid_argument</code></a> serait levée si <code>f</code> est invalide, mais le scénario où <code>f</code> est invalidé n'est pas spécifié</td>
+<td>suppression de cette condition d'erreur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2442">LWG 2442</a></td>
+<td>C++11</td>
+<td>les arguments étaient copiés et/ou déplacés avant l'invocation</td>
+<td>aucune copie ni aucun déplacement n'est effectué</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="once_flag.html">once_flag</a> (C++11)</strong> — objet auxiliaire garantissant que <strong><code>call_once</code></strong> n'invoque la fonction qu'une seule fois <em>(classe)</em></li>
+</ul>
+<p><strong><a href="../../c/thread/ONCE_FLAG_INIT.html">Documentation C</a> pour call_once</strong></p>
+
+</main>
+</body>
+</html>

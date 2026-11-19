@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::make_tuple — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/tuple.html">std::tuple</a></nav>
+<h1 id="std-make_tuple"><code>std::make_tuple</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/tuple/make_tuple">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;tuple&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... Types &gt;
+std::tuple&lt;VTypes...&gt; make_tuple( Types&amp;&amp;... args );  // (depuis C++11) (constexpr depuis C++14)
+</code></pre>
+<p>Crée un objet tuple, en déduisant le type cible à partir des types des arguments.</p>
+<p>Pour chaque <code>Ti</code> dans <code>Types...</code>, le type correspondant <code>Vi</code> dans <code>VTypes...</code> est <code>std::decay&lt;Ti&gt;::type</code>, sauf si l'application de <a href="../../types/decay.html"><code>std::decay</code></a> donne <code>std::reference_wrapper&lt;X&gt;</code> pour un certain type <code>X</code>, auquel cas le type déduit est <code>X&amp;</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>args</code> — zéro ou plusieurs arguments à partir desquels construire le tuple</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un objet <a href="../tuple.html"><code>std::tuple</code></a> contenant les valeurs données, créé comme si par <code>std::tuple&lt;VTypes...&gt;(std::forward&lt;Types&gt;(t)...).</code></p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template &lt;class T&gt;
+struct unwrap_refwrapper
+{
+    using type = T;
+};
+
+template &lt;class T&gt;
+struct unwrap_refwrapper&lt;std::reference_wrapper&lt;T&gt;&gt;
+{
+    using type = T&amp;;
+};
+
+template &lt;class T&gt;
+using unwrap_decay_t = typename unwrap_refwrapper&lt;typename std::decay&lt;T&gt;::type&gt;::type;
+// ou utiliser std::unwrap_ref_decay_t (depuis C++20)
+
+template &lt;class... Types&gt;
+constexpr // depuis C++14
+std::tuple&lt;unwrap_decay_t&lt;Types&gt;...&gt; make_tuple(Types&amp;&amp;... args)
+{
+    return std::tuple&lt;unwrap_decay_t&lt;Types&gt;...&gt;(std::forward&lt;Types&gt;(args)...);
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;tuple&gt;
+#include &lt;functional&gt;
+
+std::tuple&lt;int, int&gt; f() // cette fonction renvoie plusieurs valeurs
+{
+    int x = 5;
+    return std::make_tuple(x, 7); // return {x,7}; en C++17
+}
+
+int main()
+{
+    // construction de tuple hétérogène
+    int n = 1;
+    auto t = std::make_tuple(10, &quot;Test&quot;, 3.14, std::ref(n), n);
+    n = 7;
+    std::cout &lt;&lt; &quot;The value of t is (&quot;
+              &lt;&lt; std::get&lt;0&gt;(t) &lt;&lt; &quot;, &quot;
+              &lt;&lt; std::get&lt;1&gt;(t) &lt;&lt; &quot;, &quot;
+              &lt;&lt; std::get&lt;2&gt;(t) &lt;&lt; &quot;, &quot;
+              &lt;&lt; std::get&lt;3&gt;(t) &lt;&lt; &quot;, &quot;
+              &lt;&lt; std::get&lt;4&gt;(t) &lt;&lt; &quot;)\n&quot;;
+
+    // fonction renvoyant plusieurs valeurs
+    int a, b;
+    std::tie(a, b) = f();
+    std::cout &lt;&lt; a &lt;&lt; ' ' &lt;&lt; b &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">The value of t is (10, Test, 3.14, 7, 1)
+5 7
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="tie.html">tie</a> (C++11)</strong> — crée un <a href="../tuple.html"><code>tuple</code></a> de références lvalue ou déconstruit un tuple en objets individuels <em>(modèle de fonction)</em></li>
+<li><strong><a href="forward_as_tuple.html">forward_as_tuple</a> (C++11)</strong> — crée un <code>tuple</code> de <a href="../../language/reference.html#Forwarding_references">références de transfert</a> <em>(modèle de fonction)</em></li>
+<li><strong><a href="tuple_cat.html">tuple_cat</a> (C++11)</strong> — crée un <code>tuple</code> en concaténant un nombre quelconque de tuples <em>(modèle de fonction)</em></li>
+<li><strong><a href="../apply.html">apply</a> (C++17)</strong> — appelle une fonction avec un tuple d'arguments <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

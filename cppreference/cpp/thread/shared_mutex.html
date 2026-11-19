@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::shared_mutex — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-shared_mutex"><code>std::shared_mutex</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/shared_mutex">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;shared_mutex&gt;</strong></p>
+<pre><code class="language-cpp">class shared_mutex;  // (depuis C++17)
+</code></pre>
+<p>La classe <code>shared_mutex</code> est une primitive de synchronisation pouvant être utilisée pour protéger des données partagées contre un accès simultané par plusieurs threads. Contrairement aux autres types de mutex, qui permettent un accès exclusif, un shared_mutex a deux niveaux d'accès :</p>
+<ul>
+<li>
+<p><em>partagé</em> - plusieurs threads peuvent partager la propriété du même mutex.</p>
+</li>
+<li>
+<p><em>exclusif</em> - un seul thread peut posséder le mutex.</p>
+</li>
+</ul>
+<p>Si un thread a acquis le verrou <em>exclusif</em> (via <a href="shared_mutex/lock.html"><code>lock</code></a>, <a href="shared_mutex/try_lock.html"><code>try_lock</code></a>), aucun autre thread ne peut acquérir le verrou (y compris le verrou <em>partagé</em>).</p>
+<p>Si un thread a acquis le verrou <em>partagé</em> (via <a href="shared_mutex/lock_shared.html"><code>lock_shared</code></a>, <a href="shared_mutex/try_lock_shared.html"><code>try_lock_shared</code></a>), aucun autre thread ne peut acquérir le verrou <em>exclusif</em>, mais peut acquérir le verrou <em>partagé</em>.</p>
+<p>Ce n'est que lorsque le verrou <em>exclusif</em> n'a été acquis par aucun thread que le verrou <em>partagé</em> peut être acquis par plusieurs threads.</p>
+<p>Au sein d'un même thread, un seul verrou (<em>partagé</em> ou <em>exclusif</em>) peut être acquis à la fois.</p>
+<p>Les mutex partagés sont particulièrement utiles lorsque des données partagées peuvent être lues en toute sécurité par un nombre quelconque de threads simultanément, mais qu'un thread ne peut écrire ces mêmes données que lorsqu'aucun autre thread ne lit ou n'écrit en même temps.</p>
+<p>La classe <code>shared_mutex</code> satisfait à toutes les exigences de <a href="../named_req/SharedMutex.html"><em>SharedMutex</em></a> et de <a href="../named_req/StandardLayoutType.html"><em>StandardLayoutType</em></a>.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li><strong><code>native_handle_type</code> <em>(optional</em>)</strong>* — défini par l'implémentation</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="shared_mutex/shared_mutex.html">(constructeur)</a></strong> — construit le mutex <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_mutex/~shared_mutex.html">(destructeur)</a></strong> — détruit le mutex <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — non copiable par affectation <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Verrouillage exclusif {#Exclusive_locking}</strong></p>
+<ul>
+<li><strong><a href="shared_mutex/lock.html">lock</a></strong> — verrouille le mutex, bloque si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_mutex/try_lock.html">try_lock</a></strong> — tente de verrouiller le mutex, retourne si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_mutex/unlock.html">unlock</a></strong> — déverrouille le mutex <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Verrouillage partagé {#Shared_locking}</strong></p>
+<ul>
+<li><strong><a href="shared_mutex/lock_shared.html">lock_shared</a></strong> — verrouille le mutex en propriété partagée, bloque si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_mutex/try_lock_shared.html">try_lock_shared</a></strong> — tente de verrouiller le mutex en propriété partagée, renvoie si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="shared_mutex/unlock_shared.html">unlock_shared</a></strong> — déverrouille le mutex (propriété partagée) <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Descripteur natif {#Native_handle}</strong></p>
+<ul>
+<li><strong><a href="shared_mutex/native_handle.html">native_handle</a></strong> — retourne l'objet de descripteur natif sous-jacent défini par l'implémentation <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>La sortie ci-dessous a été générée sur une machine monocœur. Lorsque <code>thread1</code> démarre, il entre pour la première fois dans la boucle et appelle <code>increment()</code> suivi de <code>get()</code>. Cependant, avant de pouvoir afficher la valeur renvoyée dans <code>std::cout</code>, l'ordonnanceur met <code>thread1</code> en sommeil et réveille <code>thread2</code>, qui a évidemment largement le temps d'exécuter les trois itérations de la boucle d'un coup. De retour dans <code>thread1</code>, toujours à la première itération, il affiche enfin sa copie locale de la valeur du compteur, qui vaut <code>1</code>, dans <code>std::cout</code>, puis exécute les deux itérations restantes. Sur une machine multicœur, aucun thread n'est mis en sommeil et la sortie a plus de chances d'être dans l'ordre croissant.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;shared_mutex&gt;
+#include &lt;syncstream&gt;
+#include &lt;thread&gt;
+
+class ThreadSafeCounter
+{
+public:
+    ThreadSafeCounter() = default;
+
+    // Plusieurs threads/lecteurs peuvent lire la valeur du compteur en même temps.
+    unsigned int get() const
+    {
+        std::shared_lock lock(mutex_);
+        return value_;
+    }
+
+    // Un seul thread/écrivain peut incrémenter/écrire la valeur du compteur.
+    void increment()
+    {
+        std::unique_lock lock(mutex_);
+        ++value_;
+    }
+
+    // Un seul thread/écrivain peut réinitialiser/écrire la valeur du compteur.
+    void reset()
+    {
+        std::unique_lock lock(mutex_);
+        value_ = 0;
+    }
+
+private:
+    mutable std::shared_mutex mutex_;
+    unsigned int value_{};
+};
+
+int main()
+{
+    ThreadSafeCounter counter;
+
+    auto increment_and_print = [&amp;counter]()
+    {
+        for (int i{}; i != 3; ++i)
+        {
+            counter.increment();
+            std::osyncstream(std::cout)
+                &lt;&lt; std::this_thread::get_id() &lt;&lt; ' ' &lt;&lt; counter.get() &lt;&lt; '\n';
+        }
+    };
+
+    std::thread thread1(increment_and_print);
+    std::thread thread2(increment_and_print);
+
+    thread1.join();
+    thread2.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">123084176803584 2
+123084176803584 3
+123084176803584 4
+123084185655040 1
+123084185655040 5
+123084185655040 6
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="shared_timed_mutex.html">shared_timed_mutex</a> (C++14)</strong> — fournit un mécanisme d'exclusion mutuelle partagée et implémente le verrouillage avec délai d'attente <em>(classe)</em></li>
+<li><strong><a href="shared_lock.html">shared_lock</a> (C++14)</strong> — implémente un wrapper de propriété de mutex partagé déplaçable <em>(modèle de classe)</em></li>
+<li><strong><a href="unique_lock.html">unique_lock</a> (C++11)</strong> — implémente un wrapper de propriété de mutex déplaçable <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

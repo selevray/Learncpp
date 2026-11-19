@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAII — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="raii"><code>RAII</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/raii">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><em>Resource Acquisition Is Initialization</em> ou RAII, est une technique de programmation C++<a href="raii.html#cite_note-1">[1]</a><a href="raii.html#cite_note-2">[2]</a> qui lie la durée de vie d'une ressource devant être acquise avant utilisation (mémoire allouée sur le tas, thread d'exécution, socket ouverte, fichier ouvert, mutex verrouillé, espace disque, connexion à une base de données — tout ce qui existe en quantité limitée) à la <a href="lifetime.html">durée de vie</a> d'un objet.</p>
+<p>Le RAII garantit que la ressource est disponible pour toute fonction pouvant accéder à l'objet (la disponibilité de la ressource est un <a href="https://en.wikipedia.org/wiki/Class_invariant">invariant de classe</a>, ce qui élimine les tests redondants à l'exécution). Il garantit également que toutes les ressources sont libérées à la fin de la durée de vie de leur objet de contrôle, dans l'ordre inverse de leur acquisition. De même, si l'acquisition d'une ressource échoue (le constructeur se termine par une exception), toutes les ressources acquises par chaque sous-objet membre ou de base entièrement construit sont libérées dans l'ordre inverse de l'initialisation. Cela s'appuie sur les fonctionnalités de base du langage (<a href="lifetime.html">durée de vie des objets</a>, <a href="statements.html">sortie de portée</a>, <a href="initializer_list.html#Initialization_order">ordre d'initialisation</a> et <a href="throw.html#Stack_unwinding">déroulement de la pile</a>) pour éliminer les fuites de ressources et garantir la sécurité en cas d'exception. Une autre appellation de cette technique est <em>Scope-Bound Resource Management</em> (SBRM), d'après le cas d'usage de base où la durée de vie d'un objet RAII se termine à la sortie de portée.</p>
+<p>Le RAII peut se résumer comme suit :</p>
+<ul>
+<li>
+<p>encapsuler chaque ressource dans une classe, où</p>
+<ul>
+<li>le constructeur acquiert la ressource et établit tous les invariants de classe, ou lève une exception si cela est impossible,</li>
+<li>le destructeur libère la ressource et ne lève jamais d'exception ;</li>
+</ul>
+</li>
+<li>
+<p>toujours utiliser la ressource via une instance d'une classe RAII qui</p>
+<ul>
+<li>a une durée de stockage automatique ou une durée de vie temporaire elle-même, ou</li>
+<li>a une durée de vie bornée par la durée de vie d'un objet automatique ou temporaire.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>La sémantique de déplacement permet le transfert de ressources et de propriété entre objets, à l'intérieur et à l'extérieur des conteneurs, et entre threads, tout en garantissant la sûreté des ressources.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Les classes dotées de fonctions membres <code>open()</code>/<code>close()</code>, <code>lock()</code>/<code>unlock()</code> ou <code>init()</code>/<code>copyFrom()</code>/<code>destroy()</code> sont des exemples typiques de classes non RAII :</p>
+<pre><code class="language-cpp">std::mutex m;
+
+void bad()
+{
+    m.lock();             // acquérir le mutex
+    f();                  // si f() lève une exception, le mutex n'est jamais libéré
+    if (!everything_ok())
+        return;           // retour anticipé, le mutex n'est jamais libéré
+    m.unlock();           // si bad() atteint cette instruction, le mutex est libéré
+}
+
+void good()
+{
+    std::lock_guard&lt;std::mutex&gt; lk(m); // Classe RAII : l'acquisition du mutex est l'initialisation
+    f();                               // si f() lève une exception, le mutex est libéré
+    if (!everything_ok())
+        return;                        // retour anticipé, le mutex est libéré
+}                                      // si good() retourne normalement, le mutex est libéré
+</code></pre>
+<h2 id="The_standard_library">La bibliothèque standard</h2>
+<p>Les classes de la bibliothèque C++ qui gèrent leurs propres ressources suivent le RAII : <a href="../string/basic_string.html"><code>std::string</code></a>, <a href="../container/vector.html"><code>std::vector</code></a>, <a href="../thread/jthread.html"><code>std::jthread</code></a> <em>(depuis C++20)</em>, et bien d'autres acquièrent leurs ressources dans les constructeurs (qui lèvent des exceptions en cas d'erreur), les libèrent dans leurs destructeurs (qui ne lèvent jamais d'exception), et ne nécessitent aucun nettoyage explicite.</p>
+<blockquote>
+<p>En outre, la bibliothèque standard propose plusieurs enveloppes RAII pour gérer les ressources fournies par l'utilisateur :</p>
+<ul>
+<li><a href="../memory/unique_ptr.html"><code>std::unique_ptr</code></a> et <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> à <a href="../memory/unique_ptr/make_unique.html"><code>std::make_unique</code></a> et <a href="../memory/shared_ptr/make_shared.html"><code>std::make_shared</code></a> pour gérer la mémoire allouée dynamiquement ;</li>
+<li><a href="../thread/lock_guard.html"><code>std::lock_guard</code></a>, <a href="../thread/unique_lock.html"><code>std::unique_lock</code></a>, <a href="../thread/shared_lock.html"><code>std::shared_lock</code></a> pour gérer les mutex.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Le RAII ne s'applique pas à la gestion des ressources qui ne sont pas acquises avant utilisation : temps CPU, disponibilité des cœurs, capacité du cache, capacité du pool d'entropie, bande passante réseau, consommation électrique, mémoire de pile. Pour de telles ressources, le constructeur d'une classe C++ ne peut pas garantir la disponibilité de la ressource pendant la durée de vie de l'objet, et d'autres moyens de gestion des ressources doivent être utilisés.</p>
+<h2 id="External_links">Liens externes</h2>
+<ol>
+<li><a href="raii.html#cite_ref-1">↑</a> <a href="https://www.stroustrup.com/bs_faq2.html#finally">RAII dans la FAQ C++ de Stroustrup</a></li>
+<li><a href="raii.html#cite_ref-2">↑</a> <a href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.html#e6-use-raii-to-prevent-leaks">C++ Core Guidelines E.6 « Use RAII to prevent leaks »</a></li>
+</ol>
+
+</main>
+</body>
+</html>

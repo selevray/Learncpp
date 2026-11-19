@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Constructeurs de déplacement — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="constructeurs-de-déplacement">Constructeurs de déplacement</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/move_constructor">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un constructeur de déplacement est un <a href="initializer_list.html">constructeur</a> qui peut être appelé avec un argument du même type classe et qui copie le contenu de l'argument, en le modifiant éventuellement.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>class-name</code> ﻿<code>(parameter-list</code> ﻿<code>);</code> | (1) | |
+|
+| <code>class-name</code> ﻿<code>(parameter-list</code> ﻿<code>)</code> <code>function-body</code> | (2) | |
+|
+| <code>class-name</code> ﻿<code>(single-parameter-list</code> ﻿<code>) = default;</code> | (3) | |
+|
+| <code>class-name</code> ﻿<code>(parameter-list</code> ﻿<code>) = delete;</code> | (4) | |
+|
+| <code>class-name</code> ﻿<code>::class-name</code> ﻿<code>(parameter-list</code> ﻿<code>)</code> <code>function-body</code> | (5) | |
+|
+| <code>class-name</code> ﻿<code>::class-name</code> ﻿<code>(single-parameter-list</code> ﻿<code>) = default;</code> | (6) | |
+|</p>
+<ul>
+<li><code>class-name</code> — la classe dont le constructeur de déplacement est déclaré</li>
+<li><code>parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> non vide satisfaisant toutes les conditions suivantes :
+<ul>
+<li>étant donné le type de classe comme <code>T</code>, le premier paramètre est de type <code>T&amp;&amp;</code>, <code>const T&amp;&amp;</code>, <code>volatile T&amp;&amp;</code> ou <code>const volatile T&amp;&amp;</code>, et</li>
+<li>soit il n'existe aucun autre paramètre, soit tous les autres paramètres possèdent des <a href="default_arguments.html">arguments par défaut</a></li>
+</ul>
+</li>
+<li><code>single-parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> ne comportant qu'un seul paramètre, de type <code>T&amp;&amp;</code>, <code>const T&amp;&amp;</code>, <code>volatile T&amp;&amp;</code> ou <code>const volatile T&amp;&amp;</code>, et n'ayant pas d'argument par défaut</li>
+<li><code>function-body</code> — le <a href="initializer_list.html">corps de fonction</a> du constructeur de déplacement</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<ol>
+<li>Déclaration d'un constructeur de déplacement à l'intérieur de la définition de classe.</li>
+</ol>
+<p>2-4) Définition d'un constructeur de déplacement à l'intérieur de la définition de classe.</p>
+<ol start="3">
+<li>
+<p>Le constructeur de déplacement est explicitement défini par défaut.</p>
+</li>
+<li>
+<p>Le constructeur de déplacement est supprimé.</p>
+</li>
+</ol>
+<p>5,6) Définition d'un constructeur de déplacement en dehors de la définition de classe (la classe doit contenir une déclaration <code>(1)</code>).</p>
+<ol start="6">
+<li>Le constructeur de déplacement est explicitement défini par défaut.</li>
+</ol>
+<pre><code class="language-cpp">struct X
+{
+    X(X&amp;&amp; other); // constructeur de déplacement
+//  X(X other);   // Erreur : type de paramètre incorrect
+};
+
+union Y
+{
+    Y(Y&amp;&amp; other, int num = 1); // constructeur de déplacement à plusieurs paramètres
+//  Y(Y&amp;&amp; other, int num);     // Erreur : `num` n'a pas d'argument par défaut
+};
+</code></pre>
+<p>Le constructeur de déplacement est généralement appelé lorsqu'un objet est <a href="initialization.html">initialisé</a> (par <a href="direct_initialization.html">initialisation directe</a> ou <a href="copy_initialization.html">initialisation par copie</a>) à partir d'une [<a href="value_category.html#rvalue">rvalue</a> (xvalue ou prvalue) <em>(jusqu'à C++17)</em> | xvalue <em>(depuis C++17)</em>] du même type, y compris</p>
+<ul>
+<li>initialisation : <code>T a = std::move(b);</code> ou <code>T a(std::move(b));</code>, où <code>b</code> est de type <code>T</code> ;</li>
+<li>passage d'arguments de fonction : <code>f(std::move(a));</code>, où <code>a</code> est de type <code>T</code> et <code>f</code> est <code>void f(T t)</code> ;</li>
+<li>retour de fonction : <code>return a;</code> dans une fonction telle que <code>T f()</code>, où <code>a</code> est de type <code>T</code> qui possède un constructeur de déplacement.</li>
+</ul>
+<p>Lorsque l'initialiseur est une prvalue, l'appel au constructeur de déplacement est [souvent optimisé <em>(jusqu'à C++17)</em> | jamais effectué <em>(depuis C++17)</em>], voir <a href="copy_elision.html">élision de copie</a>.</p>
+<p>Les constructeurs de déplacement transfèrent généralement les ressources détenues par l'argument (par exemple des pointeurs vers des objets alloués dynamiquement, des descripteurs de fichiers, des sockets TCP, des handles de thread, etc.) au lieu d'en faire des copies, et laissent l'argument dans un état valide mais par ailleurs indéterminé. Comme le constructeur de déplacement ne modifie pas la durée de vie de l'argument, le destructeur sera généralement appelé sur l'argument plus tard. Par exemple, un déplacement depuis un <a href="../string/basic_string.html"><code>std::string</code></a> ou depuis un <a href="../container/vector.html"><code>std::vector</code></a> peut laisser l'argument vide. Pour certains types, comme <a href="../memory/unique_ptr.html"><code>std::unique_ptr</code></a>, l'état après déplacement est entièrement spécifié.</p>
+<h2 id="Implicitly-declared_move_constructor">Constructeur de déplacement déclaré implicitement</h2>
+<p>Si aucun constructeur de déplacement défini par l'utilisateur n'est fourni pour un type classe, et que toutes les conditions suivantes sont vraies :</p>
+<ul>
+<li>il n'existe aucun <a href="copy_constructor.html">constructeur de copie</a> déclaré par l'utilisateur ;</li>
+<li>il n'existe aucun <a href="as_operator.html">opérateur d'affectation par copie</a> déclaré par l'utilisateur ;</li>
+<li>il n'existe aucun <a href="move_operator.html">opérateur d'affectation par déplacement</a> déclaré par l'utilisateur ;</li>
+<li>il n'existe aucun <a href="destructor.html">destructeur</a> déclaré par l'utilisateur.</li>
+</ul>
+<p>Alors le compilateur déclare un constructeur de déplacement comme membre non-<a href="explicit.html">explicit</a> <code>inline public</code> de sa classe, avec la signature <code>T::T(T&amp;&amp;)</code>.</p>
+<p>Une classe peut avoir plusieurs constructeurs de déplacement, par exemple à la fois <code>T::T(const T&amp;&amp;)</code> et <code>T::T(T&amp;&amp;)</code>. Si certains constructeurs de déplacement définis par l'utilisateur sont présents, l'utilisateur peut tout de même forcer la génération du constructeur de déplacement déclaré implicitement avec le mot-clé <code>default</code>.</p>
+<p>Le constructeur de déplacement déclaré implicitement (ou défini par défaut lors de sa première déclaration) possède une spécification d'exception décrite dans [<a href="except_spec.html">spécification d'exception dynamique</a> <em>(jusqu'à C++17)</em> | <a href="noexcept_spec.html">spécification noexcept</a> <em>(depuis C++17)</em>].</p>
+<h2 id="Implicitly-defined_move_constructor">Constructeur de déplacement défini implicitement</h2>
+<p>Si le constructeur de déplacement déclaré implicitement n'est ni supprimé ni trivial, il est défini (c'est-à-dire qu'un corps de fonction est généré et compilé) par le compilateur s'il est <a href="definition.html#ODR-use">utilisé par ODR</a> ou <a href="constant_expression.html#Functions_and_variables_needed_for_constant_evaluation">nécessaire à l'évaluation constante</a>. Pour les types union, le constructeur de déplacement défini implicitement copie la représentation de l'objet (comme par <a href="../string/byte/memmove.html"><code>std::memmove</code></a>). Pour les types classe non-union, le constructeur de déplacement effectue un déplacement membre à membre complet des sous-objets de base directs et des sous-objets membres de l'objet, dans leur ordre d'initialisation, en utilisant l'initialisation directe avec un argument de type <a href="value_category.html#xvalue">xvalue</a>. Pour chaque membre de donnée non statique de type référence, le constructeur de déplacement lie la référence au même objet ou à la même fonction auquel la référence source est liée.</p>
+<p>Si cela satisfait les exigences d'un [<a href="constexpr.html#constexpr_constructor"><code>constexpr</code> constructeur</a> <em>(jusqu'à C++23)</em> | <a href="constexpr.html#constexpr_function"><code>constexpr</code> fonction</a> <em>(depuis C++23)</em>], le constructeur de déplacement généré est <code>constexpr</code>.</p>
+<h2 id="Deleted_move_constructor">Constructeur de déplacement supprimé</h2>
+<p>Le constructeur de déplacement déclaré implicitement ou défini explicitement par défaut pour la classe <code>T</code> est défini comme supprimé si <code>T</code> possède un <a href="objects.html#Potentially_constructed_subobject">sous-objet potentiellement construit</a> de type classe <code>M</code> (ou tableau multidimensionnel de ce type) tel que</p>
+<ul>
+<li><code>M</code> possède un destructeur supprimé ou inaccessible depuis le constructeur de copie, ou</li>
+<li>la résolution de surcharge appliquée pour trouver le constructeur de déplacement de <code>M</code>
+<ul>
+<li>ne produit aucun candidat utilisable, ou</li>
+<li>dans le cas où le sous-objet est un <a href="union.html#Union-like_classes">membre variant</a>, sélectionne une fonction non triviale.</li>
+</ul>
+</li>
+</ul>
+<p>Un tel constructeur est ignoré par la <a href="overload_resolution.html">résolution de surcharge</a> (sinon il empêcherait l'initialisation par copie à partir d'une rvalue).</p>
+<h2 id="Trivial_move_constructor">Constructeur de déplacement trivial</h2>
+<p>Le constructeur de déplacement de la classe <code>T</code> est trivial si toutes les conditions suivantes sont vraies :</p>
+<ul>
+<li>il n'est pas fourni par l'utilisateur (c'est-à-dire qu'il est implicitement défini ou défini par défaut) ;</li>
+<li><code>T</code> ne possède aucune fonction membre virtuelle ;</li>
+<li><code>T</code> ne possède aucune classe de base virtuelle ;</li>
+<li>le constructeur de déplacement sélectionné pour chaque base directe de <code>T</code> est trivial ;</li>
+<li>le constructeur de déplacement sélectionné pour chaque membre non statique de type classe (ou tableau de type classe) de <code>T</code> est trivial.</li>
+</ul>
+<p>Un constructeur de déplacement trivial est un constructeur qui effectue la même action que le constructeur de copie trivial, c'est-à-dire qu'il copie la représentation de l'objet comme par <a href="../string/byte/memmove.html"><code>std::memmove</code></a>. Tous les types de données compatibles avec le langage C sont trivialement déplaçables.</p>
+<h2 id="Eligible_move_constructor">Constructeur de déplacement éligible</h2>
+<blockquote>
+<p>Un constructeur de déplacement est éligible s'il n'est pas supprimé.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Un constructeur de déplacement est éligible si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li>Il n'est pas supprimé.</li>
+<li>Ses <a href="constraints.html">contraintes associées</a> (le cas échéant) sont satisfaites.</li>
+<li>Aucun constructeur de déplacement dont les contraintes associées sont satisfaites n'est <a href="constraints.html#Partial_ordering_of_constraints">plus contraint</a>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La trivialité des constructeurs de déplacement éligibles détermine si la classe est un <a href="lifetime.html#Implicit-lifetime_types">type à durée de vie implicite</a>, et si la classe est un <a href="../named_req/TriviallyCopyable.html">type trivialement copiable</a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Pour rendre possible la <a href="exceptions.html#Exception_safety">garantie forte d'exception</a>, les constructeurs de déplacement définis par l'utilisateur ne devraient pas lever d'exceptions. Par exemple, <a href="../container/vector.html"><code>std::vector</code></a> repose sur <a href="../utility/move_if_noexcept.html"><code>std::move_if_noexcept</code></a> pour choisir entre déplacement et copie lorsque les éléments doivent être relocalisés.</p>
+<p>Si les constructeurs de copie et de déplacement sont tous deux fournis et qu'aucun autre constructeur n'est viable, la résolution de surcharge sélectionne le constructeur de déplacement si l'argument est une <a href="value_category.html#rvalue">rvalue</a> du même type (une <a href="value_category.html#xvalue">xvalue</a> comme le résultat de <code>std::move</code>ou une <a href="value_category.html#prvalue">prvalue</a> comme un temporaire sans nom <em>(jusqu'à C++17)</em>), et sélectionne le constructeur de copie si l'argument est une <a href="value_category.html#lvalue">lvalue</a> (objet nommé ou fonction/opérateur renvoyant une référence lvalue). Si seul le constructeur de copie est fourni, toutes les catégories d'arguments le sélectionnent (à condition qu'il prenne une référence vers const, puisque les rvalues peuvent se lier à des références const), ce qui fait de la copie le repli du déplacement lorsque celui-ci n'est pas disponible.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt;
+
+struct A
+{
+    std::string s;
+    int k;
+
+    A() : s(&quot;test&quot;), k(-1) {}
+    A(const A&amp; o) : s(o.s), k(o.k) { std::cout &lt;&lt; &quot;move failed!\n&quot;; }
+    A(A&amp;&amp; o) noexcept :
+        s(std::move(o.s)),       // déplacement explicite d'un membre de type classe
+        k(std::exchange(o.k, 0)) // déplacement explicite d'un membre de type non classe
+    {}
+};
+
+A f(A a)
+{
+    return a;
+}
+
+struct B : A
+{
+    std::string s2;
+    int n;
+    // constructeur de déplacement implicite B::(B&amp;&amp;)
+    // appelle le constructeur de déplacement de A
+    // appelle le constructeur de déplacement de s2
+    // et effectue une copie binaire de n
+};
+
+struct C : B
+{
+    ~C() {} // le destructeur empêche le constructeur de déplacement implicite C::(C&amp;&amp;)
+};
+
+struct D : B
+{
+    D() {}
+    ~D() {}           // le destructeur empêcherait le constructeur de déplacement implicite D::(D&amp;&amp;)
+    D(D&amp;&amp;) = default; // force tout de même un constructeur de déplacement
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Trying to move A\n&quot;;
+    A a1 = f(A()); // le retour par valeur construit la cible par déplacement
+                   // à partir du paramètre de fonction
+
+    std::cout &lt;&lt; &quot;Before move, a1.s = &quot; &lt;&lt; std::quoted(a1.s)
+        &lt;&lt; &quot; a1.k = &quot; &lt;&lt; a1.k &lt;&lt; '\n';
+
+    A a2 = std::move(a1); // construit par déplacement à partir d'une xvalue
+    std::cout &lt;&lt; &quot;After move, a1.s = &quot; &lt;&lt; std::quoted(a1.s)
+        &lt;&lt; &quot; a1.k = &quot; &lt;&lt; a1.k &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;\nTrying to move B\n&quot;;
+    B b1;
+
+    std::cout &lt;&lt; &quot;Before move, b1.s = &quot; &lt;&lt; std::quoted(b1.s) &lt;&lt; &quot;\n&quot;;
+
+    B b2 = std::move(b1); // appelle le constructeur de déplacement implicite
+    std::cout &lt;&lt; &quot;After move, b1.s = &quot; &lt;&lt; std::quoted(b1.s) &lt;&lt; &quot;\n&quot;;
+
+    std::cout &lt;&lt; &quot;\nTrying to move C\n&quot;;
+    C c1;
+    C c2 = std::move(c1); // appelle le constructeur de copie
+
+    std::cout &lt;&lt; &quot;\nTrying to move D\n&quot;;
+    D d1;
+    D d2 = std::move(d1);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Trying to move A
+Before move, a1.s = &quot;test&quot; a1.k = -1
+After move, a1.s = &quot;&quot; a1.k = 0
+
+Trying to move B
+Before move, b1.s = &quot;test&quot;
+After move, b1.s = &quot;&quot;
+
+Trying to move C
+move failed!
+
+Trying to move D
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1353.html">CWG 1353</a></td>
+<td>C++11</td>
+<td>les conditions dans lesquelles les constructeurs de déplacement par défaut sont définis comme supprimés ne prenaient pas en compte les types tableaux multidimensionnels</td>
+<td>prendre en compte ces types</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1402.html">CWG 1402</a></td>
+<td>C++11</td>
+<td>un constructeur de déplacement par défaut qui appellerait un constructeur de copie non trivial était défini comme supprimé ; un constructeur de déplacement par défaut qui est supprimé participait tout de même à la résolution de surcharge</td>
+<td>permettait l'appel à un tel constructeur de copie ; rendu ignoré lors de la résolution de surcharge</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1491.html">CWG 1491</a></td>
+<td>C++11</td>
+<td>un constructeur de déplacement par défaut d'une classe possédant un membre de donnée non statique de type référence rvalue était défini comme supprimé</td>
+<td>non supprimé dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2094.html">CWG 2094</a></td>
+<td>C++11</td>
+<td>un sous-objet volatile rendait un constructeur de déplacement par défaut non trivial (<a href="https://cplusplus.github.io/CWG/issues/496.html">problème CWG 496</a>)</td>
+<td>la trivialité n'est pas affectée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2595.html">CWG 2595</a></td>
+<td>C++20</td>
+<td>un constructeur de déplacement n'était pas éligible s'il existait un autre constructeur de déplacement plus contraint mais ne satisfaisant pas ses contraintes associées</td>
+<td>il peut être éligible dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="converting_constructor.html">constructeur de conversion</a></li>
+<li><a href="as_operator.html">affectation par copie</a></li>
+<li><a href="copy_constructor.html">constructeur de copie</a></li>
+<li><a href="copy_elision.html">élision de copie</a></li>
+<li><a href="default_constructor.html">constructeur par défaut</a></li>
+<li><a href="destructor.html">destructor</a></li>
+<li><a href="explicit.html"><code>explicit</code></a></li>
+<li><a href="initialization.html">initialization</a>
+<ul>
+<li><a href="aggregate_initialization.html">initialisation agrégat</a></li>
+<li><a href="constant_initialization.html">initialisation constante</a></li>
+<li><a href="copy_initialization.html">initialisation par copie</a></li>
+<li><a href="default_initialization.html">initialisation par défaut</a></li>
+<li><a href="direct_initialization.html">initialisation directe</a></li>
+<li><a href="initializer_list.html">liste d'initialisation</a></li>
+<li><a href="list_initialization.html">initialisation par liste</a></li>
+<li><a href="reference_initialization.html">initialisation de référence</a></li>
+<li><a href="value_initialization.html">initialisation par valeur</a></li>
+<li><a href="zero_initialization.html">initialisation à zéro</a></li>
+</ul>
+</li>
+<li><a href="move_operator.html">affectation par déplacement</a></li>
+<li><a href="new.html"><code>new</code></a></li>
+</ul>
+
+</main>
+</body>
+</html>

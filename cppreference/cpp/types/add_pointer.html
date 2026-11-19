@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::add_pointer — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-add_pointer"><code>std::add_pointer</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/add_pointer">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+struct add_pointer;  // (depuis C++11)
+</code></pre>
+<p>Si <code>T</code> est un <a href="../meta.html#Definitions">type référençable</a> ou (éventuellement qualifié cv) <code>void</code>, le typedef membre <code>type</code> fourni est <code>typename std::remove_reference&lt;T&gt;::type*</code>.</p>
+<p>Sinon, le typedef membre <code>type</code> fourni est <code>T</code>.</p>
+<p>Si le programme ajoute des spécialisations pour <code>std::add_pointer</code>, le comportement est indéfini.</p>
+<h2 id="Nested_types">Types imbriqués</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>type</code></strong> — déterminé comme ci-dessus</li>
+</ul>
+<h2 id="Helper_types">Types auxiliaires</h2>
+<pre><code class="language-cpp">template&lt; class T &gt;
+using add_pointer_t = typename add_pointer&lt;T&gt;::type;  // (depuis C++14)
+</code></pre>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt;class T&gt;
+    struct type_identity { using type = T; }; // ou utiliser std::type_identity (depuis C++20)
+
+    template&lt;class T&gt;
+    auto try_add_pointer(int)
+      -&gt; type_identity&lt;typename std::remove_reference&lt;T&gt;::type*&gt;; // cas usuel
+
+    template&lt;class T&gt;
+    auto try_add_pointer(...)
+      -&gt; type_identity&lt;T&gt;; // cas inhabituel (impossible de former std::remove_reference&lt;T&gt;::type*)
+} // espace de noms detail
+
+template&lt;class T&gt;
+struct add_pointer : decltype(detail::try_add_pointer&lt;T&gt;(0)) {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;type_traits&gt;
+
+template&lt;typename F, typename Class&gt;
+void ptr_to_member_func_cvref_test(F Class::*)
+{
+    // F est un « type de fonction abominable »
+    using FF = std::add_pointer_t&lt;F&gt;;
+    static_assert(std::is_same_v&lt;F, FF&gt;, &quot;FF should be precisely F&quot;);
+}
+
+struct S
+{
+    void f_ref() &amp; {}
+    void f_const() const {}
+};
+
+int main()
+{
+    int i = 123;
+    int&amp; ri = i;
+    typedef std::add_pointer&lt;decltype(i)&gt;::type IntPtr;
+    typedef std::add_pointer&lt;decltype(ri)&gt;::type IntPtr2;
+    IntPtr pi = &amp;i;
+    std::cout &lt;&lt; &quot;i = &quot; &lt;&lt; i &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;*pi = &quot; &lt;&lt; *pi &lt;&lt; '\n';
+
+    static_assert(std::is_pointer_v&lt;IntPtr&gt;, &quot;IntPtr should be a pointer&quot;);
+    static_assert(std::is_same_v&lt;IntPtr, int*&gt;, &quot;IntPtr should be a pointer to int&quot;);
+    static_assert(std::is_same_v&lt;IntPtr2, IntPtr&gt;, &quot;IntPtr2 should be equal to IntPtr&quot;);
+
+    typedef std::remove_pointer&lt;IntPtr&gt;::type IntAgain;
+    IntAgain j = i;
+    std::cout &lt;&lt; &quot;j = &quot; &lt;&lt; j &lt;&lt; '\n';
+
+    static_assert(!std::is_pointer_v&lt;IntAgain&gt;, &quot;IntAgain should not be a pointer&quot;);
+    static_assert(std::is_same_v&lt;IntAgain, int&gt;, &quot;IntAgain should be equal to int&quot;);
+
+    ptr_to_member_func_cvref_test(&amp;S::f_ref);
+    ptr_to_member_func_cvref_test(&amp;S::f_const);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">i = 123
+*pi = 123
+j = 123
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2101">LWG 2101</a></td>
+<td>C++11</td>
+<td>le programme était mal formé si <code>T</code> est un <a href="../language/function.html#Function_type">type de fonction</a> avec <code>cv</code> ou <code>ref</code></td>
+<td>le type produit est <code>T</code> dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="is_pointer.html">is_pointer</a> (C++11)</strong> — vérifie si un type est un type pointeur <em>(modèle de classe)</em></li>
+<li><strong><a href="remove_pointer.html">remove_pointer</a> (C++11)</strong> — supprime un pointeur du type donné <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

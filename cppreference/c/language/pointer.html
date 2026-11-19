@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de pointeur — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="déclaration-de-pointeur">Déclaration de pointeur</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/pointer">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un pointeur est un type d'objet qui fait référence à une fonction ou à un objet d'un autre type, en ajoutant éventuellement des qualificatifs. Un pointeur peut aussi ne faire référence à rien, ce qui est indiqué par la valeur spéciale de pointeur nul.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Dans la <a href="declarations.html">grammaire de déclaration</a> d'une déclaration de pointeur, la séquence <code>type-specifier</code> désigne le type pointé (qui peut être un type de fonction ou d'objet, et peut être incomplet), et le <code>declarator</code> a la forme :</p>
+<p>|
+| |
+| <code>*</code> <code>attr-spec-seq</code> ﻿*(optionnel)* <code>qualifiers</code> ﻿*(optionnel)* <code>declarator</code> | | |
+|</p>
+<p>où <code>declarator</code> peut être l'identificateur qui nomme le pointeur déclaré, y compris un autre déclarateur de pointeur (ce qui indiquerait un pointeur vers un pointeur) :</p>
+<pre><code class="language-c">float *p, **pp; // p est un pointeur vers float
+                // pp est un pointeur vers un pointeur vers float
+int (*fp)(int); // fp est un pointeur vers une fonction de type int(int)
+</code></pre>
+<p>Les <code>qualifiers</code> qui apparaissent entre <code>*</code> et l'identificateur (ou un autre déclarateur imbriqué) qualifient le type du pointeur déclaré :</p>
+<pre><code class="language-c">int n;
+const int * pc = &amp;n; // pc est un pointeur non const vers un int const
+// *pc = 2; // Erreur : n ne peut pas être modifié via pc sans cast
+pc = NULL; // OK : pc lui-même peut être modifié
+
+int * const cp = &amp;n; // cp est un pointeur const vers un int non const
+*cp = 2; // OK pour modifier n via cp
+// cp = NULL; // Erreur : cp lui-même ne peut pas être modifié
+
+int * const * pcp = &amp;cp; // pointeur non const vers pointeur const vers int non const
+</code></pre>
+<p>Le <code>attr-spec-seq</code> (C23) est une liste optionnelle d'<a href="attributes.html">attributs</a>, appliquée au pointeur déclaré.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les pointeurs servent à l'indirection, une technique de programmation omniprésente ; ils permettent d'implémenter une sémantique de passage par référence, d'accéder à des objets de <a href="storage_duration.html">durée de stockage</a> dynamique, d'implémenter des types « optionnels » (en utilisant la valeur de pointeur nul), une relation d'agrégation entre structures, des fonctions de rappel (en utilisant des pointeurs vers des fonctions), des interfaces génériques (en utilisant des pointeurs vers void), et bien d'autres usages.</p>
+<h3 id="Pointers_to_objects">Pointeurs vers des objets</h3>
+<p>Un pointeur vers un objet peut être initialisé avec le résultat de l'<a href="operator_member_access.html">opérateur d'adresse</a> appliqué à une expression de type objet (qui peut être incomplet) :</p>
+<pre><code class="language-c">int n;
+int *np = &amp;n; // pointeur vers int
+int *const *npp = &amp;np; // pointeur non const vers pointeur const vers int non const
+
+int a[2];
+int (*ap)[2] = &amp;a; // pointeur vers tableau d'int
+
+struct S { int n; } s = {1}
+int* sp = &amp;s.n; // pointeur vers l'int qui est un membre de s
+</code></pre>
+<p>Les pointeurs peuvent figurer comme opérandes de l'<a href="operator_member_access.html#Dereference">opérateur d'indirection</a> (<code>*</code> unaire), qui renvoie <a href="value_category.html">la lvalue</a> identifiant l'objet pointé :</p>
+<pre><code class="language-c">int n;
+int* p = &amp;n; // le pointeur p pointe vers n
+*p = 7; // stocke 7 dans n
+printf(&quot;%d\n&quot;, *p); // la conversion lvalue-vers-rvalue lit la valeur de n
+</code></pre>
+<p>Les pointeurs vers des objets de type <a href="struct.html">struct</a> et <a href="union.html">union</a> peuvent aussi figurer comme opérandes gauches de l'opérateur d'<a href="operator_member_access.html">accès à un membre par pointeur</a> <code>-&gt;</code>.</p>
+<p>En raison de la conversion implicite <a href="array.html">tableau vers pointeur</a>, un pointeur vers le premier élément d'un tableau peut être initialisé avec une expression de type tableau :</p>
+<pre><code class="language-c">int a[2];
+int *p = a; // pointeur vers a[0]
+
+int b[3][3];
+int (*row)[3] = b; // pointeur vers b[0]
+</code></pre>
+<p>Certains opérateurs d'<a href="operator_arithmetic.html">addition, de soustraction</a>, d'<a href="operator_assignment.html">affectation composée</a> et d'<a href="operator_incdec.html">incrémentation et de décrémentation</a> sont définis pour les pointeurs vers des éléments de tableaux.</p>
+<p>Des <a href="operator_comparison.html">opérateurs de comparaison</a> sont définis pour les pointeurs vers des objets dans certaines situations : deux pointeurs représentant la même adresse se comparent comme égaux, deux valeurs de pointeur nul se comparent comme égales, des pointeurs vers des éléments d'un même tableau se comparent comme les indices de tableau de ces éléments, et des pointeurs vers des membres de structure se comparent selon l'ordre de déclaration de ces membres.</p>
+<p>De nombreuses implémentations fournissent également un <a href="https://en.wikipedia.org/wiki/Total_order#Strict_total_order">ordre total strict</a> sur des pointeurs d'origine quelconque, par exemple lorsqu'ils sont implémentés comme des adresses dans un espace d'adressage virtuel continu (« plat »).</p>
+<h3 id="Pointers_to_functions">Pointeurs vers des fonctions</h3>
+<p>Un pointeur vers fonction peut être initialisé avec l'adresse d'une fonction. Grâce à la <a href="conversion.html">conversion fonction-vers-pointeur</a>, l'opérateur d'adresse est facultatif :</p>
+<pre><code class="language-c">void f(int);
+void (*pf1)(int) = &amp;f;
+void (*pf2)(int) = f; // identique à &amp;f
+</code></pre>
+<p>Contrairement aux fonctions, les pointeurs vers fonctions sont des objets et peuvent donc être stockés dans des tableaux, copiés, affectés, passés à d'autres fonctions en tant qu'arguments, etc.</p>
+<p>Un pointeur vers fonction peut être utilisé à gauche de l'<a href="operator_other.html#Function_call">opérateur d'appel de fonction</a> ; cela invoque la fonction pointée :</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int f(int n)
+{
+    printf(&quot;%d\n&quot;, n);
+    return n * n;
+}
+
+int main(void)
+{
+    int (*p)(int) = f;
+    int x = p(7);
+}
+</code></pre>
+<p>La déréférence d'un pointeur de fonction donne le désignateur de fonction de la fonction pointée :</p>
+<pre><code class="language-c">int f();
+int (*p)() = f;    // le pointeur p pointe vers f
+(*p)(); // fonction f invoquée via le désignateur de fonction
+p();    // fonction f invoquée directement via le pointeur
+</code></pre>
+<p>Des <a href="operator_comparison.html">opérateurs de comparaison d'égalité</a> sont définis pour les pointeurs vers des fonctions (ils sont égaux s'ils pointent vers la même fonction).</p>
+<p>Comme la <a href="compatible_type.html#Compatible_types">compatibilité des types de fonctions</a> ignore les qualificateurs de niveau supérieur des paramètres de fonction, les pointeurs vers des fonctions dont les paramètres ne diffèrent que par leurs qualificateurs de niveau supérieur sont interchangeables :</p>
+<pre><code class="language-c">int f(int), fc(const int);
+int (*pc)(const int) = f; // OK
+int (*p)(int) = fc;       // OK
+pc = p;                   // OK
+</code></pre>
+<h3 id="Pointers_to_void">Pointeurs vers void</h3>
+<p>Un pointeur vers un objet de n'importe quel type peut être <a href="conversion.html">implicitement converti</a> en pointeur vers <code>void</code> (éventuellement qualifié <a href="const.html">const</a> ou <a href="volatile.html">volatile</a>), et inversement :</p>
+<pre><code class="language-c">int n=1, *p=&amp;n;
+void* pv = p; // int* vers void*
+int* p2 = pv; // void* vers int*
+printf(&quot;%d\n&quot;, *p2); // prints 1
+</code></pre>
+<p>Les pointeurs vers void servent à transmettre des objets de type inconnu, ce qui est courant dans les interfaces génériques : <a href="../memory/malloc.html"><code>malloc</code></a> renvoie <code>void*</code>, <a href="../algorithm/qsort.html"><code>qsort</code></a> attend une fonction de rappel fournie par l'utilisateur acceptant deux arguments <code>const void*</code>. <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_create.html">pthread_create</a> attend une fonction de rappel fournie par l'utilisateur qui accepte et renvoie <code>void*</code>. Dans tous les cas, il incombe à l'appelant de convertir le pointeur vers le bon type avant utilisation.</p>
+<h2 id="Null_pointers">Pointeurs nuls</h2>
+<p>Les pointeurs de chaque type possèdent une valeur spéciale appelée <em>valeur de pointeur nul</em> de ce type. Un pointeur dont la valeur est nulle ne pointe vers aucun objet ni aucune fonction (déréférencer un pointeur nul est un comportement indéfini), et se compare comme égal à tous les pointeurs du même type dont la valeur est également <em>nulle</em>.</p>
+<p>Pour initialiser un pointeur à null ou affecter la valeur nulle à un pointeur existant, on peut utiliser une constante de pointeur nul (<a href="../types/NULL.html"><code>NULL</code></a>, ou toute autre constante entière de valeur zéro). L'<a href="initialization.html">initialisation statique</a> initialise également les pointeurs à leurs valeurs nulles.</p>
+<p>Les pointeurs nuls peuvent indiquer l'absence d'objet ou servir à signaler d'autres types de conditions d'erreur. En général, une fonction qui reçoit un argument pointeur doit presque toujours vérifier si la valeur est nulle et traiter ce cas différemment (par exemple, <a href="../memory/free.html"><code>free</code></a> ne fait rien lorsqu'un pointeur nul est passé).</p>
+<h2 id="Notes">Notes</h2>
+<p>Bien que tout pointeur vers un objet puisse être <a href="cast.html">converti par cast</a> en pointeur vers un objet d'un autre type, déréférencer un pointeur vers un type différent du type déclaré de l'objet est presque toujours un comportement indéfini. Voir <a href="object.html#Strict_aliasing">strict aliasing</a> pour plus de détails.</p>
+<blockquote>
+<p>Il est possible d'indiquer à une fonction qui accède à des objets par pointeurs que ces pointeurs ne sont pas en alias. Voir <a href="restrict.html">restrict</a> pour plus de détails.</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Les expressions lvalue de type tableau, lorsqu'elles sont utilisées dans la plupart des contextes, subissent une <a href="conversion.html">conversion implicite</a> vers le pointeur sur le premier élément du tableau. Voir <a href="array.html#Array_to_pointer_conversion">array</a> pour plus de détails.</p>
+<pre><code class="language-c">char *str = &quot;abc&quot;; // &quot;abc&quot; est un tableau char[4], str est un pointeur vers 'a'
+</code></pre>
+<p>Les pointeurs vers char sont souvent <a href="../string/byte.html">utilisés pour représenter des chaînes</a>. Pour représenter une chaîne d'octets valide, un pointeur doit pointer vers un char qui est un élément d'un tableau de char, et il doit exister un char de valeur zéro à un indice supérieur ou égal à l'indice de l'élément référencé par le pointeur.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.6.1 Déclarateurs de pointeurs (p : à définir)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.6.1 Déclarateurs de pointeurs (p : 93-94)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.6.1 Déclarateurs de pointeurs (p : 130)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.5.1 Déclarateurs de pointeurs (p : 115-116)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.5.4.1 Déclarateurs de pointeurs</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/pointer.html">Documentation C++</a> pour Déclaration de pointeur</strong></p>
+
+</main>
+</body>
+</html>

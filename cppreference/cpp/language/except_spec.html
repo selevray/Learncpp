@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spécification dynamique d&#x27;exceptions (jusqu&#x27;à C++17) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="spécification-dynamique-d-exceptions-jusqu-à-c-17">Spécification dynamique d'exceptions (jusqu'à C++17)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/except_spec">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Liste les exceptions qu'une fonction peut lever directement ou indirectement.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>throw(type-id-list</code> ﻿*(facultatif)*<code>)</code> | (1) | (obsolète en C++11) (supprimé en C++17) |
+|</p>
+<ol>
+<li>Spécification dynamique explicite d'exceptions.</li>
+</ol>
+<ul>
+<li><code>type-id-list</code> — liste séparée par des virgules de <a href="type-id.html#Type_naming">type-ids</a>, un type-id représentant une <a href="parameter_pack.html#Pack_expansion">expansion de pack</a> est suivi d'une ellipse (...) <em>(depuis C++11)</em></li>
+</ul>
+<p>Une spécification dynamique explicite d'exceptions ne doit apparaître que dans un déclarateur de fonction pour un type de fonction, un type pointeur vers fonction, un type référence vers fonction, ou un type pointeur vers fonction membre, qui est le type de plus haut niveau d'une déclaration ou d'une définition, ou sur un tel type apparaissant comme type de paramètre ou de retour dans un déclarateur de fonction.</p>
+<pre><code class="language-cpp">void f() throw(int);            // OK : déclaration de fonction
+void (*pf)() throw (int);       // OK : déclaration de pointeur vers fonction
+void g(void pfa() throw(int));  // OK : déclaration de paramètre de pointeur vers fonction
+typedef int (*pf)() throw(int); // Erreur : déclaration typedef
+</code></pre>
+<h2 id="Explanation">Explication</h2>
+<p>Si une fonction est déclarée avec le type <code>T</code> listé dans sa spécification dynamique d'exceptions, la fonction peut lever des exceptions de ce type ou d'un type dérivé de celui-ci.</p>
+<p>Les <a href="incomplete_type.html">types incomplets</a>, les pointeurs ou références vers des types incomplets autres que qualifiés cv <code>void*</code>, et les types référence rvalue <em>(depuis C++11)</em> ne sont pas autorisés dans la spécification d'exceptions. Les types tableau et fonction, s'ils sont utilisés, sont ajustés vers les types pointeurs correspondants, et les qualificateurs cv de plus haut niveau sont également supprimés. <a href="parameter_pack.html">Les packs de paramètres</a> sont autorisés <em>(depuis C++11)</em>.</p>
+<p>Une spécification dynamique d'exceptions dont l'ensemble des types ajustés est vide (après expansion de tous les packs) <em>(depuis C++11)</em> est sans lancer d'exception. Une fonction dont la spécification dynamique d'exceptions est sans lancer n'autorise aucune exception.</p>
+<p>Une spécification dynamique d'exceptions ne fait pas partie du type d'une fonction.</p>
+<p>Si la fonction lève une exception d'un type non listé dans sa spécification d'exceptions, la fonction <a href="../error/unexpected.html"><code>std::unexpected</code></a> est appelée. La fonction par défaut appelle <a href="../error/terminate.html"><code>std::terminate</code></a>, mais elle peut être remplacée par une fonction fournie par l'utilisateur (via <a href="../error/exception/set_unexpected.html"><code>std::set_unexpected</code></a>) qui peut appeler <a href="../error/terminate.html"><code>std::terminate</code></a> ou lever une exception. Si l'exception levée par <a href="../error/unexpected.html"><code>std::unexpected</code></a> est acceptée par la spécification d'exceptions, le déroulement de la pile se poursuit normalement. Sinon, si <a href="../error/bad_exception.html"><code>std::bad_exception</code></a> est autorisée par la spécification d'exceptions, <a href="../error/bad_exception.html"><code>std::bad_exception</code></a> est levée. Dans le cas contraire, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée.</p>
+<h3 id="Instantiation">Instanciation</h3>
+<p>La spécification dynamique d'exceptions d'une spécialisation de modèle de fonction n'est pas instanciée avec la déclaration de la fonction ; elle n'est instanciée que lorsqu'elle est <em>nécessaire</em> (comme défini ci-dessous).</p>
+<p>La spécification dynamique d'exceptions d'une fonction membre spéciale déclarée implicitement n'est aussi évaluée que lorsqu'elle est nécessaire (en particulier, la déclaration implicite d'une fonction membre d'une classe dérivée n'impose pas l'instanciation de la spécification d'exceptions d'une fonction membre de la classe de base).</p>
+<p>Lorsque la spécification dynamique d'exceptions d'une spécialisation de modèle de fonction est <em>nécessaire</em> mais n'a pas encore été instanciée, les noms dépendants sont recherchés et les modèles utilisés dans la <code>expression</code> sont instanciés comme pour la déclaration de la spécialisation.</p>
+<p>Une spécification dynamique d'exceptions d'une fonction est considérée comme <em>nécessaire</em> dans les contextes suivants :</p>
+<ul>
+<li>dans une expression, lorsque la fonction est sélectionnée par résolution de surcharge</li>
+<li>la fonction est <a href="definition.html#ODR-use">odr-used</a></li>
+<li>la fonction serait odr-used mais apparaît dans un opérande non évalué</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+T f() throw(std::array&lt;char, sizeof(T)&gt;);
+
+int main()
+{
+    decltype(f&lt;void&gt;()) *p; // f non évaluée, mais la spécification d'exception est nécessaire
+                            // erreur due à l'instanciation de la spécification d'exception
+                            // calcule sizeof(void)
+}
+</code></pre>
+<ul>
+<li>la spécification est nécessaire pour être comparée à une autre déclaration de fonction (par exemple sur un remplaçant de fonction virtuelle ou sur une spécialisation explicite d'un modèle de fonction)</li>
+<li>dans une définition de fonction</li>
+<li>la spécification est nécessaire parce qu'une fonction membre spéciale par défaut doit la vérifier afin de décider de sa propre spécification d'exceptions (ce qui n'a lieu que lorsque la spécification de la fonction membre spéciale par défaut est, elle-même, nécessaire).</li>
+</ul>
+<h2 id="Potential_exceptions">Exceptions potentielles</h2>
+<p>Chaque fonction <code>f</code>, pointeur vers fonction <code>pf</code> et pointeur vers fonction membre <code>pmf</code> possède un <em>ensemble d'exceptions potentielles</em>, constitué des types qui pourraient être levés. L'ensemble de tous les types indique que n'importe quelle exception peut être levée. Cet ensemble est défini comme suit :</p>
+<ol>
+<li>Si la déclaration de <code>f</code>, <code>pf</code> ou <code>pmf</code> utilise une spécification d'exception dynamiquequi n'autorise pas toutes les exceptions <em>(jusqu'à C++11)</em>, l'ensemble est constitué des types listés dans cette spécification.</li>
+</ol>
+<blockquote>
+<ol start="2">
+<li>Sinon, si la déclaration de <code>f</code>, <code>pf</code> ou <code>pmf</code> utilise <a href="noexcept.html"><code>noexcept(true)</code></a>, l'ensemble est vide.</li>
+</ol>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="3">
+<li>Sinon, l'ensemble est l'ensemble de tous les types.</li>
+</ol>
+<p>Remarque : pour les fonctions membres spéciales déclarées implicitement (constructeurs, opérateurs d'affectation et destructeurs)ainsi que pour les constructeurs hérités <em>(depuis C++11)</em>, l'ensemble des exceptions potentielles est une combinaison des ensembles des exceptions potentielles de tout ce qu'elles appelleraient : constructeurs, opérateurs d'affectation et destructeurs des membres de données non variants non statiques, des bases directes et, le cas échéant, des bases virtuelles (y compris les expressions d'arguments par défaut, comme toujours).</p>
+<p>Chaque expression <code>e</code> possède un <em>ensemble d'exceptions potentielles</em>. L'ensemble est vide si <code>e</code> est une <a href="constant_expression.html">expression constante de cœur</a>, sinon il s'agit de l'union des ensembles d'exceptions potentielles de toutes les sous-expressions immédiates de <code>e</code> (y compris les <a href="default_arguments.html">expressions d'arguments par défaut</a>), combinée à un autre ensemble qui dépend de la forme de <code>e</code>, comme suit :</p>
+<ol>
+<li>Si <code>e</code> est une expression d'appel de fonction, soit <code>g</code> désignant la fonction, le pointeur vers fonction ou le pointeur vers fonction membre appelé, alors</li>
+</ol>
+<ul>
+<li>si la déclaration de <code>g</code> utilise une spécification d'exception dynamique, l'ensemble des exceptions potentielles de <code>g</code> est ajouté à l'ensemble ;</li>
+</ul>
+<blockquote>
+<ul>
+<li>si la déclaration de <code>g</code> utilise <a href="noexcept.html"><code>noexcept(true)</code></a>, l'ensemble est vide ;</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>sinon, l'ensemble est l'ensemble de tous les types.</li>
+</ul>
+<ol start="2">
+<li>
+<p>Si <code>e</code> appelle une fonction implicitement (il s'agit d'une expression d'opérateur et l'opérateur est surchargé, c'est une <a href="new.html">expression new</a> et la fonction d'allocation est surchargée, ou c'est une expression complète et le destructeur d'un temporaire est appelé), alors l'ensemble est celui de cette fonction.</p>
+</li>
+<li>
+<p>Si <code>e</code> est une <a href="throw.html">expression throw</a>, l'ensemble est l'exception qui serait initialisée par son opérande, ou l'ensemble de tous les types pour l'expression throw de relance (sans opérande).</p>
+</li>
+<li>
+<p>Si <code>e</code> est une <a href="dynamic_cast.html"><code>dynamic_cast</code></a> vers une référence à un type polymorphe, l'ensemble est constitué de <a href="../types/bad_cast.html"><code>std::bad_cast</code></a>.</p>
+</li>
+<li>
+<p>Si <code>e</code> est une <a href="typeid.html"><code>typeid</code></a> appliqué à un pointeur déréférencé vers un type polymorphe, l'ensemble est constitué de <a href="../types/bad_typeid.html"><code>std::bad_typeid</code></a>.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="6">
+<li>Si <code>e</code> est une <a href="new.html">expression new</a> avec une taille de tableau non constante, et que la fonction d'allocation sélectionnée a un ensemble d'exceptions potentielles non vide, l'ensemble est constitué de <a href="../memory/new/bad_array_new_length.html"><code>std::bad_array_new_length</code></a>.</li>
+</ol>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<pre><code class="language-cpp">void f() throw(int); // l'ensemble de f() est &quot;int&quot;
+void g();            // l'ensemble de g() est l'ensemble de tous les types
+
+struct A { A(); };                  // l'ensemble de &quot;new A&quot; est l'ensemble de tous les types
+struct B { B() noexcept; };         // l'ensemble de &quot;B()&quot; est vide
+struct D() { D() throw (double); }; // l'ensemble de new D est l'ensemble de tous les types
+</code></pre>
+<p>Toutes les fonctions membres déclarées implicitement et les constructeurs hérités *(depuis C++11)*possèdent des spécifications d'exception, sélectionnées comme suit :</p>
+<ul>
+<li>Si l'ensemble des exceptions potentielles est l'ensemble de tous les types, la spécification d'exception implicite [autorise toutes les exceptions (la spécification d'exception est considérée comme présente, bien qu'elle ne puisse pas être exprimée dans le code et se comporte comme s'il n'y avait aucune spécification d'exception) <em>(jusqu'à C++11)</em> | est <code>noexcept(false)</code> <em>(depuis C++11)</em>].</li>
+<li>Sinon, si l'ensemble des exceptions potentielles n'est pas vide, la spécification d'exception implicite énumère chaque type de l'ensemble.</li>
+<li>Sinon, la spécification d'exception implicite est [<code>throw()</code> <em>(jusqu'à C++11)</em> | <code>noexcept(true)</code> <em>(depuis C++11)</em>].</li>
+</ul>
+<pre><code class="language-cpp">struct A
+{
+    A(int = (A(5), 0)) noexcept;
+    A(const A&amp;) throw();
+    A(A&amp;&amp;) throw();
+    ~A() throw(X);
+};
+
+struct B
+{
+    B() throw();
+    B(const B&amp;) = default; // la spécification d'exception est &quot;noexcept(true)&quot;
+    B(B&amp;&amp;, int = (throw Y(), 0)) noexcept;
+    ~B() throw(Y);
+};
+
+int n = 7;
+struct D : public A, public B
+{
+    // Peut lever une exception d'un type qui correspondrait à un gestionnaire de type
+    // std​::​bad_array_new_length, mais ne lève pas d'exception d'allocation défaillante (bad allocation)
+    (void*) new (std::nothrow) int[n];
+
+    // D peut avoir les membres déclarés implicitement suivants :
+    // D::D() throw(X, std::bad_array_new_length);
+    // D::D(const D&amp;) noexcept(true);
+    // D::D(D&amp;&amp;) throw(Y);
+    // D::~D() throw(X, Y);
+};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Clang considère que la règle d'instanciation des spécifications d'exception dynamiques a été modifiée en C++11 par <a href="https://cplusplus.github.io/CWG/issues/1330.html">CWG1330</a>, voir <a href="https://github.com/llvm/llvm-project/issues/56439">LLVM #56349</a>.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/throw.html"><code>throw</code></a></p>
+<h2 id="Example">Exemple</h2>
+<p>Remarque : il vaut mieux compiler en mode C++98 pour éviter les avertissements. Incompatible avec C++17 et les révisions plus récentes.</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;exception&gt;
+#include &lt;iostream&gt;
+
+class X {};
+class Y {};
+class Z : public X {};
+class W {};
+
+void f() throw(X, Y)
+{
+    bool n = false;
+
+    if (n)
+        throw X(); // OK, appellerait std::terminate()
+    if (n)
+        throw Z(); // aussi OK
+
+    throw W(); // appellera std::unexpected()
+}
+
+void handler()
+{
+    std::cerr &lt;&lt; &quot;That was unexpected!\n&quot;; // vidage nécessaire
+    std::abort();
+}
+
+int main()
+{
+    std::set_unexpected(handler);
+    f();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">That was unexpected!
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/25.html">CWG 25</a></td>
+<td>C++98</td>
+<td>le comportement de l'affectation et de l'initialisation entre pointeurs vers membres ayant des spécifications d'exception différentes était non spécifié</td>
+<td>appliquer la restriction aux pointeurs de fonction et aux références</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/973.html">CWG 973</a></td>
+<td>C++98</td>
+<td>une spécification d'exception pouvait contenir des types de fonctions, mais la conversion de pointeur de fonction correspondante n'était pas spécifiée</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1330.html">CWG 1330</a></td>
+<td>C++98</td>
+<td>une spécification d'exception pouvait être instanciée de manière anticipée</td>
+<td>elle n'est instanciée que si nécessaire</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1267.html">CWG 1267</a></td>
+<td>C++11</td>
+<td>les types de références rvalue étaient autorisés dans les spécifications d'exception</td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1351.html">CWG 1351</a></td>
+<td>C++98 C++11</td>
+<td>l'argument par défaut (C++98) et l'initialiseur de membre par défaut (C++11) étaient ignorés dans la spécification d'exception implicite</td>
+<td>rendu pris en compte</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1777.html">CWG 1777</a></td>
+<td>C++11</td>
+<td><code>throw(T...)</code> n'était pas une spécification non levante même si <code>T</code> est un pack vide</td>
+<td>elle est non levante si le pack est vide</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2191.html">CWG 2191</a></td>
+<td>C++98</td>
+<td>l'ensemble des exceptions potentielles d'une expression <code>typeid</code> pouvait contenir <code>bad_typeid</code> même si elle ne pouvait pas être levée</td>
+<td>contient <code>bad_typeid</code> seulement si elle peut être levée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="noexcept_spec.html">spécificateur <code>noexcept</code></a> (depuis C++11)</strong> — précise si une fonction peut lever des exceptions</li>
+</ul>
+
+</main>
+</body>
+</html>

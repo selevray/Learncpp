@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::jthread::request_stop — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/jthread.html">std::jthread</a></nav>
+<h1 id="std-jthread-request_stop"><code>std::jthread::request_stop</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/jthread/request_stop">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">bool request_stop() noexcept;  // (depuis C++20)
+</code></pre>
+<p>Émet une demande d'arrêt vers l'état d'arrêt interne, si elle n'a pas encore été demandée.</p>
+<p>La détermination est effectuée de manière atomique, et si l'arrêt a été demandé, l'état d'arrêt est mis à jour atomiquement afin d'éviter les situations de concurrence, de sorte que :</p>
+<ul>
+<li><code>stop_requested()</code> et <code>stop_possible()</code> peuvent être invoqués simultanément sur d'autres <a href="../stop_token.html"><code>std::stop_token</code></a> et <a href="../stop_source.html"><code>std::stop_source</code></a> du même état d'arrêt partagé.</li>
+<li><code>request_stop()</code> peut être invoqué simultanément depuis plusieurs fils sur le même objet <code>jthread</code> ou sur d'autres objets <a href="../stop_source.html"><code>std::stop_source</code></a> associés au même état d'arrêt, et un seul effectuera réellement la demande d'arrêt.</li>
+</ul>
+<p>Voir toutefois la section Notes.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si cet appel a effectué une demande d'arrêt, sinon <code>false</code>.</p>
+<h2 id="Postconditions">Postconditions</h2>
+<p>Pour un <a href="../stop_token.html"><code>std::stop_token</code></a> obtenu par <code>get_stop_token()</code> ou un <a href="../stop_source.html"><code>std::stop_source</code></a> obtenu par <code>get_stop_source()</code>, <code>stop_requested()</code> vaut <code>true</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Si le <code>request_stop()</code> émet une demande d'arrêt (c.-à-d. renvoie <code>true</code>), alors tout <code>std::stop_callbacks</code> enregistré pour le même état d'arrêt associé sera invoqué de façon synchrone, sur le même fil que celui où <code>request_stop()</code> est émis. Si une invocation d'un rappel se termine par une exception, <a href="../../error/terminate.html"><code>std::terminate</code></a> est appelée.</p>
+<p>Si une demande d'arrêt a déjà été faite, cette fonction renvoie <code>false</code>. Il n'est toutefois pas garanti qu'un autre fil ou objet <a href="../stop_source.html"><code>std::stop_source</code></a> qui vient d'émettre (avec succès) une demande d'arrêt pour le même état d'arrêt ne soit pas encore en train d'invoquer une fonction <a href="../stop_callback.html"><code>std::stop_callback</code></a>.</p>
+<p>Si le <code>request_stop()</code> émet une demande d'arrêt (c.-à-d. renvoie <code>true</code>), alors toutes les variables de condition de type de base <a href="../condition_variable_any.html"><code>std::condition_variable_any</code></a> enregistrées avec une attente interruptible pour des <a href="../stop_token.html"><code>std::stop_token</code></a> associés à l'état d'arrêt interne de <code>jthread</code> seront réveillées.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;condition_variable&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;thread&gt;
+
+using namespace std::chrono_literals;
+
+// Fonction utilitaire permettant de voir rapidement quel fil a affiché quoi
+void print(auto txt)
+{
+    std::cout &lt;&lt; std::this_thread::get_id() &lt;&lt; ' ' &lt;&lt; txt;
+}
+
+int main()
+{
+    // Un fil de travail endormi
+    std::jthread sleepy_worker(
+        [](std::stop_token stoken)
+        {
+            for (int i = 10; i; --i)
+            {
+                std::this_thread::sleep_for(300ms);
+                if (stoken.stop_requested())
+                {
+                    print(&quot;Sleepy worker is requested to stop\n&quot;);
+                    return;
+                }
+                print(&quot;Sleepy worker goes back to sleep\n&quot;);
+            }
+        });
+
+    // Un fil de travail en attente
+    // La variable de condition sera réveillée par la demande d'arrêt.
+    std::jthread waiting_worker(
+        [](std::stop_token stoken)
+        {
+            std::mutex mutex;
+            std::unique_lock lock(mutex);
+            std::condition_variable_any().wait(lock, stoken, []{ return false; });
+            print(&quot;Waiting worker is requested to stop\n&quot;);
+            return;
+        });
+
+    // Endort ce fil pour laisser aux autres fils le temps de tourner
+    std::this_thread::sleep_for(400ms);
+
+    // std::jthread::request_stop() peut être appelée explicitement :
+    print(&quot;Requesting stop of sleepy worker\n&quot;);
+    sleepy_worker.request_stop();
+    sleepy_worker.join();
+    print(&quot;Sleepy worker joined\n&quot;);
+
+    // Ou automatiquement grâce à RAII :
+    // le destructeur de waiting_worker appellera request_stop()
+    // et joindra automatiquement le fil.
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">140287602706176 Sleepy worker goes back to sleep
+140287623300928 Requesting stop of sleepy worker
+140287602706176 Sleepy worker is requested to stop
+140287623300928 Sleepy worker joined
+140287594313472 Waiting worker is requested to stop
+</code></pre>
+
+</main>
+</body>
+</html>

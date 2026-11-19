@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::fseek — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/c.html">Entrées/sorties de fichiers de style C</a></nav>
+<h1 id="std-fseek"><code>std::fseek</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/c/fseek">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdio&gt;</strong></p>
+<pre><code class="language-cpp">int fseek( std::FILE* stream, long offset, int origin );
+</code></pre>
+<p>Définit l'indicateur de position de fichier pour le flux de fichier <code>stream</code>.</p>
+<p>Si le <code>stream</code> est ouvert en mode binaire, la nouvelle position est exactement <code>offset</code> octets mesurés depuis le début du fichier si <code>origin</code> vaut <a href="../c.html"><code>SEEK_SET</code></a>, depuis la position courante du fichier si <code>origin</code> vaut <a href="../c.html"><code>SEEK_CUR</code></a>, et depuis la fin du fichier si <code>origin</code> vaut <a href="../c.html"><code>SEEK_END</code></a>. Les flux binaires ne sont pas tenus de prendre en charge <a href="../c.html"><code>SEEK_END</code></a>, en particulier si des octets nuls supplémentaires sont écrits.</p>
+<p>Si le <code>stream</code> est ouvert en mode texte, les seules valeurs prises en charge pour <code>offset</code> sont zéro (qui fonctionne avec tout <code>origin</code>) et une valeur renvoyée par un appel antérieur à <a href="ftell.html"><code>std::ftell</code></a> sur un flux associé au même fichier (qui ne fonctionne qu'avec <code>origin</code> de <a href="../c.html"><code>SEEK_SET</code></a>).</p>
+<p>Si le <code>stream</code> est orienté caractères larges, les restrictions des flux texte et binaire s'appliquent toutes deux (le résultat de <a href="ftell.html"><code>std::ftell</code></a> est autorisé avec <a href="../c.html"><code>SEEK_SET</code></a> et un décalage nul est autorisé depuis <a href="../c.html"><code>SEEK_SET</code></a> et <a href="../c.html"><code>SEEK_CUR</code></a>, mais pas depuis <a href="../c.html"><code>SEEK_END</code></a>).</p>
+<p>En plus de modifier l'indicateur de position de fichier, <code>fseek</code> annule les effets de <a href="ungetc.html"><code>std::ungetc</code></a> et efface l'état de fin de fichier, le cas échéant.</p>
+<p>Si une erreur de lecture ou d'écriture survient, l'indicateur d'erreur du flux (<a href="ferror.html"><code>std::ferror</code></a>) est positionné et la position du fichier n'est pas modifiée.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>stream</code> — flux de fichier à modifier</li>
+<li><code>offset</code> — nombre de caractères dont la position doit être décalée par rapport à origin</li>
+<li><code>origin</code> — position à laquelle <code>offset</code> est ajouté. Elle peut prendre l'une des valeurs suivantes : <a href="../c.html"><code>SEEK_SET</code></a>, <a href="../c.html"><code>SEEK_CUR</code></a>, <a href="../c.html"><code>SEEK_END</code></a></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>0</code> en cas de succès, valeur non nulle sinon.</p>
+<h2 id="Notes">Notes</h2>
+<p>Après un positionnement vers une position autre que la fin dans un flux large, l'appel suivant à toute fonction de sortie peut rendre le reste du fichier indéfini, par exemple en écrivant une séquence multioctet de longueur différente.</p>
+<p>POSIX autorise le positionnement au-delà de la fin de fichier existante. Si une sortie est effectuée après ce positionnement, toute lecture de la zone vide renverra zéro octet. Lorsque le système de fichiers le permet, cela crée un <em>fichier épars</em>.</p>
+<p>POSIX exige également que <code>fseek</code> effectue d'abord <a href="fflush.html"><code>fflush</code></a> s'il existe des données non écrites (mais la restauration de l'état de décalage est défini par l'implémentation). Les flux de fichiers C++ standard garantissent à la fois le vidage et la restauration de l'état de décalage : <a href="../basic_streambuf/pubseekoff.html"><code>std::basic_filebuf::seekoff</code></a>.</p>
+<p>POSIX précise que <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/fseek.html"><code>fseek</code></a> doit renvoyer <code>-1</code> en cas d'erreur, et affecter <a href="../../error/errno.html"><code>errno</code></a> pour indiquer l'erreur.</p>
+<p>Sous Windows, <a href="https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/fseek-fseeki64"><code>_fseeki64</code></a> peut être utilisé pour travailler avec des fichiers de plus de 2 Gio.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstdio&gt;
+#include &lt;cstdint&gt;
+#include &lt;fstream&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::ofstream(&quot;dummy.nfo&quot;) &lt;&lt; &quot;8 bytes\n&quot;; // créer le fichier
+
+    std::FILE* fp = std::fopen(&quot;dummy.nfo&quot;, &quot;rb&quot;);
+    assert(fp);
+
+    std::fseek(fp, 0, SEEK_END); // se positionner à la fin
+    const std::size_t filesize = std::ftell(fp);
+    std::vector&lt;std::uint8_t&gt; buffer(filesize);
+
+    std::fseek(fp, 0, SEEK_SET); // se positionner au début
+    std::fread(buffer.data(), sizeof(std::uint8_t), buffer.size(), fp);
+
+    std::fclose(fp);
+    std::printf(&quot;I've read %zi bytes\n&quot;, filesize);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">I've read 8 bytes
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="fsetpos.html">fsetpos</a></strong> — déplace l'indicateur de position dans le fichier vers un emplacement précis d'un fichier <em>(fonction)</em></li>
+<li><strong><a href="fgetpos.html">fgetpos</a></strong> — obtient l'indicateur de position dans le fichier <em>(fonction)</em></li>
+<li><strong><a href="ftell.html">ftell</a></strong> — renvoie l'indicateur de position courante dans le fichier <em>(fonction)</em></li>
+<li><strong><a href="rewind.html">rewind</a></strong> — déplace l'indicateur de position dans le fichier au début d'un fichier <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/io/fseek.html">Documentation C</a> pour fseek</strong></p>
+
+</main>
+</body>
+</html>

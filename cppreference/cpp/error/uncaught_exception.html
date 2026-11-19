@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::uncaught_exception, std::uncaught_exceptions — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/error.html">Bibliothèque de diagnostic</a></nav>
+<h1 id="std-uncaught_exception-std-uncaught_exceptions"><code>std::uncaught_exception, std::uncaught_exceptions</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/error/uncaught_exception">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;exception&gt;</strong></p>
+<pre><code class="language-cpp">bool uncaught_exception() throw();  // (jusqu'à C++11)
+
+bool uncaught_exception() noexcept;  // (depuis C++11) (obsolète en C++17) (supprimé en C++20)
+
+int uncaught_exceptions() noexcept;  // (2) (depuis C++17) (constexpr depuis C++26)
+</code></pre>
+<ol>
+<li>
+<p>Détecte si le thread courant possède un objet exception actif, c'est-à-dire qu'une exception a été lancée ou relancée et n'a pas encore atteint une clause catch correspondante, <a href="terminate.html"><code>std::terminate</code></a> ou <a href="unexpected.html"><code>std::unexpected</code></a>. En d'autres termes, <code>std::uncaught_exception</code> détecte si le <a href="../language/throw.html#Stack_unwinding">déroulement de la pile</a> est en cours.</p>
+</li>
+<li>
+<p>Détecte le nombre d'exceptions du thread courant qui ont été lancées ou relancées et n'ont pas encore atteint leurs clauses catch correspondantes.</p>
+</li>
+</ol>
+<p>Il est parfois sûr de lever une exception même pendant [<code>std::uncaught_exception() == true</code> <em>(jusqu'à C++17)</em> | <code>std::uncaught_exceptions() &gt; 0</code> <em>(depuis C++17)</em>]. Par exemple, si le <a href="../language/throw.html#Stack_unwinding">déroulement de la pile</a> entraîne la destruction d'un objet, le destructeur de cet objet peut exécuter du code qui lève une exception, à condition que celle-ci soit interceptée par un bloc catch avant de sortir du destructeur.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p><code>true</code> si un déroulement de la pile est en cours dans ce thread, <code>false</code> sinon.</p>
+</li>
+<li>
+<p>Le nombre d'objets exception non interceptés dans le thread courant.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Un exemple où <code>uncaught_exceptions</code>, qui renvoie un int, est utilisé est la bibliothèque <a href="https://www.boost.org/doc/libs/release/libs/log/doc/html/index.html">boost.log</a> : l'expression <code>BOOST_LOG(logger) &lt;&lt; foo();</code> crée d'abord un objet garde et enregistre le nombre d'exceptions non interceptées dans son constructeur. La sortie est effectuée par le destructeur de l'objet garde, sauf si <code>foo()</code> lève une exception (auquel cas le nombre d'exceptions non interceptées dans le destructeur est supérieur à celui observé par le constructeur).</p>
+<p><a href="../experimental/scope_fail.html"><code>std::experimental::scope_fail</code></a> et <a href="../experimental/scope_success.html"><code>std::experimental::scope_success</code></a> dans LFTS v3 reposent sur la fonctionnalité de <code>uncaught_exceptions</code>, car leurs destructeurs doivent faire des choses différentes selon que l'appel a lieu pendant un déroulement de la pile.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_uncaught_exceptions"><code>__cpp_lib_uncaught_exceptions</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_uncaught_exceptions_201411L"><code>201411L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><code>std::uncaught_exceptions</code></td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_constexpr_exceptions"><code>__cpp_lib_constexpr_exceptions</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_constexpr_exceptions_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> pour les types d'exception</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;exception&gt;
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+
+struct Foo
+{
+    char id{'?'};
+    int count = std::uncaught_exceptions();
+
+    ~Foo()
+    {
+        count == std::uncaught_exceptions()
+            ? std::cout &lt;&lt; id &lt;&lt; &quot;.~Foo() called normally\n&quot;
+            : std::cout &lt;&lt; id &lt;&lt; &quot;.~Foo() called during stack unwinding\n&quot;;
+    }
+};
+
+int main()
+{
+    Foo f{'f'};
+
+    try
+    {
+        Foo g{'g'};
+        std::cout &lt;&lt; &quot;Exception thrown\n&quot;;
+        throw std::runtime_error(&quot;test exception&quot;);
+    }
+    catch (const std::exception&amp; e)
+    {
+        std::cout &lt;&lt; &quot;Exception caught: &quot; &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Exception thrown
+g.~Foo() called during stack unwinding
+Exception caught: test exception
+f.~Foo() called normally
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue70">LWG 70</a></td>
+<td>C++98</td>
+<td>la spécification d'exception de <code>uncaught_exception()</code> était absente</td>
+<td>spécifié comme <code>throw()</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="terminate.html">terminate</a></strong> — fonction appelée lorsque la gestion des exceptions échoue <em>(fonction)</em></li>
+<li><strong><a href="exception_ptr.html">exception_ptr</a> (C++11)</strong> — type de pointeur partagé pour la gestion des objets exception <em>(typedef)</em></li>
+<li><strong><a href="current_exception.html">current_exception</a> (C++11)</strong> — capture l'exception courante dans un <a href="exception_ptr.html"><code>std::exception_ptr</code></a> <em>(fonction)</em></li>
+</ul>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="http://www.gotw.ca/gotw/047.htm">GOTW issue 47 : Uncaught Exceptions</a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://wg21.link/n4152">Justification de <code>std::uncaught_exceptions</code></a> (N4125)</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::memory_order — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-memory_order"><code>std::memory_order</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/memory_order">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;atomic&gt;</strong></p>
+<pre><code class="language-cpp">enum memory_order
+{
+    memory_order_relaxed,
+    memory_order_consume,
+    memory_order_acquire,
+    memory_order_release,
+    memory_order_acq_rel,
+    memory_order_seq_cst
+};  // (depuis C++11) (jusqu'à C++20)
+
+enum class memory_order : /* unspecified */
+{
+    relaxed, consume, acquire, release, acq_rel, seq_cst
+};
+inline constexpr memory_order memory_order_relaxed = memory_order::relaxed;
+inline constexpr memory_order memory_order_consume = memory_order::consume;
+inline constexpr memory_order memory_order_acquire = memory_order::acquire;
+inline constexpr memory_order memory_order_release = memory_order::release;
+inline constexpr memory_order memory_order_acq_rel = memory_order::acq_rel;
+inline constexpr memory_order memory_order_seq_cst = memory_order::seq_cst;  // (depuis C++20)
+</code></pre>
+<p><code>std::memory_order</code> précise comment les accès mémoire, y compris les accès mémoire ordinaires non atomiques, doivent être ordonnés autour d'une opération atomique. Faute de contraintes sur un système multicœur, lorsque plusieurs threads lisent et écrivent simultanément plusieurs variables, un thread peut observer les changements de valeurs dans un ordre différent de celui dans lequel un autre thread les a écrites. En effet, l'ordre apparent des changements peut même différer entre plusieurs threads lecteurs. Certains effets similaires peuvent aussi se produire sur des systèmes monoprocesseurs, en raison des transformations du compilateur permises par le modèle mémoire.</p>
+<p>Le comportement par défaut de toutes les opérations atomiques de la bibliothèque garantit un <em>ordre séquentiellement cohérent</em> (voir la discussion ci-dessous). Ce comportement par défaut peut pénaliser les performances, mais les opérations atomiques de la bibliothèque peuvent recevoir un argument <code>std::memory_order</code> supplémentaire afin de préciser les contraintes exactes, au-delà de l'atomicité, que le compilateur et le processeur doivent imposer à cette opération.</p>
+<h2 id="Constants">Constantes</h2>
+<p><strong>Défini dans l'en-tête <code>&lt;atomic&gt;</code></strong></p>
+<p><strong>Nom Explication</strong></p>
+<ul>
+<li><strong><code>memory_order_relaxed</code></strong> — Opération relâchée : aucune contrainte de synchronisation ou d'ordre n'est imposée aux autres lectures ou écritures, seule l'atomicité de cette opération est garantie (voir <a href="memory_order.html#Relaxed_ordering">Ordre relâché</a> ci-dessous).</li>
+<li><strong><code>memory_order_consume</code></strong> — Une opération de chargement avec cet ordre mémoire effectue une <em>opération consume</em> sur l'emplacement mémoire concerné : aucune lecture ni écriture du thread courant dépendant de la valeur actuellement chargée ne peut être réordonnée avant ce chargement. Les écritures dans des variables dépendant des données, effectuées par d'autres threads qui libèrent la même variable atomique, sont visibles dans le thread courant. Sur la plupart des plates-formes, cela n'affecte que les optimisations du compilateur (voir <a href="memory_order.html#Release-Consume_ordering">Ordre release-consume</a> ci-dessous).</li>
+<li><strong><code>memory_order_acquire</code></strong> — Une opération de chargement avec cet ordre mémoire effectue l'<em>opération acquire</em> sur l'emplacement mémoire concerné : aucune lecture ni écriture du thread courant ne peut être réordonnée avant ce chargement. Toutes les écritures des autres threads qui libèrent la même variable atomique sont visibles dans le thread courant (voir <a href="memory_order.html#Release-Acquire_ordering">Ordre release-acquire</a> ci-dessous).</li>
+<li><strong><code>memory_order_release</code></strong> — Une opération de stockage avec cet ordre mémoire effectue l'<em>opération release</em> : aucune lecture ni écriture du thread courant ne peut être réordonnée après ce stockage. Toutes les écritures du thread courant sont visibles dans les autres threads qui acquièrent la même variable atomique (voir <a href="memory_order.html#Release-Acquire_ordering">Ordre release-acquire</a> ci-dessous), et les écritures portant une dépendance vers la variable atomique deviennent visibles dans les autres threads qui consomment la même variable atomique (voir <a href="memory_order.html#Release-Consume_ordering">Ordre release-consume</a> ci-dessous).</li>
+<li><strong><code>memory_order_acq_rel</code></strong> — Une opération read-modify-write avec cet ordre mémoire est à la fois une <em>opération acquire</em> et une <em>opération release</em>. Aucune lecture ni écriture mémoire du thread courant ne peut être réordonnée avant le chargement, ni après le stockage. Toutes les écritures des autres threads qui libèrent la même variable atomique sont visibles avant la modification, et la modification est visible dans les autres threads qui acquièrent la même variable atomique.</li>
+<li><strong><code>memory_order_seq_cst</code></strong> — Une opération de chargement avec cet ordre mémoire effectue une <em>opération acquire</em>, un stockage effectue une <em>opération release</em>, et une opération read-modify-write effectue à la fois une <em>opération acquire</em> et une <em>opération release</em>, et il existe un ordre total unique dans lequel tous les threads observent toutes les modifications dans le même ordre (voir <a href="memory_order.html#Sequentially-consistent_ordering">Ordre séquentiellement cohérent</a> ci-dessous).</li>
+</ul>
+<h2 id="Formal_description">Description formelle</h2>
+<p>La synchronisation inter-threads et l'ordre mémoire déterminent comment les <em>évaluations</em> et les <em>effets de bord</em> des expressions sont ordonnés entre différents threads d'exécution. Ils sont définis dans les termes suivants :</p>
+<h3 id="Sequenced-before">Séquencé avant</h3>
+<p>Dans un même thread, l'évaluation A peut être <em>séquencée avant</em> l'évaluation B, comme décrit dans <a href="../language/eval_order.html">l'ordre d'évaluation</a>.</p>
+<h3 id="Carries_dependency">Transport de dépendance</h3>
+<p>Dans un même thread, l'évaluation A, <em>séquencée avant</em> l'évaluation B, peut aussi transporter une dépendance vers B (c'est-à-dire que B dépend de A) si l'une des conditions suivantes est vraie :</p>
+<ol>
+<li>La valeur de A est utilisée comme opérande de B, <strong>sauf</strong></li>
+</ol>
+<p>a) si B est un appel à <a href="kill_dependency.html"><code>std::kill_dependency</code></a>,</p>
+<p>b) si A est l'opérande de gauche des opérateurs intégrés <code>&amp;&amp;</code>, <code>||</code>, <code>?:</code> ou <code>,</code>.</p>
+<ol start="2">
+<li>
+<p>A écrit dans un objet scalaire M, B lit depuis M.</p>
+</li>
+<li>
+<p>A porte une dépendance vers une autre évaluation X, et X porte une dépendance vers B.</p>
+</li>
+</ol>
+<h3 id="Modification_order">Ordre de modification</h3>
+<p>Toutes les modifications d'une variable atomique donnée se produisent dans un ordre total propre à cette seule variable atomique.</p>
+<p>Les quatre exigences suivantes sont garanties pour toutes les opérations atomiques :</p>
+<ol>
+<li>
+<p><strong>Cohérence écriture-écriture</strong> : si l'évaluation A qui modifie une atomique M (une écriture) <em>happens-before</em> l'évaluation B qui modifie M, alors A apparaît avant B dans l'<em>ordre de modification</em> de M.</p>
+</li>
+<li>
+<p><strong>Cohérence lecture-lecture</strong> : si le calcul de valeur A d'une atomique M (une lecture) <em>happens-before</em> un calcul de valeur B sur M, et si la valeur de A provient d'une écriture X sur M, alors la valeur de B est soit la valeur stockée par X, soit la valeur stockée par un effet de bord Y sur M qui apparaît après X dans l'<em>ordre de modification</em> de M.</p>
+</li>
+<li>
+<p><strong>Cohérence lecture-écriture</strong> : si le calcul de valeur A d'une atomique M (une lecture) <em>happens-before</em> une opération B sur M (une écriture), alors la valeur de A provient d'un effet de bord (une écriture) X qui apparaît avant B dans l'<em>ordre de modification</em> de M.</p>
+</li>
+<li>
+<p><strong>Cohérence écriture-lecture</strong> : si un effet de bord (une écriture) X sur un objet atomique M <em>happens-before</em> un calcul de valeur (une lecture) B de M, alors l'évaluation B doit prendre sa valeur de X ou d'un effet de bord Y qui suit X dans l'ordre de modification de M.</p>
+</li>
+</ol>
+<h3 id="Release_sequence">Séquence de libération</h3>
+<p>Après qu'une <em>opération de libération</em> A a été effectuée sur un objet atomique M, la plus longue sous-séquence continue de l'ordre de modification de M constituée :</p>
+<blockquote>
+<ol>
+<li>des écritures effectuées par le même fil d'exécution que celui qui a effectué A.</li>
+</ol>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<ol start="2">
+<li>des opérations atomiques de lecture-modification-écriture effectuées sur M par n'importe quel fil d'exécution.</li>
+</ol>
+<p>est appelée <em>séquence de libération dont la tête est A</em>.</p>
+<h3 id="Synchronizes_with">Se synchronise avec</h3>
+<p>Si un stockage atomique dans le fil A est une <em>opération de libération</em>, un chargement atomique dans le fil B depuis la même variable est une <em>opération d'acquisition</em>, et si le chargement dans le fil B lit une valeur écrite par le stockage dans le fil A, alors le stockage dans le fil A <em>se synchronise avec</em> le chargement dans le fil B.</p>
+<p>De plus, certains appels de bibliothèque peuvent être définis pour <em>se synchroniser avec</em> d'autres appels de bibliothèque sur d'autres fils d'exécution.</p>
+<h3 id="Dependency-ordered_before">Ordonné par dépendance avant</h3>
+<p>Entre fils d'exécution, l'évaluation A est <em>ordonnée par dépendance avant</em> l'évaluation B si l'une quelconque des conditions suivantes est vraie :</p>
+<ol>
+<li>
+<p>A effectue une <em>opération de libération</em> sur une atomique M, et, dans un fil différent, B effectue une <em>opération de consommation</em> sur la même atomique M, et B lit une valeur écrite par une partie quelconque de la séquence de libération dont la tête est <em>(jusqu'à C++20)</em> A.</p>
+</li>
+<li>
+<p>A est ordonnée par dépendance avant X et X porte une dépendance vers B.</p>
+</li>
+</ol>
+<h3 id="Inter-thread_happens-before">Happens-before inter-fils</h3>
+<p>Entre fils d'exécution, l'évaluation A <em>happens-before inter-fils</em> l'évaluation B si l'une quelconque des conditions suivantes est vraie :</p>
+<ol>
+<li>
+<p>A <em>se synchronise avec</em> B.</p>
+</li>
+<li>
+<p>A est <em>ordonnée par dépendance avant</em> B.</p>
+</li>
+<li>
+<p>A <em>se synchronise avec</em> une évaluation X, et X est <em>séquencée avant</em> B.</p>
+</li>
+<li>
+<p>A est <em>séquencée avant</em> une évaluation X, et X <em>happens-before inter-fils</em> B.</p>
+</li>
+<li>
+<p>A <em>happens-before inter-fils</em> une évaluation X, et X <em>happens-before inter-fils</em> B.</p>
+</li>
+</ol>
+<h3 id="Happens-before">Happens-before</h3>
+<p>Indépendamment des fils d'exécution, l'évaluation A <em>happens-before</em> l'évaluation B si l'une quelconque des conditions suivantes est vraie :</p>
+<ol>
+<li>
+<p>A est <em>séquencée avant</em> B.</p>
+</li>
+<li>
+<p>A <em>happens-before inter-fils</em> B.</p>
+</li>
+</ol>
+<p>L'implémentation doit garantir que la relation <em>happens-before</em> est acyclique, en introduisant si nécessaire une synchronisation supplémentaire (ce ne peut être nécessaire que si une opération de consommation est impliquée, voir <a href="https://www.cl.cam.ac.uk/~pes20/cpp/popl085ap-sewell.pdf">Batty et al</a>).</p>
+<p>Si une évaluation modifie un emplacement mémoire, et si l'autre lit ou modifie le même emplacement mémoire, et si au moins l'une des évaluations n'est pas une opération atomique, le comportement du programme est indéfini (le programme présente une <a href="../language/memory_model.html">course de données</a>), sauf s'il existe une relation <em>happens-before</em> entre ces deux évaluations.</p>
+<blockquote>
+<h4 id="Simply_happens-before">Simplement happens-before</h4>
+<p>Indépendamment des fils d'exécution, l'évaluation A <em>simplement happens-before</em> l'évaluation B si l'une quelconque des conditions suivantes est vraie :</p>
+<ol>
+<li>
+<p>A est <em>séquencée avant</em> B.</p>
+</li>
+<li>
+<p>A <em>se synchronise avec</em> B.</p>
+</li>
+<li>
+<p>A <em>simplement happens-before</em> X, et X <em>simplement happens-before</em> B.</p>
+</li>
+</ol>
+<p>Remarque : sans opérations de consommation, les relations <em>simplement happens-before</em> et <em>happens-before</em> sont identiques.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Strongly_happens-before">Fortement happens-before</h3>
+<p>Indépendamment des fils d'exécution, l'évaluation A <em>fortement happens-before</em> l'évaluation B si l'une quelconque des conditions suivantes est vraie :</p>
+<blockquote>
+<ol>
+<li>
+<p>A est <em>séquencée avant</em> B.</p>
+</li>
+<li>
+<p>A <em>se synchronise avec</em> B.</p>
+</li>
+<li>
+<p>A <em>fortement happens-before</em> X, et X <em>fortement happens-before</em> B.</p>
+</li>
+</ol>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<ol>
+<li>
+<p>A est <em>séquencée avant</em> B.</p>
+</li>
+<li>
+<p>A <em>se synchronise avec</em> B, et A et B sont toutes deux des opérations atomiques à cohérence séquentielle.</p>
+</li>
+<li>
+<p>A est <em>séquencée avant</em> X, X <em>simplement happens-before</em> Y, et Y est <em>séquencée avant</em> B.</p>
+</li>
+<li>
+<p>A <em>fortement happens-before</em> X, et X <em>fortement happens-before</em> B.</p>
+</li>
+</ol>
+<p>Remarque : informellement, si A <em>fortement happens-before</em> B, alors A semble être évaluée avant B dans tous les contextes.</p>
+<p>Remarque : <em>fortement happens-before</em> exclut les opérations de consommation.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Visible_side-effects">Effets de bord visibles</h3>
+<p>L'effet de bord A sur un scalaire M (une écriture) est <em>visible</em> relativement au calcul de valeur B sur M (une lecture) si les deux conditions suivantes sont vraies :</p>
+<ol>
+<li>
+<p>A <em>happens-before</em> B.</p>
+</li>
+<li>
+<p>Il n'existe aucun autre effet de bord X sur M tel que A <em>happens-before</em> X et X <em>happens-before</em> B.</p>
+</li>
+</ol>
+<p>Si l'effet de bord A est visible relativement au calcul de valeur B, alors le plus long sous-ensemble continu des effets de bord sur M, dans l'<em>ordre de modification</em>, pour lequel B ne <em>happens-before</em> pas, est appelé <em>séquence visible d'effets de bord</em> (la valeur de M, déterminée par B, sera la valeur stockée par l'un de ces effets de bord).</p>
+<p>Remarque : la synchronisation inter-fils se résume à empêcher les courses de données (en établissant des relations happens-before) et à définir quels effets de bord deviennent visibles et dans quelles conditions.</p>
+<h3 id="Consume_operation">Opération de consommation</h3>
+<p>Un chargement atomique avec <code>memory_order_consume</code> ou plus fort est une opération de consommation. Notez que <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> impose des exigences de synchronisation plus fortes qu'une opération de consommation.</p>
+<h3 id="Acquire_operation">Opération d'acquisition</h3>
+<p>Un chargement atomique avec <code>memory_order_acquire</code> ou plus fort est une opération d'acquisition. L'opération <code>lock()</code> sur un <a href="../named_req/Mutex.html"><em>Mutex</em></a> est également une opération d'acquisition. Notez que <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> impose des exigences de synchronisation plus fortes qu'une opération d'acquisition.</p>
+<h3 id="Release_operation">Opération de libération</h3>
+<p>Un stockage atomique avec <code>memory_order_release</code> ou plus fort est une opération de libération. L'opération <code>unlock()</code> sur un <a href="../named_req/Mutex.html"><em>Mutex</em></a> est également une opération de libération. Notez que <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> impose des exigences de synchronisation plus fortes qu'une opération de libération.</p>
+<h2 id="Explanation">Explication</h2>
+<h3 id="Relaxed_ordering">Ordonnancement relâché</h3>
+<p>Les opérations atomiques marquées <code>memory_order_relaxed</code> ne sont pas des opérations de synchronisation ; elles n'imposent aucun ordre entre les accès mémoire concurrents. Elles garantissent seulement l'atomicité et la cohérence de l'ordre de modification.</p>
+<p>Par exemple, avec <code>x</code> et <code>y</code> initialement à zéro,</p>
+<pre><code class="language-cpp">// Thread 1 :
+r1 = y.load(std::memory_order_relaxed); // A
+x.store(r1, std::memory_order_relaxed); // B
+// Thread 2 :
+r2 = x.load(std::memory_order_relaxed); // C
+y.store(42, std::memory_order_relaxed); // D
+</code></pre>
+<p>peut produire <code>r1 == r2 == 42</code> car, bien que A soit <em>séquencée avant</em> B dans le fil 1 et que C soit <em>séquencée avant</em> D dans le fil 2, rien n'empêche D d'apparaître avant A dans l'ordre de modification de <code>y</code>, ni B d'apparaître avant C dans l'ordre de modification de <code>x</code>. L'effet de bord de D sur <code>y</code> peut être visible pour le chargement A du fil 1 tandis que l'effet de bord de B sur <code>x</code> peut être visible pour le chargement C du fil 2. En particulier, cela peut se produire si D est terminée avant C dans le fil 2, que ce soit à cause d'une réorganisation par le compilateur ou à l'exécution.</p>
+<blockquote>
+<p>Même avec le modèle mémoire relâché, les valeurs « sorties de nulle part » (out-of-thin-air) ne peuvent pas dépendre circulairement de leurs propres calculs, par exemple, avec <code>x</code> et <code>y</code> initialement à zéro,</p>
+<pre><code class="language-cpp">// Thread 1 :
+r1 = y.load(std::memory_order_relaxed);
+if (r1 == 42)
+    x.store(r1, std::memory_order_relaxed);
+// Thread 2 :
+r2 = x.load(std::memory_order_relaxed);
+if (r2 == 42)
+    y.store(42, std::memory_order_relaxed);
+</code></pre>
+<p>ne peut pas produire <code>r1 == r2 == 42</code> puisque le stockage de <code>42</code> dans <code>y</code> n'est possible que si le stockage dans <code>x</code> enregistre <code>42</code>, ce qui dépend circulairement du stockage dans <code>y</code> enregistrant <code>42</code>. Notez que jusqu'à C++14, cela était techniquement autorisé par la spécification, mais déconseillé aux implémenteurs.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<p>L'usage typique de l'ordonnancement mémoire relâché est l'incrémentation de compteurs, tels que les compteurs de références de <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a>, car cela ne nécessite que l'atomicité, mais ni ordre ni synchronisation (notez que la décrémentation des compteurs <code>std::shared_ptr</code> nécessite une synchronisation acquisition-libération avec le destructeur).</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+std::atomic&lt;int&gt; cnt = {0};
+
+void f()
+{
+    for (int n = 0; n &lt; 1000; ++n)
+        cnt.fetch_add(1, std::memory_order_relaxed);
+}
+
+int main()
+{
+    std::vector&lt;std::thread&gt; v;
+    for (int n = 0; n &lt; 10; ++n)
+        v.emplace_back(f);
+    for (auto&amp; t : v)
+        t.join();
+    std::cout &lt;&lt; &quot;Final counter value is &quot; &lt;&lt; cnt &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Final counter value is 10000
+</code></pre>
+<h3 id="Release-Acquire_ordering">Ordonnancement libération-acquisition</h3>
+<p>Si un stockage atomique dans le fil A est marqué <code>memory_order_release</code>, un chargement atomique dans le fil B depuis la même variable est marqué <code>memory_order_acquire</code>, et si le chargement dans le fil B lit une valeur écrite par le stockage dans le fil A, alors le stockage dans le fil A <em>se synchronise avec</em> le chargement dans le fil B.</p>
+<p>Toutes les écritures mémoire (y compris non atomiques et atomiques relâchées) qui <em>ont eu lieu avant</em> le stockage atomique du point de vue du fil A deviennent des <em>effets de bord visibles</em> dans le fil B. Autrement dit, une fois le chargement atomique terminé, le fil B est assuré de voir tout ce que le fil A a écrit en mémoire. Cette garantie n'est valable que si B renvoie effectivement la valeur que A a stockée, ou une valeur provenant d'un point ultérieur de la séquence de libération.</p>
+<p>La synchronisation n'est établie qu'entre les fils qui <em>libèrent</em> et <em>acquièrent</em> la même variable atomique. D'autres fils peuvent observer un ordre des accès mémoire différent de celui de l'un ou des deux fils synchronisés.</p>
+<p>Sur les systèmes à ordre fort — x86, SPARC TSO, mainframes IBM, etc. — l'ordonnancement libération-acquisition est automatique pour la majorité des opérations. Aucune instruction CPU supplémentaire n'est émise pour ce mode de synchronisation ; seules certaines optimisations du compilateur sont affectées (par exemple, le compilateur ne peut pas déplacer des stockages non atomiques au-delà du stockage-libération atomique, ni effectuer des chargements non atomiques plus tôt que le chargement-acquisition atomique). Sur les systèmes à ordre faible (ARM, Itanium, PowerPC), des instructions CPU spéciales de chargement ou de barrière mémoire sont utilisées.</p>
+<p>Les verrous d'exclusion mutuelle, tels que <a href="../thread/mutex.html"><code>std::mutex</code></a> ou <a href="atomic_flag.html">verrou tournant atomique</a>, sont un exemple de synchronisation libération-acquisition : lorsque le verrou est libéré par le fil A et acquis par le fil B, tout ce qui s'est déroulé dans la section critique (avant la libération) dans le contexte du fil A doit être visible pour le fil B (après l'acquisition) qui exécute la même section critique.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;cassert&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+
+std::atomic&lt;std::string*&gt; ptr;
+int data;
+
+void producer()
+{
+    std::string* p = new std::string(&quot;Hello&quot;);
+    data = 42;
+    ptr.store(p, std::memory_order_release);
+}
+
+void consumer()
+{
+    std::string* p2;
+    while (!(p2 = ptr.load(std::memory_order_acquire)))
+        ;
+    assert(*p2 == &quot;Hello&quot;); // ne se déclenche jamais
+    assert(data == 42); // ne se déclenche jamais
+}
+
+int main()
+{
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join(); t2.join();
+}
+</code></pre>
+<p>L'exemple suivant montre un ordonnancement libération-acquisition transitif entre trois fils, à l'aide d'une séquence de libération.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;cassert&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+std::vector&lt;int&gt; data;
+std::atomic&lt;int&gt; flag = {0};
+
+void thread_1()
+{
+    data.push_back(42);
+    flag.store(1, std::memory_order_release);
+}
+
+void thread_2()
+{
+    int expected = 1;
+    // memory_order_relaxed est acceptable car il s'agit d'une RMW,
+    // et les RMW (quel que soit l'ordre) qui suivent un release forment une séquence de libération
+    while (!flag.compare_exchange_strong(expected, 2, std::memory_order_relaxed))
+    {
+        expected = 1;
+    }
+}
+
+void thread_3()
+{
+    while (flag.load(std::memory_order_acquire) &lt; 2)
+        ;
+    // si nous lisons la valeur 2 depuis l'atomique flag, nous voyons 42 dans le vector
+    assert(data.at(0) == 42); // ne se déclenchera jamais
+}
+
+int main()
+{
+    std::thread a(thread_1);
+    std::thread b(thread_2);
+    std::thread c(thread_3);
+    a.join(); b.join(); c.join();
+}
+</code></pre>
+<h3 id="Release-Consume_ordering">Ordonnancement libération-consommation</h3>
+<p>Si un stockage atomique dans le fil A est marqué <code>memory_order_release</code>, un chargement atomique dans le fil B depuis la même variable est marqué <code>memory_order_consume</code>, et si le chargement dans le fil B lit une valeur écrite par le stockage dans le fil A, alors le stockage dans le fil A est <em>ordonné par dépendance avant</em> le chargement dans le fil B.</p>
+<p>Toutes les écritures mémoire (non atomiques et atomiques relâchées) qui <em>ont eu lieu avant</em> le stockage atomique du point de vue du fil A deviennent des <em>effets de bord visibles</em> au sein des opérations du fil B dans lesquelles le chargement <em>porte une dépendance</em>, c'est-à-dire qu'une fois le chargement atomique terminé, les opérateurs et fonctions du fil B qui utilisent la valeur obtenue par ce chargement sont assurés de voir ce que le fil A a écrit en mémoire.</p>
+<p>La synchronisation n'est établie qu'entre les fils qui <em>libèrent</em> et <em>consomment</em> la même variable atomique. D'autres fils peuvent observer un ordre des accès mémoire différent de celui de l'un ou des deux fils synchronisés.</p>
+<p>Sur tous les processeurs courants, à l'exception du DEC Alpha, l'ordonnancement par dépendance est automatique ; aucune instruction CPU supplémentaire n'est émise pour ce mode de synchronisation, seules certaines optimisations du compilateur sont affectées (par exemple, le compilateur ne peut pas effectuer de chargements spéculatifs sur les objets impliqués dans la chaîne de dépendance).</p>
+<p>Les cas d'utilisation typiques de cet ordonnancement concernent la lecture de structures de données concurrentes rarement écrites (tables de routage, configuration, politiques de sécurité, règles de pare-feu, etc.) et les situations éditeur-abonné avec publication par pointeur, c'est-à-dire lorsque le producteur publie un pointeur par lequel le consommateur peut accéder à des informations : il n'est pas nécessaire de rendre visible au consommateur tout le reste que le producteur a écrit en mémoire (ce qui peut être une opération coûteuse sur les architectures à ordre faible). Un exemple d'un tel scénario est <a href="https://en.wikipedia.org/wiki/Read-copy-update"><code>rcu_dereference</code></a>.</p>
+<p>Voir aussi <a href="kill_dependency.html"><code>std::kill_dependency</code></a> et <code>[[carries_dependency]]</code> pour un contrôle fin des chaînes de dépendance.</p>
+<p>Notez qu'actuellement (2/2015) aucun compilateur de production connu ne suit les chaînes de dépendance : les opérations consume sont remontées en opérations acquire.</p>
+<blockquote>
+<p>La spécification de l'ordonnancement release-consume est en cours de révision, et l'utilisation de <code>memory_order_consume</code> est temporairement déconseillée.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Cet exemple illustre la synchronisation ordonnée par dépendance pour une publication médiée par pointeur : les données entières ne sont pas liées au pointeur vers la chaîne par une relation de dépendance de données ; leur valeur est donc indéfinie côté consommateur.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;cassert&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+
+std::atomic&lt;std::string*&gt; ptr;
+int data;
+
+void producer()
+{
+    std::string* p = new std::string(&quot;Hello&quot;);
+    data = 42;
+    ptr.store(p, std::memory_order_release);
+}
+
+void consumer()
+{
+    std::string* p2;
+    while (!(p2 = ptr.load(std::memory_order_consume)))
+        ;
+    assert(*p2 == &quot;Hello&quot;); // ne se déclenche jamais : *p2 porte la dépendance depuis ptr
+    assert(data == 42); // peut ou non se déclencher : data ne porte pas la dépendance depuis ptr
+}
+
+int main()
+{
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join(); t2.join();
+}
+</code></pre>
+<h3 id="Sequentially-consistent_ordering">Ordonnancement séquentiellement cohérent</h3>
+<p>Les opérations atomiques marquées <code>memory_order_seq_cst</code> ordonnent non seulement la mémoire de la même façon que l'ordonnancement release/acquire (tout ce qui <em>happens-before</em> une écriture dans un thread devient un <em>effet de bord visible</em> dans le thread qui effectue une lecture), mais établissent également un <em>ordre de modification total unique</em> de toutes les opérations atomiques ainsi marquées.</p>
+<blockquote>
+<p>Formellement,</p>
+<p>chaque opération <code>memory_order_seq_cst</code> B qui lit depuis la variable atomique M observe l'un des cas suivants :</p>
+<ul>
+<li>le résultat de la dernière opération A ayant modifié M, qui apparaît avant B dans l'ordre total unique,</li>
+<li>OU, s'il existe une telle A, B peut observer le résultat d'une modification de M qui n'est pas <code>memory_order_seq_cst</code> et qui ne <em>happens-before</em> pas A,</li>
+<li>OU, s'il n'existe pas une telle A, B peut observer le résultat d'une modification non liée de M qui n'est pas <code>memory_order_seq_cst</code>.</li>
+</ul>
+<p>S'il existait une opération <code>memory_order_seq_cst</code> <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> X <em>sequenced-before</em> B, alors B observe l'un des cas suivants :</p>
+<ul>
+<li>la dernière modification <code>memory_order_seq_cst</code> de M qui apparaît avant X dans l'ordre total unique,</li>
+<li>une modification non liée de M qui apparaît plus tard dans l'ordre de modification de M.</li>
+</ul>
+<p>Pour une paire d'opérations atomiques sur M appelées A et B, où A écrit et B lit la valeur de M, s'il existe deux <code>memory_order_seq_cst</code> <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> X et Y, si A est <em>sequenced-before</em> X, Y est <em>sequenced-before</em> B, et X apparaît avant Y dans l'ordre total unique, alors B observe soit :</p>
+<ul>
+<li>l'effet de A,</li>
+<li>une modification non liée de M qui apparaît après A dans l'ordre de modification de M.</li>
+</ul>
+<p>Pour une paire de modifications atomiques de M appelées A et B, B a lieu après A dans l'ordre de modification de M si</p>
+<ul>
+<li>il existe une <code>memory_order_seq_cst</code> <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> X telle que A est <em>sequenced-before</em> X et X apparaît avant B dans l'ordre total unique,</li>
+<li>ou il existe une <code>memory_order_seq_cst</code> <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> Y telle que Y est <em>sequenced-before</em> B et A apparaît avant Y dans l'ordre total unique,</li>
+<li>ou il existe des <code>memory_order_seq_cst</code> <a href="atomic_thread_fence.html"><code>std::atomic_thread_fence</code></a> X et Y telles que A est <em>sequenced-before</em> X, Y est <em>sequenced-before</em> B, et X apparaît avant Y dans l'ordre total unique.</li>
+</ul>
+<p>Notez que cela signifie que :</p>
+<ol>
+<li>
+<p>dès que des opérations atomiques qui ne sont pas marquées <code>memory_order_seq_cst</code> entrent en jeu, la cohérence séquentielle est perdue,</p>
+</li>
+<li>
+<p>les barrières séquentiellement cohérentes n'établissent un ordre total que pour les barrières elles-mêmes, et non pour les opérations atomiques en général (<em>sequenced-before</em> n'est pas une relation inter-threads, contrairement à <em>happens-before</em>).</p>
+</li>
+</ol>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Formellement,</p>
+<p>une opération atomique A sur un objet atomique M est <em>coherence-ordered-before</em> une autre opération atomique B sur M si l'une des conditions suivantes est vraie :</p>
+<ol>
+<li>
+<p>A est une modification, et B lit la valeur stockée par A,</p>
+</li>
+<li>
+<p>A précède B dans l'<em>ordre de modification</em> de M,</p>
+</li>
+<li>
+<p>A lit la valeur stockée par une modification atomique X, X précède B dans l'<em>ordre de modification</em>, et A et B ne sont pas la même opération atomique de lecture-modification-écriture,</p>
+</li>
+<li>
+<p>A est <em>coherence-ordered-before</em> X, et X est <em>coherence-ordered-before</em> B.</p>
+</li>
+</ol>
+<p>Il existe un ordre total unique S sur toutes les opérations <code>memory_order_seq_cst</code>, barrières comprises, qui satisfait les contraintes suivantes :</p>
+<ol>
+<li>
+<p>si A et B sont des opérations <code>memory_order_seq_cst</code>, et A <em>strongly happens-before</em> B, alors A précède B dans S,</p>
+</li>
+<li>
+<p>pour toute paire d'opérations atomiques A et B sur un objet M, où A est <em>coherence-ordered-before</em> B :</p>
+</li>
+</ol>
+<p>a) si A et B sont toutes deux des opérations <code>memory_order_seq_cst</code>, alors A précède B dans S,</p>
+<p>b) si A est une opération <code>memory_order_seq_cst</code>, et B <em>happens-before</em> une barrière <code>memory_order_seq_cst</code> Y, alors A précède Y dans S,</p>
+<p>c) si une barrière <code>memory_order_seq_cst</code> X <em>happens-before</em> A, et B est une opération <code>memory_order_seq_cst</code>, alors X précède B dans S,</p>
+<p>d) si une barrière <code>memory_order_seq_cst</code> X <em>happens-before</em> A, et B <em>happens-before</em> une barrière <code>memory_order_seq_cst</code> Y, alors X précède Y dans S.</p>
+<p>La définition formelle garantit que :</p>
+<ol>
+<li>
+<p>l'ordre total unique est cohérent avec l'<em>ordre de modification</em> de tout objet atomique,</p>
+</li>
+<li>
+<p>un chargement <code>memory_order_seq_cst</code> obtient sa valeur soit de la dernière modification <code>memory_order_seq_cst</code>, soit d'une modification non-<code>memory_order_seq_cst</code> qui ne <em>happens-before</em> pas les modifications <code>memory_order_seq_cst</code> qui la précèdent.</p>
+</li>
+</ol>
+<p>L'ordre total unique peut ne pas être cohérent avec <em>happens-before</em>. Cela permet une implémentation plus efficace de <code>memory_order_acquire</code> et <code>memory_order_release</code> sur certains processeurs. Cela peut produire des résultats surprenants lorsque <code>memory_order_acquire</code> et <code>memory_order_release</code> sont mélangés avec <code>memory_order_seq_cst</code>.</p>
+<p>Par exemple, avec <code>x</code> et <code>y</code> initialement à zéro,</p>
+<pre><code class="language-cpp">// Thread 1 :
+x.store(1, std::memory_order_seq_cst); // A
+y.store(1, std::memory_order_release); // B
+// Thread 2 :
+r1 = y.fetch_add(1, std::memory_order_seq_cst); // C
+r2 = y.load(std::memory_order_relaxed); // D
+// Thread 3 :
+y.store(3, std::memory_order_seq_cst); // E
+r3 = x.load(std::memory_order_seq_cst); // F
+</code></pre>
+<p>peut produire <code>r1 == 1 &amp;&amp; r2 == 3 &amp;&amp; r3 == 0</code>, où A <em>happens-before</em> C, mais C précède A dans l'ordre total unique C-E-F-A de <code>memory_order_seq_cst</code> (voir <a href="https://plv.mpi-sws.org/scfix/paper.pdf">Lahav et al</a>).</p>
+<p>Notez que :</p>
+<ol>
+<li>
+<p>dès que des opérations atomiques qui ne sont pas marquées <code>memory_order_seq_cst</code> entrent en jeu, la garantie de cohérence séquentielle du programme est perdue,</p>
+</li>
+<li>
+<p>dans de nombreux cas, les opérations atomiques <code>memory_order_seq_cst</code> peuvent être réordonnées par rapport aux autres opérations atomiques effectuées par le même thread.</p>
+</li>
+</ol>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>L'ordre séquentiel peut être nécessaire pour les situations à plusieurs producteurs et plusieurs consommateurs où tous les consommateurs doivent observer les actions de tous les producteurs dans le même ordre.</p>
+<p>L'ordre séquentiel total nécessite une instruction CPU de barrière mémoire complète sur tous les systèmes multicœurs. Cela peut devenir un goulot d'étranglement de performance, car cela force la propagation des accès mémoire concernés vers chaque cœur.</p>
+<p>Cet exemple illustre une situation où l'ordre séquentiel est nécessaire. Tout autre ordre peut déclencher l'assertion, car il serait possible que les threads <code>c</code> et <code>d</code> observent les changements des atomiques <code>x</code> et <code>y</code> dans l'ordre inverse.</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;cassert&gt;
+#include &lt;thread&gt;
+
+std::atomic&lt;bool&gt; x = {false};
+std::atomic&lt;bool&gt; y = {false};
+std::atomic&lt;int&gt; z = {0};
+
+void write_x()
+{
+    x.store(true, std::memory_order_seq_cst);
+}
+
+void write_y()
+{
+    y.store(true, std::memory_order_seq_cst);
+}
+
+void read_x_then_y()
+{
+    while (!x.load(std::memory_order_seq_cst))
+        ;
+    if (y.load(std::memory_order_seq_cst))
+        ++z;
+}
+
+void read_y_then_x()
+{
+    while (!y.load(std::memory_order_seq_cst))
+        ;
+    if (x.load(std::memory_order_seq_cst))
+        ++z;
+}
+
+int main()
+{
+    std::thread a(write_x);
+    std::thread b(write_y);
+    std::thread c(read_x_then_y);
+    std::thread d(read_y_then_x);
+    a.join(); b.join(); c.join(); d.join();
+    assert(z.load() != 0); // n'arrivera jamais
+}
+</code></pre>
+<h2 id="Relationship_with_volatile">Relation avec <code>volatile</code></h2>
+<p>Au sein d'un fil d'exécution, les accès (lectures et écritures) effectués via des <a href="../language/cv.html">glvalues volatile</a> ne peuvent pas être réordonnés au-delà des effets de bord observables (y compris d'autres accès volatile) qui sont <em>sequenced-before</em> ou <em>sequenced-after</em> dans le même thread, mais cet ordre n'est pas garanti d'être observé par un autre thread, car l'accès volatile n'établit pas de synchronisation inter-threads.</p>
+<p>De plus, les accès volatile ne sont pas atomiques (une lecture et une écriture concurrentes constituent une <a href="../language/memory_model.html">course aux données</a>) et n'ordonnent pas la mémoire (les accès mémoire non volatile peuvent être librement réordonnés autour de l'accès volatile).</p>
+<p>Une exception notable est Visual Studio, où, avec les paramètres par défaut, chaque écriture volatile a une sémantique release et chaque lecture volatile a une sémantique acquire (<a href="https://learn.microsoft.com/en-us/cpp/cpp/volatile-cpp">Microsoft Docs</a>), de sorte que les volatile peuvent être utilisés pour la synchronisation inter-threads. La sémantique standard de <code>volatile</code> n'est pas applicable à la programmation multithread, bien qu'elle soit suffisante, par exemple, pour communiquer avec un gestionnaire <a href="../utility/program/signal.html"><code>std::signal</code></a> qui s'exécute dans le même thread lorsqu'elle est appliquée à des variables <code>sig_atomic_t</code>.</p>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/atomic/memory_order.html">Documentation C</a> pour memory order</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://en.wikipedia.org/wiki/MOESI_protocol">Protocole MOESI</a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://www.cl.cam.ac.uk/~pes20/weakmemory/cacm.pdf">x86-TSO : un modèle de programmation rigoureux et utilisable pour les multiprocesseurs x86</a> P. Sewell et al., 2010</td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://www.cl.cam.ac.uk/~pes20/ppc-supplemental/test7.pdf">Introduction didactique aux modèles de mémoire relâchés ARM et POWER</a> P. Sewell et al., 2012</td>
+</tr>
+<tr>
+<td>4.</td>
+<td><a href="https://researchspace.auckland.ac.nz/bitstream/handle/2292/11594/MESIF-2009.pdf?sequence=6">MESIF : un protocole de cohérence de cache à deux sauts pour les interconnexions point à point</a> J.R. Goodman, H.H.J. Hum, 2009</td>
+</tr>
+<tr>
+<td>5.</td>
+<td><a href="https://research.swtch.com/mm">Modèles de mémoire</a> Russ Cox, 2021</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : trouvons de bonnes références sur QPI, MOESI et peut-être Dragon.</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extension de l&#x27;espace de noms std — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="extension-de-l-espace-de-noms-std">Extension de l'espace de noms std</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/extending_std">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<h2 id="Adding_declarations_to_std">Ajout de déclarations dans <code>std</code></h2>
+<p>Il s'agit d'un comportement indéfini que d'ajouter des déclarations ou des définitions à l'espace de noms <code>std</code> ou à tout espace de noms imbriqué dans <code>std</code>, à quelques exceptions près indiquées ci-dessous.</p>
+<pre><code class="language-cpp">#include &lt;utility&gt;
+
+namespace std
+{
+    // une définition de fonction ajoutée à l'espace de noms std : comportement indéfini
+    pair&lt;int, int&gt; operator+(pair&lt;int, int&gt; a, pair&lt;int, int&gt; b)
+    {
+        return {a.first + b.first, a.second + b.second};
+    }
+}
+</code></pre>
+<h2 id="Adding_template_specializations">Ajout de spécialisations de modèles</h2>
+<h3 id="Class_templates">Modèles de classes</h3>
+<p>Il est permis d'ajouter des spécialisations de modèles pour tout modèle de classe de la bibliothèque standard dans l'espace de noms <code>std</code> uniquement si la déclaration dépend d'au moins un <a href="type-id.html#Program-defined_type">type défini par le programme</a> et si la spécialisation satisfait toutes les exigences du modèle d'origine, sauf lorsque de telles spécialisations sont interdites.</p>
+<pre><code class="language-cpp">// Obtenir la déclaration du modèle primaire std::hash.
+// Nous n'avons pas le droit de la déclarer nous-mêmes.
+// &lt;typeindex&gt; garantit de fournir une telle déclaration,
+// et son inclusion coûte beaucoup moins cher que celle de &lt;functional&gt;.
+
+#include &lt;typeindex&gt;
+
+// Spécialiser std::hash afin que MyType puisse être utilisé comme clé dans
+// std::unordered_set et std::unordered_map.  Ouvrir l'espace de noms
+// std peut introduire accidentellement un comportement indéfini, et n'est pas
+// nécessaire pour spécialiser des modèles de classe.
+template&lt;&gt;
+struct std::hash&lt;MyType&gt;
+{
+    std::size_t operator()(const MyType&amp; t) const { return t.hash(); }
+};
+</code></pre>
+<ul>
+<li>
+<p>La spécialisation du modèle <a href="../numeric/complex.html"><code>std::complex</code></a> pour tout type autre que <code>float</code>, <code>double</code> et <code>long double</code> est non spécifiée.</p>
+</li>
+<li>
+<p>Les spécialisations de <a href="../types/numeric_limits.html"><code>std::numeric_limits</code></a> doivent définir tous les membres déclarés [<code>static const</code> <em>(jusqu'à C++11)</em> | <code>static constexpr</code> <em>(depuis C++11)</em>] dans le modèle primaire, de manière à pouvoir être utilisés comme <a href="constant_expression.html">expressions constantes intégrales</a>.</p>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>
+<p>Aucun des modèles définis dans <a href="../header/type_traits.html"><code>&lt;type_traits&gt;</code></a> ne peut être spécialisé pour un <a href="type-id.html#Program-defined_type">type défini par le programme</a>, sauf pour <a href="../types/common_type.html"><code>std::common_type</code></a>et <a href="../types/common_reference.html#Helper_types"><code>std::basic_common_reference</code></a> <em>(depuis C++20)</em>. Cela inclut les <a href="../types.html">traits de types</a> et le modèle de classe <a href="../types/integral_constant.html"><code>std::integral_constant</code></a>.</p>
+</li>
+<li>
+<p>Les spécialisations de <a href="../utility/hash.html"><code>std::hash</code></a> pour les types définis par le programme doivent satisfaire les exigences <a href="../named_req/Hash.html"><em>Hash</em></a>.</p>
+</li>
+<li>
+<p>Les spécialisations de <a href="../atomic/atomic.html"><code>std::atomic</code></a> doivent avoir un constructeur de copie supprimé, un opérateur d'affectation par copie supprimé et un constructeur de valeur constexpr.</p>
+</li>
+<li>
+<p>Les spécialisations de <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> et <a href="../memory/weak_ptr.html"><code>std::weak_ptr</code></a> doivent être <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a> et <a href="../named_req/CopyAssignable.html"><em>CopyAssignable</em></a>. De plus, les spécialisations de <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> doivent être <a href="../named_req/LessThanComparable.html"><em>LessThanComparable</em></a> et convertibles en <code>bool</code>.</p>
+</li>
+<li>
+<p>Les spécialisations de <a href="../iterator/istreambuf_iterator.html"><code>std::istreambuf_iterator</code></a> doivent avoir un constructeur de copie trivial, un constructeur par défaut constexpr et un destructeur trivial.</p>
+</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><a href="../utility/functional/unary_function.html"><code>std::unary_function</code></a> et <a href="../utility/functional/binary_function.html"><code>std::binary_function</code></a> ne peuvent pas être spécialisés.</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<p>Il s'agit d'un comportement indéfini que de déclarer une spécialisation complète ou partielle d'un modèle de classe membre de toute classe ou modèle de classe de la bibliothèque standard.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Function_templates_and_member_functions_of_templates">Modèles de fonctions et fonctions membres de modèles</h3>
+<blockquote>
+<p>Il est permis d'ajouter des spécialisations de modèles pour tout modèle de fonction de la bibliothèque standard dans l'espace de noms <code>std</code> uniquement si la déclaration dépend d'au moins un <a href="type-id.html#Program-defined_type">type défini par le programme</a> et si la spécialisation satisfait toutes les exigences du modèle d'origine, sauf lorsque de telles spécialisations sont interdites.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Il s'agit d'un comportement indéfini que de déclarer une spécialisation complète de tout modèle de fonction de la bibliothèque standard.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<p>Il s'agit d'un comportement indéfini que de déclarer une spécialisation complète de toute fonction membre d'un modèle de classe de la bibliothèque standard :</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<p>Il s'agit d'un comportement indéfini que de déclarer une spécialisation complète de tout modèle de fonction membre d'une classe ou d'un modèle de classe de la bibliothèque standard :</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<h3 id="Variable_templates">Modèles de variables</h3>
+<blockquote>
+<p>Il s'agit d'un comportement indéfini que de déclarer une spécialisation complète ou partielle de tout modèle de variable de la bibliothèque standard, sauf lorsque cela est explicitement autorisé.</p>
+<p>Cette section est incomplète<br />
+Raison : mini-exemple</p>
+<blockquote>
+<ul>
+<li>Les spécialisations de <a href="../iterator/sized_sentinel_for.html"><code>std::disable_sized_sentinel_for</code></a>, <a href="../ranges/sized_range.html"><code>std::ranges::disable_sized_range</code></a>, <a href="../ranges/view.html"><code>std::ranges::enable_view</code></a> et <a href="../ranges/borrowed_range.html"><code>std::ranges::enable_borrowed_range</code></a> doivent être utilisables dans des expressions constantes et avoir le type <code>const bool</code>. Et</li>
+<li><code>std::disable_sized_sentinel_for</code> peut être spécialisé pour les types d'objets non tableaux qualifiés cv <code>S</code> et <code>I</code>, dont au moins un est un <a href="type-id.html#Program-defined_type">type défini par le programme</a>.</li>
+<li><code>std::ranges::disable_sized_range</code>, <code>std::ranges::enable_view</code> et <code>std::ranges::enable_borrowed_range</code> peuvent être spécialisés pour les types définis par le programme qualifiés cv.</li>
+<li>Chaque <a href="../numeric/constants.html">modèle de variable de constante mathématique</a> peut être partiellement ou explicitement spécialisé, à condition que la spécialisation dépende d'un type défini par le programme.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<h2 id="Explicit_instantiation_of_templates">Instanciation explicite de modèles</h2>
+<p>Il est permis d'instancier explicitement un modèle de classe <em>(depuis C++20)</em> défini dans la bibliothèque standard uniquement si la déclaration dépend du nom d'au moins un <a href="type-id.html#Program-defined_type">type défini par le programme</a> et si l'instanciation respecte les exigences de la bibliothèque standard pour le modèle d'origine.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Other_restrictions">Autres restrictions</h2>
+<p>L'espace de noms <code>std</code> ne peut pas être déclaré comme <a href="namespace.html#Inline_namespaces">espace de noms en ligne</a>.</p>
+<blockquote>
+<h4 id="Addressing_restriction">Restriction sur l'adressage</h4>
+<p>Le comportement d'un programme C++ est non spécifié (potentiellement mal formé) s'il tente explicitement ou implicitement de former un pointeur, une référence (pour les fonctions libres et les fonctions membres statiques) ou un pointeur vers membre (pour les fonctions membres non statiques) vers une fonction de la bibliothèque standard ou une instanciation d'un modèle de fonction de la bibliothèque standard, sauf si elle est désignée comme <em>fonction adressable</em> (voir ci-dessous).</p>
+<p>Le code suivant était bien défini en C++17, mais conduit à des comportements non spécifiés et peut ne pas compiler depuis C++20 :</p>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;memory&gt;
+
+int main()
+{
+    // par l'opérateur unaire &amp;
+    auto fptr0 = &amp;static_cast&lt;float(&amp;)(float, float)&gt;(std::betaf);
+
+    // par std::addressof
+    auto fptr1 = std::addressof(static_cast&lt;float(&amp;)(float, float)&gt;(std::betaf));
+
+    // par conversion implicite fonction-vers-pointeur
+    auto fptr2 = static_cast&lt;float(&amp;)(float)&gt;(std::riemann_zetaf);
+
+    // en formant une référence
+    auto&amp; fref = static_cast&lt;float(&amp;)(float)&gt;(std::riemann_zetaf);
+}
+</code></pre>
+<h4 id="Designated_addressable_functions">Fonctions adressables désignées</h4>
+<ul>
+<li><a href="../io/manip.html">Manipulateurs d'E/S</a> :</li>
+<li><code>fmtflags</code> manipulators:</li>
+<li><a href="../io/manip/boolalpha.html"><code>std::boolalpha</code></a></li>
+<li><a href="../io/manip/boolalpha.html"><code>std::noboolalpha</code></a></li>
+<li><a href="../io/manip/showbase.html"><code>std::showbase</code></a></li>
+<li><a href="../io/manip/showbase.html"><code>std::noshowbase</code></a></li>
+<li><a href="../io/manip/showpoint.html"><code>std::showpoint</code></a></li>
+<li><a href="../io/manip/showpoint.html"><code>std::noshowpoint</code></a></li>
+<li><a href="../io/manip/showpos.html"><code>std::showpos</code></a></li>
+<li><a href="../io/manip/showpos.html"><code>std::noshowpos</code></a></li>
+<li><a href="../io/manip/skipws.html"><code>std::skipws</code></a></li>
+<li><a href="../io/manip/skipws.html"><code>std::noskipws</code></a></li>
+<li><a href="../io/manip/uppercase.html"><code>std::uppercase</code></a></li>
+<li><a href="../io/manip/uppercase.html"><code>std::nouppercase</code></a></li>
+<li><a href="../io/manip/unitbuf.html"><code>std::unitbuf</code></a></li>
+<li><a href="../io/manip/unitbuf.html"><code>std::nounitbuf</code></a></li>
+<li><code>adjustfield</code> manipulators:</li>
+<li><a href="../io/manip/left.html"><code>std::internal</code></a></li>
+<li><a href="../io/manip/left.html"><code>std::left</code></a></li>
+<li><a href="../io/manip/left.html"><code>std::right</code></a></li>
+<li><code>basefield</code> manipulators:</li>
+<li><a href="../io/manip/hex.html"><code>std::dec</code></a></li>
+<li><a href="../io/manip/hex.html"><code>std::hex</code></a></li>
+<li><a href="../io/manip/hex.html"><code>std::oct</code></a></li>
+<li><code>floatfield</code> manipulators:</li>
+<li><a href="../io/manip/fixed.html"><code>std::fixed</code></a></li>
+<li><a href="../io/manip/fixed.html"><code>std::scientific</code></a></li>
+<li><a href="../io/manip/fixed.html"><code>std::hexfloat</code></a></li>
+<li><a href="../io/manip/fixed.html"><code>std::defaultfloat</code></a></li>
+<li><code>basic_istream</code> manipulators:</li>
+<li><a href="../io/manip/ws.html"><code>std::ws</code></a></li>
+<li><code>basic_ostream</code> manipulators:</li>
+<li><a href="../io/manip/endl.html"><code>std::endl</code></a></li>
+<li><a href="../io/manip/ends.html"><code>std::ends</code></a></li>
+<li><a href="../io/manip/flush.html"><code>std::flush</code></a></li>
+<li><a href="../io/manip/emit_on_flush.html"><code>std::emit_on_flush</code></a></li>
+<li><a href="../io/manip/emit_on_flush.html"><code>std::noemit_on_flush</code></a></li>
+<li><a href="../io/manip/flush_emit.html"><code>std::flush_emit</code></a></li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue120">LWG 120</a></td>
+<td>C++98</td>
+<td>les utilisateurs pouvaient instancier explicitement des modèles de la bibliothèque standard pour des types non définis par l'utilisateur</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue232">LWG 232</a></td>
+<td>C++98</td>
+<td>les utilisateurs pouvaient spécialiser explicitement des modèles de la bibliothèque standard si la déclaration dépend d'un nom défini par l'utilisateur ayant une liaison externe (qui peut désigner un type non défini par l'utilisateur)</td>
+<td>uniquement autorisé pour les types définis par l'utilisateur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue422">LWG 422</a></td>
+<td>C++98</td>
+<td>les utilisateurs pouvaient spécialiser individuellement des membres ou des modèles de membres sans spécialiser toute la classe ou le modèle de classe de la bibliothèque standard</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

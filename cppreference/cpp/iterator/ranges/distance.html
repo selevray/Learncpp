@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::distance — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/iterator.html">Bibliothèque des itérateurs</a></nav>
+<h1 id="std-ranges-distance"><code>std::ranges::distance</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/ranges/distance">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; class I, std::sentinel_for&lt;I&gt; S &gt;
+    requires (!std::sized_sentinel_for&lt;S, I&gt;)
+constexpr std::iter_difference_t&lt;I&gt;
+    distance( I first, S last );  // (1) (depuis C++20)
+
+template&lt; class I, std::sized_sentinel_for&lt;std::decay_t&lt;I&gt;&gt; S &gt;
+constexpr std::iter_difference_t&lt;std::decay_t&lt;I&gt;&gt;
+    distance( I&amp;&amp; first, S last );  // (2) (depuis C++20)
+
+template&lt; ranges::range R &gt;
+constexpr ranges::range_difference_t&lt;R&gt;
+    distance( R&amp;&amp; r );  // (3) (depuis C++20)
+</code></pre>
+<p>1,2) Renvoie le nombre de sauts de <code>first</code> à <code>last</code>.</p>
+<ol start="3">
+<li>Renvoie la taille de <code>r</code> sous forme d'entier signé.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../../algorithm/ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first</code> — itérateur pointant vers le premier élément</li>
+<li><code>last</code> — sentinelle marquant la fin de l'intervalle <code>first</code>, est un itérateur vers</li>
+<li><code>r</code> — intervalle dont on calcule la distance</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>Le nombre d'incréments nécessaires pour aller de <code>first</code> à <code>last</code>.</p>
+</li>
+<li>
+<p><code>last - static_cast&lt;const std::decay_t&lt;I&gt;&amp;&gt;(first)</code>.</p>
+</li>
+<li>
+<p>Si <code>R</code> modélise <code>ranges::sized_range</code>, renvoie <code>ranges::size(r)</code> ; sinon <code>ranges::distance(ranges::begin(r), ranges::end(r))</code>.</p>
+</li>
+</ol>
+<h2 id="Complexity">Complexité</h2>
+<ol>
+<li>
+<p>Linéaire.</p>
+</li>
+<li>
+<p>Constante.</p>
+</li>
+<li>
+<p>Si <code>R</code> modélise <code>ranges::sized_range</code> ou si <code>std::sized_sentinel_for&lt;ranges::sentinel_t&lt;R&gt;, ranges::iterator_t&lt;R&gt;&gt;</code> est modélisé, la complexité est constante ; sinon linéaire.</p>
+</li>
+</ol>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct distance_fn
+{
+    template&lt;class I, std::sentinel_for&lt;I&gt; S&gt;
+        requires (!std::sized_sentinel_for&lt;S, I&gt;)
+    constexpr std::iter_difference_t&lt;I&gt; operator()(I first, S last) const
+    {
+        std::iter_difference_t&lt;I&gt; result = 0;
+        while (first != last)
+        {
+            ++first;
+            ++result;
+        }
+        return result;
+    }
+
+    template&lt;class I, std::sized_sentinel_for&lt;std::decay&lt;I&gt;&gt; S&gt;
+    constexpr std::iter_difference_t&lt;I&gt; operator()(const I&amp; first, S last) const
+    {
+        return last - first;
+    }
+
+    template&lt;ranges::range R&gt;
+    constexpr ranges::range_difference_t&lt;R&gt; operator()(R&amp;&amp; r) const
+    {
+        if constexpr (ranges::sized_range&lt;std::remove_cvref_t&lt;R&gt;&gt;)
+            return static_cast&lt;ranges::range_difference_t&lt;R&gt;&gt;(ranges::size(r));
+        else
+            return (*this)(ranges::begin(r), ranges::end(r));
+    }
+};
+
+inline constexpr auto distance = distance_fn{};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;forward_list&gt;
+#include &lt;iterator&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v{3, 1, 4};
+    assert(std::ranges::distance(v.begin(), v.end()) == 3);
+    assert(std::ranges::distance(v.end(), v.begin()) == -3);
+    assert(std::ranges::distance(v) == 3);
+
+    std::forward_list&lt;int&gt; l{2, 7, 1};
+    // auto size = std::ranges::size(l); // erreur : ce n'est pas un intervalle dimensionnable
+    auto size = std::ranges::distance(l); // OK, mais en gardant à l'esprit la complexité O(N)
+    assert(size == 3);
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3392">LWG 3392</a></td>
+<td>C++20</td>
+<td>la surcharge <code>(1)</code> prend l'itérateur par valeur, si bien qu'un itérateur lvalue à déplacement uniquement avec une sentinelle dimensionnée a été rejeté</td>
+<td>ajout de la surcharge <code>(2)</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3664">LWG 3664</a></td>
+<td>C++20</td>
+<td>la résolution de <a href="https://cplusplus.github.io/LWG/issue3392">LWG issue 3392</a> a fait <code>ranges::distance</code> rejeter les arguments de type tableau</td>
+<td>les accepte</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="advance.html">ranges::advance</a> (C++20)</strong> — fait avancer un itérateur de la distance donnée ou jusqu'à une borne donnée <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../../algorithm/ranges/count.html">ranges::countranges::count_if</a> (C++20) (C++20)</strong> — renvoie le nombre d'éléments satisfaisant des critères spécifiques <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../distance.html">distance</a></strong> — renvoie la distance entre deux itérateurs <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Initialisation directe — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="initialisation-directe">Initialisation directe</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/direct_initialization">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Initialise un objet à partir d'un ensemble explicite d'arguments de constructeur.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p><code>T</code> <code>object</code> <code>(</code> <code>arg</code> <code>);</code></p>
+<p><code>T</code> <code>object</code> <code>(</code> <code>arg1, arg2, ...</code> <code>);</code></p>
+<p>| (1)</p>
+<p><code>T</code> <code>object</code> <code>{</code> <code>arg</code> <code>};</code>
+| (2)
+| (depuis C++11)</p>
+<p><code>T</code> <code>(</code> <code>other</code> <code>)</code></p>
+<p><code>T</code> <code>(</code> <code>arg1, arg2, ...</code> <code>)</code></p>
+<p>| (3)</p>
+<p><code>static_cast&lt;</code> <code>T</code> <code>&gt;(</code> <code>other</code> <code>)</code>
+| (4)</p>
+<p><code>new</code> <code>T(</code> <code>args, ...</code> <code>)</code>
+| (5)</p>
+<p><code>Class::Class()</code> <code>:</code> <code>member(</code> <code>args, ...</code> <code>)</code> <code>{</code> <code>...</code> <code>}</code>
+| (6)</p>
+<p><code>[arg]() {</code> <code>...</code> <code>}</code>
+| (7)
+| (depuis C++11)</p>
+<h2 id="Explanation">Explication</h2>
+<p>L'initialisation directe est effectuée dans les situations suivantes :</p>
+<ol>
+<li>
+<p>Initialisation avec une liste non vide d'expressions entre parenthèses ou de listes d'initialisation entre accolades <em>(depuis C++11)</em>.</p>
+</li>
+<li>
+<p>Initialisation d'un objet de type non classe avec un seul initialiseur entre accolades (note : pour les types classe et les autres usages de liste d'initialisation entre accolades, voir <a href="list_initialization.html">initialisation par liste</a>) <em>(depuis C++11)</em>.</p>
+</li>
+<li>
+<p>Initialisation de [un temporaire prvalue <em>(jusqu'à C++17)</em> | l'objet résultat d'une prvalue <em>(depuis C++17)</em>] par <a href="explicit_cast.html">conversion de style fonctionnel</a> ou avec une liste d'expressions entre parenthèses.</p>
+</li>
+<li>
+<p>Initialisation de [un temporaire prvalue <em>(jusqu'à C++17)</em> | l'objet résultat d'une prvalue <em>(depuis C++17)</em>] par une expression <a href="static_cast.html">static_cast</a>.</p>
+</li>
+<li>
+<p>Initialisation d'un objet à durée de stockage dynamique par une expression new avec un initialiseur.</p>
+</li>
+<li>
+<p>Initialisation d'une base ou d'un membre non statique par <a href="initializer_list.html">liste d'initialisation</a> du constructeur.</p>
+</li>
+<li>
+<p>Initialisation des membres d'objet fermeture à partir des variables capturées par copie dans une expression lambda.</p>
+</li>
+</ol>
+<p>Les effets de l'initialisation directe sont :</p>
+<ul>
+<li>Si <code>T</code> est un type tableau,</li>
+</ul>
+<blockquote>
+<ul>
+<li>le programme est mal formé.</li>
+</ul>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>le tableau est initialisé comme dans l'<a href="aggregate_initialization.html">initialisation agrégative</a>, sauf que les conversions restrictives sont autorisées et que les éléments sans initialiseur sont <a href="value_initialization.html">initialisés par valeur</a>.</li>
+</ul>
+<pre><code class="language-cpp">struct A
+{
+    explicit A(int i = 0) {}
+};
+
+A a[2](A(1)); // OK : initialise a[0] avec A(1) et a[1] avec A()
+A b[2]{A(1)}; // error : initialisation par copie-liste implicite de b[1]
+              //        depuis {} : le constructeur explicite a été sélectionné
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>Si <code>T</code> est un type de classe,</li>
+</ul>
+<blockquote>
+<ul>
+<li>si l'initialisateur est une expression <a href="value_category.html">prvalue</a> dont le type est la même classe que <code>T</code> (sans tenir compte de la qualification cv), l'expression d'initialisation elle-même, plutôt qu'un temporaire matérialisé à partir de celle-ci, est utilisée pour initialiser l'objet de destination.<br />
+(Avant C++17, le compilateur peut dans ce cas omettre la construction à partir du temporaire prvalue, mais le constructeur approprié doit tout de même être accessible : voir <a href="copy_elision.html">élision de copie</a>)</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ul>
+<li>les constructeurs de <code>T</code> sont examinés et le meilleur candidat est sélectionné par résolution de surcharge. Le constructeur est alors appelé pour initialiser l'objet.</li>
+</ul>
+<blockquote>
+<ul>
+<li>sinon, si le type de destination est une classe agrégat (éventuellement qualifiée cv), elle est initialisée comme décrit dans <a href="aggregate_initialization.html">initialisation d'agrégat</a>, sauf que les conversions avec rétrécissement sont autorisées, les initialisateurs désignés ne sont pas autorisés, un temporaire lié à une référence ne voit pas sa durée de vie prolongée, il n'y a pas d'élision d'accolades, et tous les éléments sans initialisateur sont <a href="value_initialization.html">initialisés par valeur</a>.</li>
+</ul>
+<pre><code class="language-cpp">struct B
+{
+    int a;
+    int&amp;&amp; r;
+};
+
+int f();
+int n = 10;
+
+B b1{1, f()};            // OK, la durée de vie est prolongée
+B b2(1, f());            // bien formé, mais référence pendante
+B b3{1.0, 1};            // error : conversion avec rétrécissement
+B b4(1.0, 1);            // bien formé, mais référence pendante
+B b5(1.0, std::move(n)); // OK
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>Sinon, si <code>T</code> est un type non classe mais que le type source est une classe, les fonctions de conversion du type source et de ses classes de base, le cas échéant, sont examinées et le meilleur candidat est sélectionné par résolution de surcharge. La conversion définie par l'utilisateur sélectionnée est alors utilisée pour convertir l'expression d'initialisation en l'objet initialisé.</li>
+<li>Sinon, si <code>T</code> est <code>bool</code> et que le type source est <a href="../types/nullptr_t.html"><code>std::nullptr_t</code></a>, la valeur de l'objet initialisé est <code>false</code>.</li>
+<li>Sinon, des <a href="implicit_cast.html">conversions standard</a> sont utilisées si nécessaire pour convertir la valeur de <code>other</code> vers la version sans qualification cv de <code>T</code>, et la valeur initiale de l'objet initialisé est la valeur (éventuellement convertie).</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>L'initialisation directe est plus permissive que l'initialisation par copie : l'initialisation par copie ne considère que les constructeurs non <a href="explicit.html">explicit</a> et les <a href="cast_operator.html">fonctions de conversion</a> définies par l'utilisateur non explicites, tandis que l'initialisation directe considère tous les constructeurs et toutes les fonctions de conversion définies par l'utilisateur.</p>
+<p>En cas d'ambiguïté entre une déclaration de variable utilisant la syntaxe d'initialisation directe <code>(1)</code> (avec des parenthèses rondes) et une <a href="function.html">déclaration de fonction</a>, le compilateur choisit toujours la déclaration de fonction. Cette règle de désambiguïsation est parfois contre-intuitive et a été appelée le <a href="https://en.wikipedia.org/wiki/most_vexing_parse">most vexing parse</a>.</p>
+<pre><code class="language-cpp">#include &lt;fstream&gt;
+#include &lt;iterator&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::ifstream file(&quot;data.txt&quot;);
+
+    // Ce qui suit est une déclaration de fonction :
+    std::string foo1(std::istreambuf_iterator&lt;char&gt;(file),
+                     std::istreambuf_iterator&lt;char&gt;());
+    // Elle déclare une fonction nommée foo1, dont le type de retour est std::string,
+    // le premier paramètre a pour type std::istreambuf_iterator&lt;char&gt; et le nom « file »,
+    // le second paramètre n'a pas de nom et a pour type std::istreambuf_iterator&lt;char&gt;(),
+    // qui est réécrit en le type de pointeur de fonction std::istreambuf_iterator&lt;char&gt;(*)()
+
+    // Correctif pré-C++11 (pour déclarer une variable) : ajouter des parenthèses supplémentaires autour de l'un
+    // des arguments :
+    std::string str1((std::istreambuf_iterator&lt;char&gt;(file)),
+                      std::istreambuf_iterator&lt;char&gt;());
+
+    // Correctif post-C++11 (pour déclarer une variable) : utiliser l'initialisation par liste pour tout
+    // des arguments :
+    std::string str2(std::istreambuf_iterator&lt;char&gt;{file}, {});
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+struct Foo
+{
+    int mem;
+    explicit Foo(int n) : mem(n) {}
+};
+
+int main()
+{
+    std::string s1(&quot;test&quot;); // constructeur prenant un const char*
+    std::string s2(10, 'a');
+
+    std::unique_ptr&lt;int&gt; p(new int(1));  // OK : les constructeurs explicites sont autorisés
+//  std::unique_ptr&lt;int&gt; p = new int(1); // erreur : le constructeur est explicite
+
+    Foo f(2); // f est initialisé directement :
+              // le paramètre de constructeur n est initialisé par copie à partir de la rvalue 2
+              // f.mem est initialisé directement à partir du paramètre n
+//  Foo f2 = 2; // erreur : le constructeur est explicite
+
+    std::cout &lt;&lt; s1 &lt;&lt; ' ' &lt;&lt; s2 &lt;&lt; ' ' &lt;&lt; *p &lt;&lt; ' ' &lt;&lt; f.mem  &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">test aaaaaaaaaa 1 2
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="copy_elision.html">élision de copie</a></li>
+<li><a href="converting_constructor.html">constructeur de conversion</a></li>
+<li><a href="as_operator.html">affectation par copie</a></li>
+<li><a href="copy_constructor.html">constructeur de copie</a></li>
+<li><a href="default_constructor.html">constructeur par défaut</a></li>
+<li><a href="destructor.html">destructor</a></li>
+<li><a href="explicit.html"><code>explicit</code></a></li>
+<li><a href="initialization.html">initialization</a>
+<ul>
+<li><a href="aggregate_initialization.html">initialisation agrégat</a></li>
+<li><a href="constant_initialization.html">initialisation constante</a></li>
+<li><a href="copy_initialization.html">initialisation par copie</a></li>
+<li><a href="default_initialization.html">initialisation par défaut</a></li>
+<li><a href="initializer_list.html">liste d'initialisation</a></li>
+<li><a href="list_initialization.html">initialisation par liste</a></li>
+<li><a href="reference_initialization.html">initialisation de référence</a></li>
+<li><a href="value_initialization.html">initialisation par valeur</a></li>
+<li><a href="zero_initialization.html">initialisation à zéro</a></li>
+</ul>
+</li>
+<li><a href="move_operator.html">affectation par déplacement</a></li>
+<li><a href="move_constructor.html">constructeur de déplacement</a></li>
+<li><a href="new.html"><code>new</code></a></li>
+</ul>
+
+</main>
+</body>
+</html>

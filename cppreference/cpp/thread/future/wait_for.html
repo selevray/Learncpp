@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::future&lt;T&gt;::wait_for — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/future.html">std::future</a></nav>
+<h1 id="std-future-t-wait_for"><code>std::future&lt;T&gt;::wait_for</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/future/wait_for">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class Rep, class Period &gt;
+std::future_status wait_for( const std::chrono::duration&lt;Rep,Period&gt;&amp; timeout_duration ) const;  // (depuis C++11)
+</code></pre>
+<p>Attend que le résultat devienne disponible. Bloque jusqu'à ce que la <code>timeout_duration</code> spécifiée soit écoulée ou que le résultat devienne disponible, selon l'éventualité la première survenue. La valeur de retour indique l'état du résultat.</p>
+<p>Si le futur est le résultat d'un appel à <a href="../async.html"><code>std::async</code></a> qui utilisait une évaluation paresseuse, cette fonction retourne immédiatement sans attendre.</p>
+<p>Cette fonction peut bloquer pendant une durée supérieure à <code>timeout_duration</code> en raison de retards d'ordonnancement ou de contention de ressources.</p>
+<p>La norme recommande d'utiliser une horloge stable (steady clock) pour mesurer la durée. Si une implémentation utilise à la place une horloge système, le temps d'attente peut également être sensible aux ajustements de l'horloge.</p>
+<p>Le comportement est indéfini si <a href="valid.html"><code>valid()</code></a> est <code>false</code> avant l'appel de cette fonction.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>timeout_duration</code> — durée maximale de blocage</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><strong>Constante Explication</strong></p>
+<ul>
+<li><strong><a href="../future_status.html"><code>future_status::deferred</code></a></strong> — L'état partagé contient une fonction différée utilisant l'évaluation paresseuse, donc le résultat ne sera calculé que lorsqu'il sera explicitement demandé</li>
+<li><strong><a href="../future_status.html"><code>future_status::ready</code></a></strong> — Le résultat est prêt</li>
+<li><strong><a href="../future_status.html"><code>future_status::timeout</code></a></strong> — Le délai d'attente a expiré</li>
+</ul>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute exception levée par clock, time_point ou duration pendant l'exécution (les horloges, points temporels et durées fournis par la bibliothèque standard ne lèvent jamais d'exception).</p>
+<h2 id="Notes">Notes</h2>
+<p>Les implémentations sont encouragées à détecter le cas où <code>valid == false</code> avant l'appel, et à lever une <a href="../future_error.html"><code>std::future_error</code></a> avec une condition d'erreur égale à <a href="../future_errc.html"><code>std::future_errc::no_state</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+using namespace std::chrono_literals;
+
+int main()
+{
+    std::future&lt;int&gt; future = std::async(std::launch::async, []()
+    {
+        std::this_thread::sleep_for(3s);
+        return 8;
+    });
+
+    std::cout &lt;&lt; &quot;waiting...\n&quot;;
+    std::future_status status;
+
+    do
+    {
+        switch (status = future.wait_for(1s); status)
+        {
+            case std::future_status::deferred:
+                std::cout &lt;&lt; &quot;deferred\n&quot;;
+                break;
+            case std::future_status::timeout:
+                std::cout &lt;&lt; &quot;timeout\n&quot;;
+                break;
+            case std::future_status::ready:
+                std::cout &lt;&lt; &quot;ready!\n&quot;;
+                break;
+        }
+    }
+    while (status != std::future_status::ready);
+
+    std::cout &lt;&lt; &quot;result is &quot; &lt;&lt; future.get() &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">waiting...
+timeout
+timeout
+timeout
+ready!
+result is 8
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="wait.html">wait</a></strong> — attend que le résultat devienne disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="wait_until.html">wait_until</a></strong> — attend le résultat, retourne s'il n'est pas disponible avant que le point temporel spécifié soit atteint <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

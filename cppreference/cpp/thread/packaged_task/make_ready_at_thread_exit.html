@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::packaged_task&lt;R(Args...)&gt;::make_ready_at_thread_exit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/packaged_task.html">std::packaged_task</a></nav>
+<h1 id="std-packaged_task-r-args-make_ready_at_thread_exit"><code>std::packaged_task&lt;R(Args...)&gt;::make_ready_at_thread_exit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/packaged_task/make_ready_at_thread_exit">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void make_ready_at_thread_exit( ArgTypes... args );  // (depuis C++11)
+</code></pre>
+<p>Appelle la tâche stockée comme si par <code>INVOKE&lt;R&gt;(f, args...)</code>, où <code>f</code> est la tâche stockée. La valeur de retour de la tâche ou toute exception qu'elle lève est stockée dans l'état partagé de <code>*this</code>.</p>
+<p>L'état partagé n'est rendu prêt qu'après la fin du thread courant et la destruction de tous les objets de durée de stockage thread local.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>args</code> — les paramètres à transmettre lors de l'invocation de la tâche stockée</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p><a href="../future_error.html"><code>std::future_error</code></a> dans les conditions d'erreur suivantes :</p>
+<ul>
+<li>La tâche stockée a déjà été invoquée. La catégorie d'erreur est définie à <code>promise_already_satisfied</code>.</li>
+<li><code>*this</code> n'a pas d'état partagé. La catégorie d'erreur est définie à <a href="../future_errc.html"><code>no_state</code></a>.</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;functional&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;thread&gt;
+#include &lt;utility&gt;
+
+struct ProgramState
+{
+    std::packaged_task&lt;void()&gt; task;
+    std::future&lt;void&gt; future;
+    std::thread worker;
+};
+
+static void worker(std::shared_ptr&lt;ProgramState&gt; state)
+{
+    state-&gt;task.make_ready_at_thread_exit(); // exécuter la tâche immédiatement
+
+    auto status = state-&gt;future.wait_for(std::chrono::seconds(0));
+    if (status == std::future_status::timeout)
+        std::cout &lt;&lt; &quot;worker: future is not ready yet\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;worker: future is ready\n&quot;;
+
+    std::cout &lt;&lt; &quot;worker: exit\n&quot;;
+}
+
+static std::shared_ptr&lt;ProgramState&gt; create_state()
+{
+    auto state = std::make_shared&lt;ProgramState&gt;();
+    state-&gt;task = std::packaged_task&lt;void()&gt;{[]
+    {
+        std::cout &lt;&lt; &quot;task: executed\n&quot;;
+    }};
+    state-&gt;future = state-&gt;task.get_future();
+    state-&gt;worker = std::thread{worker, state};
+    return state;
+}
+
+int main()
+{
+    auto state = create_state();
+
+    state-&gt;worker.join();
+    std::cout &lt;&lt; &quot;main: worker finished\n&quot;;
+
+    auto status = state-&gt;future.wait_for(std::chrono::seconds(0));
+    if (status == std::future_status::timeout)
+        std::cout &lt;&lt; &quot;main: future is not ready yet\n&quot;;
+    else
+        std::cout &lt;&lt; &quot;main: future is ready\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">task: executed
+worker: future is not ready yet
+worker: exit
+main: worker finished
+main: future is ready
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="operator%28%29.html">operator()</a></strong> — exécute la fonction <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

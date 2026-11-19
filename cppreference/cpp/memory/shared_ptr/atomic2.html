@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic&lt;std::shared_ptr&gt; — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/shared_ptr.html">std::shared_ptr</a></nav>
+<h1 id="std-atomic-std-shared_ptr"><code>std::atomic&lt;std::shared_ptr&gt;</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr/atomic2">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+struct std::atomic&lt;std::shared_ptr&lt;T&gt;&gt;;  // (depuis C++20)
+</code></pre>
+<p>La spécialisation partielle du modèle <a href="../../atomic/atomic.html"><code>std::atomic</code></a> pour <code>std::shared_ptr&lt;T&gt;</code> permet aux utilisateurs de manipuler des objets <code>shared_ptr</code> de manière atomique.</p>
+<p>Si plusieurs fils d'exécution accèdent au même objet <a href="../shared_ptr.html"><code>std::shared_ptr</code></a> sans synchronisation et que l'un de ces accès utilise une fonction membre non const de <code>shared_ptr</code>, une course de données se produit, sauf si tous ces accès sont effectués via une instance de <code>std::atomic&lt;std::shared_ptr&gt;</code> (ou, obsolète depuis C++20, via les <a href="atomic.html">fonctions autonomes</a> d'accès atomique à <a href="../shared_ptr.html"><code>std::shared_ptr</code></a>).</p>
+<p>Les incréments associés de <code>use_count</code> sont garantis faire partie de l'opération atomique. Les décréments associés de <code>use_count</code> sont séquencés après l'opération atomique, mais ne sont pas obligés d'en faire partie, sauf pour la modification de <code>use_count</code> lors du remplacement de <code>expected</code> lors d'un CAS échoué. Toute suppression et désallocation associées sont séquencées après l'étape de mise à jour atomique et ne font pas partie de l'opération atomique.</p>
+<p>Notez que le bloc de contrôle d'un <code>shared_ptr</code> est thread-safe : différents objets <a href="../shared_ptr.html"><code>std::shared_ptr</code></a> non atomiques peuvent être accédés au moyen d'opérations modifiantes, telles que <code>operator=</code> ou <code>reset</code>, simultanément par plusieurs fils d'exécution, même lorsque ces instances sont des copies et partagent en interne le même bloc de contrôle.</p>
+<p>Le type T peut être un type incomplet.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li><strong><code>value_type</code></strong> — <code>std::shared_ptr&lt;T&gt;</code></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<p>Toutes les fonctions de <a href="../../atomic/atomic.html"><code>std::atomic</code></a> non spécialisées sont également fournies par cette spécialisation, et aucune fonction membre supplémentaire.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::atomic">atomic&lt;shared_ptr&lt;T&gt;&gt;::atomic</h2>
+<pre><code class="language-cpp">constexpr atomic() noexcept = default;  // (1)
+
+constexpr atomic( std::nullptr_t ) noexcept : atomic() {}  // (2)
+
+atomic( std::shared_ptr&lt;T&gt; desired ) noexcept;  // (3)
+
+atomic( const atomic&amp; ) = delete;  // (4)
+</code></pre>
+<p>1,2) Initialise le <code>shared_ptr&lt;T&gt;</code> sous-jacent à la valeur nulle.</p>
+<ol start="3">
+<li>
+<p>Initialise le <code>shared_ptr&lt;T&gt;</code> sous-jacent avec une copie de <code>desired</code>. Comme pour tout type <a href="../../atomic/atomic.html"><code>std::atomic</code></a>, l'initialisation n'est pas une opération atomique.</p>
+</li>
+<li>
+<p>Les types atomiques ne sont pas constructibles par copie ni par déplacement.</p>
+</li>
+</ol>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::operator.3D">atomic&lt;shared_ptr&lt;T&gt;&gt;::operator=</h2>
+<pre><code class="language-cpp">void operator=( const atomic&amp; ) = delete;  // (1)
+
+void operator=( std::shared_ptr&lt;T&gt; desired ) noexcept;  // (2)
+
+void operator=( std::nullptr_t ) noexcept;  // (3)
+</code></pre>
+<ol>
+<li>
+<p>Les types atomiques ne sont pas affectables par copie ni par déplacement.</p>
+</li>
+<li>
+<p>Affectation par valeur, équivalente à <code>store(desired)</code>.</p>
+</li>
+<li>
+<p>Réinitialise le pointeur partagé atomique à la valeur de pointeur nul. Équivalent à <code>store(nullptr);</code>.</p>
+</li>
+</ol>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::is_lock_free">atomic&lt;shared_ptr&lt;T&gt;&gt;::is_lock_free</h2>
+<pre><code class="language-cpp">bool is_lock_free() const noexcept;
+</code></pre>
+<p>Renvoie <code>true</code> si les opérations atomiques sur tous les objets de ce type sont sans verrou, <code>false</code> sinon.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::store">atomic&lt;shared_ptr&lt;T&gt;&gt;::store</h2>
+<pre><code class="language-cpp">void store( std::shared_ptr&lt;T&gt; desired,
+            std::memory_order order = std::memory_order_seq_cst ) noexcept;
+</code></pre>
+<p>Remplace atomiquement la valeur de <code>*this</code> par la valeur de <code>desired</code> comme si par <code>p.swap(desired)</code> où <code>p</code> est le <code>std::shared_ptr&lt;T&gt;</code> sous-jacent. La mémoire est ordonnée selon <code>order</code>. Le comportement est indéfini si <code>order</code> vaut <a href="../../atomic/memory_order.html"><code>std::memory_order_consume</code></a>, <a href="../../atomic/memory_order.html"><code>std::memory_order_acquire</code></a> ou <a href="../../atomic/memory_order.html"><code>std::memory_order_acq_rel</code></a>.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::load">atomic&lt;shared_ptr&lt;T&gt;&gt;::load</h2>
+<pre><code class="language-cpp">std::shared_ptr&lt;T&gt; load( std::memory_order order = std::memory_order_seq_cst ) const noexcept;
+</code></pre>
+<p>Renvoie atomiquement une copie du pointeur partagé sous-jacent. La mémoire est ordonnée selon <code>order</code>. Le comportement est indéfini si <code>order</code> vaut <a href="../../atomic/memory_order.html"><code>std::memory_order_release</code></a> ou <a href="../../atomic/memory_order.html"><code>std::memory_order_acq_rel</code></a>.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::operator_std::shared_ptr.3CT.3E">atomic&lt;shared_ptr&lt;T&gt;&gt;::operator std::shared_ptr&lt;T&gt;</h2>
+<pre><code class="language-cpp">operator std::shared_ptr&lt;T&gt;() const noexcept;
+</code></pre>
+<p>Équivalent à <code>return load();</code>.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::exchange">atomic&lt;shared_ptr&lt;T&gt;&gt;::exchange</h2>
+<pre><code class="language-cpp">std::shared_ptr&lt;T&gt; exchange( std::shared_ptr&lt;T&gt; desired,
+                             std::memory_order order = std::memory_order_seq_cst ) noexcept;
+</code></pre>
+<p>Remplace atomiquement le <code>std::shared_ptr&lt;T&gt;</code> sous-jacent par <code>desired</code> comme si par <code>p.swap(desired)</code> où <code>p</code> est le <code>std::shared_ptr&lt;T&gt;</code> sous-jacent, et renvoie une copie de la valeur que <code>p</code> avait immédiatement avant l'échange. La mémoire est ordonnée selon <code>order</code>. Il s'agit d'une opération atomique de lecture-modification-écriture.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::compare_exchange_weak.2C_compare_exchange_strong">atomic&lt;shared_ptr&lt;T&gt;&gt;::compare_exchange_weak, compare_exchange_strong</h2>
+<pre><code class="language-cpp">bool compare_exchange_strong( std::shared_ptr&lt;T&gt;&amp; expected, std::shared_ptr&lt;T&gt; desired,
+                              std::memory_order success, std::memory_order failure ) noexcept;  // (1)
+
+bool compare_exchange_weak( std::shared_ptr&lt;T&gt;&amp; expected, std::shared_ptr&lt;T&gt; desired,
+                            std::memory_order success, std::memory_order failure ) noexcept;  // (2)
+
+bool compare_exchange_strong( std::shared_ptr&lt;T&gt;&amp; expected, std::shared_ptr&lt;T&gt; desired,
+                              std::memory_order order = std::memory_order_seq_cst ) noexcept;  // (3)
+
+bool compare_exchange_weak( std::shared_ptr&lt;T&gt;&amp; expected, std::shared_ptr&lt;T&gt; desired,
+                            std::memory_order order = std::memory_order_seq_cst ) noexcept;  // (4)
+</code></pre>
+<ol>
+<li>
+<p>Si le <code>std::shared_ptr&lt;T&gt;</code> sous-jacent stocke la même <code>T*</code> que <code>expected</code> et partage sa propriété avec elle, ou si le <code>expected</code> sous-jacent et <code>desired</code> sont tous deux vides, affecte depuis <code>std::shared_ptr&lt;T&gt;</code> vers le <code>true</code> sous-jacent, renvoie <code>success</code>, et ordonne la mémoire selon <code>std::shared_ptr&lt;T&gt;</code> ; sinon, affecte depuis le <code>expected</code> sous-jacent vers <code>false</code>, renvoie <code>failure</code>, et ordonne la mémoire selon <code>failure</code>. Le comportement est indéfini si <a href="../../atomic/memory_order.html"><code>std::memory_order_release</code></a> est <a href="../../atomic/memory_order.html"><code>std::memory_order_acq_rel</code></a> ou <code>*this</code>. En cas de succès, l'opération est une opération atomique de lecture-modification-écriture sur <code>expected</code>, et <code>*this</code> n'est pas accédé après la mise à jour atomique. En cas d'échec, l'opération est une opération atomique de chargement sur <code>expected</code>, et <code>expected</code> est mis à jour avec la valeur existante lue depuis l'objet atomique. Cette mise à jour de <code>use_count</code> fait partie de cette opération atomique, bien que l'écriture elle-même (ainsi que toute désallocation/destruction ultérieure) ne soit pas obligatoire.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais peut aussi échouer de façon fortuite.</p>
+</li>
+<li>
+<p>Équivalent à : <code>return compare_exchange_strong(expected, desired, order, fail_order);</code>, où <code>fail_order</code> est identique à <code>order</code> sauf que <a href="../../atomic/memory_order.html"><code>std::memory_order_acq_rel</code></a> est remplacé par <a href="../../atomic/memory_order.html"><code>std::memory_order_acquire</code></a> et <a href="../../atomic/memory_order.html"><code>std::memory_order_release</code></a> est remplacé par <a href="../../atomic/memory_order.html"><code>std::memory_order_relaxed</code></a>.</p>
+</li>
+<li>
+<p>Équivalent à : <code>return compare_exchange_weak(expected, desired, order, fail_order);</code>, où <code>fail_order</code> est identique à <code>order</code> sauf que <a href="../../atomic/memory_order.html"><code>std::memory_order_acq_rel</code></a> est remplacé par <a href="../../atomic/memory_order.html"><code>std::memory_order_acquire</code></a> et <a href="../../atomic/memory_order.html"><code>std::memory_order_release</code></a> est remplacé par <a href="../../atomic/memory_order.html"><code>std::memory_order_relaxed</code></a>.</p>
+</li>
+</ol>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::wait">atomic&lt;shared_ptr&lt;T&gt;&gt;::wait</h2>
+<pre><code class="language-cpp">void wait( std::shared_ptr&lt;T&gt; old,
+           std::memory_order order = std::memory_order_seq_cst ) const noexcept;
+</code></pre>
+<p>Effectue une opération d'attente atomique.</p>
+<p>Compare <code>load(order)</code> à <code>old</code> et, s'ils sont équivalents, bloque jusqu'à ce que <code>*this</code> soit notifié par <code>notify_one()</code> ou <code>notify_all()</code>. Ceci est répété jusqu'à ce que <code>load(order)</code> change. Cette fonction garantit de ne retourner que si la valeur a changé, même si l'implémentation sous-jacente débloque de façon spurieuse.</p>
+<p>La mémoire est ordonnée selon <code>order</code>. Le comportement est indéfini si <code>order</code> est <a href="../../atomic/memory_order.html"><code>std::memory_order_release</code></a> ou <a href="../../atomic/memory_order.html"><code>std::memory_order_acq_rel</code></a>.</p>
+<p>Notes : deux <code>shared_ptr</code> sont équivalents s'ils stockent le même pointeur et soit partagent la propriété, soit sont tous deux vides.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::notify_one">atomic&lt;shared_ptr&lt;T&gt;&gt;::notify_one</h2>
+<pre><code class="language-cpp">void notify_one() noexcept;
+</code></pre>
+<p>Effectue une opération atomique de notification.</p>
+<p>S'il existe un thread bloqué dans des opérations d'attente atomiques (c.-à-d. <code>wait()</code>) sur <code>*this</code>, alors débloque au moins un de ces threads ; sinon, ne fait rien.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::notify_all">atomic&lt;shared_ptr&lt;T&gt;&gt;::notify_all</h2>
+<pre><code class="language-cpp">void notify_all() noexcept;
+</code></pre>
+<p>Effectue une opération atomique de notification.</p>
+<p>Débloque tous les threads bloqués dans des opérations d'attente atomiques (c.-à-d. <code>wait()</code>) sur <code>*this</code>, s'il y en a ; sinon ne fait rien.</p>
+<h2 id="Member_constants">Constantes membres</h2>
+<p>La seule constante membre standard <a href="../../atomic/atomic.html"><code>std::atomic</code></a> <code>is_always_lock_free</code> est aussi fournie par cette spécialisation.</p>
+<h2 id="atomic.3Cshared_ptr.3CT.3E.3E::is_always_lock_free">atomic&lt;shared_ptr&lt;T&gt;&gt;::is_always_lock_free</h2>
+<pre><code class="language-cpp">static constexpr bool is_always_lock_free = /*défini par l'implémentation*/;
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_atomic_shared_ptr"><code>__cpp_lib_atomic_shared_ptr</code></a></td>
+<td><a href="../../compiler_support/20.html#cpp_lib_atomic_shared_ptr_201711L"><code>201711L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><a href="atomic2.html#top"><code>std::atomic&lt;std::shared_ptr&gt;</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3661">LWG 3661</a></td>
+<td>C++20</td>
+<td><code>atomic&lt;shared_ptr&lt;T&gt;&gt;</code> n'était pas initialisable en constante à partir de <code>nullptr</code></td>
+<td>rendu initialisable en constante</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3893">LWG 3893</a></td>
+<td>C++20</td>
+<td><a href="https://cplusplus.github.io/LWG/issue3661">LWG3661</a> a rendu <code>atomic&lt;shared_ptr&lt;T&gt;&gt;</code> non affectable à partir de <code>nullptr_t</code></td>
+<td>affectabilité rétablie</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../atomic/atomic.html">atomic</a> (C++11)</strong> — modèle de classe atomic et spécialisations pour bool, entiers,nombres à virgule flottante, <em>(depuis C++20)</em> et types pointeurs <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::flat_map&lt;Key,T,Compare,KeyContainer,MappedContainer&gt;::emplace_hint — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/flat_map.html">std::flat_map</a></nav>
+<h1 id="std-flat_map-key-t-compare-keycontainer-mappedcontainer-emplace_hint"><code>std::flat_map&lt;Key,T,Compare,KeyContainer,MappedContainer&gt;::emplace_hint</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/flat_map/emplace_hint">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class... Args &gt;
+iterator emplace_hint( const_iterator hint, Args&amp;&amp;... args );  // (depuis C++23)
+</code></pre>
+<p>Insère un nouvel élément dans le conteneur aussi près que possible de la position juste avant <code>hint</code>.</p>
+<p>Le constructeur du type d'élément (<code>value_type</code>, soit <code>std::pair&lt;const Key, T&gt;</code>) est appelé avec exactement les mêmes arguments que ceux fournis à la fonction, transmis avec <code>std::forward&lt;Args&gt;(args)...</code>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Les informations sur l'invalidation des itérateurs sont reprises de <a href="https://en.cppreference.com/w/Template:cpp/container/note_iterator_invalidation">ici</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>hint</code> — itérateur vers la position avant laquelle le nouvel élément sera inséré</li>
+<li><code>args</code> — arguments à transmettre au constructeur de l'élément</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur vers l'élément inséré, ou vers l'élément qui a empêché l'insertion.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Si une exception est levée pour quelque raison que ce soit, cette fonction n'a aucun effet (<a href="../../language/exceptions.html#Exception_safety">garantie forte de sécurité d'exception</a>).</p>
+<h2 id="Complexity">Complexité</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;cstddef&gt;
+#include &lt;functional&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;flat_map&gt;
+
+const int n_operations = 100'500'0;
+
+std::size_t map_emplace()
+{
+    std::flat_map&lt;int, char&gt; map;
+    for (int i = 0; i &lt; n_operations; ++i)
+        map.emplace(i, 'a');
+    return map.size();
+}
+
+std::size_t map_emplace_hint()
+{
+    std::flat_map&lt;int, char&gt; map;
+    auto it = map.begin();
+    for (int i = 0; i &lt; n_operations; ++i)
+    {
+        map.emplace_hint(it, i, 'b');
+        it = map.end();
+    }
+    return map.size();
+}
+
+std::size_t map_emplace_hint_wrong()
+{
+    std::flat_map&lt;int, char&gt; map;
+    auto it = map.begin();
+    for (int i = n_operations; i &gt; 0; --i)
+    {
+        map.emplace_hint(it, i, 'c');
+        it = map.end();
+    }
+    return map.size();
+}
+
+std::size_t map_emplace_hint_corrected()
+{
+    std::flat_map&lt;int, char&gt; map;
+    auto it = map.begin();
+    for (int i = n_operations; i &gt; 0; --i)
+    {
+        map.emplace_hint(it, i, 'd');
+        it = map.begin();
+    }
+    return map.size();
+}
+
+std::size_t map_emplace_hint_closest()
+{
+    std::flat_map&lt;int, char&gt; map;
+    auto it = map.begin();
+    for (int i = 0; i &lt; n_operations; ++i)
+        it = map.emplace_hint(it, i, 'e');
+    return map.size();
+}
+
+double time_it(std::function&lt;std::size_t()&gt; map_test,
+               std::string what = &quot;&quot;, double ratio = 0.0)
+{
+    const auto start = std::chrono::system_clock::now();
+    const std::size_t map_size = map_test();
+    const auto stop = std::chrono::system_clock::now();
+    std::chrono::duration&lt;double, std::milli&gt; time = stop - start;
+    if (what.size() &amp;&amp; map_size)
+        std::cout &lt;&lt; std::setw(8) &lt;&lt; time &lt;&lt; &quot; for &quot; &lt;&lt; what &lt;&lt; &quot; (ratio: &quot;
+                  &lt;&lt; (ratio == 0.0 ? 1.0 : ratio / time.count()) &lt;&lt; &quot;)\n&quot;;
+    return time.count();
+}
+
+int main()
+{
+    std::cout &lt;&lt; std::fixed &lt;&lt; std::setprecision(2);
+    time_it(map_emplace); // préchauffage du cache
+    const auto x = time_it(map_emplace, &quot;plain emplace&quot;);
+    time_it(map_emplace_hint, &quot;emplace with correct hint&quot;, x);
+    time_it(map_emplace_hint_wrong, &quot;emplace with wrong hint&quot;, x);
+    time_it(map_emplace_hint_corrected, &quot;corrected emplace&quot;, x);
+    time_it(map_emplace_hint_closest, &quot;emplace using returned iterator&quot;, x);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">...TODO...
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="emplace.html">emplace</a></strong> — construit un élément sur place <em>(fonction membre publique)</em></li>
+<li><strong><a href="insert.html">insert</a></strong> — insère des éléments <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

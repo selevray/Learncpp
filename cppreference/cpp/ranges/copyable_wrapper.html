@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enveloppe assignable (C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="enveloppe-assignable-c-20">Enveloppe assignable (C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/copyable_wrapper">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+    requires std::copy_constructible&lt;T&gt; &amp;&amp; std::is_object_v&lt;T&gt;
+class /*copyable-box*/;  // (depuis C++20) (jusqu'à C++23) ( exposition uniquement* )
+
+template&lt; class T &gt;
+    requires std::move_constructible&lt;T&gt; &amp;&amp; std::is_object_v&lt;T&gt;
+class /*movable-box*/;  // (depuis C++23) ( exposition uniquement* )
+</code></pre>
+<p><a href="single_view.html"><code>ranges::single_view</code></a>, <a href="repeat_view.html"><code>ranges::repeat_view</code></a>, <em>(depuis C++23)</em> et les adaptateurs d'intervalles qui stockent un objet invocable sont spécifiés en termes de modèle de classe exposé uniquement [<code>copyable-box</code> <em>(jusqu'à C++23)</em> | <code>movable-box</code> <em>(depuis C++23)</em>]. Le nom présenté ici n'est destiné qu'à l'exposition.</p>
+<p>L'enveloppe se comporte exactement comme <code>std::optional&lt;T&gt;</code>, sauf que le constructeur par défaut, l'opérateur d'affectation par copie et l'opérateur d'affectation par déplacement sont (conditionnellement) différents de ceux de <a href="../utility/optional.html"><code>std::optional</code></a>, qui ajoute à <code>T</code> l'assignabilité lorsque nécessaire et lui permet de toujours satisfaire <a href="../concepts/copyable.html"><code>copyable</code></a>ou <a href="../concepts/movable.html"><code>movable</code></a> <em>(depuis C++23)</em>.</p>
+<blockquote>
+<p>Si <code>T</code> est déjà <a href="../concepts/copyable.html"><code>copyable</code></a>, ou si <code>std::is_nothrow_move_constructible_v&lt;T&gt;</code> et <code>std::is_nothrow_copy_constructible_v&lt;T&gt;</code> sont <code>true</code>, <code>/*copyable-box*/&lt;T&gt;</code> ne peut stocker qu'un objet <code>T</code>, car il contient toujours une valeur.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>Si <code>T</code></p>
+<ul>
+<li>est déjà <a href="../concepts/copyable.html"><code>copyable</code></a>, ou</li>
+<li>est <a href="../concepts/copy_constructible.html"><code>copy_constructible</code></a> et <code>std::is_nothrow_move_constructible_v&lt;T&gt;</code> et <code>std::is_nothrow_copy_constructible_v&lt;T&gt;</code> sont toutes deux <code>true</code>, ou</li>
+<li>ne satisfait pas <a href="../concepts/copy_constructible.html"><code>copy_constructible</code></a> mais satisfait <a href="../concepts/movable.html"><code>movable</code></a>, ou</li>
+<li>ne satisfait pas <a href="../concepts/copy_constructible.html"><code>copy_constructible</code></a> mais <code>std::is_nothrow_move_constructible_v&lt;T&gt;</code> est <code>true</code>,</li>
+</ul>
+<p><code>/*movable-box*/&lt;T&gt;</code> ne peut stocker qu'un objet <code>T</code>, car il contient toujours une valeur.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>T</code> — le type de la valeur contenue doit être un type objet qui modélise [<a href="../concepts/copy_constructible.html"><code>copy_constructible</code></a> <em>(jusqu'à C++23)</em> | <a href="../concepts/move_constructible.html"><code>move_constructible</code></a> <em>(depuis C++23)</em>]</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<h2 id="Default_constructor">Constructeur par défaut</h2>
+<pre><code class="language-cpp">constexpr /*copyable-box*/() noexcept(std::is_nothrow_default_constructible_v&lt;T&gt;)
+    requires std::default_initializable&lt;T&gt;
+    : /*copyable-box*/(std::in_place) { }  // (depuis C++20) (jusqu'à C++23)
+
+constexpr /*movable-box*/() noexcept(std::is_nothrow_default_constructible_v&lt;T&gt;)
+    requires std::default_initializable&lt;T&gt;
+    : /*movable-box*/(std::in_place) { }  // (depuis C++23)
+</code></pre>
+<p>Le constructeur par défaut est fourni si et seulement si <code>T</code> modélise <a href="../concepts/default_initializable.html"><code>default_initializable</code></a>.</p>
+<p>Un wrapper construit par défaut contient un objet <code>T</code> initialisé par valeur.</p>
+<h2 id="Assignment_operators">Opérateurs d'affectation</h2>
+<pre><code class="language-cpp">constexpr /*copyable-box*/&amp; operator=(const /*copyable-box*/&amp; other);
+    noexcept(/* voir ci-dessous */);  // (depuis C++20) (jusqu'à C++23)
+
+constexpr /*movable-box*/&amp; operator=(const /*movable-box*/&amp; other);
+    noexcept(/* voir ci-dessous */) requires std::copy_constructible&lt;T&gt;;  // (depuis C++23)
+
+constexpr /*copyable-box*/&amp; operator=(/*copyable-box*/&amp;&amp; other)
+    noexcept(std::is_nothrow_move_constructible_v&lt;T&gt;);  // (depuis C++20) (jusqu'à C++23)
+
+constexpr /*movable-box*/&amp; operator=(/*movable-box*/&amp;&amp; other)
+    noexcept(std::is_nothrow_move_constructible_v&lt;T&gt;);  // (depuis C++23)
+</code></pre>
+<ol>
+<li>Si <code>std::copyable&lt;T&gt;</code> n'est pas modélisé, l'opérateur d'affectation par copie est défini de manière équivalente comme suit :</li>
+</ol>
+<blockquote>
+<p><code>constexpr /*copyable-box*/&amp; operator=(const /*copyable-box*/&amp; other) noexcept(std::is_nothrow_copy_constructible_v&lt;T&gt;) { if (this != std::addressof(other)) if (other) emplace(*other); else reset(); return *this; }</code></p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>constexpr /*movable-box*/&amp; operator=(const /*movable-box*/&amp; other) noexcept(std::is_nothrow_copy_constructible_v&lt;T&gt;) requires std::copy_constructible&lt;T&gt; { if (this != std::addressof(other)) if (other) emplace(*other); else reset(); return *this; }</code></p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Sinon, il est identique à <a href="../utility/optional/operator%3D.html">l'opérateur d'affectation par copie de <code>std::optional</code></a>.</p>
+<ol start="2">
+<li>Si <code>std::movable&lt;T&gt;</code> n'est pas modélisé, l'opérateur d'affectation par déplacement est défini de manière équivalente comme suit :</li>
+</ol>
+<blockquote>
+<p><code>constexpr /*copyable-box*/&amp; operator=(/*copyable-box*/&amp;&amp; other) noexcept(std::is_nothrow_move_constructible_v&lt;T&gt;) { if (this != std::addressof(other)) if (other) emplace(std::move(*other)); else reset(); return *this; }</code></p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>constexpr /*movable-box*/&amp; operator=(/*movable-box*/&amp;&amp; other) noexcept(std::is_nothrow_move_constructible_v&lt;T&gt;) { if (this != std::addressof(other)) if (other) emplace(std::move(*other)); else reset(); return *this; }</code></p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Sinon, il est identique à <a href="../utility/optional/operator%3D.html">l'opérateur d'affectation par déplacement de <code>std::optional</code></a>.</p>
+<h2 id="Members_identical_to_std::optional">Membres identiques à std::optional</h2>
+<h2 id="Member_functions_2">Fonctions membres</h2>
+<ul>
+<li><strong><a href="../utility/optional/optional.html">(constructeur)</a></strong> — construit l'objet <code>optional</code> <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+<li><strong><a href="../utility/optional/~optional.html">(destructeur)</a></strong> — détruit la valeur contenue, s'il y en a une <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+<li><strong><a href="../utility/optional/operator%3D.html">operator=</a></strong> — affecte le contenu <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+</ul>
+<p><strong>##### Observateurs {#Observers}</strong></p>
+<ul>
+<li><strong><a href="../utility/optional/operator_star_.html">operator-&gt;operator*</a></strong> — accède à la valeur contenue <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+<li><strong><a href="../utility/optional/operator_bool.html">operator boolhas_value</a></strong> — vérifie si l'objet contient une valeur <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+</ul>
+<p><strong>##### Modificateurs {#Modifiers}</strong></p>
+<ul>
+<li><strong><a href="../utility/optional/reset.html">reset</a></strong> — détruit toute valeur contenue <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+<li><strong><a href="../utility/optional/emplace.html">emplace</a></strong> — construit la valeur contenue sur place <em>(fonction membre publique de <code>std::optional&lt;T&gt;</code>)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Un [<code>copyable-box</code> <em>(jusqu'à C++23)</em> | <code>movable-box</code> <em>(depuis C++23)</em>] ne contient aucune valeur que si</p>
+<ul>
+<li><code>T</code> ne modélise pas <a href="../concepts/movable.html"><code>movable</code></a> ou <a href="../concepts/copyable.html"><code>copyable</code></a>, et une exception est levée lors de l'affectation par déplacement ou par copie respectivement, ou</li>
+<li>il est initialisé/affecté à partir d'un autre wrapper sans valeur.</li>
+</ul>
+<p>Avant <a href="https://wg21.link/P2325R3">P2325R3</a>, le wrapper s'appelait <code>semiregular-box</code> dans la norme et satisfaisait toujours <a href="../concepts/semiregular.html"><code>semiregular</code></a>, car le constructeur par défaut était toujours fourni (qui pouvait construire un wrapper sans valeur).</p>
+<p><strong>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_lib_ranges"><code>__cpp_lib_ranges</code></a> | <a href="../compiler_support/20.html#cpp_lib_ranges_201911L"><code>201911L</code></a> | <em>(C++20)</em> | <a href="../ranges.html">Bibliothèque des plages</a> et <a href="../algorithm/ranges.html">algorithmes contraints</a></p>
+<p><a href="../compiler_support/20.html#cpp_lib_ranges_202106L"><code>202106L</code></a> | <em>(C++20)</em><br />
+<em>(DR)</em> | <a href="view.html">Vues</a> non <a href="../concepts/default_initializable.html">initialisables par défaut</a></p>
+<p><a href="../compiler_support/23.html#cpp_lib_ranges_202207L"><code>202207L</code></a> | <em>(C++23)</em> | Assouplissement des <a href="../ranges.html#Range_adaptors">adaptateurs d'intervalles</a> pour autoriser les types à déplacement seul</p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P2325R3">P2325R3</a></td>
+<td>C++20</td>
+<td>si <code>T</code> n'est pas <a href="../concepts/default_initializable.html"><code>default_initializable</code></a>, le constructeur par défaut construit un wrapper qui ne contient pas de valeur</td>
+<td>le wrapper est aussi non <a href="../concepts/default_initializable.html"><code>default_initializable</code></a></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3572">LWG 3572</a></td>
+<td>C++20</td>
+<td>les opérateurs d'affectation conditionnellement différents n'étaient pas constexpr</td>
+<td>rendus constexpr</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="single_view.html">ranges::single_viewviews::single</a> (C++20)</strong> — une <a href="view.html"><code>view</code></a> contenant un unique élément de valeur spécifiée <em>(modèle de classe)</em> <em>(objet point de personnalisation)</em></li>
+<li><strong><a href="repeat_view.html">ranges::repeat_viewviews::repeat</a> (C++23)</strong> — une <a href="view.html"><code>view</code></a> constituée d'une séquence générée en produisant répétitivement la même valeur <em>(modèle de classe)</em> <em>(objet point de personnalisation)</em></li>
+<li><strong><a href="filter_view.html">ranges::filter_viewviews::filter</a> (C++20)</strong> — un <a href="view.html"><code>view</code></a> constitué des éléments d'un <a href="range.html"><code>range</code></a> qui satisfont un prédicat <em>(modèle de classe)</em> <em>(objet d'adaptateur d'intervalle)</em></li>
+<li><strong><a href="transform_view.html">ranges::transform_viewviews::transform</a> (C++20)</strong> — une <a href="view.html"><code>view</code></a> d'une séquence qui applique une fonction de transformation à chaque élément <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+<li><strong><a href="take_while_view.html">ranges::take_while_viewviews::take_while</a> (C++20)</strong> — une <a href="view.html"><code>view</code></a> constituée des éléments initiaux d'un autre <a href="view.html"><code>view</code></a>, jusqu'au premier élément pour lequel un prédicat renvoie <code>false</code> <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+<li><strong><a href="drop_while_view.html">ranges::drop_while_viewviews::drop_while</a> (C++20)</strong> — une <a href="view.html"><code>view</code></a> constituée des éléments d'un autre <a href="view.html"><code>view</code></a>, en ignorant la sous-séquence initiale d'éléments jusqu'au premier élément pour lequel le prédicat renvoie <code>false</code> <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+<li><strong><a href="zip_transform_view.html">ranges::zip_transform_viewviews::zip_transform</a> (C++23)</strong> — une <a href="view.html"><code>view</code></a> constituée des résultats de l'application d'une fonction de transformation aux éléments correspondants des vues adaptées <em>(modèle de classe)</em> <em>(objet point de personnalisation)</em></li>
+<li><strong><a href="adjacent_transform_view.html">ranges::adjacent_transform_viewviews::adjacent_transform</a> (C++23)</strong> — une <a href="view.html"><code>view</code></a> constituée des résultats de l'application d'une fonction de transformation aux éléments adjacents de la vue adaptée <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::condition_variable::wait_until — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/condition_variable.html">std::condition_variable</a></nav>
+<h1 id="std-condition_variable-wait_until"><code>std::condition_variable::wait_until</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/condition_variable/wait_until">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class Clock, class Duration &gt;
+std::cv_status
+    wait_until( std::unique_lock&lt;std::mutex&gt;&amp; lock,
+                const std::chrono::time_point&lt;Clock, Duration&gt;&amp; abs_time );  // (1) (depuis C++11)
+
+template&lt; class Clock, class Duration, class Predicate &gt;
+bool wait_until( std::unique_lock&lt;std::mutex&gt;&amp; lock,
+                 const std::chrono::time_point&lt;Clock, Duration&gt;&amp; abs_time,
+                 Predicate pred );  // (2) (depuis C++11)
+</code></pre>
+<p><code>wait_until</code> bloque le thread courant jusqu'à ce que la variable de condition soit notifiée, que le point temporel donné soit atteint, ou qu'un réveil parasite se produise. <code>pred</code> peut être fourni facultativement pour détecter les réveils parasites.</p>
+<ol>
+<li>Appelle atomiquement <code>lock.unlock()</code> et bloque sur <code>*this</code>.</li>
+</ol>
+<p>Le thread sera débloqué lorsque <a href="notify_all.html"><code>notify_all()</code></a> ou <a href="notify_one.html"><code>notify_one()</code></a> sera exécuté, ou lorsque <code>abs_time</code> sera atteint. Il peut aussi être débloqué de façon parasite.</p>
+<p>Une fois débloqué, appelle <code>lock.lock()</code> (éventuellement en bloquant sur le verrou), puis retourne.</p>
+<ol start="2">
+<li>Équivalent à <code>while (!pred()) if (wait_until(lock, abs_time) == std::cv_status::timeout) return pred();return true;</code>.</li>
+</ol>
+<p>Cette surcharge peut être utilisée pour ignorer les réveils parasites lors de l'attente qu'une condition particulière devienne vraie.</p>
+<p>Immédiatement après le retour de <code>wait_until</code>, <code>lock.owns_lock()</code> est <code>true</code>, et <code>lock.mutex()</code> est verrouillé par le thread appelant. Si ces postconditions ne peuvent pas être satisfaites<a href="wait_until.html#cite_note-1">[1]</a>, appelle <a href="../../error/terminate.html"><code>std::terminate</code></a>.</p>
+<p>Si l'une des conditions suivantes est satisfaite, le comportement est indéfini :</p>
+<ul>
+<li><code>lock.owns_lock()</code> is <code>false</code>.</li>
+<li><code>lock.mutex()</code> n'est pas verrouillé par le thread appelant.</li>
+<li>Si d'autres threads attendent également sur <code>*this</code>, <code>lock.mutex()</code> est différent du mutex déverrouillé par les fonctions d'attente (<a href="wait.html"><code>wait</code></a>, <a href="wait_for.html"><code>wait_for</code></a> et <code>wait_until</code>) appelées sur <code>*this</code> par ces threads.</li>
+</ul>
+<ol>
+<li><a href="wait_until.html#cite_ref-1">↑</a> Cela peut se produire si le reverrouillage du mutex lève une exception.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>lock</code> — un lock qui doit être verrouillé par le thread appelant</li>
+<li><code>abs_time</code> — le point temporel où l'attente expire</li>
+<li><code>pred</code> — le prédicat permettant de vérifier si l'attente peut être terminée</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>Predicate</code> doit satisfaire aux exigences de <a href="../../named_req/FunctionObject.html"><em>FunctionObject</em></a>.</li>
+<li><code>pred()</code> doit être une expression valide, et son type et sa catégorie de valeur doivent satisfaire les exigences <a href="../../named_req/BooleanTestable.html"><em>BooleanTestable</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p><code>std::cv_status::timeout</code> si <code>abs_time</code> a été atteint, sinon <code>std::cv_status::no_timeout</code>.</p>
+</li>
+<li>
+<p>La dernière valeur de <code>pred()</code> avant le retour à l'appelant.</p>
+</li>
+</ol>
+<h2 id="Exceptions">Exceptions</h2>
+<ol>
+<li>
+<p>Exceptions liées aux délais d'attente.</p>
+</li>
+<li>
+<p>Exceptions liées aux délais d'attente, et toute exception levée par <code>pred</code>.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>La norme recommande d'utiliser l'horloge liée à <code>abs_time</code> pour mesurer le temps ; cette horloge n'est pas tenue d'être monotone. Aucune garantie n'est donnée quant au comportement de cette fonction si l'horloge est ajustée de manière discontinue, mais les implémentations existantes convertissent <code>abs_time</code> de <code>Clock</code> vers <a href="../../chrono/system_clock.html"><code>std::chrono::system_clock</code></a> et délèguent à POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_cond_timedwait.html"><code>pthread_cond_timedwait</code></a> afin que l'attente tienne compte des ajustements de l'horloge système, mais pas de ceux de <code>Clock</code> fournie par l'utilisateur. Dans tous les cas, la fonction peut aussi attendre plus longtemps que jusqu'à <code>abs_time</code>, en raison de délais d'ordonnancement ou de contention sur les ressources.</p>
+<p>Même si l'horloge utilisée est <a href="../../chrono/steady_clock.html"><code>std::chrono::steady_clock</code></a> ou une autre horloge monotone, un ajustement de l'horloge système peut provoquer un réveil parasite.</p>
+<p>Les effets de <code>notify_one()</code>/<code>notify_all()</code> et de chacune des trois parties atomiques de <code>wait()</code>/<code>wait_for()</code>/<code>wait_until()</code> (déverrouillage+attente, réveil et verrouillage) ont lieu selon un ordre total unique qui peut être vu comme l'<a href="../../atomic/memory_order.html#Modification_order">ordre de modification</a> d'une variable atomique : cet ordre est propre à cette variable de condition. Il est ainsi impossible à <code>notify_one()</code> de, par exemple, être retardé et de débloquer un thread qui a commencé à attendre juste après l'appel à <code>notify_one()</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;condition_variable&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+std::condition_variable cv;
+std::mutex cv_m; // Ce mutex sert à trois choses :
+                 // 1) synchroniser les accès à i
+                 // 2) synchroniser les accès à std::cerr
+                 // 3) pour la variable de condition cv
+int i = 0;
+
+void waits()
+{
+    std::unique_lock&lt;std::mutex&gt; lk(cv_m);
+    std::cerr &lt;&lt; &quot;Waiting... \n&quot;;
+    cv.wait(lk, []{ return i == 1; });
+    std::cerr &lt;&lt; &quot;...finished waiting. i == 1\n&quot;;
+}
+
+void signals()
+{
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(cv_m);
+        std::cerr &lt;&lt; &quot;Notifying...\n&quot;;
+    }
+    cv.notify_all();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(cv_m);
+        i = 1;
+        std::cerr &lt;&lt; &quot;Notifying again...\n&quot;;
+    }
+    cv.notify_all();
+}
+
+int main()
+{
+    std::thread t1(waits), t2(waits), t3(waits), t4(signals);
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Waiting...
+Waiting...
+Waiting...
+Notifying...
+Notifying again...
+...finished waiting. i == 1
+...finished waiting. i == 1
+...finished waiting. i == 1
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2093">LWG 2093</a></td>
+<td>C++11</td>
+<td>les exceptions liées aux délais d'attente étaient absentes de la spécification</td>
+<td>mentionne ces exceptions</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2114">LWG 2114</a> (<a href="https://wg21.link/P2167R3">P2167R3</a>)</td>
+<td>C++11</td>
+<td>la convertibilité vers <code>bool</code> était trop faible pour refléter les attentes des implémentations</td>
+<td>exigences renforcées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2135">LWG 2135</a></td>
+<td>C++11</td>
+<td>le comportement était peu clair si <code>lock.lock()</code> lève une exception</td>
+<td>appelle <a href="../../error/terminate.html"><code>std::terminate</code></a> dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="wait.html">wait</a></strong> — bloque le thread courant jusqu'à ce que la variable de condition soit réveillée <em>(fonction membre publique)</em></li>
+<li><strong><a href="wait_for.html">wait_for</a></strong> — bloque le thread courant jusqu'à ce que la variable de condition soit réveillée ou après l'expiration de la durée d'attente spécifiée <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

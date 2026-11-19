@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::chrono::round(std::chrono::duration) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/chrono.html">Utilitaires de date et d&#x27;heure</a> › <a href="../../../cpp/chrono/duration.html">std::chrono::duration</a></nav>
+<h1 id="std-chrono-round-std-chrono-duration"><code>std::chrono::round(std::chrono::duration)</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/chrono/duration/round">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;chrono&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class ToDuration, class Rep, class Period &gt;
+constexpr ToDuration round( const std::chrono::duration&lt;Rep, Period&gt;&amp; d );  // (depuis C++17)
+</code></pre>
+<p>Renvoie la valeur <code>t</code> représentable dans <code>ToDuration</code> la plus proche de <code>d</code>. S'il existe deux telles valeurs, renvoie la valeur paire (c'est-à-dire la valeur <code>t</code> telle que <code>t % 2 == 0</code>).</p>
+<p>La fonction ne participe pas à la résolution de surcharge sauf si <code>ToDuration</code> est une spécialisation de <a href="../duration.html"><code>std::chrono::duration</code></a> et <code>std::chrono::treat_as_floating_point_v&lt;typename ToDuration::rep&gt;</code> est <code>false</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>d</code> — durée à convertir</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>d</code> arrondi à la durée la plus proche de type <code>ToDuration</code>, avec arrondi au pair dans les cas médians.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt;class&gt; inline constexpr bool is_duration_v = false;
+    template&lt;class Rep, class Period&gt; inline constexpr bool is_duration_v&lt;
+        std::chrono::duration&lt;Rep, Period&gt;&gt; = true;
+}
+
+template&lt;class To, class Rep, class Period,
+         class = std::enable_if_t&lt;detail::is_duration_v&lt;To&gt; &amp;&amp;
+                !std::chrono::treat_as_floating_point_v&lt;typename To::rep&gt;&gt;&gt;
+constexpr To round(const std::chrono::duration&lt;Rep, Period&gt;&amp; d)
+{
+    To t0 = std::chrono::floor&lt;To&gt;(d);
+    To t1 = t0 + To{1};
+    auto diff0 = d - t0;
+    auto diff1 = t1 - d;
+    if (diff0 == diff1)
+    {
+        if (t0.count() &amp; 1)
+            return t1;
+        return t0;
+    }
+    else if (diff0 &lt; diff1)
+        return t0;
+    return t1;
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    using namespace std::chrono_literals;
+    std::cout &lt;&lt; &quot;Duration\tFloor\tRound\tCeil\n&quot;;
+    for (using Sec = std::chrono::seconds;
+        auto const d : {+4999ms, +5000ms, +5001ms, +5499ms, +5500ms, +5999ms,
+                        -4999ms, -5000ms, -5001ms, -5499ms, -5500ms, -5999ms})
+        std::cout &lt;&lt; std::showpos &lt;&lt; d &lt;&lt; &quot;\t\t&quot;
+                  &lt;&lt; std::chrono::floor&lt;Sec&gt;(d) &lt;&lt; '\t'
+                  &lt;&lt; std::chrono::round&lt;Sec&gt;(d) &lt;&lt; '\t'
+                  &lt;&lt; std::chrono::ceil &lt;Sec&gt;(d) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Duration	Floor	Round	Ceil
++4999ms		+4s	+5s	+5s
++5000ms		+5s	+5s	+5s
++5001ms		+5s	+5s	+6s
++5499ms		+5s	+5s	+6s
++5500ms		+5s	+6s	+6s
++5999ms		+5s	+6s	+6s
+-4999ms		-5s	-5s	-4s
+-5000ms		-5s	-5s	-5s
+-5001ms		-6s	-5s	-5s
+-5499ms		-6s	-5s	-5s
+-5500ms		-6s	-6s	-5s
+-5999ms		-6s	-6s	-5s
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="duration_cast.html">duration_cast</a> (C++11)</strong> — convertit une durée en une autre, avec un intervalle de tick différent <em>(modèle de fonction)</em></li>
+<li><strong><a href="floor.html">floor(std::chrono::duration)</a> (C++17)</strong> — convertit une durée en une autre, en arrondissant par défaut <em>(modèle de fonction)</em></li>
+<li><strong><a href="ceil.html">ceil(std::chrono::duration)</a> (C++17)</strong> — convertit une durée en une autre, en arrondissant par excès <em>(modèle de fonction)</em></li>
+<li><strong><a href="../time_point/round.html">round(std::chrono::time_point)</a> (C++17)</strong> — convertit un time_point en un autre, en arrondissant au plus proche, les égalités vers le pair <em>(modèle de fonction)</em></li>
+<li><strong><a href="../../numeric/math/round.html">roundroundfroundllroundlroundflroundlllroundllroundfllroundl</a> (C++11) (C++11) (C++11) (C++11) (C++11) (C++11) (C++11) (C++11) (C++11)</strong> — entier le plus proche, en arrondissant à partir de zéro dans les cas médians <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

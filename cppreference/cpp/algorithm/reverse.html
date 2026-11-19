@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::reverse — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-reverse"><code>std::reverse</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/reverse">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class BidirIt &gt;
+void reverse( BidirIt first, BidirIt last );  // (1) (constexpr depuis C++20)
+
+template&lt; class ExecutionPolicy, class BidirIt &gt;
+void reverse( ExecutionPolicy&amp;&amp; policy, BidirIt first, BidirIt last );  // (2) (depuis C++17)
+</code></pre>
+<ol>
+<li>Inverse l'ordre des éléments de l'intervalle <code>[first,last)</code>.</li>
+</ol>
+<p>Se comporte comme si <a href="iter_swap.html"><code>std::iter_swap</code></a> était appliqué à chaque paire d'itérateurs <code>first + i</code> et <code>(last - i) - 1</code>, pour chaque entier <code>i</code> dans <code>[0,std::distance(first, last) / 2)</code>.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais exécuté selon <code>policy</code>.</li>
+</ol>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</p>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::decay_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::remove_cvref_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Si [<code>*first</code> n'est pas <a href="../named_req/Swappable.html"><em>Swappable</em></a> <em>(jusqu'à C++20)</em> | <code>BidirIt</code> n'est pas <a href="../named_req/ValueSwappable.html"><em>ValueSwappable</em></a> <em>(depuis C++20)</em>], le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments à inverser</li>
+<li><code>policy</code> — la <a href="execution_policy_tag_t.html">politique d'exécution</a> à utiliser</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>BidirIt</code> doit satisfaire aux exigences de <a href="../named_req/BidirectionalIterator.html"><em>LegacyBidirectionalIterator</em></a>.</li>
+</ul>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>std::distance(first, last) / 2</code> échanges.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge avec un paramètre de modèle nommé <code>ExecutionPolicy</code> signale les erreurs comme suit :</p>
+<ul>
+<li>Si l'exécution d'une fonction invoquée dans le cadre de l'algorithme lève une exception et <code>ExecutionPolicy</code> est l'une des <a href="execution_policy_tag_t.html">politiques standard</a>, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée. Pour toute autre <code>ExecutionPolicy</code>, le comportement est défini par l'implémentation.</li>
+<li>Si l'algorithme échoue à allouer de la mémoire, <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> est levée.</li>
+</ul>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Voir aussi les implémentations dans <a href="https://github.com/gcc-mirror/gcc/blob/14d8a5ae472ca5743016f37da2dd4770d83dea21/libstdc%2B%2B-v3/include/bits/stl_algo.h#L1087-L1152">libstdc++</a>, <a href="https://github.com/llvm/llvm-project/blob/6adbc83ee9e46b476e0f75d5671c3a21f675a936/libcxx/include/__algorithm/reverse.h">libc++</a> et <a href="https://github.com/microsoft/STL/blob/472161105d596192194d4715ccad307c6c163b4a/stl/inc/xutility#L5335-L5370">MSVC STL</a>.</p>
+<pre><code class="language-cpp">template&lt;class BidirIt&gt;
+constexpr // depuis C++20
+void reverse(BidirIt first, BidirIt last)
+{
+    using iter_cat = typename std::iterator_traits&lt;BidirIt&gt;::iterator_category;
+
+    // Le dispatch par étiquette, par exemple en appelant reverse_impl(first, last, iter_cat()),
+    // peut être utilisé dans les modes C++14 et antérieurs.
+    if constexpr (std::is_base_of_v&lt;std::random_access_iterator_tag, iter_cat&gt;)
+    {
+        if (first == last)
+            return;
+
+        for (--last; first &lt; last; (void)++first, --last)
+            std::iter_swap(first, last);
+    }
+    else
+        while (first != last &amp;&amp; first != --last)
+            std::iter_swap(first++, last);
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Les implémentations (par ex. <a href="https://github.com/microsoft/STL/blob/main/stl/src/vector_algorithms.cpp">MSVC STL</a>) peuvent activer la vectorisation lorsque le type d'itérateur satisfait <a href="../named_req/ContiguousIterator.html"><em>LegacyContiguousIterator</em></a> et que l'échange de sa valeur n'appelle ni fonction membre spéciale non triviale ni une <code>swap</code> trouvée par <a href="../language/adl.html">ADL</a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;vector&gt;
+
+void println(auto rem, auto const&amp; v)
+{
+    for (std::cout &lt;&lt; rem; auto e : v)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector&lt;int&gt; v {1, 2, 3};
+    std::reverse(v.begin(), v.end());
+    println(&quot;after reverse, v = &quot;, v);
+
+    int a[] = {4, 5, 6, 7};
+    std::reverse(std::begin(a), std::end(a));
+    println(&quot;after reverse, a = &quot;, a);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">after reverse, v = 3 2 1
+after reverse, a = 7 6 5 4
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue223">LWG 223</a></td>
+<td>C++98</td>
+<td><a href="../utility/swap.html"><code>std::swap</code></a> était appliqué à chaque paire d'itérateurs</td>
+<td>applique <a href="iter_swap.html"><code>std::iter_swap</code></a> à la place</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2039">LWG 2039</a></td>
+<td>C++98</td>
+<td><a href="iter_swap.html"><code>std::iter_swap</code></a> était aussi appliqué lorsque <code>i</code> est égal à <code>std::distance(first, last) / 2</code></td>
+<td>non appliqué</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="reverse_copy.html">reverse_copy</a></strong> — crée une copie d'une plage inversée <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/reverse.html">ranges::reverse</a> (C++20)</strong> — inverse l'ordre des éléments d'un intervalle <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

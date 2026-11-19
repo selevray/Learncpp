@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclarations en conflit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclarations-en-conflit">Déclarations en conflit</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/conflicting_declarations">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Sauf indication contraire, deux déclarations ne peuvent pas (re)introduire la même entité. Le programme est mal formé si de telles déclarations existent.</p>
+<h2 id="Corresponding_declarations">Déclarations correspondantes</h2>
+<p>Deux déclarations <em>correspondent</em> si elles (re)introduisent le même nom, si elles déclarent toutes deux des constructeurs, ou toutes deux des destructeurs, sauf si</p>
+<ul>
+<li>l'une est une déclaration <a href="using_declaration.html"><code>using</code></a>,</li>
+<li>l'une déclare un type (et non un <a href="typedef.html">nom de typedef</a>) et l'autre déclare une variable, un membre de données non statique autre qu'un membre d'une <a href="union.html#Anonymous_unions">union anonyme</a>, un énumérateur, une fonction ou un modèle de fonction, ou</li>
+<li>chacune déclare une fonction ou un modèle de fonction et elles ne déclarent pas de surcharges correspondantes.</li>
+</ul>
+<h3 id="Corresponding_function_overloads">Surcharges de fonctions correspondantes</h3>
+<p>Deux <a href="function.html">déclarations de fonctions</a> déclarent des <em>surcharges correspondantes</em> si toutes deux déclarent des fonctions satisfaisant toutes les conditions suivantes :</p>
+<ul>
+<li>Elles ont la même <a href="function.html#Parameter-type-list">liste de types de paramètres</a>, en omettant les types des <a href="member_functions.html#Explicit_object_parameter">paramètres d'objet explicites</a> <em>(depuis C++23)</em>.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Elles ont des <a href="constraints.html#Requires_clauses"><code>requires</code> clauses</a> finales <a href="function_template.html#Function_template_overloading">équivalentes</a> (le cas échéant, sauf les <a href="friend.html">déclarations d'amitié</a>).</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>Si toutes deux sont des fonctions membres non statiques, elles doivent en outre satisfaire l'une des exigences suivantes :</li>
+</ul>
+<blockquote>
+<ul>
+<li>Exactement l'une d'elles est une <a href="member_functions.html">fonction membre à paramètre d'objet implicite</a> sans qualificateur ref, et les types de leurs paramètres d'objet, après suppression des références de premier niveau, sont les mêmes.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<ul>
+<li>Leurs paramètres d'objet ont le même type.</li>
+</ul>
+<h3 id="Corresponding_function_template_overloads">Surcharges de modèles de fonctions correspondantes</h3>
+<p>Deux <a href="function_template.html">déclarations de modèles de fonctions</a> déclarent des <em>surcharges correspondantes</em> si toutes deux déclarent des modèles de fonctions satisfaisant toutes les conditions suivantes :</p>
+<ul>
+<li>Leurs listes de paramètres de modèle ont la même longueur.</li>
+<li>Leurs paramètres de modèle correspondants sont <a href="function_template.html#Function_template_overloading">équivalents</a>.</li>
+<li>Elles ont des <a href="function.html#Parameter-type-list">listes de types de paramètres</a> équivalentes, en omettant les types des <a href="member_functions.html#Explicit_object_parameter">paramètres d'objet explicites</a> <em>(depuis C++23)</em>.</li>
+<li>Elles ont des types de retour équivalents.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Leurs paramètres de modèle correspondants sont soit tous deux déclarés sans <a href="constraints.html#Constraints">contrainte</a>, soit tous deux déclarés avec des contraintes équivalentes.</li>
+<li>Elles ont des <a href="constraints.html#Requires_clauses"><code>requires</code> clauses</a> finales équivalentes (le cas échéant).</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>Si toutes deux sont des modèles de fonctions membres non statiques, elles doivent en outre satisfaire l'une des exigences suivantes :</li>
+</ul>
+<blockquote>
+<ul>
+<li>Exactement l'un d'eux est un <a href="member_functions.html">modèle de fonction membre à paramètre d'objet implicite</a> sans qualificateur ref, et les types de leurs paramètres d'objet, après suppression de toutes les références, sont équivalents.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<ul>
+<li>Leurs paramètres d'objet ont des types équivalents.</li>
+</ul>
+<pre><code class="language-cpp">struct A
+{
+    friend void c();   // #1
+};
+
+struct B
+{
+    friend void c() {} // correspond à #1 et le définit
+};
+
+typedef int Int;
+
+enum E : int { a };
+
+void f(int);   // #2
+void f(Int) {} // defines #2
+void f(E) {}   // OK, autre surcharge
+
+struct X
+{
+    static void f();
+    void f() const;   // error: redeclaration
+
+    void g();
+    void g() const;   // OK
+    void g() &amp;;       // error: redeclaration
+
+    void h(this X&amp;, int);
+    void h(int) &amp;&amp;;   // OK, autre surcharge
+
+    void j(this const X&amp;);
+    void j() const &amp;; // error: redeclaration
+
+    void k();
+    void k(this X&amp;);  // error: redeclaration
+};
+</code></pre>
+<h2 id="Multiple_declarations_of_the_same_entity">Déclarations multiples de la même entité</h2>
+<blockquote>
+<p>Une déclaration est <em>indépendante du nom</em> si son nom est <code>_</code> et qu'elle déclare</p>
+<ul>
+<li>une variable à <a href="storage_duration.html">durée de stockage</a> automatique,</li>
+<li>une <a href="structured_binding.html">liaison structurée</a> sans <a href="storage_duration.html">spécificateur de classe de stockage</a> et ne <a href="scope.html">résidant</a> pas dans une portée d'espace de noms,</li>
+<li>la variable introduite par une <a href="lambda.html#Lambda_capture">capture de lambda</a> avec un initialiseur, ou</li>
+<li>un <a href="data_members.html">membre de données</a> non statique autre qu'une <a href="union.html#Anonymous_unions">union anonyme</a>.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Sauf indication contraire, deux déclarations d'entités <em>déclarent la même entité</em> si toutes les conditions suivantes sont satisfaites, en considérant que les déclarations de types sans nom introduisent leurs <a href="typedef.html#typedef_name_for_linkage_purposes">noms de typedef</a> et leurs <a href="enum.html#Enumeration_name_for_linkage_purposes">noms d'énumération</a> à des fins de liaison (le cas échéant) :</p>
+<ul>
+<li>Elles se correspondent.</li>
+<li>Elles ont la même <a href="scope.html">portée cible</a>, qui n'est ni une <a href="scope.html#Function_parameter_scope">portée de paramètre de fonction</a> ni une <a href="scope.html#Template_parameter_scope">portée de paramètre de modèle</a>.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Aucune n'est une déclaration indépendante du nom.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<ul>
+<li>L'une des conditions suivantes est satisfaite :
+<ul>
+<li>Elles apparaissent dans la même unité de traduction.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>Elles déclarent toutes deux des noms à <a href="storage_duration.html#Module_linkage">liaison de module</a> et sont <a href="modules.html#Module_ownership">rattachées au même module</a>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>Elles déclarent toutes deux des noms à <a href="storage_duration.html#External_linkage">liaison externe</a>.</li>
+</ul>
+<p>Une déclaration d'une entité ou d'un nom de typedef <code>X</code> est une <em>redéclaration</em> de <code>X</code> si une autre déclaration de <code>X</code> est accessible à partir d'elle.</p>
+<h3 id="Restrictions">Restrictions</h3>
+<p>Si deux déclarations quelconques d'une entité <code>E</code> violent la restriction correspondante ci-dessous, le programme est mal formé :</p>
+<ul>
+<li>Si l'une déclare <code>E</code> comme une variable, l'autre doit aussi déclarer <code>E</code> comme une variable du même type.</li>
+<li>Si l'une déclare <code>E</code> comme une <a href="function.html">fonction</a>, l'autre doit aussi déclarer <code>E</code> comme une fonction du même type.</li>
+<li>Si l'une déclare <code>E</code> comme un <a href="enum.html">énumérateur</a>, l'autre doit aussi déclarer <code>E</code> comme un énumérateur.</li>
+<li>Si l'une déclare <code>E</code> comme un <a href="namespace.html">espace de noms</a>, l'autre doit aussi déclarer <code>E</code> comme un espace de noms.</li>
+<li>Si l'une déclare <code>E</code> comme un <a href="class.html">type classe</a>, l'autre doit aussi déclarer <code>E</code> comme un type classe.</li>
+<li>Si l'une déclare <code>E</code> comme un <a href="enum.html">type énumération</a>, l'autre doit aussi déclarer <code>E</code> comme un type énumération.</li>
+<li>Si l'une déclare <code>E</code> comme un <a href="class_template.html">modèle de classe</a>, l'autre doit aussi déclarer <code>E</code> comme un modèle de classe avec une liste de paramètres de modèle équivalente (voir <a href="function_template.html#Function_template_overloading">surcharge de modèles de fonctions</a>).</li>
+<li>Si l'une déclare <code>E</code> comme un <a href="function_template.html">modèle de fonction</a>, l'autre doit aussi déclarer <code>E</code> comme un modèle de fonction avec une liste de paramètres de modèle et un type équivalents.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Si l'une déclare <code>E</code> comme un <a href="type_alias.html">modèle d'alias</a>, l'autre doit aussi déclarer <code>E</code> comme un modèle d'alias avec une liste de paramètres de modèle équivalente et <code>type-id</code>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Si l'une déclare <code>E</code> comme un (spécialisation partielle de) <a href="variable_template.html">modèle de variable</a>, l'autre doit aussi déclarer <code>E</code> comme un (spécialisation partielle de) modèle de variable avec une liste de paramètres de modèle et un type équivalents.</li>
+</ul>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Si l'une déclare <code>E</code> comme un <a href="constraints.html">concept</a>, l'autre doit aussi déclarer <code>E</code> comme un concept.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Les types sont comparés après tous les ajustements de types (au cours desquels les <a href="typedef.html">typedefs</a> sont remplacés par leurs définitions). Les déclarations d'un objet tableau peuvent spécifier des types tableau qui diffèrent par la présence ou l'absence d'une borne majeure de tableau. Aucun diagnostic n'est requis si aucune des deux déclarations n'est accessible depuis l'autre.</p>
+<pre><code class="language-cpp">void g();      // #1
+void g(int);   // OK, entité différente de #1 (elles ne se correspondent pas)
+int g();       // Error: même entité que #1 avec un type différent
+
+void h();      // #2
+namespace h {} // Error: même entité que #2, mais pas une fonction
+</code></pre>
+<p>Si une déclaration <code>H</code> qui déclare un nom à <a href="storage_duration.html#Internal_linkage">liaison interne</a> précède une déclaration <code>D</code> dans une autre unité de traduction <code>U</code> et déclarerait la même entité que <code>D</code> si elle apparaissait dans <code>U</code>, le programme est mal formé.</p>
+<h2 id="Potentially-conflicting_declarations">Déclarations potentiellement en conflit</h2>
+<p>Deux déclarations <em>sont potentiellement en conflit</em> si elles se correspondent mais déclarent des entités différentes.</p>
+<p>Si, dans une portée quelconque, un nom est lié à deux déclarations <code>A</code> et <code>B</code> potentiellement en conflit, <code>B</code> n'est pas indépendante du nom <em>(depuis C++26)</em>, et <code>A</code> précède <code>B</code>, le programme est mal formé :</p>
+<pre><code class="language-cpp">void f()
+{
+    int x, y;
+    void x(); // Error: entité différente pour x
+    int y;    // Error: redéfinition
+}
+
+enum { f };   // Error: entité différente pour ::f
+
+namespace A {}
+namespace B = A;
+namespace B = A; // OK, aucun effet
+namespace B = B; // OK, aucun effet
+namespace A = B; // OK, aucun effet
+namespace B {}   // Error: entité différente pour B
+
+void g()
+{
+    int _;
+    _ = 0; // OK
+    int _; // OK depuis C++26, déclaration indépendante du nom
+    _ = 0; // Error: deux déclarations non fonctions dans l'ensemble de recherche
+}
+
+void h ()
+{
+    int _;        // #1
+    _ ++;         // OK
+    static int _; // Error: en conflit avec #1 car
+                  // les variables statiques ne sont pas indépendantes du nom
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/279.html">CWG 279</a> (<a href="https://wg21.link/P1787R6">P1787R6</a>)</td>
+<td>C++98</td>
+<td>on ne savait pas si une classe ou énumération sans nom pouvait être redéclarée si elle possède un nom de typedef à des fins de liaison</td>
+<td>elle peut être redéclarée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/338.html">CWG 338</a> (<a href="https://wg21.link/P1787R6">P1787R6</a>)</td>
+<td>C++98</td>
+<td>on ne savait pas si une énumération sans nom pouvait être redéclarée si elle possède un énumérateur comme nom à des fins de liaison</td>
+<td>elle peut être redéclarée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1884.html">CWG 1884</a> (<a href="https://wg21.link/P1787R6">P1787R6</a>)</td>
+<td>C++98</td>
+<td>les restrictions appliquées aux multiples déclarations de la même entité n'étaient pas claires</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

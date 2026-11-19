@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Optimisation de la base vide — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="optimisation-de-la-base-vide">Optimisation de la base vide</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/ebo">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet que la taille d'un sous-objet de base vide soit nulle.</p>
+<h2 id="Explanation">Explication</h2>
+<p>La taille de tout <a href="objects.html">objet</a> ou sous-objet membre doit être d'au moins 1, même si le type est un <a href="class.html">type classe</a> vide (c'est-à-dire une classe ou struct sans membre de données non statique), (sauf avec <code>[[no_unique_address]]</code>, voir ci-dessous) <em>(depuis C++20)</em> afin de garantir que les adresses d'objets distincts de même type soient toujours distinctes.</p>
+<p>Cependant, les sous-objets de classe de base ne sont pas soumis à cette contrainte et peuvent être entièrement optimisés hors de la disposition de l'objet :</p>
+<pre><code class="language-cpp">struct Base {}; // classe vide
+
+struct Derived1 : Base
+{
+    int i;
+};
+
+int main()
+{
+    // la taille de tout objet de type classe vide vaut au moins 1
+    static_assert(sizeof(Base) &gt;= 1);
+
+    // l'optimisation de la base vide s'applique
+    static_assert(sizeof(Derived1) == sizeof(int));
+}
+</code></pre>
+<p>L'optimisation de la base vide est interdite si l'une des classes de base vides est aussi le type ou la base du type du premier membre de données non statique, car les deux sous-objets de base de même type doivent avoir des adresses différentes au sein de la représentation de l'objet le plus dérivé.</p>
+<p>Un exemple typique de cette situation est l'implémentation naïve de <a href="../iterator/reverse_iterator.html"><code>std::reverse_iterator</code></a> (dérivé de la base vide <a href="../iterator/iterator.html"><code>std::iterator</code></a>), qui contient l'itérateur sous-jacent (également dérivé de <a href="../iterator/iterator.html"><code>std::iterator</code></a>) comme premier membre de données non statique.</p>
+<pre><code class="language-cpp">struct Base {}; // classe vide
+
+struct Derived1 : Base
+{
+    int i;
+};
+
+struct Derived2 : Base
+{
+    Base c; // Base, occupe 1 octet, suivi d'un remplissage pour i
+    int i;
+};
+
+struct Derived3 : Base
+{
+    Derived1 c; // dérivé de Base, occupe sizeof(int) octets
+    int i;
+};
+
+int main()
+{
+    // l'optimisation de la base vide ne s'applique pas,
+    // base occupe 1 octet, le membre Base occupe 1 octet
+    // suivi de 2 octets de remplissage pour satisfaire les exigences d'alignement de int
+    static_assert(sizeof(Derived2) == 2*sizeof(int));
+
+    // l'optimisation de la base vide ne s'applique pas,
+    // la base occupe au moins 1 octet plus le remplissage
+    // pour satisfaire l'exigence d'alignement du premier membre (dont
+    // l'alignement est le même que celui de int)
+    static_assert(sizeof(Derived3) == 3*sizeof(int));
+}
+</code></pre>
+<p>En cas d'héritage multiple, les optimisations spécifiques dépendent du compilateur.</p>
+<ul>
+<li>Avec MSVC, l'optimisation de la base nulle n'est appliquée qu'à la dernière classe de base nulle ; les autres classes de base nulles ne bénéficient pas de cette optimisation et un octet est alloué.</li>
+<li>Avec GCC, quel que soit le nombre de classes de base vides, l'optimisation s'applique sans allouer d'espace, et l'adresse de la classe de base vide est identique à la première adresse de l'objet de la classe dérivée.</li>
+</ul>
+<blockquote>
+<p>L'optimisation de la base vide est <em>requise</em> pour les <a href="../named_req/StandardLayoutType.html"><em>StandardLayoutType</em>s</a> afin de maintenir l'exigence selon laquelle le pointeur vers un objet à disposition standard, converti à l'aide de <a href="reinterpret_cast.html"><code>reinterpret_cast</code></a>, pointe vers son membre initial ; c'est pourquoi les exigences d'un type à disposition standard incluent « has all non-static data members declared in the same class (either all in the derived or all in some base) » et « has no base classes of the same type as the first non-static data member ».</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Les sous-objets membres vides peuvent être optimisés hors de l'objet comme les bases vides s'ils utilisent l'attribut <code>[[no_unique_address]]</code>. Prendre l'adresse d'un tel membre donne une adresse qui peut être égale à celle d'un autre membre du même objet.</p>
+<pre><code class="language-cpp">struct Empty {}; // classe vide
+
+struct X
+{
+    int i;
+    [[no_unique_address]] Empty e;
+};
+
+int main()
+{
+    // la taille de tout objet de type classe vide vaut au moins 1
+    static_assert(sizeof(Empty) &gt;= 1);
+
+    // membre vide optimisé :
+    static_assert(sizeof(X) == sizeof(int));
+}
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>L'optimisation de la base vide est couramment utilisée par les classes de la bibliothèque standard prenant en charge les allocateurs (<a href="../container/vector.html"><code>std::vector</code></a>, <a href="../utility/functional/function.html"><code>std::function</code></a>, <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a>, etc.) pour éviter d'occuper un espace de stockage supplémentaire pour leur membre allocateur lorsque celui-ci est sans état. Ceci est obtenu en stockant l'un des membres de données requis (par exemple <code>begin</code>, <code>end</code>, ou le pointeur <code>capacity</code> pour le <code>vector</code>) dans un équivalent de <a href="https://www.boost.org/doc/libs/release/libs/utility/doc/html/utility/utilities/compressed_pair.html"><code>boost::compressed_pair</code></a> avec l'allocateur.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.6.10 Opérateurs d'égalité [expr.eq]</li>
+<li>7.6.2.5 Sizeof [expr.sizeof]</li>
+<li>11 Classes [class]</li>
+<li>11.4 Membres de classe [class.mem]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.6.10 Opérateurs d'égalité [expr.eq]</li>
+<li>7.6.2.4 Sizeof [expr.sizeof]</li>
+<li>11 Classes [class]</li>
+<li>11.4 Membres de classe [class.mem]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>8.10 Opérateurs d'égalité [expr.eq]</li>
+<li>8.3.3 Sizeof [expr.sizeof]</li>
+<li>12 Classes [class]</li>
+<li>12.2 Membres de classe [class.mem]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>5.10 Opérateurs d'égalité [expr.eq]</li>
+<li>5.3.3 Sizeof [expr.sizeof]</li>
+<li>9 Classes [class]</li>
+<li>9.2 Membres de classe [class.mem]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>5.10 Opérateurs d'égalité [expr.eq] (p: 2)</li>
+<li>5.3.3 Sizeof [expr.sizeof] (p: 2)</li>
+<li>9 Classes [class] (p: 4,7)</li>
+<li>9.2 Membres de classe [class.mem] (p: 20)</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>5.10 Opérateurs d'égalité [expr.eq] (p: 2)</li>
+<li>5.3.3 Sizeof [expr.sizeof] (p: 2)</li>
+<li>9 Classes [class] (p: 3)</li>
+</ul>
+</li>
+</ul>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Empty_Base_Optimization">More C++ Idioms/Empty Base Optimization</a> — un wikibook</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

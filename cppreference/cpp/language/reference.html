@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de référence — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-de-référence">Déclaration de référence</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/reference">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Déclare une variable nommée comme référence, c'est-à-dire un alias vers un objet ou une fonction déjà existant.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Une déclaration de variable référence est toute déclaration simple dont le <a href="declarations.html">déclarateur</a> a la forme</p>
+<p>|
+| |
+| <code>&amp;</code> <code>attr</code> ﻿*(facultatif)* <code>declarator</code> | (1) | |
+|
+| <code>&amp;&amp;</code> <code>attr</code> ﻿*(facultatif)* <code>declarator</code> | (2) | (depuis C++11) |
+|</p>
+<ol>
+<li>
+<p><strong>Déclarateur de référence lvalue</strong> : la déclaration <code>S&amp; D;</code> déclare <code>D</code> comme <em>référence lvalue</em> vers le type déterminé par <code>decl-specifier-seq</code> <code>S</code>.</p>
+</li>
+<li>
+<p><strong>Déclarateur de référence rvalue</strong> : la déclaration <code>S&amp;&amp; D;</code> déclare <code>D</code> comme <em>référence rvalue</em> vers le type déterminé par <code>decl-specifier-seq</code> <code>S</code>.</p>
+</li>
+</ol>
+<ul>
+<li><code>declarator</code> — tout <a href="declarations.html">déclarateur</a> sauf un autre déclarateur de référence (il n'existe pas de références vers des références)</li>
+<li><code>attr</code> — (depuis C++11) liste d'<a href="attributes.html">attributs</a></li>
+</ul>
+<p>Une référence doit être initialisée pour désigner un objet ou une fonction valide : voir <a href="reference_initialization.html">initialisation de référence</a>.</p>
+<p>Le type « référence vers <code>void</code> (éventuellement qualifié cv) » ne peut pas être formé.</p>
+<p>Les types référence ne peuvent pas être <a href="cv.html">qualifiés cv</a> au niveau supérieur ; il n'existe pas de syntaxe pour cela dans une déclaration, et si une qualification est ajoutée à un nom de typedefou <a href="decltype.html"><code>decltype</code></a> spécificateur, <em>(depuis C++11)</em> ou <a href="template_parameters.html#Type_template_parameter">paramètre de modèle de type</a>, elle est ignorée.</p>
+<p>Les références ne sont pas des objets ; elles n'occupent pas nécessairement de stockage, bien que le compilateur puisse allouer du stockage si cela est nécessaire pour implémenter la sémantique voulue (par exemple, un membre de donnée non statique de type référence augmente généralement la taille de la classe de la quantité nécessaire pour stocker une adresse mémoire).</p>
+<p>Les références n'étant pas des objets, il n'existe ni tableaux de références, ni pointeurs vers des références, ni références vers des références :</p>
+<pre><code class="language-cpp">int&amp; a[3]; // error
+int&amp;* p;   // error
+int&amp; &amp;r;   // error
+</code></pre>
+<blockquote>
+<h3 id="Reference_collapsing">Effondrement de références</h3>
+<p>Il est permis de former des références vers des références par manipulation de types dans les modèles ou les typedef, auquel cas les règles d'<em>effondrement de références</em> s'appliquent : une référence rvalue vers une référence rvalue se réduit à une référence rvalue, toutes les autres combinaisons forment une référence lvalue :</p>
+<pre><code class="language-cpp">typedef int&amp;  lref;
+typedef int&amp;&amp; rref;
+int n;
+
+lref&amp;  r1 = n; // le type de r1 est int&amp;
+lref&amp;&amp; r2 = n; // le type de r2 est int&amp;
+rref&amp;  r3 = n; // le type de r3 est int&amp;
+rref&amp;&amp; r4 = 1; // le type de r4 est int&amp;&amp;
+</code></pre>
+<p>(Ceci, avec les règles spéciales de <a href="template_argument_deduction.html">déduction d'argument de modèle</a> lorsque <code>T&amp;&amp;</code> est utilisé dans un modèle de fonction, constitue les règles qui rendent <a href="../utility/forward.html"><code>std::forward</code></a> possible.)</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Lvalue_references">Références lvalue</h2>
+<p>Les références lvalue peuvent servir d'alias vers un objet existant (éventuellement avec une qualification cv différente) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::string s = &quot;Ex&quot;;
+    std::string&amp; r1 = s;
+    const std::string&amp; r2 = s;
+
+    r1 += &quot;ample&quot;;           // modifie s
+//  r2 += &quot;!&quot;;               // erreur : impossible de modifier via une référence vers const
+    std::cout &lt;&lt; r2 &lt;&lt; '\n'; // affiche s, qui contient désormais &quot;Example&quot;
+}
+</code></pre>
+<p>Elles peuvent aussi servir à implémenter une sémantique de passage par référence dans les appels de fonction :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+void double_string(std::string&amp; s)
+{
+    s += s; // 's' est le même objet que 'str' de main()
+}
+
+int main()
+{
+    std::string str = &quot;Test&quot;;
+    double_string(str);
+    std::cout &lt;&lt; str &lt;&lt; '\n';
+}
+</code></pre>
+<p>Lorsque le type de retour d'une fonction est une référence lvalue, l'expression d'appel de fonction devient une expression <a href="value_category.html#lvalue">lvalue</a> :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+char&amp; char_number(std::string&amp; s, std::size_t n)
+{
+    return s.at(n); // string::at() renvoie une référence vers char
+}
+
+int main()
+{
+    std::string str = &quot;Test&quot;;
+    char_number(str, 1) = 'a'; // l'appel de fonction est une lvalue, à laquelle on peut affecter une valeur
+    std::cout &lt;&lt; str &lt;&lt; '\n';
+}
+</code></pre>
+<blockquote>
+<h3 id="Rvalue_references">Références rvalue</h3>
+<p>Les références rvalue peuvent servir à <a href="reference_initialization.html#Lifetime_of_a_temporary">prolonger la durée de vie</a> d'objets temporaires (remarque : les références lvalue vers const peuvent aussi prolonger la durée de vie d'objets temporaires, mais ils ne sont pas modifiables par leur intermédiaire) :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::string s1 = &quot;Test&quot;;
+//  std::string&amp;&amp; r1 = s1;           // erreur : impossible de lier à une lvalue
+
+    const std::string&amp; r2 = s1 + s1; // ok : une référence lvalue vers const prolonge la durée de vie
+//  r2 += &quot;Test&quot;;                    // erreur : impossible de modifier via une référence vers const
+
+    std::string&amp;&amp; r3 = s1 + s1;      // ok : une référence rvalue prolonge la durée de vie
+    r3 += &quot;Test&quot;;                    // ok : on peut modifier via une référence vers non-const
+    std::cout &lt;&lt; r3 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Plus important encore, lorsqu'une fonction possède à la fois une <a href="overload_resolution.html">surcharge</a> par référence rvalue et une surcharge par référence lvalue, la surcharge par référence rvalue se lie aux rvalues (prvalues et xvalues incluses), tandis que la surcharge par référence lvalue se lie aux lvalues :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;utility&gt;
+
+void f(int&amp; x)
+{
+    std::cout &lt;&lt; &quot;lvalue reference overload f(&quot; &lt;&lt; x &lt;&lt; &quot;)\n&quot;;
+}
+
+void f(const int&amp; x)
+{
+    std::cout &lt;&lt; &quot;lvalue reference to const overload f(&quot; &lt;&lt; x &lt;&lt; &quot;)\n&quot;;
+}
+
+void f(int&amp;&amp; x)
+{
+    std::cout &lt;&lt; &quot;rvalue reference overload f(&quot; &lt;&lt; x &lt;&lt; &quot;)\n&quot;;
+}
+
+int main()
+{
+    int i = 1;
+    const int ci = 2;
+
+    f(i);  // appelle f(int&amp;)
+    f(ci); // appelle f(const int&amp;)
+    f(3);  // appelle f(int&amp;&amp;)
+           // appellerait f(const int&amp;) si la surcharge f(int&amp;&amp;) n'était pas fournie
+    f(std::move(i)); // appelle f(int&amp;&amp;)
+
+    // les variables de référence rvalue sont des lvalues lorsqu'elles sont utilisées dans des expressions
+    int&amp;&amp; x = 1;
+    f(x);            // appelle f(int&amp; x)
+    f(std::move(x)); // appelle f(int&amp;&amp; x)
+}
+</code></pre>
+<p>Cela permet de sélectionner automatiquement les <a href="move_constructor.html">constructeurs de déplacement</a>, les opérateurs d'<a href="move_operator.html">affectation par déplacement</a> et les autres fonctions tenant compte du déplacement (par exemple <a href="../container/vector/push_back.html"><code>std::vector::push_back()</code></a>) lorsque cela est approprié.</p>
+<p>Les références rvalue pouvant se lier à des xvalues, elles peuvent désigner des objets non temporaires :</p>
+<pre><code class="language-cpp">int i2 = 42;
+int&amp;&amp; rri = std::move(i2); // se lie directement à i2
+</code></pre>
+<p>Cela permet de déplacer un objet dans la portée qui n'est plus nécessaire :</p>
+<pre><code class="language-cpp">std::vector&lt;int&gt; v{1, 2, 3, 4, 5};
+std::vector&lt;int&gt; v2(std::move(v)); // lie une référence rvalue à v
+assert(v.empty());
+</code></pre>
+<h3 id="Forwarding_references">Références de transfert</h3>
+<p>Les références de transfert sont un type particulier de références qui préservent la catégorie de valeur d'un argument de fonction, ce qui permet de le <em>transférer</em> au moyen de <a href="../utility/forward.html"><code>std::forward</code></a>. Les références de transfert sont soit :</p>
+<ol>
+<li>paramètre de fonction d'un modèle de fonction déclaré comme référence rvalue vers un <a href="template_parameters.html#Type_template_parameter">paramètre de modèle de type</a> sans qualificateur cv de ce même modèle de fonction :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T&gt;
+int f(T&amp;&amp; x)                      // x est une référence de transfert
+{
+    return g(std::forward&lt;T&gt;(x)); // et peut donc être transmise
+}
+
+int main()
+{
+    int i;
+    f(i); // l'argument est une lvalue, appelle f&lt;int&amp;&gt;(int&amp;), std::forward&lt;int&amp;&gt;(x) est une lvalue
+    f(0); // l'argument est une rvalue, appelle f&lt;int&gt;(int&amp;&amp;), std::forward&lt;int&gt;(x) est une rvalue
+}
+
+template&lt;class T&gt;
+int g(const T&amp;&amp; x); // x n'est pas une référence de transfert : const T n'est pas non qualifié cv
+
+template&lt;class T&gt;
+struct A
+{
+    template&lt;class U&gt;
+    A(T&amp;&amp; x, U&amp;&amp; y, int* p); // x n'est pas une référence de transfert : T n'est pas un
+                             // paramètre de modèle de type du constructeur,
+                             // mais y est une référence de transfert
+};
+</code></pre>
+<ol start="2">
+<li><code>auto&amp;&amp;</code> sauf lorsqu'il est déduit d'une liste d'initialisation entre accoladesou, lorsqu'il représente un paramètre de modèle d'un modèle de classe pendant la <a href="ctad.html">déduction d'argument de modèle de classe</a> <em>(depuis C++17)</em> :</li>
+</ol>
+<pre><code class="language-cpp">auto&amp;&amp; vec = foo();       // foo() peut être une lvalue ou une rvalue, vec est une référence de transfert
+auto i = std::begin(vec); // fonctionne dans les deux cas
+(*i)++;                   // fonctionne dans les deux cas
+
+g(std::forward&lt;decltype(vec)&gt;(vec)); // transmet en préservant la catégorie de valeur
+
+for (auto&amp;&amp; x: f())
+{
+    // x est une référence de transfert ; c'est une manière courante d'utiliser range for dans du code générique
+}
+
+auto&amp;&amp; z = {1, 2, 3}; // *pas* une référence de transfert (cas particulier pour les listes d'initialisation)
+</code></pre>
+<p>Voir aussi <a href="template_argument_deduction.html#Deduction_from_a_function_call">déduction d'argument de modèle</a> et <a href="../utility/forward.html"><code>std::forward</code></a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Dangling_references">Références pendantes</h2>
+<p>Bien que les références désignent toujours des objets ou fonctions valides lors de leur initialisation, il est possible de créer un programme où la <a href="lifetime.html">durée de vie</a> de l'objet référencé se termine, alors que la référence reste accessible (<em>pendante</em>).</p>
+<p>Soit une expression <code>expr</code> de type référence, et soit <code>target</code> l'objet ou la fonction désigné par la référence :</p>
+<ul>
+<li>Si un pointeur vers <code>target</code> serait <a href="pointer.html#Invalid_pointers">valide</a> dans le contexte de l'évaluation de <code>expr</code>, le résultat désigne <code>target</code>.</li>
+<li>Dans le cas contraire, le comportement est indéfini.</li>
+</ul>
+<pre><code class="language-cpp">std::string&amp; f()
+{
+    std::string s = &quot;Example&quot;;
+    return s; // sort de la portée de s :
+              // son destructeur est appelé et son stockage désalloué
+}
+
+std::string&amp; r = f(); // référence pendante
+std::cout &lt;&lt; r;       // comportement indéfini : lit depuis une référence pendante
+std::string s = f();  // comportement indéfini : effectue une initialisation par copie depuis une référence pendante
+</code></pre>
+<p>Notez que les références rvalue et les références lvalue vers const prolongent la durée de vie des objets temporaires (voir <a href="reference_initialization.html#Lifetime_of_a_temporary">Initialisation de référence</a> pour les règles et exceptions).</p>
+<p>Si l'objet référencé a été détruit (par exemple par un appel explicite au destructeur), mais que son stockage n'a pas été désalloué, une référence vers l'objet hors de sa durée de vie peut être utilisée de façon limitée, et peut redevenir valide si l'objet est recréé dans le même stockage (voir <a href="lifetime.html#Access_outside_of_lifetime">Accès en dehors de la durée de vie</a> pour les détails).</p>
+<h2 id="Type-inaccessible_references">Références inaccessibles au type</h2>
+<p>Tenter de lier une référence à un objet dont l'initialiseur converti est [une lvalue <em>(jusqu'à C++11)</em> | une glvalue <em>(depuis C++11)</em>] à travers laquelle l'objet n'est pas <a href="reinterpret_cast.html#Type_accessibility">accessible par type</a> entraîne un comportement indéfini :</p>
+<pre><code class="language-cpp">char x alignas(int);
+
+int&amp; ir = *reinterpret_cast&lt;int*&gt;(&amp;x); // comportement indéfini :
+                                       // l'initialiseur fait référence à un objet char
+</code></pre>
+<h2 id="Call-incompatible_references">Références incompatibles avec l'appel</h2>
+<p>Tenter de lier une référence à une fonction dont l'initialiseur converti est [une lvalue <em>(jusqu'à C++11)</em> | une glvalue <em>(depuis C++11)</em>] dont le type n'est pas <a href="reinterpret_cast.html#Call_compatibility">compatible à l'appel</a> avec le type de la définition de la fonction entraîne un comportement indéfini :</p>
+<pre><code class="language-cpp">void f(int);
+
+using F = void(float);
+F&amp; ir = *reinterpret_cast&lt;F*&gt;(&amp;f); // comportement indéfini :
+                                   // l'initialiseur fait référence à la fonction void(int)
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_rvalue_references"><code>__cpp_rvalue_references</code></a></td>
+<td><a href="../compiler_support/11.html#cpp_rvalue_references_200610L"><code>200610L</code></a></td>
+<td><em>(C++11)</em></td>
+<td><a href="reference.html#Rvalue_references">Références rvalue</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/453.html">CWG 453</a></td>
+<td>C++98</td>
+<td>il n'était pas clair à quel objet ou fonction une référence ne peut pas être liée</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1510.html">CWG 1510</a></td>
+<td>C++11</td>
+<td>des références qualifiées cv ne pouvaient pas être formées dans l'opérande de <code>decltype</code></td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2550.html">CWG 2550</a></td>
+<td>C++98</td>
+<td>des paramètres pouvaient avoir le type « référence vers <code>void</code> »</td>
+<td>disallowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2933.html">CWG 2933</a></td>
+<td>C++98</td>
+<td>le comportement de l'accès à des références pendantes n'était pas clair</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thomas Becker, 2013 - <a href="http://thbecker.net/articles/rvalue_references/section_01.html">C++ Rvalue References Explained</a></td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

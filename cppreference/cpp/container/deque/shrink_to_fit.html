@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::deque&lt;T,Allocator&gt;::shrink_to_fit — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/container.html">Bibliothèque des conteneurs</a> › <a href="../../../cpp/container/deque.html">std::deque</a></nav>
+<h1 id="std-deque-t-allocator-shrink_to_fit"><code>std::deque&lt;T,Allocator&gt;::shrink_to_fit</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/container/deque/shrink_to_fit">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void shrink_to_fit();
+</code></pre>
+<p>Demande la libération de la capacité inutilisée.</p>
+<p>Il s'agit d'une demande non contraignante de réduire l'utilisation mémoire sans modifier la taille de la séquence. Il dépend de l'implémentation que la demande soit satisfaite ou non.</p>
+<p>Tous les itérateurs (y compris l'itérateur <a href="end.html"><code>end()</code></a>) et toutes les références aux éléments sont invalidés.</p>
+<blockquote>
+<p>Si <code>T</code> n'est pas <a href="../../named_req/MoveInsertable.html"><em>MoveInsertable</em></a> dans <code>std::deque&lt;T, Allocator&gt;</code>, le comportement est indéfini.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Complexity">Complexité</h2>
+<p>Au plus linéaire en fonction de la taille du conteneur.</p>
+<blockquote>
+<h3 id="Exceptions">Exceptions</h3>
+<p>Si une exception est levée autrement que par le constructeur de déplacement d'un non-<a href="../../named_req/CopyInsertable.html"><em>CopyInsertable</em></a> <code>T</code>, il n'y a aucun effet.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Dans libstdc++, <code>shrink_to_fit()</code> n'est <a href="https://gcc.gnu.org/onlinedocs/libstdc++/manual/strings.html#strings.string.shrink">pas disponible</a> en mode C++98.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;deque&gt;
+#include &lt;iostream&gt;
+#include &lt;new&gt;
+
+// Allocateur C++11 minimal avec sortie de débogage.
+template&lt;class Tp&gt;
+struct NAlloc
+{
+    typedef Tp value_type;
+
+    NAlloc() = default;
+
+    template&lt;class T&gt; NAlloc(const NAlloc&lt;T&gt;&amp;) {}
+
+    Tp* allocate(std::size_t n)
+    {
+        n *= sizeof(Tp);
+        std::cout &lt;&lt; &quot;allocating &quot; &lt;&lt; n &lt;&lt; &quot; bytes\n&quot;;
+        return static_cast&lt;Tp*&gt;(::operator new(n));
+    }
+
+    void deallocate(Tp* p, std::size_t n)
+    {
+        std::cout &lt;&lt; &quot;deallocating &quot; &lt;&lt; n*sizeof*p &lt;&lt; &quot; bytes\n&quot;;
+        ::operator delete(p);
+    }
+};
+template&lt;class T, class U&gt;
+bool operator==(const NAlloc&lt;T&gt;&amp;, const NAlloc&lt;U&gt;&amp;) { return true; }
+template&lt;class T, class U&gt;
+bool operator!=(const NAlloc&lt;T&gt;&amp;, const NAlloc&lt;U&gt;&amp;) { return false; }
+
+int main()
+{
+    // std::queue n'a pas de fonction capacity() (contrairement à std::vector).
+    // C'est pourquoi nous utilisons un allocateur personnalisé pour montrer le
+    // fonctionnement de shrink_to_fit.
+
+    std::cout &lt;&lt; &quot;Default-construct deque:\n&quot;;
+    std::deque&lt;int, NAlloc&lt;int&gt;&gt; deq;
+
+    std::cout &lt;&lt; &quot;\nAdd 300 elements:\n&quot;;
+    for (int i = 1000; i &lt; 1300; ++i)
+        deq.push_back(i);
+
+    std::cout &lt;&lt; &quot;\nPop 100 elements:\n&quot;;
+    for (int i = 0; i &lt; 100; ++i)
+        deq.pop_front();
+
+    std::cout &lt;&lt; &quot;\nRun shrink_to_fit:\n&quot;;
+    deq.shrink_to_fit();
+
+    std::cout &lt;&lt; &quot;\nDestroy deque as it goes out of scope:\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Default-construct deque:
+allocating 64 bytes
+allocating 512 bytes
+
+Add 300 elements:
+allocating 512 bytes
+allocating 512 bytes
+
+Pop 100 elements:
+
+Run shrink_to_fit:
+allocating 64 bytes
+allocating 512 bytes
+allocating 512 bytes
+deallocating 512 bytes
+deallocating 512 bytes
+deallocating 512 bytes
+deallocating 64 bytes
+
+Destroy deque as it goes out of scope:
+deallocating 512 bytes
+deallocating 512 bytes
+deallocating 64 bytes
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue850">LWG 850</a></td>
+<td>C++98</td>
+<td><code>std::deque</code> ne disposait pas d'opérations explicites de réduction à la taille (shrink-to-fit)</td>
+<td>provided</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2033">LWG 2033</a></td>
+<td>C++98 C++11</td>
+<td>1. l'exigence de complexité manquait (C++98) 2. <code>T</code> n'était pas requis d'être <a href="../../named_req/MoveInsertable.html"><em>MoveInsertable</em></a> (C++11)</td>
+<td>1. ajouté 2. requis</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2223">LWG 2223</a></td>
+<td>C++98 C++11</td>
+<td>1. les références, pointeurs et itérateurs n'étaient pas invalidés (C++98) 2. il n'existait aucune garantie de sécurité d'exception (C++11)</td>
+<td>1. ils peuvent être invalidés 2. ajouté</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="size.html">size</a></strong> — renvoie le nombre d'éléments <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

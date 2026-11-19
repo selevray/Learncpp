@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::time_get&lt;CharT,InputIt&gt;::get_year, std::time_get&lt;CharT,InputIt&gt;::do_get_year — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/time_get.html">std::time_get</a></nav>
+<h1 id="std-time_get-chart-inputit-get_year-std-time_get-chart-inputit-do_get_year"><code>std::time_get&lt;CharT,InputIt&gt;::get_year, std::time_get&lt;CharT,InputIt&gt;::do_get_year</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/time_get/get_year">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+iter_type get_year( iter_type s, iter_type end, std::ios_base&amp; str,
+                    std::ios_base::iostate&amp; err, std::tm* t ) const;  // (1)
+
+protected:
+virtual iter_type do_get_year( iter_type s, iter_type end, std::ios_base&amp; str,
+                               std::ios_base::iostate&amp; err, std::tm* t ) const;  // (2)
+</code></pre>
+<ol>
+<li>
+<p>Fonction membre publique, appelle la fonction membre virtuelle protégée <code>do_get_year</code> de la classe la plus dérivée.</p>
+</li>
+<li>
+<p>Lit successivement les caractères de la séquence <code>[beg,end)</code> et analyse l'année selon un format défini par l'implémentation. Selon la locale, les années à deux chiffres peuvent être acceptées, et il est défini par l'implémentation au siècle auquel elles appartiennent.</p>
+</li>
+</ol>
+<p>L'année analysée est stockée dans le champ <code>t-&gt;tm_year</code> de la structure <a href="../../chrono/c/tm.html"><code>std::tm</code></a>.</p>
+<p>Si l'itérateur de fin est atteint avant qu'une année valide ne soit lue, la fonction définit <a href="../../io/ios_base/iostate.html"><code>std::ios_base::eofbit</code></a> dans <code>err</code>. Si une erreur d'analyse est rencontrée, la fonction définit <a href="../../io/ios_base/iostate.html"><code>std::ios_base::failbit</code></a> dans <code>err</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>beg</code> — itérateur désignant le début de la séquence à analyser</li>
+<li><code>end</code> — itérateur de fin, pointant juste après la fin de la séquence à analyser</li>
+<li><code>str</code> — un objet flux que cette fonction utilise pour obtenir les facettes de locale lorsque nécessaire, par exemple <a href="../ctype.html"><code>std::ctype</code></a> pour ignorer les espaces ou <a href="../collate.html"><code>std::collate</code></a> pour comparer des chaînes</li>
+<li><code>err</code> — objet d'indicateurs d'erreur du flux, modifié par cette fonction pour signaler les erreurs</li>
+<li><code>t</code> — pointeur vers l'objet <a href="../../chrono/c/tm.html"><code>std::tm</code></a> qui contiendra le résultat de cet appel de fonction</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Itérateur pointant un caractère après le dernier caractère de <code>[beg,end)</code> reconnu comme faisant partie d'une année valide.</p>
+<h2 id="Notes">Notes</h2>
+<p>Pour les valeurs d'entrée à deux chiffres, de nombreuses implémentations utilisent les mêmes règles d'analyse que le spécificateur de conversion <code>'%y'</code> utilisé par <a href="../../io/manip/get_time.html"><code>std::get_time</code></a>, <a href="get.html"><code>std::time_get::get()</code></a>, et la fonction POSIX <code>strptime()</code> : un entier à deux chiffres est attendu, les valeurs de l'intervalle <code>[69,99]</code> donnent les années 1969 à 1999, l'intervalle <code>[00,68]</code> donne 2000 à 2068. Les entrées à quatre chiffres sont généralement acceptées telles quelles.</p>
+<p>En cas d'erreur d'analyse, la plupart des implémentations de cette fonction laissent <code>*t</code> inchangé.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;locale&gt;
+#include &lt;sstream&gt;
+
+void try_get_year(const std::string&amp; s)
+{
+    std::cout &lt;&lt; &quot;Parsing the year out of '&quot; &lt;&lt; s
+              &lt;&lt; &quot;' in the locale &quot; &lt;&lt; std::locale().name() &lt;&lt; '\n';
+    std::istringstream str(s);
+    std::ios_base::iostate err = std::ios_base::goodbit;
+
+    std::tm t;
+    std::time_get&lt;char&gt; const&amp; facet = std::use_facet&lt;std::time_get&lt;char&gt;&gt;(str.getloc());
+    std::istreambuf_iterator&lt;char&gt; ret = facet.get_year({str}, {}, str, err, &amp;t);
+    str.setstate(err);
+    std::istreambuf_iterator&lt;char&gt; last{};
+
+    if (str)
+    {
+        std::cout &lt;&lt; &quot;Successfully parsed, year is &quot; &lt;&lt; 1900 + t.tm_year;
+
+        if (ret != last)
+        {
+            std::cout &lt;&lt; &quot; Remaining content: &quot;;
+            std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+        }
+        else
+            std::cout &lt;&lt; &quot; the input was fully consumed&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;Parse failed. Unparsed string: &quot;;
+        std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+    }
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::locale::global(std::locale(&quot;en_US.utf8&quot;));
+    try_get_year(&quot;13&quot;);
+    try_get_year(&quot;2013&quot;);
+
+    std::locale::global(std::locale(&quot;ja_JP.utf8&quot;));
+    try_get_year(&quot;2013年&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Parsing the year out of '13' in the locale en_US.utf8
+Successfully parsed, year is 2013 the input was fully consumed
+Parsing the year out of '2013' in the locale en_US.utf8
+Successfully parsed, year is 2013 the input was fully consumed
+Parsing the year out of '2013年' in the locale ja_JP.utf8
+Successfully parsed, year is 2013 Remaining content: 年
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue248">LWG 248</a></td>
+<td>C++98</td>
+<td><code>eofbit</code> n'a pas été défini lors de l'atteinte de l'itérateur de fin</td>
+<td>définit <code>eofbit</code> si aucune année valide n'a été lue</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../io/manip/get_time.html">get_time</a> (C++11)</strong> — analyse une valeur de date/heure au format spécifié <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

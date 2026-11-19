@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::malloc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/c.html">bibliothèque C de gestion de la mémoire</a></nav>
+<h1 id="std-malloc"><code>std::malloc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/c/malloc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">void* malloc( std::size_t size );
+</code></pre>
+<p>Alloue <code>size</code> octets de stockage non initialisé.</p>
+<p>Si l'allocation réussit, renvoie un pointeur vers le premier octet (le plus bas) du bloc mémoire alloué, aligné convenablement pour tout type scalaire (au moins aussi strictement que <a href="../../types/max_align_t.html"><code>std::max_align_t</code></a>) (<a href="../../language/objects.html#Object_creation">crée implicitement</a> des objets dans la zone de destination).</p>
+<p>Si <code>size</code> vaut zéro, le comportement est défini par l'implémentation (un pointeur nul peut être renvoyé, ou un pointeur non nul pouvant ne pas être utilisé pour accéder au stockage, mais devant être passé à <a href="free.html"><code>std::free</code></a>).</p>
+<blockquote>
+<p>Les fonctions suivantes doivent être thread-safe :</p>
+<ul>
+<li>Les versions de la bibliothèque de <a href="../new/operator_new.html"><code>operator new</code></a> et de <a href="../new/operator_delete.html"><code>operator delete</code></a></li>
+<li>Les versions de remplacement définies par l'utilisateur des <a href="../new/operator_new.html"><code>operator new</code></a> et <a href="../new/operator_delete.html"><code>operator delete</code></a> globales</li>
+<li><a href="calloc.html"><code>std::calloc</code></a>, <code>std::malloc</code>, <a href="realloc.html"><code>std::realloc</code></a>, <a href="aligned_alloc.html"><code>std::aligned_alloc</code></a> <em>(depuis C++17)</em>, <a href="free.html"><code>std::free</code></a></li>
+</ul>
+<p>Les appels à ces fonctions qui allouent ou libèrent une unité de stockage donnée se produisent selon un ordre total unique, et chaque appel de désallocation <a href="../../atomic/memory_order.html">happens-before</a> l'allocation suivante (le cas échéant) dans cet ordre.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>size</code> — nombre d'octets à allouer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, retourne le pointeur vers le début de la mémoire nouvellement allouée. Pour éviter une fuite mémoire, le pointeur retourné doit être libéré avec <a href="free.html"><code>std::free()</code></a> ou <a href="realloc.html"><code>std::realloc()</code></a>.</p>
+<p>En cas d'échec, retourne un pointeur nul.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction n'appelle pas de constructeurs et n'initialise la mémoire d'aucune façon. Il n'existe pas de pointeurs intelligents prêts à l'emploi qui pourraient garantir l'appel de la fonction de désallocation correspondante. La méthode préférée d'allocation mémoire en C++ consiste à utiliser les fonctions compatibles RAII <a href="../unique_ptr/make_unique.html"><code>std::make_unique</code></a>, <a href="../shared_ptr/make_shared.html"><code>std::make_shared</code></a>, les constructeurs de conteneurs, etc., et, dans le code de bibliothèque bas niveau, <a href="../../language/new.html">l'expression new</a>.</p>
+<p>Pour charger un gros fichier, le mappage de fichier via des fonctions propres au système, par exemple <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/mmap.html"><code>mmap</code></a> sous POSIX ou <code>CreateFileMapping</code>(<a href="https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createfilemappinga"><code>A</code></a>/<a href="https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-createfilemappingw"><code>W</code></a>) avec <a href="https://docs.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile"><code>MapViewOfFile</code></a> sous Windows, est préférable à l'allocation d'un tampon pour la lecture du fichier.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    constexpr std::size_t size = 4;
+    if (auto ptr = reinterpret_cast&lt;std::string*&gt;(std::malloc(size * sizeof(std::string))))
+    {
+        try
+        {
+            for (std::size_t i = 0; i &lt; size; ++i)
+                std::construct_at(ptr + i, 5, 'a' + i);
+            for (std::size_t i = 0; i &lt; size; ++i)
+                std::cout &lt;&lt; &quot;ptr[&quot; &lt;&lt; i &lt;&lt; &quot;] == &quot; &lt;&lt; ptr[i] &lt;&lt; '\n';
+            std::destroy_n(ptr, size);
+        }
+        catch (...) {}
+        std::free(ptr);
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">p[0] == aaaaa
+p[1] == bbbbb
+p[2] == ccccc
+p[3] == ddddd
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../new/operator_new.html">operator newoperator new[]</a></strong> — fonctions d'allocation <em>(fonction)</em></li>
+<li><strong><a href="../get_temporary_buffer.html">get_temporary_buffer</a><em>(deprecated in C++17)</em> (removed in C++20)</strong> — obtient un stockage non initialisé <em>(modèle de fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/memory/malloc.html">Documentation C</a> pour malloc</strong></p>
+
+</main>
+</body>
+</html>

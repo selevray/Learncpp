@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::space — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-space"><code>std::filesystem::space</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/space">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">std::filesystem::space_info space( const std::filesystem::path&amp; p );  // (1) (depuis C++17)
+
+std::filesystem::space_info space( const std::filesystem::path&amp; p,
+                                   std::error_code&amp; ec ) noexcept;  // (2) (depuis C++17)
+</code></pre>
+<p>Détermine les informations sur le système de fichiers sur lequel se trouve le chemin <code>p</code>, comme le fait POSIX <a href="https://pubs.opengroup.org/onlinepubs/9799919799/functions/fstatvfs.html"><code>statvfs</code></a>.</p>
+<p>Remplit et renvoie un objet de type <a href="space_info.html"><code>filesystem::space_info</code></a>, dont les membres sont définis à partir de la structure POSIX <code>struct statvfs</code> comme suit :</p>
+<ul>
+<li><a href="space_info.html"><code>space_info.capacity</code></a> est défini comme le fait <code>f_blocks * f_frsize</code>.</li>
+<li><a href="space_info.html"><code>space_info.free</code></a> est défini à <code>f_bfree * f_frsize</code>.</li>
+<li><a href="space_info.html"><code>space_info.available</code></a> est défini à <code>f_bavail * f_frsize</code>.</li>
+<li>Tout membre qui n'a pas pu être déterminé est défini à <code>static_cast&lt;std::uintmax_t&gt;(-1)</code>.</li>
+</ul>
+<p>La surcharge non lançante définit tous les membres à <code>static_cast&lt;std::uintmax_t&gt;(-1)</code> en cas d'erreur.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — chemin à examiner</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Les informations sur le système de fichiers (un objet <a href="space_info.html"><code>filesystem::space_info</code></a>).</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<ol>
+<li>
+<p>Lève <a href="filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</p>
+</li>
+<li>
+<p>Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p><a href="space_info.html"><code>space_info.available</code></a> peut être inférieur à <a href="space_info.html"><code>space_info.free</code></a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdint&gt;
+#include &lt;filesystem&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+
+std::uintmax_t disk_usage_percent(const std::filesystem::space_info&amp; si,
+                                  bool is_privileged = false) noexcept
+{
+    if (constexpr std::uintmax_t X(-1);
+        si.capacity == 0 || si.free == 0 || si.available == 0 ||
+        si.capacity == X || si.free == X || si.available == X
+    )
+        return 100;
+
+    std::uintmax_t unused_space = si.free, capacity = si.capacity;
+    if (!is_privileged)
+    {
+        const std::uintmax_t privileged_only_space = si.free - si.available;
+        unused_space -= privileged_only_space;
+        capacity -= privileged_only_space;
+    }
+    const std::uintmax_t used_space{capacity - unused_space};
+    return 100 * used_space / capacity;
+}
+
+void print_disk_space_info(auto const&amp; dirs, int width = 14)
+{
+    (std::cout &lt;&lt; std::left).imbue(std::locale(&quot;en_US.UTF-8&quot;));
+
+    for (const auto s : {&quot;Capacity&quot;, &quot;Free&quot;, &quot;Available&quot;, &quot;Use%&quot;, &quot;Dir&quot;})
+        std::cout &lt;&lt; &quot;│ &quot; &lt;&lt; std::setw(width) &lt;&lt; s &lt;&lt; ' ';
+
+    for (std::cout &lt;&lt; '\n'; auto const&amp; dir : dirs)
+    {
+        std::error_code ec;
+        const std::filesystem::space_info si = std::filesystem::space(dir, ec);
+        for (auto x : {si.capacity, si.free, si.available, disk_usage_percent(si)})
+            std::cout &lt;&lt; &quot;│ &quot; &lt;&lt; std::setw(width) &lt;&lt; static_cast&lt;std::intmax_t&gt;(x) &lt;&lt; ' ';
+        std::cout &lt;&lt; &quot;│ &quot; &lt;&lt; dir &lt;&lt; '\n';
+    }
+}
+
+int main()
+{
+    const auto dirs = {&quot;/dev/null&quot;, &quot;/tmp&quot;, &quot;/home&quot;, &quot;/proc&quot;, &quot;/null&quot;};
+    print_disk_space_info(dirs);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">│ Capacity       │ Free           │ Available      │ Use%           │ Dir
+│ 84,417,331,200 │ 42,732,986,368 │ 40,156,028,928 │ 50             │ /dev/null
+│ 84,417,331,200 │ 42,732,986,368 │ 40,156,028,928 │ 50             │ /tmp
+│ -1             │ -1             │ -1             │ 100            │ /home
+│ 0              │ 0              │ 0              │ 100            │ /proc
+│ -1             │ -1             │ -1             │ 100            │ /null
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="space_info.html">space_info</a> (C++17)</strong> — informations sur l'espace libre et disponible du système de fichiers <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

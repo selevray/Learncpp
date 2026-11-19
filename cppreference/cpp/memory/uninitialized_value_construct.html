@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::uninitialized_value_construct — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-uninitialized_value_construct"><code>std::uninitialized_value_construct</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/uninitialized_value_construct">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class NoThrowForwardIt &gt;
+void uninitialized_value_construct( NoThrowForwardIt first,
+                                    NoThrowForwardIt last );  // (1) (depuis C++17) (constexpr depuis C++26)
+
+template&lt; class ExecutionPolicy, class NoThrowForwardIt &gt;
+void uninitialized_value_construct( ExecutionPolicy&amp;&amp; policy,
+                                    NoThrowForwardIt first,
+                                    NoThrowForwardIt last );  // (2) (depuis C++17)
+</code></pre>
+<ol>
+<li>Construit des objets de type <code>typename std::iterator_traits&lt;NoThrowForwardIt&gt;::value_type</code> dans la zone de mémoire non initialisée <code>[first,last)</code> par <a href="../language/value_initialization.html">initialisation par valeur</a>, comme si cela était fait par</li>
+</ol>
+<p><code>for (; first != last; ++first) ::new (voidify(*first)) typename std::iterator_traits&lt;NoThrowForwardIt&gt;::value_type();</code></p>
+<p>Si une exception est levée pendant l'initialisation, les objets déjà construits sont détruits dans un ordre non spécifié.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais exécuté selon <code>policy</code>.</li>
+</ol>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</p>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::decay_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::remove_cvref_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle des éléments à initialiser</li>
+<li><code>policy</code> — la <a href="../algorithm/execution_policy_tag_t.html">politique d'exécution</a> à utiliser</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>NoThrowForwardIt</code> doit satisfaire aux exigences de <a href="../named_req/ForwardIterator.html"><em>LegacyForwardIterator</em></a>.</li>
+<li>Aucun incrément, affectation, comparaison ou déréférencement via des instances valides de <code>NoThrowForwardIt</code> ne peut lever d'exception.</li>
+</ul>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire en la distance entre <code>first</code> et <code>last</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge avec un paramètre de modèle nommé <code>ExecutionPolicy</code> signale les erreurs comme suit :</p>
+<ul>
+<li>Si l'exécution d'une fonction invoquée dans le cadre de l'algorithme lève une exception et <code>ExecutionPolicy</code> est l'une des <a href="../algorithm/execution_policy_tag_t.html">politiques standard</a>, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée. Pour toute autre <code>ExecutionPolicy</code>, le comportement est défini par l'implémentation.</li>
+<li>Si l'algorithme échoue à allouer de la mémoire, <a href="new/bad_alloc.html"><code>std::bad_alloc</code></a> est levée.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_raw_memory_algorithms"><code>__cpp_lib_raw_memory_algorithms</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_raw_memory_algorithms_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> pour les <a href="../memory.html#Uninitialized_memory_algorithms">algorithmes spécialisés de gestion de la mémoire</a>, <code>(1)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class NoThrowForwardIt&gt;
+constexpr void uninitialized_value_construct(NoThrowForwardIt first,
+                                             NoThrowForwardIt last)
+{
+    using Value = typename std::iterator_traits&lt;NoThrowForwardIt&gt;::value_type;
+    NoThrowForwardIt current = first;
+    try
+    {
+        for (; current != last; ++current)
+        {
+            ::new (static_cast&lt;void*&gt;(std::addressof(*current))) Value();
+        }
+    }
+    catch (...)
+    {
+        std::destroy(first, current);
+        throw;
+    }
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    struct S { std::string m{&quot;Default value&quot;}; };
+
+    constexpr int n{3};
+    alignas(alignof(S)) unsigned char mem[n * sizeof(S)];
+
+    try
+    {
+        auto first{reinterpret_cast&lt;S*&gt;(mem)};
+        auto last{first + n};
+
+        std::uninitialized_value_construct(first, last);
+
+        for (auto it{first}; it != last; ++it)
+            std::cout &lt;&lt; it-&gt;m &lt;&lt; '\n';
+
+        std::destroy(first, last);
+    }
+    catch (...)
+    {
+        std::cout &lt;&lt; &quot;Exception!\n&quot;;
+    }
+
+    // Pour les types scalaires, uninitialized_value_construct
+    // remplit de zéros la zone de mémoire non initialisée donnée.
+    int v[]{1, 2, 3, 4};
+    for (const int i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+    std::uninitialized_value_construct(std::begin(v), std::end(v));
+    for (const int i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Default value
+Default value
+Default value
+1 2 3 4
+0 0 0 0
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3870">LWG 3870</a></td>
+<td>C++20</td>
+<td>cet algorithme peut créer des objets sur un stockage <code>const</code></td>
+<td>maintenu interdit</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="uninitialized_value_construct_n.html">uninitialized_value_construct_n</a> (C++17)</strong> — construit des objets par <a href="../language/value_initialization.html">initialisation par valeur</a> dans une zone de mémoire non initialisée, définie par un début et un nombre <em>(modèle de fonction)</em></li>
+<li><strong><a href="uninitialized_default_construct.html">uninitialized_default_construct</a> (C++17)</strong> — construit des objets par <a href="../language/default_initialization.html">initialisation par défaut</a> dans une zone de mémoire non initialisée, définie par un intervalle <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/uninitialized_value_construct.html">ranges::uninitialized_value_construct</a> (C++20)</strong> — construit des objets par <a href="../language/value_initialization.html">initialisation par valeur</a> dans une zone mémoire non initialisée, définie par un intervalle <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

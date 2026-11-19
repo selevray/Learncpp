@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::common_iterator&lt;I,S&gt;::operator++ — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/iterator.html">Bibliothèque des itérateurs</a> › <a href="../../../cpp/iterator/common_iterator.html">std::common_iterator</a></nav>
+<h1 id="std-common_iterator-i-s-operator"><code>std::common_iterator&lt;I,S&gt;::operator++</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/common_iterator/operator_arith">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">constexpr common_iterator&amp; operator++();  // (1) (depuis C++20)
+
+constexpr decltype(auto) operator++( int );  // (2) (depuis C++20)
+</code></pre>
+<p><strong>Types auxiliaires</strong></p>
+<pre><code class="language-cpp">class /*postfix_proxy*/ {
+    std::iter_value_t&lt;I&gt; keep_;
+    constexpr postfix_proxy(std::iter_reference_t&lt;I&gt;&amp;&amp; x)
+        : keep_(std::forward&lt;std::iter_reference_t&lt;I&gt;&gt;(x)) {}
+public:
+    constexpr const std::iter_value_t&lt;I&gt;&amp; operator*() const noexcept {
+        return keep_;
+    }
+};  // (3) ( exposition uniquement* )
+</code></pre>
+<p>Incrémente l'itérateur sous-jacent.</p>
+<p>Le comportement est indéfini si l'objet membre sous-jacent <a href="../../utility/variant.html"><code>std::variant</code></a> <code>var</code> ne contient pas d'objet de type <code>I</code>, c'est-à-dire si <code>std::holds_alternative&lt;I&gt;(var)</code> est égal à <code>false</code>.</p>
+<p>Soit <code>it</code> désignant l'itérateur de type <code>I</code> détenu par <code>var</code>, c'est-à-dire <code>std::get&lt;I&gt;(var)</code>.</p>
+<ol>
+<li>
+<p>Pré-incrémente d'une unité. Équivaut à <code>++it; return *this;</code>.</p>
+</li>
+<li>
+<p>Post-incrémente d'une unité :</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>Équivaut à : <code>auto tmp = *this; ++*this; return tmp;</code>, si <code>I</code> modélise <a href="../forward_iterator.html"><code>forward_iterator</code></a>.</p>
+</li>
+<li>
+<p>Équivaut à : <code>return it++;</code>, si la définition de variable <code>auto&amp;&amp; ref = *it++;</code> est bien formée, ou bien</p>
+<ul>
+<li><code>std::indirectly_readable&lt;I&gt;</code> or</li>
+<li><code>std::constructible_from&lt;std::iter_value_t&lt;I&gt;, std::iter_reference_t&lt;I&gt;&gt;</code> or</li>
+<li><code>std::move_constructible&lt;std::iter_value_t&lt;I&gt;&gt;</code>
+is <code>false</code>.</li>
+</ul>
+</li>
+<li>
+<p>Équivaut à : <code>postfix_proxy p(**this); ++*this; return p;</code> sinon, où <code>postfix_proxy</code> est un type auxiliaire réservé à l'exposition <code>(3)</code>.</p>
+</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p><code>*this</code></p>
+</li>
+<li>
+<p>Une copie de <code>*this</code> effectuée avant la modification, ou le résultat d'un post-incrément de l'itérateur sous-jacent, ou un proxy conservant la valeur de l'élément courant, comme décrit ci-dessus.</p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;initializer_list&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+
+int main()
+{
+    const auto il = {1, 2, 3, 4, 5, 6};
+
+    using CI = std::common_iterator&lt;
+                   std::counted_iterator&lt;std::initializer_list&lt;int&gt;::iterator&gt;,
+                   std::default_sentinel_t
+                   &gt;;
+
+    CI first{std::counted_iterator{std::begin(il), std::ssize(il) - 2}};
+
+    for (; first != std::default_sentinel; ++first)
+        std::cout &lt;&lt; *first &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1 2 3 4
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P2259R1">P2259R1</a></td>
+<td>C++20</td>
+<td>le post-incrément peut écarter son résultat dans davantage de situations</td>
+<td>une classe proxy est utilisée pour conserver le résultat</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3546">LWG 3546</a></td>
+<td>C++20</td>
+<td>l'initialisation de l'objet proxy était parfois mal formée</td>
+<td>situation et définition ajustées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3574">LWG 3574</a></td>
+<td>C++20</td>
+<td><code>variant</code> était entièrement constexpr (P2231R1) mais <code>common_iterator</code> ne l'était pas</td>
+<td>également rendu constexpr</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3595">LWG 3595</a></td>
+<td>C++20</td>
+<td>les fonctions du type proxy ne possédaient pas constexpr ni noexcept</td>
+<td>added</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="operator-.html">operator-</a></strong> — calcule la distance entre deux adaptateurs d'itérateurs <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

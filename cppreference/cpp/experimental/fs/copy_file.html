@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::filesystem::copy_file — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../cpp/experimental/fs.html">Bibliothèque du système de fichiers</a></nav>
+<h1 id="std-experimental-filesystem-copy_file"><code>std::experimental::filesystem::copy_file</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/fs/copy_file">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/filesystem&gt;</strong></p>
+<pre><code class="language-cpp">bool copy_file( const path&amp; from, const path&amp; to );
+bool copy_file( const path&amp; from, const path&amp; to, error_code&amp; ec );  // (1) (TS sur le système de fichiers)
+
+bool copy_file( const path&amp; from, const path&amp; to, copy_options options );
+bool copy_file( const path&amp; from, const path&amp; to, copy_options options, error_code&amp; ec );  // (2) (TS sur le système de fichiers)
+</code></pre>
+<ol>
+<li>
+<p>Le comportement par défaut, équivalent à <code>(2)</code> avec <code>copy_options::none</code> utilisé comme <code>options</code>.</p>
+</li>
+<li>
+<p>Copie un seul fichier de <code>from</code> vers <code>to</code>, en utilisant les options de copie indiquées par <code>options</code>. Le comportement est indéfini s'il y a plus d'une option dans l'un quelconque des groupes d'options <a href="copy_options.html">copy_options</a> présents dans <code>options</code> (même dans les groupes non pertinents pour <code>copy_file</code>).</p>
+</li>
+</ol>
+<ul>
+<li>
+<p>Si le fichier de destination n'existe pas,</p>
+<ul>
+<li>copie le contenu et les attributs du fichier vers lequel <code>from</code> se résout vers le fichier vers lequel <code>to</code> se résout (les liens symboliques sont suivis).</li>
+</ul>
+</li>
+<li>
+<p>Sinon, si le fichier de destination existe déjà :</p>
+<ul>
+<li>Si <code>to</code> et <code>from</code> sont identiques tel que déterminé par <a href="equivalent.html"><code>equivalent(from, to)</code></a>, signale une erreur.</li>
+<li>Sinon, si aucune des options de contrôle copy_file n'est positionnée dans <code>options</code>, signale une erreur.</li>
+<li>Sinon, si <code>copy_options::skip_existing</code> est positionnée dans <code>options</code>, ne fait rien.</li>
+<li>Sinon, si <code>copy_options::overwrite_existing</code> est positionnée dans <code>options</code>, copie le contenu et les attributs du fichier vers lequel <code>from</code> se résout vers le fichier vers lequel <code>to</code> se résout.</li>
+<li>Sinon, si <code>copy_options::update_existing</code> est positionnée dans <code>options</code>, copie le fichier seulement si <code>from</code> est plus récent que <code>to</code>, tel que défini par <a href="last_write_time.html"><code>last_write_time()</code></a>.</li>
+</ul>
+</li>
+</ul>
+<p>Les surcharges non lançantes renvoient <code>false</code> si une erreur survient.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>from</code> — chemin vers le fichier source</li>
+<li><code>to</code> — chemin vers le fichier cible</li>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si le fichier a été copié, <code>false</code> sinon.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge qui ne prend pas de paramètre <code>error_code&amp;</code> lève <a href="filesystem_error.html">filesystem_error</a> en cas d'erreurs de l'API du système d'exploitation sous-jacente, construite avec <code>from</code> comme premier argument, <code>to</code> comme second argument, et le code d'erreur du système d'exploitation comme argument de code d'erreur. <code>std::bad_alloc</code> peut être levée si l'allocation mémoire échoue. La surcharge prenant un paramètre <code>error_code&amp;</code> le fixe au code d'erreur de l'API du système d'exploitation si un appel à cette API échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient. Cette surcharge a<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept</code></p>
+<h2 id="Notes">Notes</h2>
+<p>Les fonctions effectuent au plus un appel direct ou indirect à <a href="status.html"><code>status(to)</code></a> (utilisé à la fois pour déterminer si le fichier existe et, pour l'option <code>copy_options::update_existing</code>, sa date de dernière écriture).</p>
+<p>Une erreur est signalée lorsque <code>copy_file</code> est utilisée pour copier un répertoire : utilisez <a href="copy.html"><code>copy</code></a> pour cela.</p>
+<p><code>copy_file</code> suit les liens symboliques : utilisez <a href="copy_symlink.html"><code>copy_symlink</code></a> ou <a href="copy.html"><code>copy</code></a> avec <code>copy_options::copy_symlinks</code> pour cela.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;experimental/filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+namespace fs = std::experimental::filesystem;
+
+int main()
+{
+    fs::create_directory(&quot;sandbox&quot;);
+    std::ofstream(&quot;sandbox/file1.txt&quot;).put('a');
+
+    fs::copy_file(&quot;sandbox/file1.txt&quot;, &quot;sandbox/file2.txt&quot;);
+
+    // il y a maintenant deux fichiers dans sandbox :
+    std::cout &lt;&lt; &quot;file1.txt holds : &quot;
+              &lt;&lt; std::ifstream(&quot;sandbox/file1.txt&quot;).rdbuf() &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;file2.txt holds : &quot;
+              &lt;&lt; std::ifstream(&quot;sandbox/file2.txt&quot;).rdbuf() &lt;&lt; '\n';
+
+    // échec de la copie du répertoire
+    fs::create_directory(&quot;sandbox/abc&quot;);
+    try
+    {
+        fs::copy_file(&quot;sandbox/abc&quot;, &quot;sandbox/def&quot;);
+    }
+    catch (fs::filesystem_error&amp; e)
+    {
+        std::cout &lt;&lt; &quot;Could not copy sandbox/abc: &quot; &lt;&lt; e.what() &lt;&lt; '\n';
+    }
+    fs::remove_all(&quot;sandbox&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">file1.txt holds : a
+file2.txt holds : a
+Could not copy sandbox/abc: copy_file: Is a directory: &quot;sandbox/abc&quot;, &quot;sandbox/def&quot;
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="copy_options.html">copy_options</a></strong> — spécifie la sémantique des opérations de copie <em>(enum)</em></li>
+<li><strong><a href="copy_symlink.html">copy_symlink</a></strong> — copie un lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="copy.html">copy</a></strong> — copie des fichiers ou des répertoires <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

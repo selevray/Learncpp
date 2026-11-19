@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::generator&lt;Ref,V,Allocator&gt;::promise_type::yield_value — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../../assets/style.css">
+<script src="../../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../../cpp.html">Référence C++</a> › <a href="../../../../cpp/coroutine.html">Support des coroutines (C++20)</a> › <a href="../../../../cpp/coroutine/generator.html">std::generator</a> › <a href="../../../../cpp/coroutine/generator/promise_type.html">std::generator&lt;Ref,V,Allocator&gt;::promise_type</a></nav>
+<h1 id="std-generator-ref-v-allocator-promise_type-yield_value"><code>std::generator&lt;Ref,V,Allocator&gt;::promise_type::yield_value</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/coroutine/generator/promise_type/yield_value">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">std::suspend_always yield_value( yielded val ) noexcept;  // (1) (depuis C++23)
+
+auto yield_value( const std::remove_reference_t&lt;yielded&gt;&amp; lval )
+    requires std::is_rvalue_reference_v&lt;yielded&gt; &amp;&amp;
+             std::constructible_from&lt;std::remove_cvref_t&lt;yielded&gt;,
+                 const std::remove_reference_t&lt;yielded&gt;&amp;&gt;;  // (2) (depuis C++23)
+
+template&lt; class R2, class V2, class Alloc2, class Unused &gt;
+    requires std::same_as&lt;typename std::generator&lt;T2, V2, Alloc2&gt;::yielded,
+                          yielded&gt;
+auto yield_value( ranges::elements_of&lt;std::generator&lt;T2, V2, Alloc2&gt;&amp;&amp;,
+                                      Unused&gt; g ) noexcept;  // (3) (depuis C++23)
+
+template&lt; class R2, class V2, class Alloc2, class Unused &gt;
+    requires std::same_as&lt;typename std::generator&lt;T2, V2, Alloc2&gt;::yielded,
+                          yielded&gt;
+auto yield_value( ranges::elements_of&lt;std::generator&lt;T2, V2, Alloc2&gt;&amp;,
+                                      Unused&gt; g ) noexcept;  // (4) (depuis C++23)
+
+template&lt; ranges::input_range R, class Alloc &gt;
+    requires std::convertible_to&lt;ranges::range_reference_t&lt;R&gt;, yielded&gt;
+auto yield_value( ranges::elements_of&lt;R, Alloc&gt; r );  // (5) (depuis C++23)
+</code></pre>
+<p>Une implémentation des fonctions d'interface de coroutine utilisées en interne pour prendre en charge <code>operator co_yield</code>.</p>
+<p>(<a href="../../generator.html#Member_types"><code>yielded</code></a> est un type référence défini dans <code>std::generator</code>.)</p>
+<ol>
+<li>
+<p>Affecte <code>std::addressof(val)</code> à <code>value_</code>. Renvoie <code>{}</code>.</p>
+</li>
+<li>
+<p>Renvoie un objet attendable <code>x</code> de type non spécifié qui stocke un objet de type <code>std::remove_cvref_t&lt;yielded&gt;</code>. <code>x</code> est <a href="../../../language/direct_initialization.html">initialisé directement sans liste</a> avec <code>lval</code>, dont les fonctions membres sont configurées de sorte que <code>value_</code> pointe vers cet objet stocké. Puis suspend la coroutine.</p>
+</li>
+</ol>
+<p>3, 4) Soit <code>x</code> un objet <a href="../../generator.html">generator</a> quelconque.</p>
+<p>Renvoie un objet attendable de type non spécifié dans lequel <code>g.range</code> est déplacé,</p>
+<ul>
+<li>dont le membre <code>await_ready</code> renvoie <code>false</code>,</li>
+<li>dont le membre <code>await_suspend</code> empile <code>g.range.coroutine_</code> dans <code>*x.active_</code> et</li>
+<li>reprend l'exécution de la coroutine désignée par <code>g.range.coroutine_</code>, et</li>
+<li>dont le membre <code>await_resume</code> évalue
+<ul>
+<li><code>std::rethrow_exception(except_)</code> si <code>bool(except_)</code> est <code>true</code>.</li>
+<li>Si <code>bool(except_)</code> est <code>false</code>, le membre <code>await_resume</code> n'a aucun effet.</li>
+</ul>
+</li>
+</ul>
+<p>La coroutine désignée par <code>g.range.coroutine_</code> doit être suspendue à son point de suspension initial. Sinon, le comportement est indéfini.</p>
+<ol start="5">
+<li>Équivalent à :</li>
+</ol>
+<pre><code class="language-cpp">auto nested = [](std::allocator_arg_t, Alloc, ranges::iterator_t&lt;R&gt; i,
+                 ranges::sentinel_t&lt;R&gt; s) -&gt;
+    std::generator&lt;yielded, void, Alloc&gt;
+{
+    for (; i != s; ++i)
+        co_yield static_cast&lt;yielded&gt;(*i);
+};
+
+return yield_value(ranges::elements_of(nested(
+    allocator_arg, r.allocator, ranges::begin(r.range), ranges::end(r.range))));
+</code></pre>
+<p>2,3) Un handle désignant la coroutine dont l'objet promesse est <code>*this</code> doit se trouver au sommet de <code>*active_</code> d'un objet generator quelconque. Sinon, le comportement est indéfini.</p>
+<p>2-5) Une <a href="../../../language/coroutines.html#co_yield"><em>expression yield</em></a> qui appelle ces surcharges a le type <code>void</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>val</code> — une valeur qui est le résultat de l'évaluation de l'<em>expression yield</em></li>
+<li><code>lval</code> — une lvalue qui est le résultat de l'évaluation de l'<em>expression yield</em></li>
+<li><code>g</code> — un intervalle d'éléments produits par un generator</li>
+<li><code>r</code> — un intervalle d'éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>L'objet attendable de type <code>std::suspend_always</code>.</li>
+</ol>
+<p>2-5) Un objet attendable de type non spécifié tel que décrit ci-dessus.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>2,5) Peut lever toute exception levée par l'initialisation de l'objet stocké.</p>
+<h2 id="Example">Exemple</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3899">LWG 3899</a></td>
+<td>C++23</td>
+<td><code>yield_value</code> sur un intervalle d'éléments produits par un generator lvalue utilisait la surcharge générique <code>elements_of</code></td>
+<td>utilisait la surcharge spéciale <code>elements_of</code> pour de tels generators</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue4119">LWG 4119</a></td>
+<td>C++23</td>
+<td><code>range_value_t</code> dans l'argument de modèle de <code>generator</code> faisant partie du type de retour de <code>nested</code> dans <code>(5)</code> peut être mal formé</td>
+<td>utilisé <code>void</code></td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

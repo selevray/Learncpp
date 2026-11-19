@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>setjmp — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/program.html">Utilitaires de support du programme</a></nav>
+<h1 id="setjmp"><code>setjmp</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/program/setjmp">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;csetjmp&gt;</strong></p>
+<pre><code class="language-cpp">#define setjmp(env) /* implementation-defined */
+</code></pre>
+<p>Sauvegarde le contexte d'exécution courant dans une variable <code>env</code> de type <a href="jmp_buf.html"><code>std::jmp_buf</code></a>. Cette variable peut ensuite être utilisée pour restaurer le contexte d'exécution courant à l'aide de la fonction <a href="longjmp.html"><code>std::longjmp</code></a>. Autrement dit, lorsqu'un appel à la fonction <a href="longjmp.html"><code>std::longjmp</code></a> est effectué, l'exécution reprend au point d'appel précis qui a construit la variable <a href="jmp_buf.html"><code>std::jmp_buf</code></a> passée à <a href="longjmp.html"><code>std::longjmp</code></a>. Dans ce cas, <code>setjmp</code> renvoie la valeur passée à <a href="longjmp.html"><code>std::longjmp</code></a>.</p>
+<p>L'invocation de <code>setjmp</code> ne doit apparaître que dans l'un des contextes suivants :</p>
+<ol>
+<li>
+<p>l'expression de contrôle complète de <a href="../../language/if.html"><code>if</code></a>, <a href="../../language/switch.html"><code>switch</code></a>, <a href="../../language/while.html"><code>while</code></a>, <a href="../../language/do.html"><code>do-while</code></a>, <a href="../../language/for.html"><code>for</code></a>.</p>
+<pre><code class="language-cpp">switch (setjmp(env)) { // ...
+</code></pre>
+</li>
+<li>
+<p>un opérande d'un opérateur relationnel ou d'égalité, l'autre opérande étant une expression constante entière, l'expression résultante étant l'expression de contrôle complète de <a href="../../language/if.html"><code>if</code></a>, <a href="../../language/switch.html"><code>switch</code></a>, <a href="../../language/while.html"><code>while</code></a>, <a href="../../language/do.html"><code>do-while</code></a>, <a href="../../language/for.html"><code>for</code></a>.</p>
+<pre><code class="language-cpp">if (setjmp(env) &gt; 0) { // ...
+</code></pre>
+</li>
+<li>
+<p>l'opérande d'un opérateur unaire ! , l'expression résultante étant l'expression de contrôle complète de <a href="../../language/if.html"><code>if</code></a>, <a href="../../language/switch.html"><code>switch</code></a>, <a href="../../language/while.html"><code>while</code></a>, <a href="../../language/do.html"><code>do-while</code></a>, <a href="../../language/for.html"><code>for</code></a>.</p>
+<pre><code class="language-cpp">while (!setjmp(env)) { // ...
+</code></pre>
+</li>
+<li>
+<p>l'expression entière d'une <a href="../../language/statements.html#Expression_statements">instruction d'expression</a> (éventuellement convertie en <code>void</code>).</p>
+<pre><code class="language-cpp">setjmp(env);
+</code></pre>
+</li>
+</ol>
+<p>Si <code>setjmp</code> apparaît dans tout autre contexte, le comportement est indéfini.</p>
+<blockquote>
+<p>De plus, le comportement est indéfini si <code>setjmp</code> est invoqué dans une <a href="../../language/coroutines.html">coroutine</a> à un endroit où l'opérateur <code>co_await</code> peut être utilisé.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Au retour dans la portée de <code>setjmp</code> :</p>
+<ul>
+<li>tous les objets accessibles, les indicateurs d'état de virgule flottante et les autres composants de la machine abstraite ont les mêmes valeurs qu'au moment de l'exécution de <a href="longjmp.html"><code>std::longjmp</code></a>,</li>
+<li>à l'exception des variables locales non-<a href="../../language/cv.html">volatile</a> de la fonction contenant l'invocation de <code>setjmp</code>, dont les valeurs sont indéterminées si elles ont été modifiées depuis l'invocation de <code>setjmp</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>env</code> — variable destinée à sauvegarder l'état d'exécution du programme</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>0</code> si la macro a été appelée par le code d'origine et que le contexte d'exécution a été sauvegardé dans <code>env</code>.</p>
+<p>Valeur non nulle si un saut non local vient d'être effectué. La valeur de retour est la même que celle passée à <a href="longjmp.html"><code>std::longjmp</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les exigences ci-dessus interdisent d'utiliser la valeur de retour de <code>setjmp</code> dans le flux de données (par exemple pour initialiser ou affecter un objet avec celle-ci). La valeur de retour ne peut être utilisée que dans le flux de contrôle ou être ignorée.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;cmath&gt;
+#include &lt;csetjmp&gt;
+#include &lt;cstdlib&gt;
+#include &lt;format&gt;
+#include &lt;iostream&gt;
+
+std::jmp_buf solver_error_handler;
+
+std::array&lt;double, 2&gt; solve_quadratic_equation(double a, double b, double c)
+{
+    const double discriminant = b * b - 4.0 * a * c;
+    if (discriminant &lt; 0)
+        std::longjmp(solver_error_handler, true); // Aller au gestionnaire d'erreurs
+
+    const double delta = std::sqrt(discriminant) / (2.0 * a);
+    const double argmin = -b / (2.0 * a);
+    return {argmin - delta, argmin + delta};
+}
+
+void show_quadratic_equation_solution(double a, double b, double c)
+{
+    std::cout &lt;&lt; std::format(&quot;Solving {}x² + {}x + {} = 0...\n&quot;, a, b, c);
+    auto [x_0, x_1] = solve_quadratic_equation(a, b, c);
+    std::cout &lt;&lt; std::format(&quot;x₁ = {}, x₂ = {}\n\n&quot;, x_0, x_1);
+}
+
+int main()
+{
+    if (setjmp(solver_error_handler))
+    {
+        // Gestionnaire d'erreurs pour le solveur
+        std::cout &lt;&lt; &quot;No real solution\n&quot;;
+        return EXIT_FAILURE;
+    }
+
+    for (auto [a, b, c] : {std::array{1, -3, 2}, {2, -3, -2}, {1, 2, 3}})
+        show_quadratic_equation_solution(a, b, c);
+
+    return EXIT_SUCCESS;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Solving 1x² + -3x + 2 = 0...
+x₁ = 1, x₂ = 2
+
+Solving 2x² + -3x + -2 = 0...
+x₁ = -0.5, x₂ = 2
+
+Solving 1x² + 2x + 3 = 0...
+No real solution
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="longjmp.html">longjmp</a></strong> — saute à l'emplacement spécifié <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/program/setjmp.html">Documentation C</a> pour setjmp</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::reverse_copy, std::ranges::reverse_copy_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-reverse_copy-std-ranges-reverse_copy_result"><code>std::ranges::reverse_copy, std::ranges::reverse_copy_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/reverse_copy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::bidirectional_iterator I, std::sentinel_for&lt;I&gt; S,
+          std::weakly_incrementable O &gt;
+requires std::indirectly_copyable&lt;I, O&gt;
+constexpr reverse_copy_result&lt;I, O&gt;
+    reverse_copy( I first, S last, O result );  // (1) (depuis C++20)
+
+template&lt; ranges::bidirectional_range R, std::weakly_incrementable O &gt;
+requires std::indirectly_copyable&lt;ranges::iterator_t&lt;R&gt;, O&gt;
+constexpr reverse_copy_result&lt;ranges::borrowed_iterator_t&lt;R&gt;, O&gt;
+    reverse_copy( R&amp;&amp; r, O result );  // (2) (depuis C++20)
+</code></pre>
+<p><strong>Types auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class I, class O &gt;
+using reverse_copy_result = ranges::in_out_result&lt;I, O&gt;;  // (3) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Copie les éléments de l'intervalle source <code>[first,last)</code> vers l'intervalle de destination <code>[result,result + N)</code>, où <code>N</code> vaut <code>ranges::distance(first, last)</code>, de sorte que les éléments du nouvel intervalle soient dans l'ordre inverse. Se comporte comme si l'on exécutait l'affectation <code>*(result + N - 1 - i) = *(first + i)</code> une fois pour chaque entier <code>i</code> dans <code>[0,N)</code>. Le comportement est indéfini si les intervalles source et destination se chevauchent.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — la plage des éléments à copier</li>
+<li><code>r</code> — la plage des éléments à copier</li>
+<li><code>result</code> — le début de l'intervalle de destination.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>{last, result + N}</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>N</code> affectations.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les implémentations (par exemple <a href="https://github.com/microsoft/STL/blob/main/stl/src/vector_algorithms.cpp">MSVC STL</a>) peuvent activer la vectorisation lorsque les deux types d'itérateurs modélisent <a href="../../iterator/contiguous_iterator.html"><code>contiguous_iterator</code></a> et ont le même type de valeur, et que ce type de valeur est <a href="../../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Voir aussi les implémentations de <a href="https://github.com/microsoft/STL/blob/472161105d596192194d4715ccad307c6c163b4a/stl/inc/algorithm#L4245-L4323">MSVC STL</a> et <a href="https://github.com/gcc-mirror/gcc/blob/14d8a5ae472ca5743016f37da2dd4770d83dea21/libstdc%2B%2B-v3/include/bits/ranges_algo.h#L1330-L1359">libstdc++</a>.</p>
+<pre><code class="language-cpp">struct reverse_copy_fn
+{
+    template&lt;std::bidirectional_iterator I, std::sentinel_for&lt;I&gt; S,
+             std::weakly_incrementable O&gt;
+    requires std::indirectly_copyable&lt;I, O&gt;
+    constexpr ranges::reverse_copy_result&lt;I, O&gt;
+        operator()(I first, S last, O result) const
+    {
+        auto ret = ranges::next(first, last);
+        for (; last != first; *result = *--last, ++result);
+        return {std::move(ret), std::move(result)};
+    }
+
+    template&lt;ranges::bidirectional_range R, std::weakly_incrementable O&gt;
+    requires std::indirectly_copyable&lt;ranges::iterator_t&lt;R&gt;, O&gt;
+    constexpr ranges::reverse_copy_result&lt;ranges::borrowed_iterator_t&lt;R&gt;, O&gt;
+        operator()(R&amp;&amp; r, O result) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::move(result));
+    }
+};
+
+inline constexpr reverse_copy_fn reverse_copy {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::string x {&quot;12345&quot;}, y(x.size(), ' ');
+    std::cout &lt;&lt; x &lt;&lt; &quot; → &quot;;
+    std::ranges::reverse_copy(x.begin(), x.end(), y.begin());
+    std::cout &lt;&lt; y &lt;&lt; &quot; → &quot;;
+    std::ranges::reverse_copy(y, x.begin());
+    std::cout &lt;&lt; x &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">12345 → 54321 → 12345
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="reverse.html">ranges::reverse</a> (C++20)</strong> — inverse l'ordre des éléments d'un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../reverse_copy.html">reverse_copy</a></strong> — crée une copie d'une plage inversée <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

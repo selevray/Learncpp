@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration d&#x27;union — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="déclaration-d-union">Déclaration d'union</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/union">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Une union est un type constitué d'une suite de membres dont les zones de stockage se chevauchent (contrairement à struct, qui est un type constitué d'une suite de membres dont le stockage est alloué dans une séquence ordonnée). La valeur d'au plus un des membres peut être stockée dans une union à un instant donné.</p>
+<p>Le <a href="declarations.html">spécificateur de type</a> d'une union est identique au spécificateur de type <a href="struct.html"><code>struct</code></a>, à l'exception du mot-clé utilisé :</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>union</code> <code>attr-spec-seq</code> ﻿*(facultatif)* <code>name</code> ﻿*(facultatif)* <code>{</code> <code>struct-declaration-list</code> <code>}</code> | (1) | |
+|
+| <code>union</code> <code>attr-spec-seq</code> ﻿*(facultatif)* <code>name</code> | (2) | |
+|</p>
+<ul>
+<li><code>name</code> — le nom de l'union en cours de définition</li>
+<li><code>struct-declaration-list</code> — un nombre quelconque de déclarations de variables, de déclarations de <a href="bit_field.html">champs de bits</a> et de déclarations static_assert. Les membres de type incomplet et les membres de type fonction ne sont pas autorisés.</li>
+<li><code>attr-spec-seq</code> — (C23) liste facultative d'<a href="attributes.html">attributs</a>, appliquée au type union ; non autorisée pour <code>(2)</code> si cette forme n'est pas suivie d'un <code>;</code> (c'est-à-dire qu'il ne s'agit pas d'une déclaration anticipée).</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>L'union n'occupe que la taille nécessaire pour contenir son plus grand membre (un rembourrage final supplémentaire et sans nom peut également être ajouté). Les autres membres sont alloués dans les mêmes octets, faisant partie de ce plus grand membre.</p>
+<p>Un pointeur vers une union peut être converti en pointeur vers chacun de ses membres (si une union possède des membres de champ de bits, le pointeur vers l'union peut être converti en pointeur vers le type sous-jacent du champ de bits). De même, un pointeur vers un membre quelconque d'une union peut être converti en pointeur vers l'union englobante.</p>
+<blockquote>
+<p>Si le membre utilisé pour accéder au contenu d'une union n'est pas le même que le membre utilisé en dernier pour stocker une valeur, la représentation objet de la valeur stockée est réinterprétée comme représentation objet du nouveau type (cela s'appelle le <em>détournement de type</em>). Si la taille du nouveau type est supérieure à celle du type écrit en dernier, le contenu des octets excédentaires est non spécifié (et peut être une représentation piège). Avant C99 TC3 (DR 283), ce comportement était indéfini, mais il était couramment implémenté ainsi.</p>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<blockquote>
+<p>Comme pour struct, un membre sans nom d'une union dont le type est une union sans <code>name</code> est appelé <em>union anonyme</em>. Chaque membre d'une union anonyme est considéré comme un membre de la struct ou union englobante, en conservant leur disposition d'union. Ceci s'applique récursivement si la struct ou union englobante est également anonyme.</p>
+<pre><code class="language-c">struct v
+{
+   union // union anonyme
+   {
+       struct { int i, j; }; // structure anonyme
+       struct { long k, l; } w;
+   };
+   int m;
+} v1;
+
+v1.i = 2;   // valid
+v1.k = 3;   // invalide : la structure interne n'est pas anonyme
+v1.w.k = 5; // valid
+</code></pre>
+<p>Comme pour struct, le comportement du programme est indéfini si une union est définie sans aucun membre nommé (y compris ceux obtenus via des structs ou unions imbriquées anonymes).</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/union.html"><code>union</code></a></p>
+<h2 id="Notes">Notes</h2>
+<p>Voir <a href="struct_initialization.html">initialisation des struct</a> pour les règles relatives à l'initialisation des structs et des unions.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;assert.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    union S
+    {
+        uint32_t u32;
+        uint16_t u16[2];
+        uint8_t  u8;
+    } s = {0x12345678}; // s.u32 est désormais le membre actif
+    printf(&quot;Union S has size %zu and holds %x\n&quot;, sizeof s, s.u32);
+    s.u16[0] = 0x0011;  // s.u16 est désormais le membre actif
+    // la lecture de s.u32 ou de s.u8 réinterprète la représentation objet
+//  printf(&quot;s.u8 is now %x\n&quot;, s.u8); // non spécifié, généralement 11 ou 00
+//  printf(&quot;s.u32 is now %x\n&quot;, s.u32); // non spécifié, généralement 12340011 ou 00115678
+
+    // les pointeurs vers tous les membres d'une union se comparent égaux à eux-mêmes et à l'union
+    assert((uint8_t*)&amp;s == &amp;s.u8);
+
+    // cette union possède 3 octets de rembourrage final
+    union pad
+    {
+        char  c[5]; // occupe 5 octets
+        float f;    // occupe 4 octets, impose un alignement de 4
+    } p = { .f = 1.23 }; // la taille est de 8 pour satisfaire l'alignement de float
+    printf(&quot;size of union of char[5] and float is %zu\n&quot;, sizeof p);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Union S has size 4 and holds 12345678
+size of union of char[5] and float is 8
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts modifiant le comportement suivants ont été appliqués rétroactivement aux normes C publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_499">DR 499</a></td>
+<td>C11</td>
+<td>les membres des structs/unions anonymes étaient considérés comme des membres de la struct/union englobante</td>
+<td>ils conservent leur disposition en mémoire</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : 81-84)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : 112-117)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.2.1 Spécificateurs de structure et d'union (p : 101-104)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.5.2.1 Spécificateurs de structure et d'union</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/union.html">Documentation C++</a> pour Déclaration d'union</strong></p>
+
+</main>
+</body>
+</html>

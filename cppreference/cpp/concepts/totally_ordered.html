@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::totally_ordered, std::totally_ordered_with — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/concepts.html">Bibliothèque des concepts (depuis C++20)</a></nav>
+<h1 id="std-totally_ordered-std-totally_ordered_with"><code>std::totally_ordered, std::totally_ordered_with</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/concepts/totally_ordered">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;concepts&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+concept totally_ordered =
+    std::equality_comparable&lt;T&gt; &amp;&amp; __PartiallyOrderedWith&lt;T, T&gt;;  // (1) (depuis C++20)
+
+template&lt; class T, class U &gt;
+concept totally_ordered_with =
+    std::totally_ordered&lt;T&gt; &amp;&amp;
+    std::totally_ordered&lt;U&gt; &amp;&amp;
+    std::equality_comparable_with&lt;T, U&gt; &amp;&amp;
+    std::totally_ordered&lt;
+        std::common_reference_t&lt;
+            const std::remove_reference_t&lt;T&gt;&amp;,
+            const std::remove_reference_t&lt;U&gt;&amp;&gt;&gt; &amp;&amp;
+    __PartiallyOrderedWith&lt;T, U&gt;;  // (2) (depuis C++20)
+</code></pre>
+<p><strong>Concepts auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class U &gt;
+concept __PartiallyOrderedWith =
+    requires(const std::remove_reference_t&lt;T&gt;&amp; t,
+             const std::remove_reference_t&lt;U&gt;&amp; u) {
+        { t &lt;  u } -&gt; boolean-testable;
+        { t &gt;  u } -&gt; boolean-testable;
+        { t &lt;= u } -&gt; boolean-testable;
+        { t &gt;= u } -&gt; boolean-testable;
+        { u &lt;  t } -&gt; boolean-testable;
+        { u &gt;  t } -&gt; boolean-testable;
+        { u &lt;= t } -&gt; boolean-testable;
+        { u &gt;= t } -&gt; boolean-testable;
+    };  // (3) ( exposition uniquement* )
+</code></pre>
+<ol>
+<li>
+<p>Le concept <code>std::totally_ordered</code> spécifie que les opérateurs de comparaison <code>==,!=,&lt;,&gt;,&lt;=,&gt;=</code> sur un type produisent des résultats cohérents avec un <a href="https://en.wikipedia.org/wiki/Total_order#Strict_and_non-strict_total_orders">ordre total strict</a> sur ce type.</p>
+</li>
+<li>
+<p>Le concept <code>std::totally_ordered_with</code> spécifie que les opérateurs de comparaison <code>==,!=,&lt;,&gt;,&lt;=,&gt;=</code> sur des opérandes (éventuellement de types mixtes) <code>T</code> et <code>U</code> produisent des résultats cohérents avec un ordre total strict. Comparer des opérandes mixtes produit des résultats équivalents à la comparaison des opérandes convertis en leur type commun.</p>
+</li>
+<li>
+<p>Le concept <code>__PartiallyOrderedWith</code> réservé à l'exposition spécifie qu'une valeur de type <code>T</code> et une valeur de type <code>U</code> peuvent être comparées dans un ordre partiel l'une avec l'autre (dans les deux sens) en utilisant <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code> et <code>&gt;=</code>, et que les résultats des comparaisons sont cohérents.</p>
+</li>
+</ol>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Ces concepts ne sont modélisés que s'ils sont satisfaits et que tous les concepts qu'ils subsument sont modélisés.</p>
+<ol>
+<li><code>std::totally_ordered&lt;T&gt;</code> n'est modélisé que si, étant donnés des lvalues <code>a</code>, <code>b</code> et <code>c</code> de type <code>const std::remove_reference_t&lt;T&gt;</code> :</li>
+</ol>
+<ul>
+<li>Exactement une de <code>bool(a &lt; b)</code>, <code>bool(a &gt; b)</code> et <code>bool(a == b)</code> est <code>true</code> ;</li>
+<li>Si <code>bool(a &lt; b)</code> et <code>bool(b &lt; c)</code> sont tous deux <code>true</code>, alors <code>bool(a &lt; c)</code> est <code>true</code> ;</li>
+<li><code>bool(a &gt; b) == bool(b &lt; a)</code></li>
+<li><code>bool(a &gt;= b) == !bool(a &lt; b)</code></li>
+<li><code>bool(a &lt;= b) == !bool(b &lt; a)</code></li>
+</ul>
+<ol start="2">
+<li><code>std::totally_ordered_with&lt;T, U&gt;</code> n'est modélisé que si, étant donnés</li>
+</ol>
+<ul>
+<li><code>t</code> et <code>t2</code>, des lvalues désignant des objets égaux distincts de types <code>const std::remove_reference_t&lt;T&gt;</code> et <code>std::remove_reference_t&lt;T&gt;</code> respectivement, et</li>
+<li><code>u</code> et <code>u2</code>, des lvalues désignant des objets égaux distincts de types <code>const std::remove_reference_t&lt;U&gt;</code> et <code>std::remove_reference_t&lt;U&gt;</code> respectivement,</li>
+</ul>
+<p>soit <code>C</code> égal à <code>std::common_reference_t&lt;const std::remove_reference_t&lt;T&gt;&amp;, const std::remove_reference_t&lt;U&gt;&amp;&gt;</code>, et, étant donnés une expression <code>E</code> et un type <code>C</code>, soit <code>CONVERT_TO&lt;C&gt;(E)</code> :</p>
+<blockquote>
+<ul>
+<li><code>static_cast&lt;C&gt;(std::as_const(E))</code>.</li>
+</ul>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>static_cast&lt;const C&amp;&gt;(std::as_const(E))</code> si c'est une expression valide,</li>
+<li><code>static_cast&lt;const C&amp;&gt;(std::move(E))</code> sinon.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>les propositions suivantes sont vraies :</p>
+<ul>
+<li><code>bool(t &lt; u) == bool(CONVERT_TO&lt;C&gt;(t2) &lt; CONVERT_TO&lt;C&gt;(u2))</code></li>
+<li><code>bool(t &gt; u) == bool(CONVERT_TO&lt;C&gt;(t2) &gt; CONVERT_TO&lt;C&gt;(u2))</code></li>
+<li><code>bool(t &lt;= u) == bool(CONVERT_TO&lt;C&gt;(t2) &lt;= CONVERT_TO&lt;C&gt;(u2))</code></li>
+<li><code>bool(t &gt;= u) == bool(CONVERT_TO&lt;C&gt;(t2) &gt;= CONVERT_TO&lt;C&gt;(u2))</code></li>
+<li><code>bool(u &lt; t) == bool(CONVERT_TO&lt;C&gt;(u2) &lt; CONVERT_TO&lt;C&gt;(t2))</code></li>
+<li><code>bool(u &gt; t) == bool(CONVERT_TO&lt;C&gt;(u2) &gt; CONVERT_TO&lt;C&gt;(t2))</code></li>
+<li><code>bool(u &lt;= t) == bool(CONVERT_TO&lt;C&gt;(u2) &lt;= CONVERT_TO&lt;C&gt;(t2))</code></li>
+<li><code>bool(u &gt;= t) == bool(CONVERT_TO&lt;C&gt;(u2) &gt;= CONVERT_TO&lt;C&gt;(t2))</code></li>
+</ul>
+<ol start="3">
+<li><code>__PartiallyOrderedWith&lt;T, U&gt;</code> n'est modélisé que si, étant donné</li>
+</ol>
+<ul>
+<li>toute lvalue <code>t</code> de type <code>const std::remove_reference_t&lt;T&gt;</code>, et</li>
+<li>toute lvalue <code>u</code> de type <code>const std::remove_reference_t&lt;U&gt;</code>,</li>
+</ul>
+<p>les propositions suivantes sont vraies :</p>
+<ul>
+<li><code>t &lt; u</code>, <code>t &lt;= u</code>, <code>t &gt; u</code>, <code>t &gt;= u</code>, <code>u &lt; t</code>, <code>u &lt;= t</code>, <code>u &gt; t</code> et <code>u &gt;= t</code> ont le même domaine ;</li>
+<li><code>bool(t &lt; u) == bool(u &gt; t)</code>;</li>
+<li><code>bool(u &lt; t) == bool(t &gt; u)</code>;</li>
+<li><code>bool(t &lt;= u) == bool(u &gt;= t)</code>; and</li>
+<li><code>bool(u &lt;= t) == bool(t &gt;= u)</code>.</li>
+</ul>
+<h2 id="Equality_preservation">Préservation de l'égalité</h2>
+<p>Les expressions déclarées dans les <a href="../language/requires.html"><code>requires</code> expressions</a> des concepts de la bibliothèque standard doivent être <a href="../concepts.html#Equality_preservation">préservant l'égalité</a> (sauf mention contraire).</p>
+<h2 id="Implicit_expression_variations">Variations d'expressions implicites</h2>
+<p>Une <a href="../language/requires.html"><code>requires</code> expression</a> qui utilise une expression non modifiante pour un opérande lvalue constant quelconque nécessite également des <a href="../concepts.html#Implicit_expression_variations">variations d'expressions implicites</a>.</p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>18.5.5 Concept <code>totally_ordered</code> [concept.totallyordered]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>18.5.4 Concept <code>totally_ordered</code> [concept.totallyordered]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../utility/compare/three_way_comparable.html">three_way_comparablethree_way_comparable_with</a> (C++20)</strong> — spécifie que l'opérateur <code>&lt;=&gt;</code> produit un résultat cohérent sur les types donnés <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

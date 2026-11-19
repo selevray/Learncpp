@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::move_backward, std::ranges::move_backward_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-move_backward-std-ranges-move_backward_result"><code>std::ranges::move_backward, std::ranges::move_backward_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/move_backward">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::bidirectional_iterator I1, std::sentinel_for&lt;I1&gt; S1,
+          std::bidirectional_iterator I2 &gt;
+requires std::indirectly_movable&lt;I1, I2&gt;
+constexpr move_backward_result&lt;I1, I2&gt;
+    move_backward( I1 first, S1 last, I2 result );  // (1) (depuis C++20)
+
+template&lt; ranges::bidirectional_range R, std::bidirectional_iterator I &gt;
+requires std::indirectly_movable&lt;ranges::iterator_t&lt;R&gt;, I&gt;
+constexpr move_backward_result&lt;ranges::borrowed_iterator_t&lt;R&gt;, I&gt;
+    move_backward( R&amp;&amp; r, I result );  // (2) (depuis C++20)
+</code></pre>
+<p><strong>Types auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class I, class O &gt;
+using move_backward_result = ranges::in_out_result&lt;I, O&gt;;  // (3) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Déplace les éléments de l'intervalle défini par <code>[first,last)</code> vers une autre plage <code>[result - N,result)</code>, où <code>N = ranges::distance(first, last)</code>. Les éléments sont déplacés dans l'ordre inverse (le dernier élément est déplacé en premier), mais leur ordre relatif est préservé. Le comportement est indéfini si <code>result</code> se trouve dans <code>(first, last]</code>. Dans ce cas, <a href="move.html"><code>ranges::move</code></a> peut être utilisé à la place.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code>, et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les éléments de l'intervalle <em>déplacé</em> contiendront toujours des valeurs valides du type approprié, mais pas nécessairement les mêmes valeurs qu'avant le déplacement, comme si on utilisait <code>*(result - n) = ranges::iter_move(last - n)</code> pour chaque entier <code>n</code>, où <code>0 ≤ n &lt; N</code>.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first</code> — le début de la plage des éléments à déplacer</li>
+<li><code>last</code> — la fin de la plage des éléments à déplacer</li>
+<li><code>r</code> — l'intervalle des éléments à déplacer</li>
+<li><code>result</code> — la fin de la plage de destination</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>{last, result - N}</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<ol>
+<li>
+<p>Exactement <code>N</code> affectations par déplacement.</p>
+</li>
+<li>
+<p>Exactement <code>ranges::distance(r)</code> affectations par déplacement.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Lors du déplacement d'intervalles qui se chevauchent, <a href="move.html"><code>ranges::move</code></a> convient lorsqu'on déplace vers la gauche (le début de l'intervalle de destination est en dehors de l'intervalle source), tandis que <code>ranges::move_backward</code> convient lorsqu'on déplace vers la droite (la fin de l'intervalle de destination est en dehors de l'intervalle source).</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct move_backward_fn
+{
+    template&lt;std::bidirectional_iterator I1, std::sentinel_for&lt;I1&gt; S1,
+             std::bidirectional_iterator I2&gt;
+    requires std::indirectly_movable&lt;I1, I2&gt;
+    constexpr ranges::move_backward_result&lt;I1, I2&gt;
+        operator()(I1 first, S1 last, I2 result) const
+    {
+        auto i {last};
+        for (; i != first; *--result = ranges::iter_move(--i))
+        {}
+        return {std::move(last), std::move(result)};
+    }
+
+    template&lt;ranges::bidirectional_range R, std::bidirectional_iterator I&gt;
+    requires std::indirectly_movable&lt;ranges::iterator_t&lt;R&gt;, I&gt;
+    constexpr ranges::move_backward_result&lt;ranges::borrowed_iterator_t&lt;R&gt;, I&gt;
+        operator()(R&amp;&amp; r, I result) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::move(result));
+    }
+};
+
+inline constexpr move_backward_fn move_backward {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+using Vec = std::vector&lt;std::string&gt;;
+
+void print(std::string_view rem, Vec const&amp; vec)
+{
+    std::cout &lt;&lt; rem &lt;&lt; &quot;[&quot; &lt;&lt; vec.size() &lt;&lt; &quot;]: &quot;;
+    for (const std::string&amp; s : vec)
+        std::cout &lt;&lt; (s.size() ? s : std::string{&quot;·&quot;}) &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    Vec a{&quot;▁&quot;, &quot;▂&quot;, &quot;▃&quot;, &quot;▄&quot;, &quot;▅&quot;, &quot;▆&quot;, &quot;▇&quot;, &quot;█&quot;};
+    Vec b(a.size());
+
+    print(&quot;Before move:\n&quot; &quot;a&quot;, a);
+    print(&quot;b&quot;, b);
+
+    std::ranges::move_backward(a, b.end());
+
+    print(&quot;\n&quot; &quot;Move a &gt;&gt; b:\n&quot; &quot;a&quot;, a);
+    print(&quot;b&quot;, b);
+
+    std::ranges::move_backward(b.begin(), b.end(), a.end());
+    print(&quot;\n&quot; &quot;Move b &gt;&gt; a:\n&quot; &quot;a&quot;, a);
+    print(&quot;b&quot;, b);
+
+    std::ranges::move_backward(a.begin(), a.begin()+3, a.end());
+    print(&quot;\n&quot; &quot;Overlapping move a[0, 3) &gt;&gt; a[5, 8):\n&quot; &quot;a&quot;, a);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Before move:
+a[8]: ▁ ▂ ▃ ▄ ▅ ▆ ▇ █
+b[8]: · · · · · · · ·
+
+Move a &gt;&gt; b:
+a[8]: · · · · · · · ·
+b[8]: ▁ ▂ ▃ ▄ ▅ ▆ ▇ █
+
+Move b &gt;&gt; a:
+a[8]: ▁ ▂ ▃ ▄ ▅ ▆ ▇ █
+b[8]: · · · · · · · ·
+
+Overlapping move a[0, 3) &gt;&gt; a[5, 8):
+a[8]: · · · ▄ ▅ ▁ ▂ ▃
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="move.html">ranges::move</a> (C++20)</strong> — déplace un intervalle d'éléments vers un nouvel emplacement <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="copy.html">ranges::copyranges::copy_if</a> (C++20) (C++20)</strong> — copie une plage d'éléments vers un nouvel emplacement <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="copy_backward.html">ranges::copy_backward</a> (C++20)</strong> — copie une plage d'éléments dans l'ordre inverse <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../move.html">move</a> (C++11)</strong> — déplace un intervalle d'éléments vers un nouvel emplacement <em>(modèle de fonction)</em></li>
+<li><strong><a href="../../utility/move.html">move</a> (C++11)</strong> — convertit l'argument en xvalue <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

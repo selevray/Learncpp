@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::aligned_storage — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-aligned_storage"><code>std::aligned_storage</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/aligned_storage">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; std::size_t Len, std::size_t Align = /* default-alignment */ &gt;
+struct aligned_storage;  // (depuis C++11) (obsolète en C++23)
+</code></pre>
+<p>Fournit le type imbriqué <em><code>type</code></em>, qui satisfait <a href="../named_req/TrivialType.html"><em>TrivialType</em></a> et <a href="../named_req/StandardLayoutType.html"><em>StandardLayoutType</em></a> et convient comme stockage non initialisé pour tout objet dont la taille est au plus <code>Len</code> et dont <a href="../language/objects.html#Alignment">l'exigence d'alignement</a> est un diviseur de <code>Align</code>.</p>
+<p>La valeur par défaut de <code>Align</code> est l'exigence d'alignement la plus stricte (la plus grande) pour tout objet dont la taille est au plus <code>Len</code>. Si la valeur par défaut n'est pas utilisée, <code>Align</code> doit être la valeur de <code>alignof(T)</code> pour un certain type <code>T</code>, sinon le comportement est indéfini.</p>
+<p>Le comportement est indéfini si <code>Len == 0</code>.</p>
+<p>Il est défini par l'implémentation de savoir si un <a href="../language/objects.html#Alignment">alignement étendu</a> quelconque est pris en charge.</p>
+<p>Si le programme ajoute des spécialisations pour <code>std::aligned_storage</code>, le comportement est indéfini.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>type</code></strong> — un type <a href="../named_req/TrivialType.html">trivial</a> et de <a href="../named_req/StandardLayoutType.html">disposition standard</a> d'une taille d'au moins <code>Len</code> avec l'exigence d'alignement <code>Align</code></li>
+</ul>
+<h2 id="Helper_types">Types auxiliaires</h2>
+<pre><code class="language-cpp">template&lt; std::size_t Len, std::size_t Align = /* default-alignment */ &gt;
+using aligned_storage_t = typename aligned_storage&lt;Len, Align&gt;::type;  // (depuis C++14) (obsolète en C++23)
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Le type défini par <code>std::aligned_storage&lt;&gt;::type</code> peut servir à créer des blocs mémoire non initialisés adaptés à la détention d'objets du type donné, éventuellement alignés plus strictement que leur exigence d'alignement naturelle, par exemple sur une frontière de cache ou de page.</p>
+<p>Comme pour tout autre stockage non initialisé, les objets sont créés à l'aide d'un <a href="../language/new.html">placement new</a> et détruits par des appels explicites au destructeur.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Hormis l'argument par défaut, aligned_storage peut s'exprimer à l'aide de alignas :</p>
+<pre><code class="language-cpp">template&lt;std::size_t Len, std::size_t Align = /* alignement par défaut non implémenté */&gt;
+struct aligned_storage
+{
+    struct type
+    {
+        alignas(Align) unsigned char data[Len];
+    };
+};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>Une classe vector statique primitive, illustrant la création, l'accès et la destruction d'objets dans un stockage aligné.</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;new&gt;
+#include &lt;string&gt;
+#include &lt;type_traits&gt;
+
+template&lt;class T, std::size_t N&gt;
+class static_vector
+{
+    // Stockage non initialisé correctement aligné pour N T
+    std::aligned_storage_t&lt;sizeof(T), alignof(T)&gt; data[N];
+    std::size_t m_size = 0;
+
+public:
+    // Créer un objet dans un stockage aligné
+    template&lt;typename ...Args&gt; void emplace_back(Args&amp;&amp;... args)
+    {
+        if (m_size &gt;= N) // Gestion possible des erreurs
+            throw std::bad_alloc{};
+
+        // Construire une valeur en mémoire du stockage aligné à l'aide de operator new placé
+        ::new(&amp;data[m_size]) T(std::forward&lt;Args&gt;(args)...);
+        ++m_size;
+    }
+
+    // Accéder à un objet dans un stockage aligné
+    const T&amp; operator[](std::size_t pos) const
+    {
+        // Remarque : std::launder est nécessaire après le changement du modèle d'objet dans P0137R1
+        return *std::launder(reinterpret_cast&lt;const T*&gt;(&amp;data[pos]));
+    }
+
+    // Détruire les objets du stockage aligné
+    ~static_vector()
+    {
+        for (std::size_t pos = 0; pos &lt; m_size; ++pos)
+            // Remarque : std::launder est nécessaire après le changement du modèle d'objet dans P0137R1
+            std::destroy_at(std::launder(reinterpret_cast&lt;T*&gt;(&amp;data[pos])));
+    }
+};
+
+int main()
+{
+    static_vector&lt;std::string, 10&gt; v1;
+    v1.emplace_back(5, '*');
+    v1.emplace_back(10, '*');
+    std::cout &lt;&lt; v1[0] &lt;&lt; '\n' &lt;&lt; v1[1] &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">*****
+**********
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><code>alignas</code> (C++11)</strong> — spécifie que le stockage de la variable doit être aligné sur une quantité spécifique <em>(spécificateur)</em></li>
+<li><strong><a href="alignment_of.html">alignment_of</a> (C++11)</strong> — obtient les exigences d'alignement du type <em>(modèle de classe)</em></li>
+<li><strong><a href="../memory/c/aligned_alloc.html">aligned_alloc</a> (C++17)</strong> — alloue de la mémoire alignée <em>(fonction)</em></li>
+<li><strong><a href="aligned_union.html">aligned_union</a> (since C++11) (deprecated in C++23)</strong> — définit le type adapté à être utilisé comme stockage non initialisé pour tous les types donnés <em>(modèle de classe)</em></li>
+<li><strong><a href="max_align_t.html">max_align_t</a> (C++11)</strong> — type trivial dont l'exigence d'alignement est aussi grande que celle de tout autre type scalaire <em>(typedef)</em></li>
+<li><strong><a href="../utility/launder.html">launder</a> (C++17)</strong> — barrière d'optimisation de pointeur <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

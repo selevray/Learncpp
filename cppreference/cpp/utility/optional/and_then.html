@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::optional&lt;T&gt;::and_then — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/optional.html">std::optional</a></nav>
+<h1 id="std-optional-t-and_then"><code>std::optional&lt;T&gt;::and_then</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/optional/and_then">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class F &gt;
+constexpr auto and_then( F&amp;&amp; f ) &amp;;  // (1) (depuis C++23)
+
+template&lt; class F &gt;
+constexpr auto and_then( F&amp;&amp; f ) const&amp;;  // (2) (depuis C++23)
+
+template&lt; class F &gt;
+constexpr auto and_then( F&amp;&amp; f ) &amp;&amp;;  // (3) (depuis C++23)
+
+template&lt; class F &gt;
+constexpr auto and_then( F&amp;&amp; f ) const&amp;&amp;;  // (4) (depuis C++23)
+</code></pre>
+<p>Si <code>*this</code> contient une valeur, invoque <code>f</code> avec la valeur contenue comme argument, et renvoie le résultat de cet appel ; sinon, renvoie un <code>std::optional</code> vide.</p>
+<p>Le type de retour (voir ci-dessous) doit être une spécialisation de <a href="../optional.html"><code>std::optional</code></a> (contrairement à <a href="transform.html"><code>transform()</code></a>). Sinon, le programme est mal formé.</p>
+<ol>
+<li>Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">if (*this)
+    return std::invoke(std::forward&lt;F&gt;(f), value());
+else
+    return std::remove_cvref_t&lt;std::invoke_result_t&lt;F, T&amp;&gt;&gt;{};
+</code></pre>
+<ol start="2">
+<li>Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">if (*this)
+    return std::invoke(std::forward&lt;F&gt;(f), value());
+else
+    return std::remove_cvref_t&lt;std::invoke_result_t&lt;F, const T&amp;&gt;&gt;{};
+</code></pre>
+<ol start="3">
+<li>Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">if (*this)
+    return std::invoke(std::forward&lt;F&gt;(f), std::move(value()));
+else
+    return std::remove_cvref_t&lt;std::invoke_result_t&lt;F, T&gt;&gt;{};
+</code></pre>
+<ol start="4">
+<li>Équivalent à</li>
+</ol>
+<pre><code class="language-cpp">if (*this)
+    return std::invoke(std::forward&lt;F&gt;(f), std::move(value());
+else
+    return std::remove_cvref_t&lt;std::invoke_result_t&lt;F, const T&gt;&gt;{};
+</code></pre>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>f</code> — une fonction appropriée ou un objet <a href="../../named_req/Callable.html"><em>Callable</em></a> qui renvoie un <a href="../optional.html"><code>std::optional</code></a></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le résultat de <code>f</code> ou un <a href="../optional.html"><code>std::optional</code></a> vide, comme décrit ci-dessus.</p>
+<h2 id="Notes">Notes</h2>
+<p>Certains langages appellent cette opération <em>flatmap</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_optional"><code>__cpp_lib_optional</code></a></td>
+<td><a href="../../compiler_support/23.html#cpp_lib_optional_202110L"><code>202110L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><a href="../optional.html#Monadic_operations">Opérations monadiques</a> dans <a href="../optional.html"><code>std::optional</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;charconv&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;optional&gt;
+#include &lt;ranges&gt;
+#include &lt;string&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+std::optional&lt;int&gt; to_int(std::string_view sv)
+{
+    int r{};
+    auto [ptr, ec]{std::from_chars(sv.data(), sv.data() + sv.size(), r)};
+    if (ec == std::errc())
+        return r;
+    else
+        return std::nullopt;
+}
+
+int main()
+{
+    using namespace std::literals;
+
+    const std::vector&lt;std::optional&lt;std::string&gt;&gt; v
+    {
+        &quot;1234&quot;, &quot;15 foo&quot;, &quot;bar&quot;, &quot;42&quot;, &quot;5000000000&quot;, &quot; 5&quot;, std::nullopt, &quot;-43&quot;
+    };
+
+    for (auto&amp;&amp; x : v | std::views::transform(
+        [](auto&amp;&amp; o)
+        {
+            // affiche en débogage le contenu de l'entrée optional&lt;string&gt;
+            std::cout &lt;&lt; std::left &lt;&lt; std::setw(13)
+                      &lt;&lt; std::quoted(o.value_or(&quot;nullopt&quot;)) &lt;&lt; &quot; -&gt; &quot;;
+
+            return o
+                // si optional est nullopt, le convertit en optional avec la chaîne &quot;&quot;
+                .or_else([]{ return std::optional{&quot;&quot;s}; })
+                // flatmap de chaînes vers entiers (en créant des optionals vides en cas d'échec)
+                .and_then(to_int)
+                // applique int à int + 1
+                .transform([](int n) { return n + 1; })
+                // reconvertit en chaînes
+                .transform([](int n) { return std::to_string(n); })
+                // remplace tous les optionals vides laissés par
+                // and_then et ignorés par les transformations avec « NaN »
+                .value_or(&quot;NaN&quot;s);
+        }))
+        std::cout &lt;&lt; x &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">&quot;1234&quot;        -&gt; 1235
+&quot;15 foo&quot;      -&gt; 16
+&quot;bar&quot;         -&gt; NaN
+&quot;42&quot;          -&gt; 43
+&quot;5000000000&quot;  -&gt; NaN
+&quot; 5&quot;          -&gt; NaN
+&quot;nullopt&quot;     -&gt; NaN
+&quot;-43&quot;         -&gt; -42
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="value_or.html">value_or</a></strong> — renvoie la valeur contenue si elle est disponible, une autre valeur sinon <em>(fonction membre publique)</em></li>
+<li><strong><a href="transform.html">transform</a> (C++23)</strong> — renvoie un <code>optional</code> contenant la valeur contenue transformée si elle existe, ou un <code>optional</code> vide sinon <em>(fonction membre publique)</em></li>
+<li><strong><a href="or_else.html">or_else</a> (C++23)</strong> — renvoie le <code>optional</code> lui-même s'il contient une valeur, ou le résultat de la fonction donnée sinon <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

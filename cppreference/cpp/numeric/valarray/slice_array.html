@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::slice_array — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/numeric.html">Bibliothèque numérique</a> › <a href="../../../cpp/numeric/valarray.html">std::valarray</a></nav>
+<h1 id="std-slice_array"><code>std::slice_array</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/numeric/valarray/slice_array">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;valarray&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt; class slice_array;
+</code></pre>
+<p><code>std::slice_array</code> est un modèle auxiliaire utilisé par l'<a href="operator_at.html">opérateur d'indexation de valarray</a> avec un argument <code>std::slice</code>. Il a une sémantique par référence vers un sous-ensemble du tableau spécifié par l'objet <code>std::slice</code>.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>value_type</code></strong> — <code>T</code></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="slice_array/slice_array.html">(constructeur)</a></strong> — construit un <code>slice_array</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="slice_array/~slice_array.html">(destructeur)</a></strong> — détruit un <code>slice_array</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="slice_array/operator%3D.html">operator=</a></strong> — assigne le contenu <em>(fonction membre publique)</em></li>
+<li><strong><a href="slice_array/operator_arith.html">operator+=operator-=operator*=operator/=operator%=operator&amp;=operator|=operator^=operator&lt;&lt;=operator&gt;&gt;=</a></strong> — effectue une opération arithmétique sur le tableau référencé par la tranche. <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;valarray&gt;
+
+class Matrix
+{
+    int dim;
+    std::valarray&lt;int&gt; data;
+public:
+    explicit Matrix(int dim, int init = 0)
+        : dim{dim}, data(init, dim*dim) {}
+    void clear(int value = 0) { data = value; }
+    void identity() { clear(); diagonal() = 1; }
+    int&amp; operator()(int x, int y) { return data[dim * y + x]; }
+
+    std::slice_array&lt;int&gt; diagonal()
+    {
+        return data[std::slice(0, dim, dim + 1)];
+    }
+    std::slice_array&lt;int&gt; secondary_diagonal()
+    {
+        return data[std::slice(dim - 1, dim, dim - 1)];
+    }
+    std::slice_array&lt;int&gt; row(std::size_t row)
+    {
+        return data[std::slice(dim * row, dim, 1)];
+    }
+    std::slice_array&lt;int&gt; column(std::size_t col)
+    {
+        return data[std::slice(col, dim, dim)];
+    }
+    template&lt;unsigned, unsigned&gt; friend class MatrixStack;
+};
+
+template&lt;unsigned dim = 3, unsigned max = 8&gt; class MatrixStack
+{
+    std::valarray&lt;int&gt; stack;
+    unsigned count = 0;
+public:
+    MatrixStack() : stack(dim * dim * max) {}
+    void print_all() const
+    {
+        std::valarray&lt;int&gt; row(dim*count);
+        for (unsigned r = 0; r != dim; ++r) // ligne d'écran
+        {
+            row = stack[std::gslice(r * dim, {count, dim}, {dim * dim, 1})];
+            for (unsigned i = 0; i != row.size(); ++i)
+                std::cout &lt;&lt; row[i] &lt;&lt; ((i + 1) % dim ? &quot; &quot; : &quot; │ &quot;);
+            std::cout &lt;&lt; '\n';
+        }
+    }
+    void push_back(Matrix const&amp; m)
+    {
+        if (count &lt; max)
+        {
+            stack[std::slice(count * dim * dim, dim * dim, 1)]
+                = m.data[std::slice(0, dim * dim, 1)];
+            ++count;
+        }
+    }
+};
+
+int main()
+{
+    constexpr int dim = 3;
+    Matrix m{dim};
+    MatrixStack&lt;dim,12&gt; stack;
+
+    m.identity();
+    stack.push_back(m);
+
+    m.clear(1);
+    m.secondary_diagonal() = 3;
+    stack.push_back(m);
+
+    for (int i = 0; i != dim; ++i)
+    {
+        m.clear();
+        m.row(i) = i + 1;
+        stack.push_back(m);
+    }
+
+    for (int i = 0; i != dim; ++i)
+    {
+        m.clear();
+        m.column(i) = i + 1;
+        stack.push_back(m);
+    }
+
+    m.clear();
+    m.row(1) = std::valarray&lt;int&gt;{4, 5, 6};
+    stack.push_back(m);
+
+    m.clear();
+    m.column(1) = std::valarray&lt;int&gt;{7, 8, 9};
+    stack.push_back(m);
+
+    stack.print_all();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1 0 0 │ 1 1 3 │ 1 1 1 │ 0 0 0 │ 0 0 0 │ 1 0 0 │ 0 2 0 │ 0 0 3 │ 0 0 0 │ 0 7 0 │
+0 1 0 │ 1 3 1 │ 0 0 0 │ 2 2 2 │ 0 0 0 │ 1 0 0 │ 0 2 0 │ 0 0 3 │ 4 5 6 │ 0 8 0 │
+0 0 1 │ 3 1 1 │ 0 0 0 │ 0 0 0 │ 3 3 3 │ 1 0 0 │ 0 2 0 │ 0 0 3 │ 0 0 0 │ 0 9 0 │
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="gslice_array.html">gslice_array</a></strong> — proxy vers un sous-ensemble d'un valarray après application d'un gslice <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

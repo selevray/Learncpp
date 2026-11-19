@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversion static_cast — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="conversion-static_cast">Conversion static_cast</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/static_cast">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Convertit entre types en combinant des conversions implicites et définies par l'utilisateur.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>static_cast&lt;target-type</code> ﻿<code>&gt;(expression</code> ﻿<code>)</code> | | |
+|</p>
+<p>Renvoie une valeur de type <code>target-type</code>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Seules les conversions suivantes peuvent être effectuées avec <code>static_cast</code>, sauf lorsque ces conversions <a href="const_cast.html#Casting_away_constness">supprimeraient la constness</a> (ou la volatilité).</p>
+<ol>
+<li>Si <code>expression</code> est une lvalue de type « <em>cv1</em> <code>Base</code> » et que <code>target-type</code> est « référence vers <em>cv2</em> <code>Derived</code> », le résultat désigne l'objet de type <code>Derived</code> englobant <code>expression</code> si toutes les conditions suivantes sont satisfaites :</li>
+</ol>
+<ul>
+<li><code>Derived</code> est un type classe complet.</li>
+<li><code>Base</code> est une classe de base de <code>Derived</code>.</li>
+<li><em>cv1</em> n'est pas une qualification cv plus forte que <em>cv2</em>.</li>
+</ul>
+<p>Si l'une des conditions suivantes est satisfaite, le programme est mal formé :</p>
+<ul>
+<li><code>Base</code> est une <a href="derived_class.html#Virtual_base_classes">classe de base virtuelle</a> de <code>Derived</code>.</li>
+<li><code>Base</code> est une classe de base d'une classe de base virtuelle de <code>Derived</code>.</li>
+<li>Aucune <a href="implicit_cast.html">conversion standard</a> valide de « pointeur vers <code>Derived</code> » en « pointeur vers <code>Base</code> » n'existe.</li>
+</ul>
+<p>Si <code>expression</code> n'est en réalité pas un sous-objet de classe de base d'un objet de type <code>Derived</code>, le comportement est indéfini.</p>
+<pre><code class="language-cpp">struct B {};
+struct D : B { B b; };
+
+D d;
+B&amp; br1 = d;
+B&amp; br2 = d.b;
+
+static_cast&lt;D&amp;&gt;(br1); // OK, lvalue désignant l'objet « d » d'origine
+static_cast&lt;D&amp;&gt;(br2); // UB : le sous-objet « b » n'est pas un sous-objet de classe de base
+</code></pre>
+<blockquote>
+<ol start="2">
+<li>
+<p>Si <code>target-type</code> est « référence rvalue vers <code>Derived</code> » et que <code>expression</code> est une xvalue de type « (éventuellement qualifié cv) <code>Base</code> » tel que <code>Base</code> soit une classe de base de <code>Derived</code>, le résultat et les contraintes de cette conversion sont les mêmes que celles de la conversion « <code>Base</code> lvalue vers <code>Derived</code> référence ».</p>
+</li>
+<li>
+<p>Si <code>target-type</code> est un type référence rvalue et que le type référencé est <a href="reference_initialization.html#Definitions">compatible par référence</a> avec le type de <code>expression</code>, <code>static_cast</code> convertit la valeur de [glvalue, prvalue de classe ou prvalue de tableau <em>(jusqu'à C++17)</em> | toute lvalue <em>(depuis C++17)</em>] <code>expression</code> en xvalue désignant le même objet que l'expression, ou son sous-objet de classe de base (selon <code>target-type</code>).<a href="static_cast.html#cite_note-1">[1]</a></p>
+</li>
+</ol>
+<p>Si <code>target-type</code> est une base inaccessible ou ambiguë du type de <code>expression</code>, le programme est mal formé.</p>
+<p>Si <code>expression</code> est une lvalue de <a href="bit_field.html">champ de bits</a>, elle est d'abord convertie en prvalue du type sous-jacent.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ol start="4">
+<li>
+<p>Si <code>target-type</code> est le (éventuellement qualifié cv) <code>void</code>, la conversion n'a pas de résultat. Dans ce cas, <code>expression</code> est une <a href="expressions.html#Discarded-value_expressions">expression de valeur rejetée</a>.</p>
+</li>
+<li>
+<p>Sinon, <code>expression</code> peut être explicitement converti en <code>target-type</code> si</p>
+</li>
+</ol>
+<blockquote>
+<p>la déclaration <code>target-type temp(expression ﻿);</code> est bien formée pour une variable temporaire fictive <code>temp</code>.</p>
+<p>L'effet d'une telle conversion explicite est le même que celui de la déclaration et de l'initialisation, puis d'utilisation de <code>temp</code> comme résultat de la conversion. Le <code>expression</code> ﻿ est utilisé comme [une lvalue <em>(jusqu'à C++11)</em> | une glvalue <em>(depuis C++11)</em>] si et seulement si l'initialisation l'utilise comme [une lvalue <em>(jusqu'à C++11)</em> | une glvalue <em>(depuis C++11)</em>].</p>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<p>l'une des conditions suivantes est satisfaite :</p>
+<ul>
+<li>Il existe une séquence de conversion implicite de <code>expression</code> vers <code>target-type</code>.</li>
+<li>La <a href="overload_resolution.html">résolution de surcharge</a> pour une <a href="direct_initialization.html">initialisation directe</a> d'un objet ou d'une référence de type <code>target-type</code> à partir de <code>expression</code> trouverait au moins une fonction viable.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>target-type</code> est un <a href="aggregate_initialization.html#Aggregate">type agrégat</a> dont le premier élément est <code>x</code>, et il existe une séquence de conversion implicite de <code>expression</code> vers le type de <code>x</code>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La conversion explicite est définie comme suit :</p>
+<ul>
+<li>Si <code>target-type</code> est un type référence, l'effet est le même que celui de la déclaration et de l'initialisation <code>target-type temp(expression ﻿);</code> pour une variable temporaire inventée <code>temp</code>, puis de l'utilisation de <code>temp</code> comme résultat de la conversion.</li>
+<li>Sinon, l'objet résultat est initialisé directement à partir de <code>expression</code> ﻿.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ol start="6">
+<li>Sinon, si la conversion de <code>expression</code> vers <code>target-type</code> est l'inverse d'une séquence de conversion standard, et que la séquence de conversion ne contient aucune des conversions suivantes, la conversion peut être effectuée par <code>static_cast</code> :</li>
+</ol>
+<ul>
+<li><a href="implicit_cast.html#Lvalue-to-rvalue_conversion">conversion lvalue vers rvalue</a></li>
+<li><a href="implicit_cast.html#Array-to-pointer_conversion">conversion tableau vers pointeur</a></li>
+<li><a href="implicit_cast.html#Function-to-pointer_conversion">conversion fonction vers pointeur</a></li>
+<li><a href="implicit_cast.html#Pointer_conversions">conversion de pointeur nul</a></li>
+<li><a href="implicit_cast.html#Pointer-to-member_conversions">conversion de pointeur membre nul</a></li>
+<li><a href="implicit_cast.html#Boolean_conversions">conversion booléenne</a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="implicit_cast.html#Function_pointer_conversions">conversion de pointeur de fonction</a></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Si un programme utilise <code>static_cast</code> pour effectuer l'inverse d'une séquence de conversion standard mal formée, le programme est mal formé.</p>
+<ol start="7">
+<li>Sinon, les conversions lvalue vers rvalue, tableau vers pointeur et fonction vers pointeur sont appliquées à <code>expression</code>. Après ces conversions, seules les conversions suivantes peuvent être effectuées par <code>static_cast</code> :</li>
+</ol>
+<blockquote>
+<p>a) Une valeur de <a href="enum.html#Scoped_enumerations">type énumération à portée</a> peut être convertie en type entier ou à virgule flottante.</p>
+<blockquote>
+<ul>
+<li>Si <code>target-type</code> est (éventuellement qualifié cv) <code>bool</code>, le résultat est <code>false</code> si la valeur originale de <code>expression</code> est zéro, et <code>true</code> pour toutes les autres valeurs.</li>
+<li>Si <code>target-type</code> est un type entier autre que (éventuellement qualifié cv) <code>bool</code>, la valeur est inchangée si la valeur originale de <code>expression</code> peut être représentée par <code>target-type</code>. Sinon, la valeur résultante est non spécifiée.</li>
+</ul>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Si <code>target-type</code> est un type entier, le résultat est le même que celui de la conversion vers le type sous-jacent de l'énumération, puis vers <code>target-type</code>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>Si <code>target-type</code> est un type à virgule flottante, le résultat est le même que celui de la conversion de la valeur originale vers <code>target-type</code>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>b) Une valeur de type entier ou énumération peut être convertie en tout type énumération complet.</p>
+<ul>
+<li>Si <code>target-type</code> a un type sous-jacent fixe, <code>expression</code> est d'abord converti vers ce type par <a href="implicit_cast.html#Integral_promotion">promotion intégrale</a> ou <a href="implicit_cast.html#Integral_conversions">conversion intégrale</a>, si nécessaire, puis vers <code>target-type</code>.</li>
+<li>Si <code>target-type</code> n'a pas de type sous-jacent fixe, la valeur de <code>expression</code> est inchangée si la valeur originale se trouve <a href="enum.html#Notes">dans l'intervalle des valeurs de l'énumération</a>, sinon le comportement est indéfini.</li>
+</ul>
+<p>c) Une valeur de type à virgule flottante peut aussi être convertie en tout type énumération complet. Le résultat est le même que celui de la <a href="implicit_cast.html#Floating-integral_conversions">conversion</a> de la valeur originale de <code>expression</code> d'abord vers le type sous-jacent de <code>target-type</code>, puis vers <code>target-type</code> lui-même.</p>
+<blockquote>
+<p>d) Une prvalue de type à virgule flottante peut être explicitement convertie en tout autre type à virgule flottante.</p>
+<ul>
+<li>Si la valeur source de <code>expression</code> peut être représentée exactement dans <code>target-type</code>, elle ne change pas.</li>
+<li>Sinon, si la valeur source de <code>expression</code> se situe entre deux valeurs représentables de <code>target-type</code>, le résultat de la conversion est un choix défini par l'implémentation parmi ces deux valeurs.<a href="static_cast.html#cite_note-2">[2]</a></li>
+<li>Dans le cas contraire, le comportement est indéfini.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>e) [Une rvalue <em>(jusqu'à C++11)</em> | Une prvalue <em>(depuis C++11)</em>] de type « pointeur vers <em>cv1</em> <code>Base</code> » peut être explicitement convertie en type « pointeur vers <em>cv2</em> <code>Derived</code> » si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li><code>Derived</code> est un type classe complet.</li>
+<li><code>Base</code> est une classe de base de <code>Derived</code>.</li>
+<li><em>cv1</em> n'est pas une qualification cv plus forte que <em>cv2</em>.</li>
+</ul>
+<p>Si <code>expression</code> est une <a href="pointer.html#Null_pointers">valeur de pointeur nul</a>, le résultat est une valeur de pointeur nul de type <code>target-type</code>. Sinon, le résultat est un pointeur vers l'objet de type <code>Derived</code> englobant l'objet de type <code>Base</code> pointé par <code>expression</code>.</p>
+<p>Si l'une des conditions suivantes est satisfaite, le programme est mal formé :</p>
+<ul>
+<li><code>Base</code> est une <a href="derived_class.html#Virtual_base_classes">classe de base virtuelle</a> de <code>Derived</code>.</li>
+<li><code>Base</code> est une classe de base d'une classe de base virtuelle de <code>Derived</code>.</li>
+<li>Aucune conversion standard valide de « pointeur vers <code>Derived</code> » en « pointeur vers <code>Base</code> » n'existe.</li>
+</ul>
+<p>Si <code>expression</code> n'est pas une valeur de pointeur nul et ne pointe pas réellement vers un sous-objet de classe de base d'un objet de type <code>Derived</code>, le comportement est indéfini.</p>
+<p>f) [Une rvalue <em>(jusqu'à C++11)</em> | Une prvalue <em>(depuis C++11)</em>] de type « pointeur vers membre de <code>Derived</code> de type <em>cv1</em> <code>T</code> » peut être explicitement convertie en type « pointeur vers membre de <code>Base</code> de type <em>cv2</em> <code>T</code> » si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li><code>Derived</code> est un type classe complet.</li>
+<li><code>Base</code> est une classe de base de <code>Derived</code>.</li>
+<li><em>cv1</em> n'est pas une qualification cv plus forte que <em>cv2</em>.</li>
+</ul>
+<p>Si <code>expression</code> est une valeur de pointeur membre nul, le résultat est une valeur de pointeur membre nul de type <code>target-type</code>. Sinon, le résultat est un pointeur vers le membre original (éventuellement indirect) de la classe <code>Base</code>.</p>
+<p>Si aucune conversion standard valide de « pointeur vers membre de <code>Base</code> de type <code>T</code> » en « pointeur vers membre de <code>Derived</code> de type <code>T</code> » n'existe, le programme est mal formé.</p>
+<p>Si <code>expression</code> n'est pas une valeur de pointeur membre nul et que le membre qu'il désigne n'est pas un membre (éventuellement indirect) de la classe <code>Base</code>, le comportement est indéfini.</p>
+<p>g) [Une rvalue <em>(jusqu'à C++11)</em> | Une prvalue <em>(depuis C++11)</em>] de type « pointeur vers <em>cv1</em> <code>void</code> » peut être explicitement convertie en type « pointeur vers <em>cv2</em> <code>T</code> » si <code>T</code> est un type objet et que <em>cv1</em> n'est pas une qualification cv plus forte que <em>cv2</em>.</p>
+<blockquote>
+<ul>
+<li>Si <code>expression</code> est une valeur de pointeur nul, le résultat est une valeur de pointeur nul de type <code>target-type</code>.</li>
+<li>Si <code>expression</code> <a href="pointer.html#Pointers">représente l'adresse</a> <code>A</code> d'un <a href="memory_model.html#Byte">octet</a> en mémoire et que <code>A</code> satisfait l'exigence d'<a href="objects.html#Alignment">alignement</a> de <code>T</code>, alors la valeur de pointeur résultante représente également <code>A</code>.</li>
+<li>Le résultat de toute autre conversion de pointeur de ce type est non spécifié.</li>
+<li>Si <code>expression</code> est le résultat d'une conversion antérieure depuis un objet de type « pointeur vers <em>cv3</em> <code>T</code> », le résultat a la valeur originale.</li>
+</ul>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Si <code>expression</code> <a href="pointer.html#Pointers">représente l'adresse</a> <code>A</code> d'un <a href="memory_model.html#Byte">octet</a> en mémoire mais que <code>A</code> ne satisfait pas l'exigence d'<a href="objects.html#Alignment">alignement</a> de <code>T</code>, la valeur de pointeur résultante est non spécifiée.</li>
+<li>Sinon, si <code>expression</code> pointe vers un objet <code>a</code>, et qu'il existe un objet <code>b</code> de type <code>T</code> (sans tenir compte de la qualification cv) qui est interconvertible par pointeur (voir ci-dessous) avec <code>a</code>, le résultat est un pointeur vers <code>b</code>.</li>
+<li>Sinon, la valeur du pointeur est inchangée par la conversion.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Comme pour toutes les expressions de transtypage, le résultat est :</p>
+<ul>
+<li>une lvalue si <code>target-type</code> est de type référence lvalueou référence rvalue vers un type fonction <em>(depuis C++11)</em> ;</li>
+</ul>
+<blockquote>
+<ul>
+<li>une xvalue si <code>target-type</code> est une référence rvalue vers un type objet ;</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>une prvalue sinon.</li>
+</ul>
+<ol>
+<li><a href="static_cast.html#cite_ref-1">↑</a> Ce type de <code>static_cast</code> est utilisé pour implémenter la sémantique de déplacement dans <code>std::move</code>.</li>
+<li><a href="static_cast.html#cite_ref-2">↑</a> Si l'arithmétique IEEE est prise en charge, l'arrondi est par défaut au plus proche.</li>
+</ol>
+<h2 id="Pointer-interconvertible_objects">Objets interconvertibles par pointeur</h2>
+<p>Deux objets <code>a</code> et <code>b</code> sont <em>interconvertibles par pointeur</em> si :</p>
+<ul>
+<li>ils sont le même objet, ou</li>
+<li>l'un est un objet union et l'autre est un membre de donnée non statique de cet objet, ou</li>
+<li>l'un est un objet de classe <a href="data_members.html#Standard-layout">standard-layout</a> et l'autre est le premier membre de donnée non statique de cet objet ou tout sous-objet de classe de base de cet objet, ou</li>
+<li>il existe un objet <code>c</code> tel que <code>a</code> et <code>c</code> sont interconvertibles par pointeur, et <code>c</code> et <code>b</code> sont interconvertibles par pointeur.</li>
+</ul>
+<pre><code class="language-cpp">union U { int a; double b; } u;
+void* x = &amp;u;                        // la valeur de x est « pointeur vers u »
+double* y = static_cast&lt;double*&gt;(x); // la valeur de y est « pointeur vers u.b »
+char* z = static_cast&lt;char*&gt;(x);     // la valeur de z est « pointeur vers u »
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Les conversions de classe de base vers classe dérivée (<em>downcasts</em>) utilisant <code>static_cast</code> n'effectuent aucune vérification à l'exécution pour s'assurer que le <a href="type-id.html#Dynamic_type">type dynamique</a> de l'objet pointé ou référencé est <code>Derived</code>, et ne peuvent être utilisées en toute sécurité que si cette précondition est garantie par d'autres moyens, par exemple lors de l'implémentation d'un <a href="https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern#Static_polymorphism">polymorphisme statique</a>. Un downcast sûr peut être réalisé avec <a href="dynamic_cast.html"><code>dynamic_cast</code></a>.</p>
+<p><code>static_cast</code> peut également être utilisé pour lever l'ambiguïté des surcharges de fonctions en effectuant une conversion fonction vers pointeur vers un type spécifique, comme dans</p>
+<pre><code class="language-cpp">std::for_each(files.begin(), files.end(),
+              static_cast&lt;std::ostream&amp;(*)(std::ostream&amp;)&gt;(std::flush));
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/static_cast.html"><code>static_cast</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+struct B
+{
+    int m = 42;
+    const char* hello() const
+    {
+        return &quot;Hello world, this is B!\n&quot;;
+    }
+};
+
+struct D : B
+{
+    const char* hello() const
+    {
+        return &quot;Hello world, this is D!\n&quot;;
+    }
+};
+
+enum class E { ONE = 1, TWO, THREE };
+enum EU { ONE = 1, TWO, THREE };
+
+int main()
+{
+    // 1. conversion statique vers le bas (downcast)
+    D d;
+    B&amp; br = d; // conversion vers le haut via conversion implicite
+    std::cout &lt;&lt; &quot;1) &quot; &lt;&lt; br.hello();
+    D&amp; another_d = static_cast&lt;D&amp;&gt;(br); // downcast
+    std::cout &lt;&lt; &quot;1) &quot; &lt;&lt; another_d.hello();
+
+    // 3. lvalue vers xvalue
+    std::vector&lt;int&gt; v0{1, 2, 3};
+    std::vector&lt;int&gt; v2 = static_cast&lt;std::vector&lt;int&gt;&amp;&amp;&gt;(v0);
+    std::cout &lt;&lt; &quot;3) after move, v0.size() = &quot; &lt;&lt; v0.size() &lt;&lt; '\n';
+
+    // 4. expression à valeur ignorée
+    static_cast&lt;void&gt;(v2.size());
+
+    // 5. conversion d'initialisation
+    int n = static_cast&lt;int&gt;(3.14);
+    std::cout &lt;&lt; &quot;5) n = &quot; &lt;&lt; n &lt;&lt; '\n';
+    std::vector&lt;int&gt; v = static_cast&lt;std::vector&lt;int&gt;&gt;(10);
+    std::cout &lt;&lt; &quot;5) v.size() = &quot; &lt;&lt; v.size() &lt;&lt; '\n';
+
+    // 6. inverse de la conversion implicite
+    void* nv = &amp;n;
+    int* ni = static_cast&lt;int*&gt;(nv);
+    std::cout &lt;&lt; &quot;6) *ni = &quot; &lt;&lt; *ni &lt;&lt; '\n';
+
+    // 7a. énumération à portée vers int
+    E e = E::TWO;
+    int two = static_cast&lt;int&gt;(e);
+    std::cout &lt;&lt; &quot;7a) &quot; &lt;&lt; two &lt;&lt; '\n';
+
+    // 7b. int vers énumération, énumération vers une autre énumération
+    E e2 = static_cast&lt;E&gt;(two);
+    [[maybe_unused]]
+    EU eu = static_cast&lt;EU&gt;(e2);
+
+    // 7f. conversion vers le haut de pointeur vers membre
+    int D::*pm = &amp;D::m;
+    std::cout &lt;&lt; &quot;7f) &quot; &lt;&lt; br.*static_cast&lt;int B::*&gt;(pm) &lt;&lt; '\n';
+
+    // 7g. void* vers n'importe quel pointeur d'objet
+    void* voidp = &amp;e;
+    [[maybe_unused]]
+    std::vector&lt;int&gt;* p = static_cast&lt;std::vector&lt;int&gt;*&gt;(voidp);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1) Hello world, this is B!
+1) Hello world, this is D!
+3) after move, v0.size() = 0
+5) n = 3
+5) v.size() = 10
+6) *ni = 3
+7a) 2
+7f) 42
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/137.html">CWG 137</a></td>
+<td>C++98</td>
+<td>la constance et la volatilité des pointeurs vers <code>void</code> pourraient être supprimées par transtypage</td>
+<td>les qualificateurs cv ne peuvent pas être supprimés par un transtypage dans ces cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/427.html">CWG 427</a></td>
+<td>C++98</td>
+<td>le downcast pourrait être ambigu avec l'initialisation directe</td>
+<td>sélectionne le downcast dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/439.html">CWG 439</a></td>
+<td>C++98</td>
+<td>lors de la conversion d'un « pointeur vers objet » en « pointeur vers <code>void</code> » puis de retour vers lui-même, il ne pouvait préserver sa valeur que si le type résultat avait la même qualification cv</td>
+<td>la qualification cv pouvait être différente</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1094.html">CWG 1094</a></td>
+<td>C++98</td>
+<td>la conversion de valeurs à virgule flottante en valeurs d'énumération était non spécifiée</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1320.html">CWG 1320</a></td>
+<td>C++11</td>
+<td>la conversion de valeurs d'énumération à portée en bool était non spécifiée</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1412.html">CWG 1412</a></td>
+<td>C++98</td>
+<td>le résultat de la conversion depuis « pointeur vers <code>void</code> » en « pointeur vers objet » était peu clair</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1447.html">CWG 1447</a></td>
+<td>C++11</td>
+<td>la conversion de champs de bits vers des références rvalue était non spécifiée (impossible de lier des références à des champs de bits)</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1766.html">CWG 1766</a></td>
+<td>C++98</td>
+<td>la conversion de valeurs entières ou d'énumération vers des valeurs d'énumération donnait un résultat non spécifié si <code>expression</code> était hors de l'intervalle</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1832.html">CWG 1832</a></td>
+<td>C++98</td>
+<td>la conversion de valeurs entières ou d'énumération vers des valeurs d'énumération autorisait <code>target-type</code> à être incomplet</td>
+<td>non autorisé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2224.html">CWG 2224</a></td>
+<td>C++98</td>
+<td>la conversion d'un membre de type classe de base vers son objet complet de type classe dérivée était valide</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2254.html">CWG 2254</a></td>
+<td>C++11</td>
+<td>un objet de classe standard-layout sans membres de donnée était interconvertible par pointeur avec sa première classe de base</td>
+<td>il est interconvertible par pointeur avec l'une de ses classes de base</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2284.html">CWG 2284</a></td>
+<td>C++11</td>
+<td>un objet union non standard-layout et un membre de données non statique de cet objet n'étaient pas convertibles en pointeur l'un vers l'autre</td>
+<td>ils le sont</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2310.html">CWG 2310</a></td>
+<td>C++98</td>
+<td>pour les conversions de pointeur de la base vers la dérivée et les conversions de pointeur vers membre de la dérivée vers la base, le type de classe dérivée pouvait être incomplet</td>
+<td>doit être complet</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2338.html">CWG 2338</a></td>
+<td>C++11</td>
+<td>la conversion vers des types énumérés à type sous-jacent fixe produisait un comportement indéfini si <code>expression</code> est hors de l'intervalle</td>
+<td>convertir d'abord vers le type sous-jacent (pas de comportement indéfini)</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2499.html">CWG 2499</a></td>
+<td>C++11</td>
+<td>une classe standard-layout pouvait avoir une classe de base non convertible en pointeur , bien que tous les sous-objets de base aient la même adresse</td>
+<td>elle ne l'a pas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2718.html">CWG 2718</a></td>
+<td>C++98</td>
+<td>pour les conversions de référence de la base vers la dérivée , le type de classe dérivée pouvait être incomplet</td>
+<td>doit être complet</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2882.html">CWG 2882</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si <code>static_cast&lt;void&gt;(expr)</code> tente de former une séquence de conversion implicite de <code>expr</code> vers <code>void</code></td>
+<td>aucune tentative dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.6.1.9 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.6.1.8 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>8.2.9 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>5.2.9 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>5.2.9 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>5.2.9 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>5.2.9 Conversion statique [expr.static.cast]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="const_cast.html"><code>const_cast</code></a></li>
+<li><a href="dynamic_cast.html"><code>dynamic_cast</code></a></li>
+<li><a href="reinterpret_cast.html"><code>reinterpret_cast</code></a></li>
+<li><a href="explicit_cast.html">transtypage explicite</a></li>
+<li><a href="implicit_cast.html">conversions implicites</a></li>
+</ul>
+
+</main>
+</body>
+</html>

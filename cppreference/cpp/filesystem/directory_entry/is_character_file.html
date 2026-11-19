@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::directory_entry::is_character_file — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a> › <a href="../../../cpp/filesystem/directory_entry.html">std::filesystem::directory_entry</a></nav>
+<h1 id="std-filesystem-directory_entry-is_character_file"><code>std::filesystem::directory_entry::is_character_file</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/directory_entry/is_character_file">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">bool is_character_file() const;  // (1) (depuis C++17)
+
+bool is_character_file( std::error_code&amp; ec ) const noexcept;  // (2) (depuis C++17)
+</code></pre>
+<p>Vérifie si l'objet pointé est un périphérique caractère. Renvoie effectivement :</p>
+<ol>
+<li>
+<p><code>std::filesystem::is_character_file(status())</code>,</p>
+</li>
+<li>
+<p><code>std::filesystem::is_character_file(status(ec))</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si l'objet du système de fichiers référencé est un périphérique caractère, <code>false</code> sinon.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<ol>
+<li>
+<p>Lève <a href="../filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</p>
+</li>
+<li>
+<p>Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+#include &lt;cstring&gt;
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;sys/un.h&gt;
+#include &lt;unistd.h&gt;
+
+namespace fs = std::filesystem;
+
+void print_entry_type(const std::filesystem::directory_entry&amp; entry)
+{
+    std::cout &lt;&lt; entry.path() &lt;&lt; &quot;: &quot;;
+
+    if (!entry.exists())
+        std::cout &lt;&lt; &quot;does not exist &quot;;
+    if (entry.is_block_file())
+        std::cout &lt;&lt; &quot;is a block device &quot;;
+    if (entry.is_character_file())
+        std::cout &lt;&lt; &quot;is a character device &quot;;
+    if (entry.is_directory())
+        std::cout &lt;&lt; &quot;is a directory &quot;;
+    if (entry.is_fifo())
+        std::cout &lt;&lt; &quot;is a named IPC pipe &quot;;
+    if (entry.is_regular_file())
+        std::cout &lt;&lt; &quot;is a regular file &quot;;
+    if (entry.is_socket())
+        std::cout &lt;&lt; &quot;is a named IPC socket &quot;;
+    if (entry.is_symlink())
+        std::cout &lt;&lt; &quot;(a symlink)&quot;;
+    if (entry.is_other())
+        std::cout &lt;&lt; &quot;(an `other` file)&quot;;
+
+    std::cout &lt;&lt; '\n';
+}
+
+template&lt;typename Type, typename Fun&gt;
+class scoped_cleanup
+{
+    std::unique_ptr&lt;Type, std::function&lt;void(const Type*)&gt;&gt; u;
+
+public:
+    scoped_cleanup(Type* ptr, Fun fun) : u{ptr, std::move(fun)} {}
+};
+
+int main()
+{
+    // Création de fichiers de différents types.
+    std::filesystem::current_path(fs::temp_directory_path());
+    const std::filesystem::path sandbox{&quot;sandbox&quot;};
+    scoped_cleanup remove_all_at_exit{&amp;sandbox, [](const fs::path* p)
+    {
+        std::cout &lt;&lt; &quot;cleanup: remove_all(&quot; &lt;&lt; *p &lt;&lt; &quot;)\n&quot;;
+        fs::remove_all(*p);
+    }};
+    std::filesystem::create_directory(sandbox);
+    std::ofstream{sandbox/&quot;file&quot;}; // Crée un fichier régulier
+    std::filesystem::create_directory(sandbox/&quot;dir&quot;);
+
+    mkfifo((sandbox/&quot;pipe&quot;).string().data(), 0644);
+    struct sockaddr_un addr; addr.sun_family = AF_UNIX;
+
+    std::strcpy(addr.sun_path, (sandbox/&quot;sock&quot;).string().data());
+    int fd{socket(PF_UNIX, SOCK_STREAM, 0)};
+    scoped_cleanup close_socket_at_exit{&amp;fd, [](const int* f)
+    {
+        std::cout &lt;&lt; &quot;cleanup: close socket #&quot; &lt;&lt; *f &lt;&lt; '\n';
+        close(*f);
+    }};
+    bind(fd, reinterpret_cast&lt;sockaddr*&gt;(std::addressof(addr)), sizeof addr);
+
+    fs::create_symlink(&quot;file&quot;, sandbox/&quot;symlink&quot;);
+
+    for (std::filesystem::directory_entry entry: fs::directory_iterator(sandbox))
+        print_entry_type(entry);
+
+    // Demande directement l'état des objets du système de fichiers :
+    for (const char* str : {&quot;/dev/null&quot;, &quot;/dev/cpu&quot;, &quot;/usr/include/c++&quot;,
+                            &quot;/usr/include/asm&quot;, &quot;/usr/include/time.h&quot;})
+        print_entry_type(fs::directory_entry{str});
+
+} // Nettoyage via des objets scoped_cleanup
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;sandbox/symlink&quot;: is a regular file (a symlink)
+&quot;sandbox/sock&quot;: is a named IPC socket (an `other` file)
+&quot;sandbox/pipe&quot;: is a named IPC pipe (an `other` file)
+&quot;sandbox/dir&quot;: is a directory
+&quot;sandbox/file&quot;: is a regular file
+&quot;/dev/null&quot;: is a character device (an `other` file)
+&quot;/dev/cpu&quot;: does not exist
+&quot;/usr/include/c++&quot;: is a directory
+&quot;/usr/include/asm&quot;: is a directory (a symlink)
+&quot;/usr/include/time.h&quot;: is a regular file
+cleanup: close socket #3
+cleanup: remove_all(&quot;sandbox&quot;)
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../is_character_file.html">is_character_file</a> (C++17)</strong> — vérifie si le chemin donné désigne un périphérique caractère <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::three_way_comparable, std::three_way_comparable_with — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-three_way_comparable-std-three_way_comparable_with"><code>std::three_way_comparable, std::three_way_comparable_with</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/compare/three_way_comparable">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;compare&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class Cat = std::partial_ordering &gt;
+concept three_way_comparable =
+    __WeaklyEqualityComparableWith&lt;T, T&gt; &amp;&amp;
+    __PartiallyOrderedWith&lt;T, T&gt; &amp;&amp;
+    requires(const std::remove_reference_t&lt;T&gt;&amp; a,
+             const std::remove_reference_t&lt;T&gt;&amp; b) {
+        { a &lt;=&gt; b } -&gt; __ComparesAs&lt;Cat&gt;;
+    };  // (1) (depuis C++20)
+
+template&lt; class T, class U, class Cat = std::partial_ordering &gt;
+concept three_way_comparable_with =
+    std::three_way_comparable&lt;T, Cat&gt; &amp;&amp;
+    std::three_way_comparable&lt;U, Cat&gt; &amp;&amp;
+    __ComparisonCommonTypeWith&lt;T, U&gt; &amp;&amp;
+    std::three_way_comparable&lt;
+        std::common_reference_t&lt;
+            const std::remove_reference_t&lt;T&gt;&amp;,
+            const std::remove_reference_t&lt;U&gt;&amp;&gt;, Cat&gt; &amp;&amp;
+    __WeaklyEqualityComparableWith&lt;T, U&gt; &amp;&amp;
+    __PartiallyOrderedWith&lt;T, U&gt; &amp;&amp;
+    requires(const std::remove_reference_t&lt;T&gt;&amp; t,
+             const std::remove_reference_t&lt;U&gt;&amp; u) {
+        { t &lt;=&gt; u } -&gt; __ComparesAs&lt;Cat&gt;;
+        { u &lt;=&gt; t } -&gt; __ComparesAs&lt;Cat&gt;;
+    };  // (2) (depuis C++20)
+
+template&lt; class T, class Cat &gt;
+concept __ComparesAs =
+    std::same_as&lt;std::common_comparison_category_t&lt;T, Cat&gt;, Cat&gt;;  // (3) ( exposition uniquement* )
+</code></pre>
+<ol>
+<li>
+<p>Le concept <code>std::three_way_comparable</code> spécifie que l'opérateur de comparaison à trois voies <code>&lt;=&gt;</code> sur <code>T</code> produit des résultats cohérents avec la catégorie de comparaison impliquée par <code>Cat</code>.</p>
+</li>
+<li>
+<p>Le concept <code>std::three_way_comparable_with</code> spécifie que l'opérateur de comparaison à trois voies <code>&lt;=&gt;</code> sur des opérandes <code>T</code> et <code>U</code> (éventuellement de types mélangés) produit des résultats cohérents avec la catégorie de comparaison impliquée par <code>Cat</code>. La comparaison d'opérandes mélangés donne des résultats équivalents à la comparaison des opérandes convertis en leur type commun.</p>
+</li>
+</ol>
+<p><a href="../../concepts/equality_comparable.html"><code>__WeaklyEqualityComparableWith</code></a>, <a href="../../concepts/totally_ordered.html"><code>__PartiallyOrderedWith</code></a> et <a href="../../concepts/equality_comparable.html"><code>__ComparisonCommonTypeWith</code></a> sont des concepts de l'exposé uniquement. Voir les descriptions de <a href="../../concepts/equality_comparable.html"><code>equality_comparable</code></a> et <a href="../../concepts/totally_ordered.html"><code>totally_ordered</code></a>.</p>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Ces concepts ne sont modélisés que s'ils sont satisfaits et que tous les concepts qu'ils subsument sont modélisés.</p>
+<ol>
+<li><code>T</code> et <code>Cat</code> modélisent <code>std::three_way_comparable&lt;T, Cat&gt;</code> seulement si, étant donné des lvalues <code>a</code> et <code>b</code> de type <code>const std::remove_reference_t&lt;T&gt;</code>, les conditions suivantes sont vraies :</li>
+</ol>
+<ul>
+<li><code>(a &lt;=&gt; b == 0) == bool(a == b)</code>,</li>
+<li><code>(a &lt;=&gt; b != 0) == bool(a != b)</code>,</li>
+<li><code>((a &lt;=&gt; b) &lt;=&gt; 0)</code> et <code>(0 &lt;=&gt; (b &lt;=&gt; a))</code> sont égaux,</li>
+<li><code>bool(a &gt; b) == bool(b &lt; a)</code>,</li>
+<li><code>bool(a &gt;= b) == !bool(a &lt; b)</code>,</li>
+<li><code>bool(a &lt;= b) == !bool(b &lt; a)</code>,</li>
+<li><code>(a &lt;=&gt; b &lt; 0) == bool(a &lt; b)</code>,</li>
+<li><code>(a &lt;=&gt; b &gt; 0) == bool(a &gt; b)</code>,</li>
+<li><code>(a &lt;=&gt; b &lt;= 0) == bool(a &lt;= b)</code>, and</li>
+<li><code>(a &lt;=&gt; b &gt;= 0) == bool(a &gt;= b)</code>, and</li>
+<li>si <code>Cat</code> est convertible en <code>std::strong_ordering</code>, <code>T</code> modélise <a href="../../concepts/totally_ordered.html"><code>totally_ordered</code></a>.</li>
+</ul>
+<ol start="2">
+<li><code>T</code>, <code>U</code> et <code>Cat</code> modélisent <code>std::three_way_comparable_with&lt;T, U, Cat&gt;</code> uniquement si donné</li>
+</ol>
+<ul>
+<li><code>t</code> et <code>t2</code>, des lvalues désignant des objets égaux distincts de types <code>const std::remove_reference_t&lt;T&gt;</code> et <code>std::remove_reference_t&lt;T&gt;</code> respectivement, et</li>
+<li><code>u</code> et <code>u2</code>, lvalues désignant des objets distincts égaux de types <code>const std::remove_reference_t&lt;U&gt;</code> et <code>std::remove_reference_t&lt;U&gt;</code> respectivement.</li>
+</ul>
+<p>Soit <code>C</code> égal à <code>std::common_reference_t&lt;const std::remove_reference_t&lt;T&gt;&amp;, const std::remove_reference_t&lt;U&gt;&amp;&gt;</code>, et étant donné une expression <code>E</code> et un type <code>C</code>, soit <code>CONVERT_TO&lt;C&gt;(E)</code> :</p>
+<blockquote>
+<ul>
+<li><code>static_cast&lt;C&gt;(std::as_const(E))</code>.</li>
+</ul>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>static_cast&lt;const C&amp;&gt;(std::as_const(E))</code> si c'est une expression valide,</li>
+<li><code>static_cast&lt;const C&amp;&gt;(std::move(E))</code> sinon.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>les propositions suivantes sont vraies :</p>
+<ul>
+<li><code>t &lt;=&gt; u</code> et <code>u &lt;=&gt; t</code> ont le même domaine,</li>
+<li><code>((t &lt;=&gt; u) &lt;=&gt; 0)</code> et <code>(0 &lt;=&gt; (u &lt;=&gt; t))</code> sont égaux,</li>
+<li><code>(t &lt;=&gt; u == 0) == bool(t == u)</code>,</li>
+<li><code>(t &lt;=&gt; u != 0) == bool(t != u)</code>,</li>
+<li><code>Cat(t &lt;=&gt; u) == Cat(CONVERT_TO&lt;C&gt;(t2) &lt;=&gt; CONVERT_TO&lt;C&gt;(u2))</code>,</li>
+<li><code>(t &lt;=&gt; u &lt; 0) == bool(t &lt; u)</code>,</li>
+<li><code>(t &lt;=&gt; u &gt; 0) == bool(t &gt; u)</code>,</li>
+<li><code>(t &lt;=&gt; u &lt;= 0) == bool(t &lt;= u)</code>,</li>
+<li><code>(t &lt;=&gt; u &gt;= 0) == bool(t &gt;= u)</code>, and</li>
+<li>si <code>Cat</code> est convertible en <code>std::strong_ordering</code>, <code>T</code> et <code>U</code> modélisent <code>std::totally_ordered_with&lt;T, U&gt;</code>.</li>
+</ul>
+<h2 id="Equality_preservation">Préservation de l'égalité</h2>
+<p>Les expressions déclarées dans les <a href="../../language/requires.html"><code>requires</code> expressions</a> des concepts de la bibliothèque standard doivent être <a href="../../concepts.html#Equality_preservation">préservant l'égalité</a> (sauf mention contraire).</p>
+<h2 id="Implicit_expression_variations">Variations d'expressions implicites</h2>
+<p>Une <a href="../../language/requires.html"><code>requires</code> expression</a> qui utilise une expression non modifiante pour un opérande lvalue constant quelconque nécessite également des <a href="../../concepts.html#Implicit_expression_variations">variations d'expressions implicites</a>.</p>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../concepts/equality_comparable.html">equality_comparableequality_comparable_with</a> (C++20)</strong> — spécifie que l'opérateur <code>==</code> est une relation d'équivalence <em>(concept)</em></li>
+<li><strong><a href="../../concepts/totally_ordered.html">totally_orderedtotally_ordered_with</a> (C++20)</strong> — spécifie que les opérateurs de comparaison du type définissent un ordre total <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

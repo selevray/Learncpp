@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::for_each_n, std::ranges::for_each_n_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-for_each_n-std-ranges-for_each_n_result"><code>std::ranges::for_each_n, std::ranges::for_each_n_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/for_each_n">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::input_iterator I, class Proj = std::identity,
+          std::indirectly_unary_invocable&lt;std::projected&lt;I, Proj&gt;&gt; Fun &gt;
+constexpr for_each_n_result&lt;I, Fun&gt;
+    for_each_n( I first, std::iter_difference_t&lt;I&gt; n, Fun f, Proj proj = {});  // (1) (depuis C++20)
+</code></pre>
+<p><strong>Types auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class I, class F &gt;
+using for_each_n_result = ranges::in_fun_result&lt;I, F&gt;;  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Applique l'objet fonction <code>f</code> donné au résultat projeté par <code>proj</code> du déréférencement de chaque itérateur de l'intervalle <code>[first,first + n)</code>, dans l'ordre.</li>
+</ol>
+<p>Si le type d'itérateur est modifiable, <code>f</code> peut modifier les éléments de l'intervalle via l'itérateur déréférencé. Si <code>f</code> renvoie un résultat, celui-ci est ignoré. Si <code>n</code> est inférieur à zéro, le comportement est indéfini.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first</code> — itérateur désignant le début de l'intervalle auquel appliquer la fonction</li>
+<li><code>n</code> — le nombre d'éléments auxquels appliquer la fonction</li>
+<li><code>f</code> — la fonction à appliquer à l'intervalle projeté <code>[first,first + n)</code></li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un objet <code>{first + n, std::move(f)}</code>, où <code>first + n</code> peut être évalué comme <code>std::ranges::next(std::move(first), n)</code> selon la catégorie de l'itérateur.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>n</code> applications de <code>f</code> et <code>proj</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct for_each_n_fn
+{
+    template&lt;std::input_iterator I, class Proj = std::identity,
+             std::indirectly_unary_invocable&lt;std::projected&lt;I, Proj&gt;&gt; Fun&gt;
+    constexpr for_each_n_result&lt;I, Fun&gt;
+        operator()(I first, std::iter_difference_t&lt;I&gt; n, Fun fun, Proj proj = Proj{}) const
+    {
+        for (; n-- &gt; 0; ++first)
+            std::invoke(fun, std::invoke(proj, *first));
+        return {std::move(first), std::move(fun)};
+    }
+};
+
+inline constexpr for_each_n_fn for_each_n {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;ranges&gt;
+#include &lt;string_view&gt;
+
+struct P
+{
+    int first;
+    char second;
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const P&amp; p)
+    {
+        return os &lt;&lt; '{' &lt;&lt; p.first &lt;&lt; &quot;,'&quot; &lt;&lt; p.second &lt;&lt; &quot;'}&quot;;
+    }
+};
+
+auto print = [](std::string_view name, auto const&amp; v)
+{
+    std::cout &lt;&lt; name &lt;&lt; &quot;: &quot;;
+    for (auto n = v.size(); const auto&amp; e : v)
+        std::cout &lt;&lt; e &lt;&lt; (--n ? &quot;, &quot; : &quot;\n&quot;);
+};
+
+int main()
+{
+    std::array a {1, 2, 3, 4, 5};
+    print(&quot;a&quot;, a);
+    // Opposer les trois premiers nombres :
+    std::ranges::for_each_n(a.begin(), 3, [](auto&amp; n) { n *= -1; });
+    print(&quot;a&quot;, a);
+
+    std::array s { P{1,'a'}, P{2, 'b'}, P{3, 'c'}, P{4, 'd'} };
+    print(&quot;s&quot;, s);
+    // Opposer les membres de données 'P::first' à l'aide d'une projection :
+    std::ranges::for_each_n(s.begin(), 2, [](auto&amp; x) { x *= -1; }, &amp;P::first);
+    print(&quot;s&quot;, s);
+    // Mettre en majuscules les membres de données 'P::second' à l'aide d'une projection :
+    std::ranges::for_each_n(s.begin(), 3, [](auto&amp; c) { c -= 'a'-'A'; }, &amp;P::second);
+    print(&quot;s&quot;, s);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">a: 1, 2, 3, 4, 5
+a: -1, -2, -3, 4, 5
+s: {1,'a'}, {2,'b'}, {3,'c'}, {4,'d'}
+s: {-1,'a'}, {-2,'b'}, {3,'c'}, {4,'d'}
+s: {-1,'A'}, {-2,'B'}, {3,'C'}, {4,'d'}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../language/range-for.html">boucle range-<code>for</code></a> (C++11)</strong> — exécute une boucle sur un intervalle</li>
+<li><strong><a href="for_each.html">ranges::for_each</a> (C++20)</strong> — applique une fonction à un intervalle d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="../for_each_n.html">for_each_n</a> (C++17)</strong> — applique un objet fonction aux N premiers éléments d'une séquence <em>(modèle de fonction)</em></li>
+<li><strong><a href="../for_each.html">for_each</a></strong> — applique une fonction à un intervalle d'éléments <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

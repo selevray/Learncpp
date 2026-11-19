@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::defer_lock, std::try_to_lock, std::adopt_lock, std::defer_lock_t, std::try_to_lock_t, std::adopt_lock_t — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-defer_lock-std-try_to_lock-std-adopt_lock-std-defer_lock_t-std-try_to_lock_t-std-adopt_lock_t"><code>std::defer_lock, std::try_to_lock, std::adopt_lock, std::defer_lock_t, std::try_to_lock_t, std::adopt_lock_t</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/lock_tag">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">struct defer_lock_t { explicit defer_lock_t() = default; };  // (1) (depuis C++11)
+
+constexpr std::defer_lock_t defer_lock {};  // (2) (depuis C++11) (inline depuis C++17)
+
+struct try_to_lock_t { explicit try_to_lock_t() = default; };  // (3) (depuis C++11)
+
+constexpr std::try_to_lock_t try_to_lock {};  // (4) (depuis C++11) (inline depuis C++17)
+
+struct adopt_lock_t { explicit adopt_lock_t() = default; };  // (5) (depuis C++11)
+
+constexpr std::adopt_lock_t adopt_lock {};  // (6) (depuis C++11) (inline depuis C++17)
+</code></pre>
+<p>1,3,5) Les types d'étiquettes de classe vides <code>std::defer_lock_t</code>, <code>std::try_to_lock_t</code> et <code>std::adopt_lock_t</code> peuvent être utilisés dans la liste de paramètres du constructeur de <a href="unique_lock.html"><code>std::unique_lock</code></a> et <a href="shared_lock.html"><code>std::shared_lock</code></a> pour spécifier la stratégie de verrouillage.</p>
+<p>2,4,6) Les instances correspondantes <code>std::defer_lock</code>, <code>std::try_to_lock</code> et <code>std::adopt_lock</code> de <code>(1,3,5)</code> peuvent être passées aux constructeurs pour indiquer le type de stratégie de verrouillage.</p>
+<p>L'un des constructeurs du modèle de classe <a href="lock_guard.html"><code>std::lock_guard</code></a> n'accepte que l'étiquette <code>std::adopt_lock</code>.</p>
+<p><strong>Type Effet(s)</strong></p>
+<ul>
+<li><strong><code>defer_lock_t</code></strong> — n'acquiert pas la propriété du mutex</li>
+<li><strong><code>try_to_lock_t</code></strong> — tente d'acquérir la propriété du mutex sans bloquer</li>
+<li><strong><code>adopt_lock_t</code></strong> — suppose que le thread appelant possède déjà la propriété du mutex</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;thread&gt;
+
+struct bank_account
+{
+    explicit bank_account(int balance) : balance{balance} {}
+    int balance;
+    std::mutex m;
+};
+
+void transfer(bank_account&amp; from, bank_account&amp; to, int amount)
+{
+    if (&amp;from == &amp;to) // évite un interblocage en cas de transfert vers soi-même
+        return;
+
+    // verrouille les deux mutex sans interblocage
+    std::lock(from.m, to.m);
+    // s'assure que les deux mutex déjà verrouillés sont déverrouillés à la fin de la portée
+    std::lock_guard lock1{from.m, std::adopt_lock};
+    std::lock_guard lock2{to.m, std::adopt_lock};
+
+// approche équivalente :
+//  std::unique_lock&lt;std::mutex&gt; lock1{from.m, std::defer_lock};
+//  std::unique_lock&lt;std::mutex&gt; lock2{to.m, std::defer_lock};
+//  std::lock(lock1, lock2);
+
+    from.balance -= amount;
+    to.balance += amount;
+}
+
+int main()
+{
+    bank_account my_account{100};
+    bank_account your_account{50};
+
+    std::thread t1{transfer, std::ref(my_account), std::ref(your_account), 10};
+    std::thread t2{transfer, std::ref(your_account), std::ref(my_account), 5};
+
+    t1.join();
+    t2.join();
+
+    std::cout &lt;&lt; &quot;my_account.balance = &quot; &lt;&lt; my_account.balance &lt;&lt; &quot;\n&quot;
+                 &quot;your_account.balance = &quot; &lt;&lt; your_account.balance &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">my_account.balance = 95
+your_account.balance = 55
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="lock_guard/lock_guard.html">(constructeur)</a></strong> — construit un <code>lock_guard</code>, en verrouillant éventuellement le mutex donné <em>(fonction membre publique de <code>std::lock_guard&lt;Mutex&gt;</code>)</em></li>
+<li><strong><a href="unique_lock/unique_lock.html">(constructeur)</a></strong> — construit un <code>unique_lock</code>, en verrouillant éventuellement (c'est-à-dire en prenant la propriété de) le mutex fourni <em>(fonction membre publique de <code>std::unique_lock&lt;Mutex&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

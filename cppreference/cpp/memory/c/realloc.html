@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::realloc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/c.html">bibliothèque C de gestion de la mémoire</a></nav>
+<h1 id="std-realloc"><code>std::realloc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/c/realloc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">void* realloc( void* ptr, std::size_t new_size );
+</code></pre>
+<p>Réalloue la zone mémoire donnée (<a href="../../language/objects.html#Object_creation">crée implicitement</a> des objets dans la zone de destination). Elle doit avoir été allouée précédemment par <a href="malloc.html"><code>std::malloc</code></a>, <a href="calloc.html"><code>std::calloc</code></a> ou <code>std::realloc</code> et ne pas encore avoir été libérée par <a href="free.html"><code>std::free</code></a>, sinon les résultats sont indéfinis.</p>
+<p>La réallocation s'effectue soit :</p>
+<p>a) en agrandissant ou en réduisant la zone existante désignée par <code>ptr</code>, si possible. Le contenu de la zone reste inchangé jusqu'à la plus petite des tailles nouvelle et ancienne. Si la zone est agrandie, le contenu de la nouvelle partie du tableau est indéfini.</p>
+<p>b) en allouant un nouveau bloc mémoire de <code>new_size</code> octets, en copiant la zone mémoire d'une taille égale à la plus petite des tailles nouvelle et ancienne, et en libérant l'ancien bloc.</p>
+<p>S'il n'y a pas assez de mémoire, l'ancien bloc mémoire n'est pas libéré et un pointeur nul est renvoyé.</p>
+<p>Si <code>ptr</code> est un pointeur nul, le comportement est le même qu'un appel à <code>std::malloc(new_size)</code>.</p>
+<p>Si <code>new_size</code> vaut zéro, le comportement est défini par l'implémentation : un pointeur nul peut être renvoyé (auquel cas l'ancien bloc mémoire peut ou non être libéré) ou un pointeur non nul pouvant ne pas être utilisé pour accéder au stockage. Cet usage est obsolète (via <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/n2396.htm#dr_400">C DR 400</a>). <em>(depuis C++20)</em></p>
+<blockquote>
+<p>Les fonctions suivantes doivent être thread-safe :</p>
+<ul>
+<li>Les versions de la bibliothèque de <a href="../new/operator_new.html"><code>operator new</code></a> et de <a href="../new/operator_delete.html"><code>operator delete</code></a></li>
+<li>Les versions de remplacement définies par l'utilisateur des <a href="../new/operator_new.html"><code>operator new</code></a> et <a href="../new/operator_delete.html"><code>operator delete</code></a> globales</li>
+<li><a href="calloc.html"><code>std::calloc</code></a>, <a href="malloc.html"><code>std::malloc</code></a>, <code>std::realloc</code>, <a href="aligned_alloc.html"><code>std::aligned_alloc</code></a> <em>(depuis C++17)</em>, <a href="free.html"><code>std::free</code></a></li>
+</ul>
+<p>Les appels à ces fonctions qui allouent ou libèrent une unité de stockage donnée se produisent selon un ordre total unique, et chaque appel de désallocation <a href="../../atomic/memory_order.html">happens-before</a> l'allocation suivante (le cas échéant) dans cet ordre.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ptr</code> — pointeur vers la zone mémoire à réallouer</li>
+<li><code>new_size</code> — nouvelle taille du tableau</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, renvoie un pointeur vers le début de la mémoire nouvellement allouée. Pour éviter une fuite mémoire, le pointeur renvoyé doit être désalloué avec <a href="free.html"><code>std::free</code></a> ou <code>std::realloc</code>. Le pointeur d'origine <code>ptr</code> est invalidé et tout accès à celui-ci est un <a href="../../language/ub.html">comportement indéfini</a> (même si la réallocation a été effectuée sur place).</p>
+<p>En cas d'échec, renvoie un pointeur nul. Le pointeur d'origine <code>ptr</code> reste valide et peut devoir être désalloué avec <a href="free.html"><code>std::free</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>La réallocation pouvant impliquer une copie octet par octet (qu'elle agrandisse ou réduise la zone), il est nécessaire (mais non suffisant) que ces objets soient de type <a href="../../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a>.</p>
+<p>Certaines bibliothèques non standard définissent un trait de type « BitwiseMovable » ou « Relocatable », qui décrit un type n'ayant pas :</p>
+<ul>
+<li>de références externes (par exemple des nœuds d'une liste ou d'un arbre qui contient une référence vers un autre élément), et</li>
+<li>de références internes (par exemple un pointeur vers membre pouvant contenir l'adresse d'un autre membre).</li>
+</ul>
+<p>Les objets de ce type peuvent être accédés après que leur zone de stockage a été réallouée, même si leurs constructeurs de copie ne sont pas triviaux.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstdlib&gt;
+#include &lt;new&gt;
+
+class MallocDynamicBuffer
+{
+    char* p;
+public:
+    explicit MallocDynamicBuffer(std::size_t initial = 0) : p(nullptr)
+    {
+        resize(initial);
+    }
+
+    ~MallocDynamicBuffer() { std::free(p); }
+
+    void resize(std::size_t newSize)
+    {
+        if (newSize == 0) // cette vérification n'est pas strictement nécessaire,
+        {
+            std::free(p); // mais le realloc de taille nulle est obsolète en C
+            p = nullptr;
+        }
+        else
+        {
+            if (void* mem = std::realloc(p, newSize))
+                p = static_cast&lt;char*&gt;(mem);
+            else
+                throw std::bad_alloc();
+        }
+    }
+
+    char&amp; operator[](size_t n) { return p[n]; }
+    char operator[](size_t n) const { return p[n]; }
+};
+
+int main()
+{
+    MallocDynamicBuffer buf1(1024);
+    buf1[5] = 'f';
+    buf1.resize(10); // shrink
+    assert(buf1[5] == 'f');
+    buf1.resize(1024); // grow
+    assert(buf1[5] == 'f');
+}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../../c/memory/realloc.html">Documentation C</a> pour realloc</strong></p>
+
+</main>
+</body>
+</html>

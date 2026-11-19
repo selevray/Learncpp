@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>c32rtomb — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="c32rtomb"><code>c32rtomb</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/multibyte/c32rtomb">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;uchar.h&gt;</strong></p>
+<pre><code class="language-c">size_t c32rtomb( char* restrict s, char32_t c32, mbstate_t* restrict ps );  // (depuis C11)
+</code></pre>
+<p>Convertit un seul point de code, depuis sa représentation de caractère large de 32 bits à largeur variable (mais généralement UTF-32), vers sa représentation de caractère multioctet étroit.</p>
+<p>Si <code>s</code> n'est pas un pointeur nul, la fonction détermine le nombre d'octets nécessaires pour stocker la représentation multioctet de <code>c32</code> (y compris les éventuelles séquences de décalage, et en tenant compte de l'état de conversion multioctet courant <code>*ps</code>), et stocke cette représentation multioctet dans le tableau de caractères dont le premier élément est pointé par <code>s</code>, en mettant à jour <code>*ps</code> si nécessaire. Au plus <code>MB_CUR_MAX</code> octets peuvent être écrits par cette fonction.</p>
+<p>Si <code>s</code> est un pointeur nul, l'appel équivaut à <code>c32rtomb(buf, U'\0', ps)</code> pour un tampon interne <code>buf</code>.</p>
+<p>Si <code>c32</code> est le caractère large nul <code>U'\0'</code>, un octet nul est stocké, précédé de toute séquence de décalage nécessaire pour rétablir l'état de décalage initial, et le paramètre d'état de conversion <code>*ps</code> est mis à jour pour représenter l'état de décalage initial.</p>
+<p>Si la macro <code>__STDC_UTF_32__</code> est définie, l'encodage 32 bits utilisé par cette fonction est UTF-32 ; sinon, il est défini par l'implémentation. La macro est toujours définie et l'encodage est toujours UTF-32. <em>(depuis C23)</em> Dans tous les cas, l'encodage de caractères multioctets utilisé par cette fonction est spécifié par la locale C actuellement active.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>s</code> — pointeur vers le tableau de caractères étroits où le caractère multioctet sera stocké</li>
+<li><code>c32</code> — le caractère large de 32 bits à convertir</li>
+<li><code>ps</code> — pointeur vers l'objet d'état de conversion utilisé lors de l'interprétation de la chaîne multioctet</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, renvoie le nombre d'octets (y compris les éventuelles séquences de décalage) écrits dans le tableau de caractères dont le premier élément est pointé par <code>s</code>. Cette valeur peut être <code>0</code>, par exemple lors du traitement des <code>char32_t</code> unités initiales d'une séquence de plusieurs <code>char32_t</code>-unités (ce qui ne se produit pas en UTF-32).</p>
+<p>En cas d'échec (si <code>c32</code> n'est pas un caractère large de 32 bits valide), renvoie <code>-1</code>, stocke <a href="../../error/errno_macros.html"><code>EILSEQ</code></a> dans <a href="../../error/errno.html"><code>errno</code></a> et laisse <code>*ps</code> dans un état non spécifié.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;locale.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;uchar.h&gt;
+
+mbstate_t state;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    const char32_t in[] = U&quot;zß水🍌&quot;; // ou &quot;z\u00df\u6c34\U0001F34C&quot;
+    size_t in_sz = sizeof in / sizeof *in;
+
+    printf(&quot;Processing %zu UTF-32 code units: [ &quot;, in_sz);
+    for (size_t n = 0; n &lt; in_sz; ++n)
+        printf(&quot;%#x &quot;, in[n]);
+    puts(&quot;]&quot;);
+
+    char out[MB_CUR_MAX * in_sz];
+    char* p = out;
+    for (size_t n = 0; n &lt; in_sz; ++n)
+    {
+        size_t rc = c32rtomb(p, in[n], &amp;state);
+        if(rc == (size_t)-1) break;
+        p += rc;
+    }
+
+    size_t out_sz = p - out;
+    printf(&quot;into %zu UTF-8 code units: [ &quot;, out_sz);
+    for (size_t x = 0; x &lt; out_sz; ++x)
+        printf(&quot;%#x &quot;, +(unsigned char)out[x]);
+    puts(&quot;]&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Processing 5 UTF-32 code units: [ 0x7a 0xdf 0x6c34 0x1f34c 0 ]
+into 11 UTF-8 code units: [ 0x7a 0xc3 0x9f 0xe6 0xb0 0xb4 0xf0 0x9f 0x8d 0x8c 0 ]
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.30.1.6 La fonction c32rtomb (p : 411)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.28.1.4 La fonction c32rtomb (p : 401)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbrtoc32.html">mbrtoc32</a> (C11)</strong> — convertit un caractère multioctet étroit en encodage UTF-32 <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/multibyte/c32rtomb.html">Documentation C++</a> de c32rtomb</strong></p>
+
+</main>
+</body>
+</html>

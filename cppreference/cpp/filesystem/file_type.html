@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::file_type — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a></nav>
+<h1 id="std-filesystem-file_type"><code>std::filesystem::file_type</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/file_type">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">enum class file_type {
+    none = /* unspecified */,
+    not_found = /* unspecified */,
+    regular = /* unspecified */,
+    directory = /* unspecified */,
+    symlink = /* unspecified */,
+    block = /* unspecified */,
+    character = /* unspecified */,
+    fifo = /* unspecified */,
+    socket = /* unspecified */,
+    unknown = /* unspecified */,
+    /* défini par l'implémentation */
+};  // (depuis C++17)
+</code></pre>
+<p><code>file_type</code> définit des constantes qui indiquent le type d'un fichier ou d'un répertoire désigné par un chemin. Les valeurs des énumérateurs sont distinctes.</p>
+<h2 id="Constants">Constantes</h2>
+<p><strong>Constante Signification</strong></p>
+<ul>
+<li><strong><code>none</code></strong> — indique que l'état du fichier n'a pas encore été évalué, ou qu'une erreur s'est produite lors de son évaluation</li>
+<li><strong><code>not_found</code></strong> — indique que le fichier n'a pas été trouvé (ce n'est pas considéré comme une erreur)</li>
+<li><strong><code>regular</code></strong> — un fichier ordinaire</li>
+<li><strong><code>directory</code></strong> — un répertoire</li>
+<li><strong><code>symlink</code></strong> — un lien symbolique</li>
+<li><strong><code>block</code></strong> — un fichier spécial de bloc</li>
+<li><strong><code>character</code></strong> — un fichier spécial de caractères</li>
+<li><strong><code>fifo</code></strong> — un fichier FIFO (aussi appelé tube)</li>
+<li><strong><code>socket</code></strong> — un fichier socket</li>
+<li><strong>défini par l'implémentation</strong> — une constante supplémentaire définie par l'implémentation pour chaque type de fichier supplémentaire pris en charge par l'implémentation (par exemple, MSVC STL définit <code>junction</code> pour les <a href="https://docs.microsoft.com/en-us/sysinternals/downloads/junction">jonctions NTFS</a>)</li>
+<li><strong><code>unknown</code></strong> — le fichier existe mais son type n'a pas pu être déterminé</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+#include &lt;cstring&gt;
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;sys/un.h&gt;
+#include &lt;unistd.h&gt;
+
+namespace fs = std::filesystem;
+
+void demo_status(const fs::path&amp; p, fs::file_status s)
+{
+    std::cout &lt;&lt; p;
+    switch (s.type())
+    {
+        case fs::file_type::none:
+            std::cout &lt;&lt; &quot; has `not-evaluated-yet` type&quot;;
+            break;
+        case fs::file_type::not_found:
+            std::cout &lt;&lt; &quot; does not exist&quot;;
+            break;
+        case fs::file_type::regular:
+            std::cout &lt;&lt; &quot; is a regular file&quot;;
+            break;
+        case fs::file_type::directory:
+            std::cout &lt;&lt; &quot; is a directory&quot;;
+            break;
+        case fs::file_type::symlink:
+            std::cout &lt;&lt; &quot; is a symlink&quot;;
+            break;
+        case fs::file_type::block:
+            std::cout &lt;&lt; &quot; is a block device&quot;;
+            break;
+        case fs::file_type::character:
+            std::cout &lt;&lt; &quot; is a character device&quot;;
+            break;
+        case fs::file_type::fifo:
+            std::cout &lt;&lt; &quot; is a named IPC pipe&quot;;
+            break;
+        case fs::file_type::socket:
+            std::cout &lt;&lt; &quot; is a named IPC socket&quot;;
+            break;
+        case fs::file_type::unknown:
+            std::cout &lt;&lt; &quot; has `unknown` type&quot;;
+            break;
+        default:
+            std::cout &lt;&lt; &quot; has `implementation-defined` type&quot;;
+            break;
+    }
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    // créer des fichiers de différents types
+    fs::create_directory(&quot;sandbox&quot;);
+    fs::create_directory(&quot;sandbox/dir&quot;);
+    std::ofstream{&quot;sandbox/file&quot;}; // créer un fichier régulier
+    fs::create_symlink(&quot;file&quot;, &quot;sandbox/symlink&quot;);
+
+    mkfifo(&quot;sandbox/pipe&quot;, 0644);
+    sockaddr_un addr;
+    addr.sun_family = AF_UNIX;
+    std::strcpy(addr.sun_path, &quot;sandbox/sock&quot;);
+    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    bind(fd, reinterpret_cast&lt;sockaddr*&gt;(&amp;addr), sizeof addr);
+
+    // démonstration des différents accesseurs de statut
+    for (auto it{fs::directory_iterator(&quot;sandbox&quot;)}; it != fs::directory_iterator(); ++it)
+        demo_status(*it, it-&gt;symlink_status()); // utiliser le statut mis en cache de l'entrée de répertoire
+    demo_status(&quot;/dev/null&quot;, fs::status(&quot;/dev/null&quot;)); // appels directs à status
+    demo_status(&quot;/dev/sda&quot;, fs::status(&quot;/dev/sda&quot;));
+    demo_status(&quot;sandbox/no&quot;, fs::status(&quot;/sandbox/no&quot;));
+
+    // nettoyage (préférer les suppresseurs personnalisés basés sur std::unique_ptr)
+    close(fd);
+    fs::remove_all(&quot;sandbox&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;sandbox/file&quot; is a regular file
+&quot;sandbox/dir&quot; is a directory
+&quot;sandbox/pipe&quot; is a named IPC pipe
+&quot;sandbox/sock&quot; is a named IPC socket
+&quot;sandbox/symlink&quot; is a symlink
+&quot;/dev/null&quot; is a character device
+&quot;/dev/sda&quot; is a block device
+&quot;sandbox/no&quot; does not exist
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="file_status.html">file_status</a> (C++17)</strong> — représente le type de fichier et les permissions <em>(classe)</em></li>
+<li><strong><a href="is_block_file.html">is_block_file</a> (C++17)</strong> — vérifie si le chemin donné désigne un périphérique bloc <em>(fonction)</em></li>
+<li><strong><a href="is_character_file.html">is_character_file</a> (C++17)</strong> — vérifie si le chemin donné désigne un périphérique caractère <em>(fonction)</em></li>
+<li><strong><a href="is_directory.html">is_directory</a> (C++17)</strong> — vérifie si le chemin donné désigne un répertoire <em>(fonction)</em></li>
+<li><strong><a href="is_fifo.html">is_fifo</a> (C++17)</strong> — vérifie si le chemin donné désigne un tube nommé <em>(fonction)</em></li>
+<li><strong><a href="is_other.html">is_other</a> (C++17)</strong> — vérifie si l'argument désigne un fichier <em>autre</em> <em>(fonction)</em></li>
+<li><strong><a href="is_socket.html">is_socket</a> (C++17)</strong> — vérifie si l'argument désigne un socket IPC nommé <em>(fonction)</em></li>
+<li><strong><a href="is_symlink.html">is_symlink</a> (C++17)</strong> — vérifie si l'argument désigne un lien symbolique <em>(fonction)</em></li>
+<li><strong><a href="directory_entry/is_regular_file.html">is_regular_file</a></strong> — vérifie si l'entrée de répertoire désigne un fichier régulier <em>(fonction membre publique de <code>std::filesystem::directory_entry</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

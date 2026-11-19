@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::directory_entry::status, std::filesystem::directory_entry::symlink_status — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a> › <a href="../../../cpp/filesystem/directory_entry.html">std::filesystem::directory_entry</a></nav>
+<h1 id="std-filesystem-directory_entry-status-std-filesystem-directory_entry-symlink_status"><code>std::filesystem::directory_entry::status, std::filesystem::directory_entry::symlink_status</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/directory_entry/status">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">std::filesystem::file_status status() const;  // (1) (depuis C++17)
+
+std::filesystem::file_status status( std::error_code&amp; ec ) const noexcept;  // (2) (depuis C++17)
+
+std::filesystem::file_status symlink_status() const;  // (3) (depuis C++17)
+
+std::filesystem::file_status symlink_status( std::error_code&amp; ec ) const noexcept;  // (4) (depuis C++17)
+</code></pre>
+<p>1,2) Retourne l'état de l'entrée, comme déterminé par un appel à <a href="../status.html"><code>filesystem::status</code></a> (les liens symboliques sont suivis jusqu'à leur cible).</p>
+<p>3,4) Retourne l'état de l'entrée, comme déterminé par un appel à <a href="../status.html"><code>filesystem::symlink_status</code></a> (les liens symboliques ne sont pas suivis).</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ec</code> — paramètre de sortie pour le signalement d'erreurs dans la surcharge ne levant pas d'exception</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le statut du fichier désigné par l'entrée.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute surcharge non marquée <code>noexcept</code> peut lever <a href="../../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<p>1,3) Lève <a href="../filesystem_error.html"><code>std::filesystem::filesystem_error</code></a> en cas d'erreur de l'API système sous-jacente, construite avec <code>p</code> comme premier argument de chemin et le code d'erreur du système comme argument de code d'erreur.</p>
+<p>2,4) Affecte à un paramètre <code>std::error_code&amp;</code> le code d'erreur de l'API système si un appel échoue, et exécute <code>ec.clear()</code> si aucune erreur ne survient.</p>
+<h2 id="Notes">Notes</h2>
+<p>De nombreuses API bas niveau du système d'exploitation pour parcourir un répertoire récupèrent les attributs des fichiers avec l'entrée de répertoire suivante. Les constructeurs et les fonctions membres non const de <a href="../directory_iterator.html"><code>std::filesystem::directory_iterator</code></a> stockent ces attributs, le cas échéant, dans le <a href="../directory_entry.html"><code>std::filesystem::directory_entry</code></a> pointé sans appeler <a href="refresh.html"><code>directory_entry::refresh</code></a>, ce qui permet d'examiner les attributs des entrées de répertoire au fur et à mesure de leur itération, sans effectuer d'appels système supplémentaires.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+#include &lt;cstring&gt;
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;sys/stat.h&gt;
+#include &lt;sys/un.h&gt;
+#include &lt;unistd.h&gt;
+
+namespace fs = std::filesystem;
+
+void demo_status(const fs::path&amp; p, fs::file_status s)
+{
+    std::cout &lt;&lt; p;
+    // alternative : switch(s.type()) { case fs::file_type::regular: ...}
+    if (fs::is_regular_file(s))
+        std::cout &lt;&lt; &quot; is a regular file\n&quot;;
+    if (fs::is_directory(s))
+        std::cout &lt;&lt; &quot; is a directory\n&quot;;
+    if (fs::is_block_file(s))
+        std::cout &lt;&lt; &quot; is a block device\n&quot;;
+    if (fs::is_character_file(s))
+        std::cout &lt;&lt; &quot; is a character device\n&quot;;
+    if (fs::is_fifo(s))
+        std::cout &lt;&lt; &quot; is a named IPC pipe\n&quot;;
+    if (fs::is_socket(s))
+        std::cout &lt;&lt; &quot; is a named IPC socket\n&quot;;
+    if (fs::is_symlink(s))
+        std::cout &lt;&lt; &quot; is a symlink\n&quot;;
+    if (!fs::exists(s))
+        std::cout &lt;&lt; &quot; does not exist\n&quot;;
+}
+
+int main()
+{
+    // créer des fichiers de différents types
+    fs::create_directory(&quot;sandbox&quot;);
+    fs::create_directory(&quot;sandbox/dir&quot;);
+    std::ofstream{&quot;sandbox/file&quot;}; // créer un fichier régulier
+    fs::create_symlink(&quot;file&quot;, &quot;sandbox/symlink&quot;);
+
+    mkfifo(&quot;sandbox/pipe&quot;, 0644);
+    sockaddr_un addr;
+    addr.sun_family = AF_UNIX;
+    std::strcpy(addr.sun_path, &quot;sandbox/sock&quot;);
+    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    bind(fd, reinterpret_cast&lt;sockaddr*&gt;(&amp;addr), sizeof addr);
+
+    // démonstration des différents accesseurs de statut
+    for (auto it{fs::directory_iterator(&quot;sandbox&quot;)}; it != fs::directory_iterator(); ++it)
+        demo_status(*it, it-&gt;symlink_status()); // utiliser le statut mis en cache de l'entrée de répertoire
+    demo_status(&quot;/dev/null&quot;, fs::status(&quot;/dev/null&quot;)); // appels directs à status
+    demo_status(&quot;/dev/sda&quot;, fs::status(&quot;/dev/sda&quot;));
+    demo_status(&quot;sandbox/no&quot;, fs::status(&quot;/sandbox/no&quot;));
+
+    // nettoyage (préférer les suppresseurs personnalisés basés sur std::unique_ptr)
+    close(fd);
+    fs::remove_all(&quot;sandbox&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">&quot;sandbox/file&quot; is a regular file
+&quot;sandbox/dir&quot; is a directory
+&quot;sandbox/pipe&quot; is a named IPC pipe
+&quot;sandbox/sock&quot; is a named IPC socket
+&quot;sandbox/symlink&quot; is a symlink
+&quot;/dev/null&quot; is a character device
+&quot;/dev/sda&quot; is a block device
+&quot;sandbox/no&quot; does not exist
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="refresh.html">refresh</a></strong> — met à jour les attributs de fichier mis en cache <em>(fonction membre publique)</em></li>
+<li><strong><a href="exists.html">exists</a></strong> — vérifie si l'entrée de répertoire référence un objet du système de fichiers existant <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_block_file.html">is_block_file</a></strong> — vérifie si l'entrée de répertoire référence un périphérique de bloc <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_character_file.html">is_character_file</a></strong> — vérifie si l'entrée de répertoire référence un périphérique caractère <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_directory.html">is_directory</a></strong> — vérifie si l'entrée de répertoire référence un répertoire <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_fifo.html">is_fifo</a></strong> — vérifie si l'entrée de répertoire référence un tube nommé <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_other.html">is_other</a></strong> — vérifie si l'entrée de répertoire référence un fichier <em>autre</em> <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_regular_file.html">is_regular_file</a></strong> — vérifie si l'entrée de répertoire référence un fichier régulier <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_socket.html">is_socket</a></strong> — vérifie si l'entrée de répertoire référence un socket IPC nommé <em>(fonction membre publique)</em></li>
+<li><strong><a href="is_symlink.html">is_symlink</a></strong> — vérifie si l'entrée de répertoire référence un lien symbolique <em>(fonction membre publique)</em></li>
+<li><strong><a href="file_size.html">file_size</a></strong> — retourne la taille du fichier référencé par l'entrée de répertoire <em>(fonction membre publique)</em></li>
+<li><strong><a href="hard_link_count.html">hard_link_count</a></strong> — retourne le nombre de liens physiques référençant le fichier référencé par l'entrée de répertoire <em>(fonction membre publique)</em></li>
+<li><strong><a href="last_write_time.html">last_write_time</a></strong> — obtient la date de dernière modification des données du fichier référencé par l'entrée de répertoire <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::destroy — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-ranges-destroy"><code>std::ranges::destroy</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/ranges/destroy">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; no-throw-input-iterator I, no-throw-sentinel-for&lt;I&gt; S &gt;
+    requires std::destructible&lt;std::iter_value_t&lt;I&gt;&gt;
+constexpr I destroy( I first, S last ) noexcept;  // (1) (depuis C++20)
+
+template&lt; no-throw-input-range R &gt;
+    requires std::destructible&lt;ranges::range_value_t&lt;R&gt;&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt; destroy( R&amp;&amp; r ) noexcept;  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Détruit les objets de l'intervalle <code>[first,last)</code>, comme si par</li>
+</ol>
+<pre><code class="language-cpp">for (; first != last; ++first)
+    std::ranges::destroy_at(std::addressof(*first));
+return first;
+</code></pre>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../../algorithm/ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — paire itérateur-sentinelle désignant l'intervalle des éléments à détruire</li>
+<li><code>r</code> — l'intervalle à détruire</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur est égal à <code>last</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire en la distance entre <code>first</code> et <code>last</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct destroy_fn
+{
+    template&lt;no-throw-input-iterator I, no-throw-sentinel-for&lt;I&gt; S&gt;
+        requires std::destructible&lt;std::iter_value_t&lt;I&gt;&gt;
+    constexpr I operator()(I first, S last) const noexcept
+    {
+        for (; first != last; ++first)
+            std::ranges::destroy_at(std::addressof(*first));
+        return first;
+    }
+
+    template&lt;no-throw-input-range R&gt;
+        requires std::destructible&lt;std::ranges::range_value_t&lt;R&gt;&gt;
+    constexpr std::ranges::borrowed_iterator_t&lt;R&gt; operator()(R&amp;&amp; r) const noexcept
+    {
+        return operator()(std::ranges::begin(r), std::ranges::end(r));
+    }
+};
+
+inline constexpr destroy_fn destroy{};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant montre comment utiliser <code>ranges::destroy</code> pour détruire une séquence contiguë d'éléments.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;new&gt;
+
+struct Tracer
+{
+    int value;
+    ~Tracer() { std::cout &lt;&lt; value &lt;&lt; &quot; destructed\n&quot;; }
+};
+
+int main()
+{
+    alignas(Tracer) unsigned char buffer[sizeof(Tracer) * 8];
+
+    for (int i = 0; i &lt; 8; ++i)
+        new(buffer + sizeof(Tracer) * i) Tracer{i}; //construire manuellement des objets
+
+    auto ptr = std::launder(reinterpret_cast&lt;Tracer*&gt;(buffer));
+
+    std::ranges::destroy(ptr, ptr + 8);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">0 destructed
+1 destructed
+2 destructed
+3 destructed
+4 destructed
+5 destructed
+6 destructed
+7 destructed
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="destroy_n.html">ranges::destroy_n</a> (C++20)</strong> — détruit un nombre d'objets dans un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="destroy_at.html">ranges::destroy_at</a> (C++20)</strong> — détruit un objet à une adresse donnée <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../destroy.html">destroy</a> (C++17)</strong> — détruit un intervalle d'objets <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::unique_ptr — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-unique_ptr"><code>std::unique_ptr</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/unique_ptr">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt;
+    class T,
+    class Deleter = std::default_delete&lt;T&gt;
+&gt; class unique_ptr;  // (1) (depuis C++11)
+
+template &lt;
+    class T,
+    class Deleter
+&gt; class unique_ptr&lt;T[], Deleter&gt;;  // (2) (depuis C++11)
+</code></pre>
+<p><code>std::unique_ptr</code> est un pointeur intelligent qui possède (est responsable de) et gère un autre objet via un pointeur, puis détruit cet objet lorsque <code>unique_ptr</code> sort de sa portée.</p>
+<p>L'objet est détruit à l'aide du déleteur associé lorsque l'un des événements suivants se produit :</p>
+<ul>
+<li>l'objet <code>unique_ptr</code> gestionnaire est détruit.</li>
+<li>l'objet <code>unique_ptr</code> gestionnaire se voit affecter un autre pointeur via <a href="unique_ptr/operator%3D.html"><code>operator=</code></a> ou <a href="unique_ptr/reset.html"><code>reset()</code></a>.</li>
+</ul>
+<p>L'objet est détruit, à l'aide d'un déleteur potentiellement fourni par l'utilisateur, en appelant <code>get_deleter()(ptr)</code>. Le déleteur par défaut (<code>std::default_delete</code>) utilise l'opérateur <code>delete</code>, qui détruit l'objet et libère la mémoire.</p>
+<p>Un <code>unique_ptr</code> peut aussi ne posséder aucun objet, auquel cas il est décrit comme <em>vide</em>.</p>
+<p>Il existe deux versions de <code>std::unique_ptr</code> :</p>
+<ol>
+<li>Gère un objet unique (par exemple alloué avec <code>new</code>).</li>
+<li>Gère un tableau d'objets alloué dynamiquement (par exemple alloué avec <code>new[]</code>).</li>
+</ol>
+<p>La classe satisfait les exigences de <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a> et de <a href="../named_req/MoveAssignable.html"><em>MoveAssignable</em></a>, mais ni de <a href="../named_req/CopyConstructible.html"><em>CopyConstructible</em></a> ni de <a href="../named_req/CopyAssignable.html"><em>CopyAssignable</em></a>.</p>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>Deleter</code> doit être <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a> ou une référence lvalue vers un <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a> ou une référence lvalue vers une fonction, appelable avec un argument de type <code>unique_ptr&lt;T, Deleter&gt;::pointer</code>.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Seul un <code>unique_ptr</code> non const peut transférer la propriété de l'objet géré vers un autre <code>unique_ptr</code>. Si la durée de vie d'un objet est gérée par un <code>const std::unique_ptr</code>, elle est limitée à la portée dans laquelle le pointeur a été créé.</p>
+<p><code>std::unique_ptr</code> est couramment utilisé pour gérer la durée de vie des objets, notamment :</p>
+<ul>
+<li>
+<p>assurer la sécurité d'exception aux classes et fonctions qui manipulent des objets à durée de vie dynamique, en garantissant la destruction lors d'une sortie normale comme lors d'une sortie par exception.</p>
+</li>
+<li>
+<p>transmettre la propriété d'objets à durée de vie dynamique et à propriétaire unique à des fonctions.</p>
+</li>
+<li>
+<p>acquérir la propriété d'objets à durée de vie dynamique et à propriétaire unique à partir de fonctions.</p>
+</li>
+<li>
+<p>comme type d'élément dans des conteneurs compatibles avec le déplacement, tels que <a href="../container/vector.html"><code>std::vector</code></a>, qui contiennent des pointeurs vers des objets alloués dynamiquement (par exemple si un comportement polymorphe est souhaité).</p>
+</li>
+</ul>
+<p><code>std::unique_ptr</code> peut être construit pour un <a href="../language/incomplete_type.html">type incomplet</a> <code>T</code>, par exemple pour faciliter son utilisation comme poignée dans l'<a href="../language/pimpl.html">idiome pImpl</a>. Si le déleteur par défaut est utilisé, <code>T</code> doit être complet au point du code où le déleteur est invoqué, ce qui se produit dans le destructeur, dans l'opérateur d'affectation par déplacement et dans la fonction membre <code>reset</code> de <code>std::unique_ptr</code>. (En revanche, <a href="shared_ptr.html"><code>std::shared_ptr</code></a> ne peut pas être construit à partir d'un pointeur brut vers un type incomplet, mais peut être détruit lorsque <code>T</code> est incomplet). Notez que si <code>T</code> est une spécialisation de modèle de classe, l'utilisation de <code>unique_ptr</code> comme opérande, par exemple <code>!p</code>, exige que les paramètres de <code>T</code> soient complets en raison de l'<a href="../language/adl.html">ADL</a>.</p>
+<p>Si <code>T</code> est une <a href="../language/derived_class.html">classe dérivée</a> d'une certaine base <code>B</code>, alors <code>std::unique_ptr&lt;T&gt;</code> est <a href="unique_ptr/unique_ptr.html">implicitement convertible</a> en <code>std::unique_ptr&lt;B&gt;</code>. Le déleteur par défaut du <code>std::unique_ptr&lt;B&gt;</code> résultant utilisera <a href="new/operator_delete.html">operator delete</a> pour <code>B</code>, ce qui entraîne un <a href="../language/destructor.html#Virtual_destructors">comportement indéfini</a> sauf si le destructeur de <code>B</code> est <a href="../language/virtual.html">virtual</a>. Notez que <a href="shared_ptr.html"><code>std::shared_ptr</code></a> se comporte différemment : <code>std::shared_ptr&lt;B&gt;</code> utilisera le <a href="new/operator_delete.html">operator delete</a> pour le type <code>T</code>, et l'objet possédé sera correctement détruit même si le destructeur de <code>B</code> n'est pas <a href="../language/virtual.html">virtual</a>.</p>
+<p>Contrairement à <a href="shared_ptr.html"><code>std::shared_ptr</code></a>, <code>std::unique_ptr</code> peut gérer un objet via tout type de poignée personnalisé qui satisfait <a href="../named_req/NullablePointer.html"><em>NullablePointer</em></a>. Cela permet, par exemple, de gérer des objets situés en mémoire partagée, en fournissant un <code>Deleter</code> qui définit <code>typedef boost::offset_ptr pointer;</code> ou un autre <a href="../named_req/Allocator.html#Fancy_pointers">pointeur sophistiqué</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_constexpr_memory"><code>__cpp_lib_constexpr_memory</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_lib_constexpr_memory_202202L"><code>202202L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><code>constexpr</code> <a href="unique_ptr.html#top"><code>std::unique_ptr</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Type membre Définition</strong></p>
+<ul>
+<li><strong><code>pointer</code></strong> — <code>std::remove_reference&lt;Deleter&gt;::type::pointer</code> si ce type existe, sinon <code>T*</code>. Doit satisfaire <a href="../named_req/NullablePointer.html"><em>NullablePointer</em></a></li>
+<li><strong><code>element_type</code></strong> — <code>T</code>, le type de l'objet géré par ce <code>unique_ptr</code></li>
+<li><strong><code>deleter_type</code></strong> — <code>Deleter</code>, l'objet fonction ou la référence lvalue vers une fonction ou un objet fonction, à appeler depuis le destructeur</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="unique_ptr/unique_ptr.html">(constructeur)</a></strong> — construit un nouveau <code>unique_ptr</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="unique_ptr/~unique_ptr.html">(destructeur)</a></strong> — détruit l'objet géré s'il existe <em>(fonction membre publique)</em></li>
+<li><strong><a href="unique_ptr/operator%3D.html">operator=</a></strong> — affecte le <code>unique_ptr</code> <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Modificateurs {#Modifiers}</strong></p>
+<ul>
+<li><strong><a href="unique_ptr/release.html">release</a></strong> — renvoie un pointeur vers l'objet géré et libère la propriété <em>(fonction membre publique)</em></li>
+<li><strong><a href="unique_ptr/reset.html">reset</a></strong> — remplace l'objet géré <em>(fonction membre publique)</em></li>
+<li><strong><a href="unique_ptr/swap.html">swap</a></strong> — échange les objets gérés <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Observateurs {#Observers}</strong></p>
+<ul>
+<li><strong><a href="unique_ptr/get.html">get</a></strong> — renvoie un pointeur vers l'objet géré <em>(fonction membre publique)</em></li>
+<li><strong><a href="unique_ptr/get_deleter.html">get_deleter</a></strong> — renvoie le deleter utilisé pour la destruction de l'objet géré <em>(fonction membre publique)</em></li>
+<li><strong><a href="unique_ptr/operator_bool.html">operator bool</a></strong> — vérifie s'il existe un objet géré associé <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Version pour un seul objet, <code>unique_ptr&lt;T&gt;</code> {#Single-object_version.2C_unique_ptr.3CT.3E}</strong></p>
+<ul>
+<li><strong><a href="unique_ptr/operator_star_.html">operator*operator-&gt;</a></strong> — déréférence le pointeur vers l'objet géré <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Version pour tableau, <code>unique_ptr&lt;T[]&gt;</code> {#Array_version.2C_unique_ptr.3CT.5B.5D.3E}</strong></p>
+<ul>
+<li><strong><a href="unique_ptr/operator_at.html">operator[]</a></strong> — fournit un accès indexé au tableau géré <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="Non-member_functions">Fonctions non membres</h2>
+<ul>
+<li><strong><a href="unique_ptr/make_unique.html">make_uniquemake_unique_for_overwrite</a> (C++14) (C++20)</strong> — crée un pointeur unique qui gère un nouvel objet <em>(modèle de fonction)</em></li>
+<li><strong><a href="unique_ptr/operator_cmp.html">operator==operator!=operator&lt;operator&lt;=operator&gt;operator&gt;=operator&lt;=&gt;</a> (removed in C++20) (C++20)</strong> — compare à un autre <code>unique_ptr</code> ou avec <code>nullptr</code> <em>(modèle de fonction)</em></li>
+<li><strong><a href="unique_ptr/operator_ltlt.html">operator&lt;&lt;(std::unique_ptr)</a> (C++20)</strong> — écrit la valeur du pointeur géré dans un flux de sortie <em>(modèle de fonction)</em></li>
+<li><strong><a href="unique_ptr/swap2.html">std::swap(std::unique_ptr)</a> (C++11)</strong> — spécialise l'algorithme <a href="../utility/swap.html"><code>std::swap</code></a> <em>(modèle de fonction)</em></li>
+</ul>
+<h2 id="Helper_classes">Classes auxiliaires</h2>
+<ul>
+<li><strong><a href="unique_ptr/hash.html">std::hash&lt;std::unique_ptr&gt;</a> (C++11)</strong> — prise en charge du hachage pour <strong><code>std::unique_ptr</code></strong> <em>(spécialisation de modèle de classe)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstdio&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+#include &lt;locale&gt;
+#include &lt;memory&gt;
+#include &lt;stdexcept&gt;
+
+// classe auxiliaire pour la démonstration du polymorphisme à l'exécution ci-dessous
+struct B
+{
+    virtual ~B() = default;
+
+    virtual void bar() { std::cout &lt;&lt; &quot;B::bar\n&quot;; }
+};
+
+struct D : B
+{
+    D() { std::cout &lt;&lt; &quot;D::D\n&quot;; }
+    ~D() { std::cout &lt;&lt; &quot;D::~D\n&quot;; }
+
+    void bar() override { std::cout &lt;&lt; &quot;D::bar\n&quot;; }
+};
+
+// une fonction consommant un unique_ptr peut le prendre par valeur ou par référence rvalue
+std::unique_ptr&lt;D&gt; pass_through(std::unique_ptr&lt;D&gt; p)
+{
+    p-&gt;bar();
+    return p;
+}
+
+// fonction auxiliaire pour la démonstration du deleter personnalisé ci-dessous
+void close_file(std::FILE* fp)
+{
+    std::fclose(fp);
+}
+
+// démonstration d'une liste chaînée basée sur unique_ptr
+struct List
+{
+    struct Node
+    {
+        int data;
+        std::unique_ptr&lt;Node&gt; next;
+    };
+
+    std::unique_ptr&lt;Node&gt; head;
+
+    ~List()
+    {
+        // détruit les nœuds de la liste séquentiellement dans une boucle, le destructeur par défaut
+        // appellerait récursivement le destructeur de son `next`, ce qui
+        // provoquerait un débordement de pile pour des listes suffisamment grandes.
+        while (head)
+        {
+            auto next = std::move(head-&gt;next);
+            head = std::move(next);
+        }
+    }
+
+    void push(int data)
+    {
+        head = std::unique_ptr&lt;Node&gt;(new Node{data, std::move(head)});
+    }
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;1) Unique ownership semantics demo\n&quot;;
+    {
+        // Crée une ressource (possédée de manière unique)
+        std::unique_ptr&lt;D&gt; p = std::make_unique&lt;D&gt;();
+
+        // Transfère la propriété à `pass_through`,
+        // qui à son tour retransfère la propriété via la valeur de retour
+        std::unique_ptr&lt;D&gt; q = pass_through(std::move(p));
+
+        // p est maintenant dans un état « vide » après déplacement, égal à nullptr
+        assert(!p);
+    }
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;2) Runtime polymorphism demo\n&quot;;
+    {
+        // Crée une ressource dérivée et pointe vers elle via le type de base
+        std::unique_ptr&lt;B&gt; p = std::make_unique&lt;D&gt;();
+
+        // La liaison dynamique fonctionne comme attendu
+        p-&gt;bar();
+    }
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;3) Custom deleter demo\n&quot;;
+    std::ofstream(&quot;demo.txt&quot;) &lt;&lt; 'x'; // prépare le fichier à la lecture
+    {
+        using unique_file_t = std::unique_ptr&lt;std::FILE, decltype(&amp;close_file)&gt;;
+        unique_file_t fp(std::fopen(&quot;demo.txt&quot;, &quot;r&quot;), &amp;close_file);
+        if (fp)
+            std::cout &lt;&lt; char(std::fgetc(fp.get())) &lt;&lt; '\n';
+    } // `close_file()` est appelée ici (si `fp` n'est pas nul)
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;4) Custom lambda-expression deleter and exception safety demo\n&quot;;
+    try
+    {
+        std::unique_ptr&lt;D, void(*)(D*)&gt; p(new D, [](D* ptr)
+        {
+            std::cout &lt;&lt; &quot;destroying from a custom deleter...\n&quot;;
+            delete ptr;
+        });
+
+        throw std::runtime_error(&quot;&quot;); // `p` fuirait ici s'il s'agissait d'un pointeur ordinaire
+    }
+    catch (const std::exception&amp;)
+    {
+        std::cout &lt;&lt; &quot;Caught exception\n&quot;;
+    }
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;5) Array form of unique_ptr demo\n&quot;;
+    {
+        std::unique_ptr&lt;D[]&gt; p(new D[3]);
+    } // `D::~D()` est appelé 3 fois
+
+    std::cout &lt;&lt; &quot;\n&quot; &quot;6) Linked list demo\n&quot;;
+    {
+        List wall;
+        const int enough{1'000'000};
+        for (int beer = 0; beer != enough; ++beer)
+            wall.push(beer);
+
+        std::cout.imbue(std::locale(&quot;en_US.UTF-8&quot;));
+        std::cout &lt;&lt; enough &lt;&lt; &quot; bottles of beer on the wall...\n&quot;;
+    } // détruit toutes les bières
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1) Unique ownership semantics demo
+D::D
+D::bar
+D::~D
+
+2) Runtime polymorphism demo
+D::D
+D::bar
+D::~D
+
+3) Custom deleter demo
+x
+
+4) Custom lambda-expression deleter and exception safety demo
+D::D
+destroying from a custom deleter...
+D::~D
+Caught exception
+
+5) Array form of unique_ptr demo
+D::D
+D::D
+D::D
+D::~D
+D::~D
+D::~D
+
+6) Linked list demo
+1,000,000 bottles of beer on the wall...
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="shared_ptr.html">shared_ptr</a> (C++11)</strong> — pointeur intelligent à sémantique de propriété partagée d'objet <em>(modèle de classe)</em></li>
+<li><strong><a href="weak_ptr.html">weak_ptr</a> (C++11)</strong> — référence faible vers un objet géré par <a href="shared_ptr.html"><code>std::shared_ptr</code></a> <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

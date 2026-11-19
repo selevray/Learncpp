@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::sort — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-sort"><code>std::ranges::sort</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/sort">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::random_access_iterator I, std::sentinel_for&lt;I&gt; S,
+          class Comp = ranges::less, class Proj = std::identity &gt;
+requires std::sortable&lt;I, Comp, Proj&gt;
+constexpr I
+    sort( I first, S last, Comp comp = {}, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; ranges::random_access_range R, class Comp = ranges::less,
+          class Proj = std::identity &gt;
+requires std::sortable&lt;ranges::iterator_t&lt;R&gt;, Comp, Proj&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt;
+    sort( R&amp;&amp; r, Comp comp = {}, Proj proj = {} );  // (2) (depuis C++20)
+</code></pre>
+<p>Trie les éléments de l'intervalle <code>[first,last)</code> par ordre non décroissant. L'ordre des éléments équivalents n'est pas garanti d'être préservé.</p>
+<p>Une séquence est triée par rapport à un comparateur <code>comp</code> si pour tout itérateur <code>it</code> pointant vers la séquence et tout entier non négatif <code>n</code> tel que <code>it + n</code> est un itérateur valide pointant vers un élément de la séquence, <code>std::invoke(comp, std::invoke(proj, *(it + n)), std::invoke(proj, *it))</code> s'évalue à <code>false</code>.</p>
+<ol>
+<li>
+<p>Les éléments sont comparés à l'aide de la fonction de comparaison binaire donnée <code>comp</code>.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — sentinelle d'itérateur définissant l'intervalle à trier</li>
+<li><code>r</code> — l'intervalle à trier</li>
+<li><code>comp</code> — comparaison à appliquer aux éléments projetés</li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur égal à <code>last</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>(\scriptsize \mathcal{O}(N\cdot\log{(N)}))𝓞(N·log(N)) comparaisons et projections, où <code>N = ranges::distance(first, last)</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Notez que les implémentations typiques utilisent <a href="https://en.wikipedia.org/wiki/Introsort">Introsort</a>. Voir aussi l'implémentation de <a href="https://github.com/microsoft/STL/blob/e745bad3b1d05b5b19ec652d68abb37865ffa454/stl/inc/algorithm#L7575-L7641">MSVC STL</a> et <a href="https://github.com/gcc-mirror/gcc/blob/54258e22b0846aaa6bd3265f592feb161eecda75/libstdc%2B%2B-v3/include/bits/ranges_algo.h#L1808-L1834">libstdc++</a>.</p>
+<pre><code class="language-cpp">struct sort_fn
+{
+    template&lt;std::random_access_iterator I, std::sentinel_for&lt;I&gt; S,
+             class Comp = ranges::less, class Proj = std::identity&gt;
+    requires std::sortable&lt;I, Comp, Proj&gt;
+    constexpr I
+        operator()(I first, S last, Comp comp = {}, Proj proj = {}) const
+    {
+        if (first == last)
+            return first;
+
+        I last_iter = ranges::next(first, last);
+        ranges::make_heap(first, last_iter, std::ref(comp), std::ref(proj));
+        ranges::sort_heap(first, last_iter, std::ref(comp), std::ref(proj));
+
+        return last_iter;
+    }
+
+    template&lt;ranges::random_access_range R, class Comp = ranges::less,
+             class Proj = std::identity&gt;
+    requires std::sortable&lt;ranges::iterator_t&lt;R&gt;, Comp, Proj&gt;
+    constexpr ranges::borrowed_iterator_t&lt;R&gt;
+        operator()(R&amp;&amp; r, Comp comp = {}, Proj proj = {}) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::move(comp), std::move(proj));
+    }
+};
+
+inline constexpr sort_fn sort {};
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><a href="../sort.html"><code>std::sort</code></a> utilise <a href="../iter_swap.html"><code>std::iter_swap</code></a> pour échanger les éléments, alors que <code>ranges::sort</code> utilise à la place <a href="../../iterator/ranges/iter_swap.html"><code>ranges::iter_swap</code></a> (qui effectue l'ADL pour <code>iter_swap</code>, contrairement à <a href="../iter_swap.html"><code>std::iter_swap</code></a>)</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;functional&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+
+void print(auto comment, auto const&amp; seq, char term = ' ')
+{
+    for (std::cout &lt;&lt; comment &lt;&lt; '\n'; auto const&amp; elem : seq)
+        std::cout &lt;&lt; elem &lt;&lt; term;
+    std::cout &lt;&lt; '\n';
+}
+
+struct Particle
+{
+    std::string name; double mass; // MeV
+    template&lt;class Os&gt; friend
+    Os&amp; operator&lt;&lt;(Os&amp; os, Particle const&amp; p)
+    {
+        return os &lt;&lt; std::left &lt;&lt; std::setw(8) &lt;&lt; p.name &lt;&lt; &quot; : &quot; &lt;&lt; p.mass &lt;&lt; ' ';
+    }
+};
+
+int main()
+{
+    std::array s {5, 7, 4, 2, 8, 6, 1, 9, 0, 3};
+
+    namespace ranges = std::ranges;
+
+    ranges::sort(s);
+    print(&quot;Sort using the default operator&lt;&quot;, s);
+
+    ranges::sort(s, ranges::greater());
+    print(&quot;Sort using a standard library compare function object&quot;, s);
+
+    struct
+    {
+        bool operator()(int a, int b) const { return a &lt; b; }
+    } customLess;
+    ranges::sort(s.begin(), s.end(), customLess);
+    print(&quot;Sort using a custom function object&quot;, s);
+
+    ranges::sort(s, [](int a, int b) { return a &gt; b; });
+    print(&quot;Sort using a lambda expression&quot;, s);
+
+    Particle particles[]
+    {
+        {&quot;Electron&quot;, 0.511}, {&quot;Muon&quot;, 105.66}, {&quot;Tau&quot;, 1776.86},
+        {&quot;Positron&quot;, 0.511}, {&quot;Proton&quot;, 938.27}, {&quot;Neutron&quot;, 939.57}
+    };
+    ranges::sort(particles, {}, &amp;Particle::name);
+    print(&quot;\nSort by name using a projection&quot;, particles, '\n');
+    ranges::sort(particles, {}, &amp;Particle::mass);
+    print(&quot;Sort by mass using a projection&quot;, particles, '\n');
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Sort using the default operator&lt;
+0 1 2 3 4 5 6 7 8 9
+Sort using a standard library compare function object
+9 8 7 6 5 4 3 2 1 0
+Sort using a custom function object
+0 1 2 3 4 5 6 7 8 9
+Sort using a lambda expression
+9 8 7 6 5 4 3 2 1 0
+
+Sort by name using a projection
+Electron : 0.511
+Muon     : 105.66
+Neutron  : 939.57
+Positron : 0.511
+Proton   : 938.27
+Tau      : 1776.86
+
+Sort by mass using a projection
+Electron : 0.511
+Positron : 0.511
+Muon     : 105.66
+Proton   : 938.27
+Neutron  : 939.57
+Tau      : 1776.86
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="partial_sort.html">ranges::partial_sort</a> (C++20)</strong> — trie les N premiers éléments d'un intervalle <em>(objet fonction algorithme)</em></li>
+<li><strong><a href="stable_sort.html">ranges::stable_sort</a> (C++20)</strong> — trie une plage d'éléments en préservant l'ordre entre éléments égaux <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="partition.html">ranges::partition</a> (C++20)</strong> — divise un intervalle d'éléments en deux groupes <em>(objet fonction algorithme)</em></li>
+<li><strong><a href="../sort.html">sort</a></strong> — trie un intervalle par ordre croissant <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

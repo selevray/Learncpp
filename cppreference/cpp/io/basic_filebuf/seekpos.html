@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_filebuf&lt;CharT,Traits&gt;::seekpos — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_filebuf.html">std::basic_filebuf</a></nav>
+<h1 id="std-basic_filebuf-chart-traits-seekpos"><code>std::basic_filebuf&lt;CharT,Traits&gt;::seekpos</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_filebuf/seekpos">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">protected:
+virtual pos_type seekpos( pos_type sp,
+                          std::ios_base::openmode which = std::ios_base::in | std::ios_base::out );
+</code></pre>
+<p>Repositionne le pointeur de fichier, si possible, à la position indiquée par <code>sp</code>. Si le fichier associé n'est pas ouvert (<code>is_open() == false</code>), échoue immédiatement.</p>
+<p>Le repositionnement s'effectue comme suit :</p>
+<ol>
+<li>
+<p>Si le fichier est ouvert en écriture, écrit la zone de mise et toutes les séquences de désinitialisation requises par la locale actuellement imprégnée, en utilisant <a href="../basic_streambuf/overflow.html"><code>overflow()</code></a>.</p>
+</li>
+<li>
+<p>Repositionne le pointeur de fichier, comme si l'on appelait <a href="../c/fsetpos.html"><code>std::fsetpos()</code></a>.</p>
+</li>
+<li>
+<p>Si le fichier est ouvert en lecture, met à jour la zone de lecture si nécessaire.</p>
+</li>
+</ol>
+<p>Si <code>sp</code> n'a pas été obtenu en appelant <a href="../basic_streambuf/pubseekoff.html"><code>seekoff()</code></a> ou <code>seekpos()</code> sur le même fichier, le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li>
+<p><code>sp</code> — position de fichier obtenue par <a href="../basic_streambuf/pubseekoff.html"><code>seekoff()</code></a> ou <code>seekpos()</code> appelées précédemment sur le même fichier</p>
+</li>
+<li>
+<p><code>which</code> — définit la ou les séquences d'entrée et/ou de sortie à affecter. Il peut s'agir d'une des constantes suivantes ou d'une combinaison de celles-ci :</p>
+<p><strong>Constante Explication</strong></p>
+<ul>
+<li><strong><a href="../ios_base/openmode.html"><code>in</code></a></strong> — affecte la séquence d'entrée</li>
+<li><strong><a href="../ios_base/openmode.html"><code>out</code></a></strong> — affecte la séquence de sortie</li>
+</ul>
+</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>sp</code> en cas de succès ou <code>pos_type(off_type(-1))</code> en cas d'échec.</p>
+<h2 id="Notes">Notes</h2>
+<p><code>seekpos()</code> est appelée par <a href="../basic_streambuf/pubseekpos.html"><code>std::basic_streambuf::pubseekpos()</code></a>, qui est appelée par les versions à un argument de <a href="../basic_istream/seekg.html"><code>std::basic_istream::seekg()</code></a> et <a href="../basic_ostream/seekp.html"><code>std::basic_ostream::seekp()</code></a>.</p>
+<p>De nombreuses implémentations ne mettent pas à jour la zone de lecture dans <code>seekpos()</code>, en déléguant à <a href="../basic_streambuf/underflow.html"><code>underflow()</code></a>, appelée par le <a href="../basic_streambuf/sgetc.html"><code>sgetc()</code></a> suivant.</p>
+<h2 id="Example">Exemple</h2>
+<p>Sur certaines implémentations, la zone de lecture est vidée par <code>seekpos()</code> et le second <code>underflow()</code> est nécessaire pour observer les effets.</p>
+<pre><code class="language-cpp">#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+
+struct mybuf : std::filebuf
+{
+    pos_type seekpos(pos_type sp, std::ios_base::openmode which)
+    {
+        std::cout &lt;&lt; &quot;Before seekpos(&quot; &lt;&lt; sp &lt;&lt; &quot;), size of the get area is &quot;
+                  &lt;&lt; egptr() - eback() &lt;&lt; &quot; with &quot;
+                  &lt;&lt; egptr() - gptr() &lt;&lt; &quot; read positions available.\n&quot;;
+
+        pos_type rc = std::filebuf::seekpos(sp, which);
+
+        std::cout &lt;&lt; &quot;seekpos() returns &quot; &lt;&lt; rc &lt;&lt; &quot;.\nAfter the call, &quot;
+                  &lt;&lt; &quot;size of the get area is &quot;
+                  &lt;&lt; egptr() - eback() &lt;&lt; &quot; with &quot;
+                  &lt;&lt; egptr() - gptr() &lt;&lt; &quot; read positions available.\n&quot;;
+// décommenter si la zone de lecture est vidée par seekpos()
+//        std::filebuf::underflow();
+//        std::cout &lt;&lt; &quot;après underflow() forcé, la taille de la zone de lecture est &quot;
+//                  &lt;&lt; egptr() - eback() &lt;&lt; &quot; avec &quot;
+//                  &lt;&lt; egptr() - gptr() &lt;&lt; &quot; positions de lecture disponibles.\n&quot;;
+
+        return rc;
+    }
+};
+
+int main()
+{
+    mybuf buf;
+    buf.open(&quot;test.txt&quot;, std::ios_base::in);
+    std::istream stream(&amp;buf);
+    stream.get(); // lire un caractère pour forcer underflow()
+    stream.seekg(2);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Before seekpos(2), size of the get area is 110 with 109 read positions available.
+seekpos() returns 2.
+After the call, size of the get area is 110 with 108 read positions available.
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue55">LWG 55</a></td>
+<td>C++98</td>
+<td><code>seekpos</code> renvoie une position de flux non définie invalide en cas d'échec</td>
+<td><code>pos_type(off_type(-1))</code> est renvoyé en cas d'échec</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue171">LWG 171</a></td>
+<td>C++98</td>
+<td>l'ordre des opérations de repositionnement n'était pas clair</td>
+<td>rendu clair</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../basic_streambuf/pubseekpos.html">pubseekpos</a></strong> — appelle <code>seekpos()</code> <em>(fonction membre publique de <code>std::basic_streambuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="seekoff.html">seekoff</a> [virtuelle]</strong> — repositionne la position du fichier, en utilisant un adressage relatif <em>(fonction membre protégée virtuelle)</em></li>
+<li><strong><a href="../c/fseek.html">fseek</a></strong> — déplace l'indicateur de position dans le fichier vers un emplacement précis d'un fichier <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

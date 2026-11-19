@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::current_exception — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/error.html">Bibliothèque de diagnostic</a></nav>
+<h1 id="std-current_exception"><code>std::current_exception</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/error/current_exception">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;exception&gt;</strong></p>
+<pre><code class="language-cpp">std::exception_ptr current_exception() noexcept;  // (depuis C++11) (constexpr depuis C++26)
+</code></pre>
+<p>Si appelée pendant la gestion d'une exception (typiquement, dans une clause <code>catch</code>), capture l'objet exception courant et crée un <a href="exception_ptr.html"><code>std::exception_ptr</code></a> qui contient soit une copie, soit une référence vers cet objet exception (selon l'implémentation). L'objet référencé reste valide au moins aussi longtemps qu'il existe un objet <code>exception_ptr</code> qui s'y réfère.</p>
+<p>Si l'implémentation de cette fonction nécessite un appel à <code>new</code> et que cet appel échoue, le pointeur renvoyé contiendra une référence vers une instance de <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a>.</p>
+<p>Si l'implémentation de cette fonction nécessite de copier l'objet exception capturé et que son constructeur de copie lève une exception, le pointeur renvoyé contiendra une référence vers l'exception levée. Si le constructeur de copie de l'objet exception levé lève aussi une exception, le pointeur renvoyé peut contenir une référence vers une instance de <a href="bad_exception.html"><code>std::bad_exception</code></a> pour rompre la boucle infinie.</p>
+<p>Si la fonction est appelée alors qu'aucune exception n'est traitée, un <a href="exception_ptr.html"><code>std::exception_ptr</code></a> vide est renvoyé.</p>
+<p>Cette fonction peut être appelée dans un <a href="terminate_handler.html"><code>std::terminate_handler</code></a> pour récupérer l'exception qui a provoqué l'invocation de <a href="terminate.html"><code>std::terminate</code></a>.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une instance de <a href="exception_ptr.html"><code>std::exception_ptr</code></a> contenant une référence vers l'objet exception, ou une copie de l'objet exception, ou vers une instance de <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> ou vers une instance de <a href="bad_exception.html"><code>std::bad_exception</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Sur les implémentations qui suivent l'<a href="https://itanium-cxx-abi.github.io/cxx-abi/abi.html">ABI C++ Itanium</a> (GCC, Clang, etc.), les exceptions sont allouées sur le tas lors du lancement (sauf <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> dans certains cas), et cette fonction crée simplement le pointeur intelligent référençant l'objet précédemment alloué. Sur MSVC, les exceptions sont allouées sur la pile lors du lancement, et cette fonction effectue l'allocation sur le tas et copie l'objet exception.</p>
+<p>Sous Windows dans les environnements CLR managés <a href="https://learn.microsoft.com/en-us/cpp/dotnet/exceptions-in-cpp-cli">[1]</a>, l'implémentation stockera un <a href="bad_exception.html"><code>std::bad_exception</code></a> lorsque l'exception courante est une exception managée (<a href="https://github.com/microsoft/STL/blob/65aab97a8e75e7ba409002e518ed799006dfb285/stl/src/excptptr.cpp#L367">[2]</a>). Notez que <code>catch(...)</code> capture aussi les exceptions managées :</p>
+<pre><code class="language-cpp">#include &lt;exception&gt;
+
+int main()
+{
+    try
+    {
+        throw gcnew System::Exception(&quot;Managed exception&quot;);
+    }
+    catch (...)
+    {
+        std::exception_ptr ex = std::current_exception();
+        try
+        {
+            std::rethrow_exception(ex);
+        }
+        catch (std::bad_exception const &amp;)
+        {
+            // Ceci sera affiché.
+            std::cout &lt;&lt; &quot;Bad exception&quot; &lt;&lt; std::endl;
+        }
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_constexpr_exceptions"><code>__cpp_lib_constexpr_exceptions</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_constexpr_exceptions_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> pour les types d'exception</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;exception&gt;
+#include &lt;iostream&gt;
+#include &lt;stdexcept&gt;
+#include &lt;string&gt;
+
+void handle_eptr(std::exception_ptr eptr) // le passage par valeur est OK
+{
+    try
+    {
+        if (eptr)
+            std::rethrow_exception(eptr);
+    }
+    catch(const std::exception&amp; e)
+    {
+        std::cout &lt;&lt; &quot;Caught exception: '&quot; &lt;&lt; e.what() &lt;&lt; &quot;'\n&quot;;
+    }
+}
+
+int main()
+{
+    std::exception_ptr eptr;
+
+    try
+    {
+        [[maybe_unused]]
+        char ch = std::string().at(1); // ceci génère un std::out_of_range
+    }
+    catch(...)
+    {
+        eptr = std::current_exception(); // capture
+    }
+
+    handle_eptr(eptr);
+
+} // le destructeur de std::out_of_range est appelé ici, lorsque eptr est détruit
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Caught exception: 'basic_string::at: __n (which is 1) &gt;= this-&gt;size() (which is 0)'
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="exception_ptr.html">exception_ptr</a> (C++11)</strong> — type de pointeur partagé pour la gestion des objets exception <em>(typedef)</em></li>
+<li><strong><a href="rethrow_exception.html">rethrow_exception</a> (C++11)</strong> — lève l'exception depuis un <a href="exception_ptr.html"><code>std::exception_ptr</code></a> <em>(fonction)</em></li>
+<li><strong><a href="make_exception_ptr.html">make_exception_ptr</a> (C++11)</strong> — crée un <a href="exception_ptr.html"><code>std::exception_ptr</code></a> à partir d'un objet exception <em>(modèle de fonction)</em></li>
+<li><em><em><a href="exception/uncaught_exception.html">uncaught_exceptionuncaught_exceptions</a><em>(removed in C++20</em>)</em> (C++17)</em>* — vérifie si la gestion d'exception est actuellement en cours <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

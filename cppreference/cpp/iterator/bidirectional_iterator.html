@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::bidirectional_iterator — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/iterator.html">Bibliothèque des itérateurs</a></nav>
+<h1 id="std-bidirectional_iterator"><code>std::bidirectional_iterator</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/iterator/bidirectional_iterator">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;iterator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class I &gt;
+    concept bidirectional_iterator =
+        std::forward_iterator&lt;I&gt; &amp;&amp;
+        std::derived_from&lt;/*ITER_CONCEPT*/&lt;I&gt;, std::bidirectional_iterator_tag&gt; &amp;&amp;
+        requires(I i) {
+            { --i } -&gt; std::same_as&lt;I&amp;&gt;;
+            { i-- } -&gt; std::same_as&lt;I&gt;;
+        };  // (depuis C++20)
+</code></pre>
+<p>Le concept <code>bidirectional_iterator</code> affine <a href="forward_iterator.html"><code>forward_iterator</code></a> en ajoutant la capacité de déplacer un itérateur en arrière.</p>
+<h2 id="Iterator_concept_determination">Détermination du concept d'itérateur</h2>
+<p>La définition de ce concept est spécifiée via un alias de modèle d'exposé <code>/*ITER_CONCEPT*/</code>.</p>
+<p>Pour déterminer <code>/*ITER_CONCEPT*/&lt;I&gt;</code>, soit <code>ITER_TRAITS&lt;I&gt;</code> désigner <code>I</code> si la spécialisation <code>std::iterator_traits&lt;I&gt;</code> est générée à partir du modèle primaire, ou <code>std::iterator_traits&lt;I&gt;</code> sinon :</p>
+<ul>
+<li>Si <code>ITER_TRAITS&lt;I&gt;::iterator_concept</code> est valide et désigne un type, <code>/*ITER_CONCEPT*/&lt;I&gt;</code> désigne ce type.</li>
+<li>Sinon, si <code>ITER_TRAITS&lt;I&gt;::iterator_category</code> est valide et désigne un type, <code>/*ITER_CONCEPT*/&lt;I&gt;</code> désigne ce type.</li>
+<li>Sinon, si <code>std::iterator_traits&lt;I&gt;</code> est généré à partir du modèle primaire, <code>/*ITER_CONCEPT*/&lt;I&gt;</code> désigne <a href="iterator_tags.html"><code>std::random_access_iterator_tag</code></a>.</li>
+<li>Sinon, <code>/*ITER_CONCEPT*/&lt;I&gt;</code> ne désigne pas de type et entraîne un échec de substitution.</li>
+</ul>
+<h2 id="Semantic_requirements">Exigences sémantiques</h2>
+<p>Un itérateur bidirectionnel <code>r</code> est dit <em>décrémentable</em> si et seulement s'il existe un <code>s</code> tel que <code>++s == r</code>.</p>
+<p><code>std::bidirectional_iterator&lt;I&gt;</code> n'est modélisé que si tous les concepts qu'il subsume sont modélisés, et étant donné deux objets <code>a</code> et <code>b</code> de type <code>I</code> :</p>
+<ul>
+<li>Si <code>a</code> est décrémentable, <code>a</code> appartient au domaine des expressions <code>--a</code> et <code>a--</code>.</li>
+<li>La pré-décrémentation produit une lvalue qui fait référence à l'opérande : <code>std::addressof(--a) == std::addressof(a)</code>.</li>
+<li>La post-décrémentation produit la valeur précédente de l'opérande : si <code>bool(a == b)</code>, alors <code>bool(a-- == b)</code>.</li>
+<li>La post-décrémentation et la pré-décrémentation effectuent la même modification sur leur opérande : si <code>bool(a == b)</code>, alors après évaluation de <code>a--</code> et <code>--b</code>, <code>bool(a == b)</code> reste vrai.</li>
+<li>L'incrémentation et la décrémentation sont inverses l'une de l'autre :
+<ul>
+<li>Si <code>a</code> est incrémentable et <code>bool(a == b)</code>, alors <code>bool(--(++a) == b)</code>.</li>
+<li>Si <code>a</code> est décrémentable et <code>bool(a == b)</code>, alors <code>bool(++(--a) == b)</code>.</li>
+</ul>
+</li>
+</ul>
+<h2 id="Equality_preservation">Préservation de l'égalité</h2>
+<p>Les expressions déclarées dans les <a href="../language/requires.html"><code>requires</code> expressions</a> des concepts de la bibliothèque standard doivent être <a href="../concepts.html#Equality_preservation">préservant l'égalité</a> (sauf mention contraire).</p>
+<h2 id="Notes">Notes</h2>
+<p>Contrairement aux exigences <a href="../named_req/BidirectionalIterator.html"><em>LegacyBidirectionalIterator</em></a>, le concept <code>bidirectional_iterator</code> n'exige pas que le déréférencement renvoie une lvalue.</p>
+<h2 id="Example">Exemple</h2>
+<p>Un itérateur bidirectionnel minimal.</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iterator&gt;
+
+struct SimpleBidiIterator
+{
+    using difference_type = std::ptrdiff_t;
+    using value_type = int;
+
+    int operator*() const;
+
+    SimpleBidiIterator&amp; operator++();
+
+    SimpleBidiIterator operator++(int)
+    {
+        auto tmp = *this;
+        ++*this;
+        return tmp;
+    }
+
+    SimpleBidiIterator&amp; operator--();
+
+    SimpleBidiIterator operator--(int)
+    {
+        auto tmp = *this;
+        --*this;
+        return tmp;
+    }
+
+    bool operator==(const SimpleBidiIterator&amp;) const;
+};
+
+static_assert(std::bidirectional_iterator&lt;SimpleBidiIterator&gt;);
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="forward_iterator.html">forward_iterator</a> (C++20)</strong> — spécifie qu'un <a href="input_iterator.html"><code>input_iterator</code></a> est un itérateur avant, prenant en charge la comparaison d'égalité et les parcours multiples <em>(concept)</em></li>
+<li><strong><a href="random_access_iterator.html">random_access_iterator</a> (C++20)</strong> — spécifie qu'un <strong><code>bidirectional_iterator</code></strong> est un itérateur à accès aléatoire, prenant en charge l'avancement en temps constant et l'indexation <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

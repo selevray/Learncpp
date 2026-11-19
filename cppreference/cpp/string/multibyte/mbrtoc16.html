@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::mbrtoc16 — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/string.html">Bibliothèque des chaînes</a> › <a href="../../../cpp/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="std-mbrtoc16"><code>std::mbrtoc16</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/string/multibyte/mbrtoc16">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cuchar&gt;</strong></p>
+<pre><code class="language-cpp">std::size_t mbrtoc16( char16_t* pc16,
+                      const char* s,
+                      std::size_t n,
+                      std::mbstate_t* ps );  // (depuis C++11)
+</code></pre>
+<p>Convertit un caractère multioctet étroit en représentation de caractère UTF-16.</p>
+<p>Si <code>s</code> n'est pas un pointeur nul, inspecte au plus <code>n</code> octets de la chaîne de caractères multioctets, en commençant par l'octet pointé par <code>s</code>, afin de déterminer le nombre d'octets nécessaires pour compléter le caractère multioctet suivant (y compris les éventuelles séquences de décalage). Si la fonction détermine que le caractère multioctet suivant dans <code>s</code> est complet et valide, elle le convertit en caractère 16 bits correspondant et le stocke dans <code>*pc16</code> (si <code>pc16</code> n'est pas nul).</p>
+<p>Si le caractère multioctet dans <code>*s</code> correspond à une séquence multi-char16_t (par exemple une paire de substituts en UTF-16), alors après le premier appel à cette fonction, <code>*ps</code> est mis à jour de façon que le prochain appel à <code>mbrtoc16</code> écrive le char16_t supplémentaire, sans tenir compte de <code>*s</code>.</p>
+<p>Si <code>s</code> est un pointeur nul, les valeurs de <code>n</code> et <code>pc16</code> sont ignorées et l'appel est équivalent à <code>std::mbrtoc16(nullptr, &quot;&quot;, 1, ps)</code>.</p>
+<p>Si le caractère large produit est le caractère nul, l'état de conversion <code>*ps</code> représente l'état de décalage initial.</p>
+<p>L'encodage multioctet utilisé par cette fonction est spécifié par la locale C actuellement active.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>pc16</code> — pointeur vers l'emplacement où le caractère 16 bits résultant sera écrit</li>
+<li><code>s</code> — pointeur vers la chaîne de caractères multioctets utilisée en entrée</li>
+<li><code>n</code> — limite du nombre d'octets de s pouvant être examinés</li>
+<li><code>ps</code> — pointeur vers l'objet d'état de conversion utilisé lors de l'interprétation de la chaîne multioctet</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le premier des cas suivants qui s'applique :</p>
+<ul>
+<li><code>0</code> si le caractère converti à partir de <code>s</code> (et stocké dans <code>*pc16</code> s'il n'est pas nul) était le caractère nul.</li>
+<li>le nombre d'octets <code>[1...n]</code> du caractère multioctet converti avec succès à partir de <code>s</code>.</li>
+<li><code>-3</code> si le <code>char16_t</code> suivant d'un caractère multi-<code>char16_t</code> (par exemple une paire de substituts) a maintenant été écrit dans <code>*pc16</code>. Aucun octet n'est traité depuis l'entrée dans ce cas.</li>
+<li><code>-2</code> si les <code>n</code> octets suivants constituent un caractère multioctet incomplet, mais jusqu'ici valide. Rien n'est écrit dans <code>*pc16</code>.</li>
+<li><code>-1</code> si une erreur d'encodage se produit. Rien n'est écrit dans <code>*pc16</code>, la valeur <a href="../../error/errno_macros.html"><code>EILSEQ</code></a> est stockée dans <a href="../../error/errno.html"><code>errno</code></a> et la valeur de <code>*ps</code> est non spécifiée.</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;clocale&gt;
+#include &lt;cstring&gt;
+#include &lt;cuchar&gt;
+#include &lt;cwchar&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+
+    std::string str = &quot;z\u00df\u6c34\U0001F34C&quot;; // ou u8&quot;zß水🍌&quot;
+
+    std::cout &lt;&lt; &quot;Processing &quot; &lt;&lt; str.size() &lt;&lt; &quot; bytes: [ &quot; &lt;&lt; std::showbase;
+    for (unsigned char c: str)
+        std::cout &lt;&lt; std::hex &lt;&lt; +c &lt;&lt; ' ';
+    std::cout &lt;&lt; &quot;]\n&quot;;
+
+    std::mbstate_t state{}; // initialisé à zéro dans l'état initial
+    char16_t c16;
+    const char* ptr = &amp;str[0], *end = &amp;str[0] + str.size();
+
+    while (std::size_t rc = std::mbrtoc16(&amp;c16, ptr, end - ptr + 1, &amp;state))
+    {
+        std::cout &lt;&lt; &quot;Next UTF-16 char: &quot; &lt;&lt; std::hex
+                  &lt;&lt; static_cast&lt;int&gt;(c16) &lt;&lt; &quot; obtained from &quot;;
+        if (rc == (std::size_t)-3)
+            std::cout &lt;&lt; &quot;earlier surrogate pair\n&quot;;
+        else if (rc == (std::size_t) - 2)
+            break;
+        else if (rc == (std::size_t) - 1)
+            break;
+        else
+        {
+            std::cout &lt;&lt; std::dec &lt;&lt; rc &lt;&lt; &quot; bytes [ &quot;;
+            for (std::size_t n = 0; n &lt; rc; ++n)
+                std::cout &lt;&lt; std::hex &lt;&lt; +static_cast&lt;unsigned char&gt;(ptr[n]) &lt;&lt; ' ';
+            std::cout &lt;&lt; &quot;]\n&quot;;
+            ptr += rc;
+        }
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Processing 10 bytes: [ 0x7a 0xc3 0x9f 0xe6 0xb0 0xb4 0xf0 0x9f 0x8d 0x8c ]
+Next UTF-16 char: 0x7a obtained from 1 bytes [ 0x7a ]
+Next UTF-16 char: 0xdf obtained from 2 bytes [ 0xc3 0x9f ]
+Next UTF-16 char: 0x6c34 obtained from 3 bytes [ 0xe6 0xb0 0xb4 ]
+Next UTF-16 char: 0xd83c obtained from 4 bytes [ 0xf0 0x9f 0x8d 0x8c ]
+Next UTF-16 char: 0xdf4c obtained from earlier surrogate pair
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="c16rtomb.html">c16rtomb</a> (C++11)</strong> — convertit un caractère UTF-16 en encodage multioctet étroit <em>(fonction)</em></li>
+<li><strong><a href="mbrtoc8.html">mbrtoc8</a> (C++20)</strong> — convertit un caractère multioctet étroit en encodage UTF-8 <em>(fonction)</em></li>
+<li><strong><a href="../../locale/codecvt/in.html">do_in</a> [virtuelle]</strong> — convertit une chaîne de <code>ExternT</code> vers <code>InternT</code>, par exemple lors de la lecture du fichier <em>(fonction membre virtuelle protégée de <code>std::codecvt&lt;InternT,ExternT,StateT&gt;</code>)</em></li>
+</ul>
+<p><strong><a href="../../../c/string/multibyte/mbrtoc16.html">Documentation C</a> pour mbrtoc16</strong></p>
+
+</main>
+</body>
+</html>

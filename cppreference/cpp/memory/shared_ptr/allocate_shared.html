@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::allocate_shared, std::allocate_shared_for_overwrite — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/shared_ptr.html">std::shared_ptr</a></nav>
+<h1 id="std-allocate_shared-std-allocate_shared_for_overwrite"><code>std::allocate_shared, std::allocate_shared_for_overwrite</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr/allocate_shared">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class Alloc, class... Args &gt;
+shared_ptr&lt;T&gt; allocate_shared( const Alloc&amp; alloc, Args&amp;&amp;... args );  // (1) (depuis C++11) (T n'est pas un tableau)
+
+template&lt; class T, class Alloc &gt;
+shared_ptr&lt;T&gt; allocate_shared( const Alloc&amp; alloc, std::size_t N );  // (2) (depuis C++20) (T est U[])
+
+template&lt; class T, class Alloc &gt;
+shared_ptr&lt;T&gt; allocate_shared( const Alloc&amp; alloc );  // (3) (depuis C++20) (T est U[N])
+
+template&lt; class T, class Alloc &gt;
+shared_ptr&lt;T&gt; allocate_shared( const Alloc&amp; alloc, std::size_t N,
+                               const std::remove_extent_t&lt;T&gt;&amp; u );  // (4) (depuis C++20) (T est U[])
+
+template&lt; class T, class Alloc &gt;
+shared_ptr&lt;T&gt; allocate_shared( const Alloc&amp; alloc,
+                               const std::remove_extent_t&lt;T&gt;&amp; u );  // (5) (depuis C++20) (T est U[N])
+
+template&lt; class T, class Alloc &gt;
+shared_ptr&lt;T&gt; allocate_shared_for_overwrite( const Alloc&amp; alloc );  // (6) (depuis C++20) (T n'est pas U[])
+
+template&lt; class T, class Alloc &gt;
+shared_ptr&lt;T&gt; allocate_shared_for_overwrite( const Alloc&amp; alloc, std::size_t N );  // (7) (depuis C++20) (T est U[])
+</code></pre>
+<ol>
+<li>Construit un objet de type <code>T</code> et l'enveloppe dans un <a href="../shared_ptr.html"><code>std::shared_ptr</code></a> en utilisant <code>args</code> comme liste de paramètres pour le constructeur de <code>T</code>. L'objet est construit comme si par l'expression [<code>::new (pv) T(v)</code> <em>(jusqu'à C++20)</em> | <code>std::allocator_traits&lt;A2&gt;::construct(a, pv, v)</code> <em>(depuis C++20)</em>], où <code>pv</code> est un pointeur interne <code>void*</code> vers un stockage adapté à contenir un objet de type <code>T</code> et <code>a</code> est une copie de l'allocateur rebindé à <code>std::remove_cv_t&lt;T&gt;</code>. Le stockage est généralement plus grand que <code>sizeof(T)</code> afin d'utiliser une seule allocation pour le bloc de contrôle du pointeur partagé et pour l'objet <code>T</code>. Le constructeur <a href="../shared_ptr.html"><code>std::shared_ptr</code></a> appelé par cette fonction active <code>shared_from_this</code> avec un pointeur vers l'objet nouvellement construit de type <code>T</code>. Toute l'allocation mémoire est effectuée à l'aide d'une copie de <code>alloc</code>, qui doit satisfaire aux exigences <a href="../../named_req/Allocator.html"><em>Allocator</em></a>. Cette surcharge ne participe à la résolution de surcharge que si T n'est pas un type tableau.</li>
+</ol>
+<p>2,3) Identique à <code>(1)</code>, mais l'objet construit est un tableau éventuellement multidimensionnel dont chaque élément non tableau est initialisé comme si par l'expression <code>std::allocator_traits&lt;A2&gt;::construct(a2, pv)</code> où <code>a2</code> de type <code>A2</code> est la copie de l'allocateur rebindé pour gérer des objets de type <code>std::remove_cv_t&lt;std::remove_all_extents_t&lt;T&gt;&gt;</code>. La surcharge <code>(2)</code> crée un tableau de taille <code>N</code> le long de sa première dimension. Les éléments du tableau sont initialisés dans l'ordre croissant de leurs adresses, et lorsque leur durée de vie se termine ils sont détruits dans l'ordre inverse de leur construction initiale.</p>
+<p>4,5) Identique à <code>(2,3)</code>, mais les éléments du tableau sont initialisés à partir de la valeur par défaut <code>u</code>. Si <code>std::remove_extent_t&lt;T&gt;</code> n'est pas lui-même un type tableau, cela est effectué comme si par la même expression d'allocateur que dans <code>(1)</code>, sauf que l'allocateur est rebindé au <code>std::remove_cv_t&lt;std::remove_all_extents_t&lt;T&gt;&gt;</code>. Sinon, cela est effectué comme si en initialisant chaque élément non tableau du tableau (éventuellement multidimensionnel) avec l'élément correspondant de <code>u</code> en utilisant la même expression d'allocateur que dans <code>(1)</code>, sauf que l'allocateur est rebindé au type <code>std::remove_cv_t&lt;std::remove_all_extents_t&lt;T&gt;&gt;</code>. La surcharge <code>(4)</code> crée un tableau de taille <code>N</code> le long de la première dimension. Les éléments du tableau sont initialisés dans l'ordre croissant de leurs adresses, et lorsque leur durée de vie se termine ils sont détruits dans l'ordre inverse de leur construction initiale.</p>
+<ol start="6">
+<li>
+<p>Identique à <code>(1)</code> si <code>T</code> n'est pas un type tableau et à <code>(3)</code> si <code>T</code> est <code>U[N]</code>, sauf que l'objet créé est <a href="../../language/default_initialization.html">initialisé par défaut</a>.</p>
+</li>
+<li>
+<p>Identique à <code>(2)</code>, sauf que les éléments individuels du tableau sont <a href="../../language/default_initialization.html">initialisés par défaut</a>.</p>
+</li>
+</ol>
+<p>Pour <code>allocate_shared</code>, l'objet (ou les éléments individuels du tableau pour <code>(2-5)</code>) <em>(depuis C++20)</em> sont détruits via l'expression <code>std::allocator_traits&lt;A2&gt;::destroy(a, p)</code>, où <code>p</code> est un pointeur vers l'objet et <code>a</code> est une copie de l'allocateur passé à <code>allocate_shared</code>, rebindé au type de l'objet détruit.</p>
+<blockquote>
+<p>Pour <code>allocate_shared_for_overwrite</code>, l'objet (ou les éléments individuels si <code>T</code> est un type tableau) sera détruit par <code>p-&gt;~X()</code>, où <code>p</code> est un pointeur vers l'objet et <code>X</code> son type.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>alloc</code> — le <a href="../../named_req/Allocator.html"><em>Allocator</em></a> à utiliser</li>
+<li><code>args...</code> — liste d'arguments avec lesquels une instance de <code>T</code> sera construite</li>
+<li><code>N</code> — taille du tableau à utiliser</li>
+<li><code>u</code> — la valeur initiale servant à initialiser chaque élément du tableau</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><a href="../shared_ptr.html"><code>std::shared_ptr</code></a> d'une instance du type <code>T</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever les exceptions levées par <code>Alloc::allocate()</code> ou par le constructeur de <code>T</code>. Si une exception est levée, <code>(1)</code> n'a aucun effet. Si une exception est levée pendant la construction du tableau, les éléments déjà initialisés sont détruits dans l'ordre inverse <em>(depuis C++20)</em>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Comme <a href="make_shared.html"><code>std::make_shared</code></a>, cette fonction n'effectue généralement qu'une seule allocation, et place à la fois l'objet <code>T</code> et le bloc de contrôle dans le bloc mémoire alloué (la norme recommande mais n'exige pas cela, toutes les implémentations connues le font). Une copie de <code>alloc</code> est stockée dans le bloc de contrôle afin de pouvoir l'utiliser pour désallouer celui-ci lorsque les compteurs de références forts et faibles atteignent zéro.</p>
+<p>Contrairement à <code>std::shared_ptr</code> <a href="shared_ptr.html"><code>constructors</code></a>, <code>std::allocate_shared</code> n'accepte pas de destructeur personnalisé distinct : l'allocateur fourni est utilisé pour la destruction du bloc de contrôle et de l'objet <code>T</code>, ainsi que pour la désallocation de leur bloc mémoire partagé.</p>
+<blockquote>
+<p><a href="../shared_ptr.html"><code>std::shared_ptr</code></a> prend en charge les types tableaux (depuis C++17), mais <code>std::allocate_shared</code> non. Cette fonctionnalité est prise en charge par <a href="https://www.boost.org/doc/libs/1_66_0/libs/smart_ptr/doc/html/smart_ptr.html#make_shared"><code>boost::allocate_shared</code></a>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<p>Un constructeur <em>active <code>shared_from_this</code></em> avec un pointeur <code>ptr</code> de type <code>U*</code> signifie qu'il détermine si <code>U</code> possède une classe de base non ambiguë et accessible <em>(depuis C++17)</em> qui est une spécialisation de <a href="../enable_shared_from_this.html"><code>std::enable_shared_from_this</code></a>, et si c'est le cas, le constructeur évalue <code>if (ptr != nullptr &amp;&amp; ptr-&gt;weak_this ﻿.expired()) ptr-&gt;weak_this = std::shared_ptr&lt;std::remove_cv_t&lt;U&gt;&gt; (*this, const_cast&lt;std::remove_cv_t&lt;U&gt;*&gt;(ptr));</code>.</p>
+<p>L'affectation à <code>weak_this</code> n'est pas atomique et entre en conflit avec tout accès concurrent potentiel au même objet. Cela garantit que les appels futurs à <a href="../enable_shared_from_this/shared_from_this.html"><code>shared_from_this()</code></a> partageront la propriété avec le <a href="../shared_ptr.html"><code>std::shared_ptr</code></a> créé par ce constructeur à partir d'un pointeur brut.</p>
+<p>Le test <code>ptr-&gt;weak_this ﻿.expired()</code> dans le code ci-dessus garantit que <code>weak_this</code> n'est pas réaffecté s'il indique déjà un propriétaire. Ce test est requis depuis C++17.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_smart_ptr_for_overwrite"><code>__cpp_lib_smart_ptr_for_overwrite</code></a></td>
+<td><a href="../../compiler_support/20.html#cpp_lib_smart_ptr_for_overwrite_202002L"><code>202002L</code></a></td>
+<td><em>(C++20)</em></td>
+<td>Création de pointeur intelligent avec initialisation par défaut (<code>std::allocate_shared_for_overwrite</code>, <a href="make_shared.html"><code>std::make_shared_for_overwrite</code></a>, <a href="../unique_ptr/make_unique.html"><code>std::make_unique_for_overwrite</code></a>) ; surcharges <code>(6,7)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;memory_resource&gt;
+#include &lt;vector&gt;
+
+class Value
+{
+    int i;
+
+public:
+    Value(int i) : i(i) { std::cout &lt;&lt; &quot;Value(), i = &quot; &lt;&lt; i &lt;&lt; '\n'; }
+    ~Value() { std::cout &lt;&lt; &quot;~Value(), i = &quot; &lt;&lt; i &lt;&lt; '\n'; }
+    void print() const { std::cout &lt;&lt; &quot;i = &quot; &lt;&lt; i &lt;&lt; '\n'; }
+};
+
+int main()
+{
+    // Créer un allocateur polymorphe utilisant la ressource tampon monotone
+    std::byte buffer[sizeof(Value) * 8];
+    std::pmr::monotonic_buffer_resource resource(buffer, sizeof(buffer));
+    std::pmr::polymorphic_allocator&lt;Value&gt; allocator(&amp;resource);
+
+    std::vector&lt;std::shared_ptr&lt;Value&gt;&gt; v;
+
+    for (int i{}; i != 4; ++i)
+        // Utiliser std::allocate_shared avec l'allocateur personnalisé
+        v.emplace_back(std::allocate_shared&lt;Value&gt;(allocator, i));
+
+    for (const auto&amp; sp : v)
+        sp-&gt;print();
+
+} //&lt; Tous les pointeurs partagés nettoieront automatiquement leurs ressources lorsqu'ils sortiront de leur portée.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Value(), i = 0
+Value(), i = 1
+Value(), i = 2
+Value(), i = 3
+i = 0
+i = 1
+i = 2
+i = 3
+~Value(), i = 0
+~Value(), i = 1
+~Value(), i = 2
+~Value(), i = 3
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="shared_ptr.html">(constructeur)</a></strong> — construit un nouveau <code>shared_ptr</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="make_shared.html">make_sharedmake_shared_for_overwrite</a> (C++20)</strong> — crée un pointeur partagé qui gère un nouvel objet <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

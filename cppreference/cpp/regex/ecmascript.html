@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grammaire des expressions régulières ECMAScript modifiée — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/regex.html">Bibliothèque des expressions régulières (depuis C++11)</a></nav>
+<h1 id="grammaire-des-expressions-régulières-ecmascript-modifiée">Grammaire des expressions régulières ECMAScript modifiée</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/regex/ecmascript">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Cette page décrit la grammaire des expressions régulières utilisée lorsque <a href="basic_regex.html"><code>std::basic_regex</code></a> est construit avec <a href="syntax_option_type.html"><code>syntax_option_type</code></a> défini à <code>ECMAScript</code> (valeur par défaut). Voir <a href="syntax_option_type.html"><code>syntax_option_type</code></a> pour les autres grammaires d'expressions régulières prises en charge.</p>
+<p>La grammaire d'expressions régulières <code>ECMAScript</code> 3 en C++ est la <a href="https://ecma-international.org/ecma-262/5.1/#sec-15.10">grammaire ECMA-262</a> avec les modifications marquées <em>(C++ uniquement)</em> ci-dessous.</p>
+<h2 id="Overview">Vue d'ensemble</h2>
+<p>La <a href="https://eel.is/c++draft/re.grammar">grammaire d'expressions régulières modifiée</a> est principalement la grammaire RegExp d'ECMAScript avec une extension de type POSIX sur les locales sous <em>ClassAtom</em>. Quelques précisions sont apportées sur les tests d'égalité et l'analyse des nombres. Pour beaucoup d'exemples ici, vous pouvez essayer cet équivalent dans la console de votre navigateur :</p>
+<pre><code class="language-text">function match(s, re) { return s.match(new RegExp(re)); }
+</code></pre>
+<p>Les « références normatives » de la norme spécifient ECMAScript 3. Nous renvoyons ici à la spécification ECMAScript 5.1 car c'est une version ne comportant que des changements mineurs par rapport à ECMAScript 3, et elle dispose d'une version HTML. Voir le <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions">guide MDN sur les RegExp JavaScript</a> pour un aperçu des fonctionnalités de ce dialecte.</p>
+<h2 id="Alternatives">Alternatives</h2>
+<p>Un motif d'expression régulière est une suite d'une ou plusieurs <em>Alternative</em>s, séparées par l'opérateur de disjonction <code>|</code> (autrement dit, l'opérateur de disjonction a la priorité la plus basse).</p>
+<p><em>Pattern</em> ::</p>
+<p><em>Disjunction</em></p>
+<p><em>Disjunction</em> ::</p>
+<p><em>Alternative**Alternative</em> <code>|</code> <em>Disjunction</em></p>
+<p>Le motif essaie d'abord de sauter la <em>Disjunction</em> et de faire correspondre la <em>Alternative</em> de gauche, suivie du reste de l'expression régulière (après la Disjunction).</p>
+<p>S'il échoue, il essaie de sauter la <em>Alternative</em> de gauche et de faire correspondre la <em>Disjunction</em> de droite (suivie du reste de l'expression régulière).</p>
+<p>Si la <em>Alternative</em> de gauche, la <em>Disjunction</em> de droite et le reste de l'expression régulière comportent tous des points de choix, tous les choix du reste de l'expression sont essayés avant de passer au choix suivant dans la <em>Alternative</em> de gauche. Si les choix de la <em>Alternative</em> de gauche sont épuisés, la <em>Disjunction</em> de droite est essayée à la place de la <em>Alternative</em> de gauche.</p>
+<p>Toute parenthèse capturante à l'intérieur d'une <em>Alternative</em> sautée produit des sous-correspondances vides.</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+
+void show_matches(const std::string&amp; in, const std::string&amp; re)
+{
+    std::smatch m;
+    std::regex_search(in, m, std::regex(re));
+    if (!m.empty())
+    {
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]\n  &quot;
+                     &quot;prefix=[&quot; &lt;&lt; m.prefix() &lt;&lt; &quot;]\n  smatch: &quot;;
+        for (std::size_t n = 0; n &lt; m.size(); ++n)
+            std::cout &lt;&lt; &quot;m[&quot; &lt;&lt; n &lt;&lt; &quot;]=[&quot; &lt;&lt; m[n] &lt;&lt; &quot;] &quot;;
+        std::cout &lt;&lt; &quot;\n  suffix=[&quot; &lt;&lt; m.suffix() &lt;&lt; &quot;]\n&quot;;
+    }
+    else
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]: NO MATCH\n&quot;;
+}
+
+int main()
+{
+    show_matches(&quot;abcdef&quot;, &quot;abc|def&quot;);
+    show_matches(&quot;abc&quot;, &quot;ab|abc&quot;); // l'alternative de gauche est essayée en premier
+
+    // La correspondance de l'entrée avec l'alternative de gauche (a) suivie
+    // par le reste de la regex (c|bc) réussit, ce qui donne
+    // en m[1]=&quot;a&quot; et m[4]=&quot;bc&quot;.
+    // Les alternatives ignorées (ab) et (c) laissent leurs sous-correspondances
+    // m[3] et m[5] vides.
+    show_matches(&quot;abc&quot;, &quot;((a)|(ab))((c)|(bc))&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">input=[abcdef], regex=[abc|def]
+  prefix=[]
+  smatch: m[0]=[abc]
+  suffix=[def]
+input=[abc], regex=[ab|abc]
+  prefix=[]
+  smatch: m[0]=[ab]
+  suffix=[c]
+input=[abc], regex=[((a)|(ab))((c)|(bc))]
+  prefix=[]
+  smatch: m[0]=[abc] m[1]=[a] m[2]=[a] m[3]=[] m[4]=[bc] m[5]=[] m[6]=[bc]
+  suffix=[]
+</code></pre>
+<h2 id="Terms">Termes</h2>
+<p>Chaque <em>Alternative</em> est soit vide, soit une suite de <em>Term</em>s (sans séparateurs entre les <em>Term</em>s)</p>
+<p><em>Alternative</em> ::</p>
+<p>*[empty]*<em>Alternative</em> <em>Term</em></p>
+<p>Une <em>Alternative</em> vide correspond toujours et ne consomme aucune entrée.</p>
+<p>Des <em>Term</em>s consécutifs tentent simultanément de correspondre à des portions consécutives de l'entrée.</p>
+<p>Si la <em>Alternative</em> de gauche, le <em>Term</em> de droite et le reste de l'expression régulière comportent tous des points de choix, tous les choix du reste de l'expression sont essayés avant de passer au choix suivant dans le <em>Term</em> de droite, et tous les choix du <em>Term</em> de droite sont essayés avant de passer au choix suivant dans la <em>Alternative</em> de gauche.</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+
+void show_matches(const std::string&amp; in, const std::string&amp; re)
+{
+    std::smatch m;
+    std::regex_search(in, m, std::regex(re));
+    if (!m.empty())
+    {
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]\n  &quot;
+                     &quot;prefix=[&quot; &lt;&lt; m.prefix() &lt;&lt; &quot;]\n  smatch: &quot;;
+        for (std::size_t n = 0; n &lt; m.size(); ++n)
+            std::cout &lt;&lt; &quot;m[&quot; &lt;&lt; n &lt;&lt; &quot;]=[&quot; &lt;&lt; m[n] &lt;&lt; &quot;] &quot;;
+        std::cout &lt;&lt; &quot;\n  suffix=[&quot; &lt;&lt; m.suffix() &lt;&lt; &quot;]\n&quot;;
+    }
+    else
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]: NO MATCH\n&quot;;
+}
+
+int main()
+{
+    show_matches(&quot;abcdef&quot;, &quot;&quot;); // une regex vide est une seule alternative vide
+    show_matches(&quot;abc&quot;, &quot;abc|&quot;); // l'alternative de gauche est essayée en premier
+    show_matches(&quot;abc&quot;, &quot;|abc&quot;); // l'alternative de gauche est essayée en premier, laissant abc non reconnu
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">input=[abcdef], regex=[]
+  prefix=[]
+  smatch: m[0]=[]
+  suffix=[abcdef]
+input=[abc], regex=[abc|]
+  prefix=[]
+  smatch: m[0]=[abc]
+  suffix=[]
+input=[abc], regex=[|abc]
+  prefix=[]
+  smatch: m[0]=[]
+  suffix=[abc]
+</code></pre>
+<h2 id="Quantifiers">Quantificateurs</h2>
+<ul>
+<li>Chaque <em>Term</em> est soit une <em>Assertion</em> (voir ci-dessous), soit un <em>Atom</em> (voir ci-dessous), soit un <em>Atom</em> immédiatement suivi d'un <em>Quantifier</em></li>
+</ul>
+<p><em>Term</em> ::</p>
+<p><em>Assertion<strong>Atome</strong>Atome</em> <em>quantificateur</em></p>
+<p>Chaque <em>quantificateur</em> est soit un quantificateur <em>glouton</em> (constitué uniquement d'un <em>QuantifierPrefix</em>), soit un quantificateur <em>non glouton</em> (constitué d'un <em>QuantifierPrefix</em> suivi du point d'interrogation <code>?</code>).</p>
+<p><em>Quantifier</em> ::</p>
+<p><em>QuantifierPrefix**QuantifierPrefix</em> <code>?</code></p>
+<p>Chaque <em>QuantifierPrefix</em> détermine deux nombres : le nombre minimal de répétitions et le nombre maximal de répétitions, comme suit :</p>
+<table>
+<thead>
+<tr>
+<th>QuantifierPrefix</th>
+<th>Minimum</th>
+<th>Maximum</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code></td>
+<td>zero</td>
+<td>infinity</td>
+</tr>
+<tr>
+<td><code>+</code></td>
+<td>one</td>
+<td>infinity</td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td>zero</td>
+<td>one</td>
+</tr>
+<tr>
+<td><code>{</code> <em>DecimalDigits</em> <code>}</code></td>
+<td>valeur de DecimalDigits</td>
+<td>valeur de DecimalDigits</td>
+</tr>
+<tr>
+<td><code>{</code> <em>DecimalDigits</em> <code>,</code> <code>}</code></td>
+<td>valeur de DecimalDigits</td>
+<td>infinity</td>
+</tr>
+<tr>
+<td><code>{</code> <em>DecimalDigits</em> <code>,</code> <em>DecimalDigits</em> <code>}</code></td>
+<td>valeur de DecimalDigits avant la virgule</td>
+<td>valeur de DecimalDigits après la virgule</td>
+</tr>
+</tbody>
+</table>
+<p>Les valeurs de chaque <em>DecimalDigits</em> sont obtenues en appelant <a href="regex_traits/value.html"><code>std::regex_traits::value</code></a><em>(C++ uniquement)</em> sur chacun des chiffres.</p>
+<p>Un <em>Atome</em> suivi d'un <em>quantificateur</em> est répété le nombre de fois spécifié par le <em>quantificateur</em>. Un <em>quantificateur</em> peut être <em>non glouton</em>, auquel cas le motif <em>Atome</em> est répété le moins de fois possible tout en correspondant encore au reste de l'expression régulière, ou il peut être <em>glouton</em>, auquel cas le motif <em>Atome</em> est répété le plus de fois possible tout en correspondant encore au reste de l'expression régulière.</p>
+<p>C'est le motif <em>Atome</em> qui est répété, et non l'entrée qu'il correspond, si bien que différentes répétitions de l'<em>Atome</em> peuvent correspondre à différentes sous-chaînes de l'entrée.</p>
+<p>Si l'<em>Atome</em> et le reste de l'expression régulière comportent tous des points de choix, l'<em>Atome</em> est d'abord mis en correspondance le plus de fois possible (ou le moins de fois possible s'il est <em>non glouton</em>). Tous les choix du reste de l'expression régulière sont essayés avant de passer au choix suivant dans la dernière répétition de l'<em>Atome</em>. Tous les choix de la dernière (n-ième) répétition de l'<em>Atome</em> sont essayés avant de passer au choix suivant dans l'avant-dernière (n–1)-ième répétition de l'<em>Atome</em> ; à ce stade, il peut s'avérer que davantage ou moins de répétitions de l'<em>Atome</em> soient désormais possibles ; celles-ci sont épuisées (là encore en commençant par le moins ou le plus de répétitions possible) avant de passer au choix suivant dans la (n-1)-ième répétition de l'<em>Atome</em>, et ainsi de suite.</p>
+<p>Les captures de l'<em>Atome</em> sont effacées à chaque répétition (voir l'exemple <code>&quot;(z)((a+)?(b+)?(c))*&quot;</code> ci-dessous)</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+
+void show_matches(const std::string&amp; in, const std::string&amp; re)
+{
+    std::smatch m;
+    std::regex_search(in, m, std::regex(re));
+    if (!m.empty())
+    {
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]\n  &quot;
+                     &quot;prefix=[&quot; &lt;&lt; m.prefix() &lt;&lt; &quot;]\n  smatch: &quot;;
+        for (std::size_t n = 0; n &lt; m.size(); ++n)
+            std::cout &lt;&lt; &quot;m[&quot; &lt;&lt; n &lt;&lt; &quot;]=[&quot; &lt;&lt; m[n] &lt;&lt; &quot;] &quot;;
+        std::cout &lt;&lt; &quot;\n  suffix=[&quot; &lt;&lt; m.suffix() &lt;&lt; &quot;]\n&quot;;
+    }
+    else
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]: NO MATCH\n&quot;;
+}
+
+int main()
+{
+    // correspondance gourmande, répète [a-z] 4 fois
+    show_matches(&quot;abcdefghi&quot;, &quot;a[a-z]{2,4}&quot;);
+    // correspondance non gourmande, répète [a-z] 2 fois
+    show_matches(&quot;abcdefghi&quot;, &quot;a[a-z]{2,4}?&quot;);
+
+    // L'ordre des points de choix pour les quantificateurs donne une correspondance
+    // avec deux répétitions, la première reconnaissant la sous-chaîne &quot;aa&quot;,
+    // la seconde reconnaissant la sous-chaîne &quot;ba&quot;, laissant &quot;ac&quot; non reconnu
+    // (&quot;ba&quot; apparaît dans la capture m[1])
+    show_matches(&quot;aabaac&quot;, &quot;(aa|aabaac|ba|b|c)*&quot;);
+
+    // L'ordre des points de choix pour les quantificateurs fait que cette regex
+    // calcule le plus grand commun diviseur de 10 et 15
+    // (la réponse est 5, et elle remplit m[1] avec &quot;aaaaa&quot;)
+    show_matches(&quot;aaaaaaaaaa,aaaaaaaaaaaaaaa&quot;, &quot;^(a+)\\1*,\\1+$&quot;);
+
+    // la sous-chaîne &quot;bbb&quot; n'apparaît pas dans la capture m[4]
+    // car elle est effacée lorsque la seconde répétition de l'atome
+    // (a+)?(b+)?(c) correspond à la sous-chaîne &quot;ac&quot;
+    // NOTE : gcc se trompe sur ce point - il n'efface pas correctement le
+    // groupe de capture matches[4] comme l'exige ECMA-262 21.2.2.5.1,
+    // et capture donc à tort &quot;bbb&quot; pour ce groupe.
+    show_matches(&quot;zaacbbbcac&quot;, &quot;(z)((a+)?(b+)?(c))*&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">input=[abcdefghi], regex=[a[a-z]{2,4}]
+  prefix=[]
+  smatch: m[0]=[abcde]
+  suffix=[fghi]
+input=[abcdefghi], regex=[a[a-z]{2,4}?]
+  prefix=[]
+  smatch: m[0]=[abc]
+  suffix=[defghi]
+input=[aabaac], regex=[(aa|aabaac|ba|b|c)*]
+  prefix=[]
+  smatch: m[0]=[aaba] m[1]=[ba]
+  suffix=[ac]
+input=[aaaaaaaaaa,aaaaaaaaaaaaaaa], regex=[^(a+)\1*,\1+$]
+  prefix=[]
+  smatch: m[0]=[aaaaaaaaaa,aaaaaaaaaaaaaaa] m[1]=[aaaaa]
+  suffix=[]
+input=[zaacbbbcac], regex=[(z)((a+)?(b+)?(c))*]
+  prefix=[]
+  smatch: m[0]=[zaacbbbcac] m[1]=[z] m[2]=[ac] m[3]=[a] m[4]=[] m[5]=[c]
+  suffix=[]
+</code></pre>
+<h2 id="Assertions">Assertions</h2>
+<p>Les <em>Assertion</em>s correspondent à des conditions, et non à des sous-chaînes de la chaîne d'entrée. Elles ne consomment jamais de caractères de l'entrée. Chaque <em>Assertion</em> est l'une des suivantes</p>
+<p><em>Assertion</em> ::</p>
+<p><code>^$\</code> <code>b\</code> <code>B(</code> <code>?</code> <code>=</code> <em>Disjunction</em> <code>)(</code> <code>?</code> <code>!</code> <em>Disjunction</em> <code>)</code></p>
+<p>L'assertion <code>^</code> (début de ligne) correspond à</p>
+<ol>
+<li>
+<p>La position qui suit immédiatement un caractère <em>LineTerminator</em> [(ce comportement peut ne pas être pris en charge) <em>(jusqu'à C++17)</em> | (cela n'est garanti que si <a href="syntax_option_type.html"><code>std::regex_constants::multiline</code></a> <em>(C++ uniquement)</em> est activé) <em>(depuis C++17)</em>]</p>
+</li>
+<li>
+<p>Le début de l'entrée (sauf si <a href="match_flag_type.html"><code>std::regex_constants::match_not_bol</code></a><em>(C++ uniquement)</em> est activé)</p>
+</li>
+</ol>
+<p>L'assertion <code>$</code> (fin de ligne) correspond à</p>
+<ol>
+<li>
+<p>La position d'un caractère <em>LineTerminator</em> [(ce comportement peut ne pas être pris en charge) <em>(jusqu'à C++17)</em> | (cela n'est garanti que si <a href="syntax_option_type.html"><code>std::regex_constants::multiline</code></a> <em>(C++ uniquement)</em> est activé) <em>(depuis C++17)</em>]</p>
+</li>
+<li>
+<p>La fin de l'entrée (sauf si <a href="match_flag_type.html"><code>std::regex_constants::match_not_eol</code></a><em>(C++ uniquement)</em> est activé)</p>
+</li>
+</ol>
+<p>Dans les deux assertions ci-dessus et dans l'Atome <code>.</code> ci-dessous, <em>LineTerminator</em> désigne l'un des quatre caractères suivants : <code>U+000A</code> (<code>\n</code> ou saut de ligne), <code>U+000D</code> (<code>\r</code> ou retour chariot), <code>U+2028</code> (séparateur de ligne) ou <code>U+2029</code> (séparateur de paragraphe)</p>
+<p>L'assertion <code>\b</code> (limite de mot) correspond à</p>
+<ol>
+<li>
+<p>Le début d'un mot (le caractère courant est une lettre, un chiffre ou un tiret bas, et le caractère précédent ne l'est pas)</p>
+</li>
+<li>
+<p>La fin d'un mot (le caractère courant n'est pas une lettre, un chiffre ou un tiret bas, et le caractère précédent en est un)</p>
+</li>
+<li>
+<p>Le début de l'entrée si le premier caractère est une lettre, un chiffre ou un tiret bas (sauf si <a href="match_flag_type.html"><code>std::regex_constants::match_not_bow</code></a><em>(C++ uniquement)</em> est activé)</p>
+</li>
+<li>
+<p>La fin de l'entrée si le dernier caractère est une lettre, un chiffre ou un tiret bas (sauf si <a href="match_flag_type.html"><code>std::regex_constants::match_not_eow</code></a><em>(C++ uniquement)</em> est activé)</p>
+</li>
+</ol>
+<p>L'assertion <code>\B</code> (limite de mot négative) correspond à tout, SAUF ce qui suit</p>
+<ol>
+<li>
+<p>Le début d'un mot (le caractère courant est une lettre, un chiffre ou un tiret bas, et le caractère précédent n'est pas l'un de ceux-ci ou n'existe pas)</p>
+</li>
+<li>
+<p>La fin d'un mot (le caractère courant n'est pas une lettre, un chiffre ou un tiret bas (ou le vérificateur est à la fin de l'entrée), et le caractère précédent en est un)</p>
+</li>
+</ol>
+<p>L'assertion <code>(</code> <code>?</code> <code>=</code> <em>Disjunction</em> <code>)</code> (anticipation positive de largeur nulle) correspond si <em>Disjunction</em> correspondrait à l'entrée à la position courante</p>
+<p>L'assertion <code>(</code> <code>?</code> <code>!</code> <em>Disjunction</em> <code>)</code> (anticipation négative de largeur nulle) correspond si <em>Disjunction</em> NE correspondrait PAS à l'entrée à la position courante.</p>
+<p>Pour les deux assertions d'anticipation, lors de la correspondance de la <em>Disjunction</em>, la position n'est pas avancée avant la correspondance du reste de l'expression régulière. De plus, si <em>Disjunction</em> peut correspondre à la position courante de plusieurs façons, seule la première est essayée.</p>
+<p>ECMAScript interdit le retour arrière dans les Disjunctions d'anticipation, ce qui affecte le comportement des références arrière vers une anticipation positive depuis le reste de l'expression régulière (voir l'exemple ci-dessous). Les références arrière vers l'anticipation négative depuis le reste de l'expression régulière sont toujours indéfinies (puisque la Disjunction d'anticipation doit échouer pour continuer).</p>
+<p>Remarque : les assertions d'anticipation peuvent être utilisées pour créer un ET logique entre plusieurs expressions régulières (voir l'exemple ci-dessous).</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+
+void show_matches(const std::string&amp; in, const std::string&amp; re)
+{
+    std::smatch m;
+    std::regex_search(in, m, std::regex(re));
+    if (!m.empty())
+    {
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]\n  &quot;
+                     &quot;prefix=[&quot; &lt;&lt; m.prefix() &lt;&lt; &quot;]\n  smatch: &quot;;
+        for (std::size_t n = 0; n &lt; m.size(); ++n)
+            std::cout &lt;&lt; &quot;m[&quot; &lt;&lt; n &lt;&lt; &quot;]=[&quot; &lt;&lt; m[n] &lt;&lt; &quot;] &quot;;
+        std::cout &lt;&lt; &quot;\n  suffix=[&quot; &lt;&lt; m.suffix() &lt;&lt; &quot;]\n&quot;;
+    }
+    else
+        std::cout &lt;&lt; &quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; &quot;]: NO MATCH\n&quot;;
+}
+
+int main()
+{
+    // correspond au a en fin d'entrée
+    show_matches(&quot;aaa&quot;, &quot;a$&quot;);
+
+    // correspond au o à la fin du premier mot
+    show_matches(&quot;moo goo gai pan&quot;, &quot;o\\b&quot;);
+
+    // l'anticipation correspond à la chaîne vide immédiatement après le premier b
+    // ceci remplit m[1] avec &quot;aaa&quot; bien que m[0] soit vide
+    show_matches(&quot;baaabac&quot;, &quot;(?=(a+))&quot;);
+
+    // car le retour arrière dans les anticipations est interdit,
+    // ceci correspond à aba plutôt qu'à aaaba
+    show_matches(&quot;baaabac&quot;, &quot;(?=(a+))a*b\\1&quot;);
+
+    // ET logique via anticipation : ce mot de passe correspond SI il contient
+    // au moins une lettre minuscule
+    // ET au moins une lettre majuscule
+    // ET au moins un caractère de ponctuation
+    // ET comporter au moins 6 caractères
+    show_matches(&quot;abcdef&quot;, &quot;(?=.*[[:lower:]])(?=.*[[:upper:]])(?=.*[[:punct:]]).{6,}&quot;);
+    show_matches(&quot;aB,def&quot;, &quot;(?=.*[[:lower:]])(?=.*[[:upper:]])(?=.*[[:punct:]]).{6,}&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">input=[aaa], regex=[a$]
+  prefix=[aa]
+  smatch: m[0]=[a]
+  suffix=[]
+input=[moo goo gai pan], regex=[o\b]
+  prefix=[mo]
+  smatch: m[0]=[o]
+  suffix=[ goo gai pan]
+input=[baaabac], regex=[(?=(a+))]
+  prefix=[b]
+  smatch: m[0]=[] m[1]=[aaa]
+  suffix=[aaabac]
+input=[baaabac], regex=[(?=(a+))a*b\1]
+  prefix=[baa]
+  smatch: m[0]=[aba] m[1]=[a]
+  suffix=[c]
+input=[abcdef], regex=[(?=.*[[:lower:]])(?=.*[[:upper:]])(?=.*[[:punct:]]).{6,}]: NO MATCH
+input=[aB,def], regex=[(?=.*[[:lower:]])(?=.*[[:upper:]])(?=.*[[:punct:]]).{6,}]
+  prefix=[]
+  smatch: m[0]=[aB,def]
+  suffix=[]
+</code></pre>
+<h2 id="Atoms">Atomes</h2>
+<p>Un <em>Atome</em> peut être l'un des suivants :</p>
+<p><em>Atome</em> ::</p>
+<p><em>PatternCharacter</em><code>.\</code> <em>AtomEscape**CharacterClass</em><code>(</code> <em>Disjunction</em> <code>)(</code> <code>?</code> <code>:</code> <em>Disjunction</em> <code>)</code></p>
+<p>où <em>AtomEscape</em> ::</p>
+<p><em>DecimalEscape<strong>CharacterEscape</strong>CharacterClassEscape</em></p>
+<p>Les différents types d'atomes ne s'évaluent pas de la même manière.</p>
+<h2 id="Sub-expressions">Sous-expressions</h2>
+<p>L'<em>Atome</em> <code>(</code> <em>Disjunction</em> <code>)</code> est une sous-expression marquée : elle exécute la <em>Disjunction</em> et stocke la copie de la sous-chaîne de l'entrée consommée par la <em>Disjunction</em> dans le tableau des sous-correspondances, à l'indice correspondant au nombre de parenthèses ouvrantes <code>(</code> de sous-expressions marquées rencontrées jusqu'à ce point de l'expression régulière.</p>
+<p>Outre leur renvoi dans <a href="match_results.html"><code>std::match_results</code></a>, les sous-correspondances capturées sont accessibles sous forme de références arrière (<code>\1</code>, <code>\2</code>, ...) et peuvent être référencées dans les expressions régulières. Notez que <a href="regex_replace.html"><code>std::regex_replace</code></a> utilise <code>$</code> au lieu de <code>\</code> pour les références arrière (<code>$1</code>, <code>$2</code>, ...), de la même manière que <code>String.prototype.replace</code> (ECMA-262, partie 15.5.4.11).</p>
+<p>L'<em>Atome</em> <code>(</code> <code>?</code> <code>:</code> <em>Disjunction</em> <code>)</code> (sous-expression non marquante) évalue simplement la <em>Disjunction</em> et n'enregistre pas ses résultats dans la sous-correspondance. Il s'agit d'un simple regroupement lexical.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Backreferences">Références arrière</h2>
+<p><em>DecimalEscape</em> ::</p>
+<p><em>DecimalIntegerLiteral</em> [<em>anticipation</em> ∉ <em>DecimalDigit</em>]</p>
+<p>Si <code>\</code> est suivi d'un nombre décimal <code>N</code> dont le premier chiffre n'est pas <code>0</code>, alors la séquence d'échappement est considérée comme une <em>référence arrière</em>. La valeur <code>N</code> est obtenue en appelant <a href="regex_traits/value.html"><code>std::regex_traits::value</code></a><em>(C++ uniquement)</em> sur chacun des chiffres et en combinant leurs résultats en arithmétique en base 10. Il s'agit d'une erreur si <code>N</code> est supérieur au nombre total de parenthèses capturantes ouvrantes dans l'ensemble de l'expression régulière.</p>
+<p>Lorsqu'une référence arrière <code>\N</code> apparaît comme un <em>Atome</em>, elle correspond à la même sous-chaîne que celle actuellement stockée dans le N-ième élément du tableau des sous-correspondances.</p>
+<p>L'échappement décimal <code>\0</code> n'est PAS une référence arrière : c'est un échappement de caractère qui représente le caractère <a href="../language/ascii.html"><code>NUL</code></a>. Il ne peut pas être suivi d'un chiffre décimal.</p>
+<p>Comme ci-dessus, notez que <a href="regex_replace.html"><code>std::regex_replace</code></a> utilise <code>$</code> au lieu de <code>\</code> pour les références arrière (<code>$1</code>, <code>$2</code>, ...).</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Single_character_matches">Correspondances de caractère unique</h2>
+<p>L'<em>Atome</em> <code>.</code> correspond et consomme un caractère quelconque de la chaîne d'entrée, à l'exception des <em>LineTerminator</em> (<code>U+000D</code>, <code>U+000A</code>, <code>U+2029</code> ou <code>U+2028</code>)</p>
+<p>L'<em>Atome</em> <em>PatternCharacter</em>, où <em>PatternCharacter</em> est n'importe quel <em>SourceCharacter</em> À L'EXCEPTION des caractères <code>^ $ \ . * + ? ( ) [ ] { } |</code>, correspond et consomme un caractère de l'entrée s'il est égal à ce <em>PatternCharacter</em>.</p>
+<p>L'égalité pour celle-ci et pour toutes les autres correspondances de caractère unique est définie comme suit :</p>
+<ol>
+<li>
+<p>Si <a href="syntax_option_type.html"><code>std::regex_constants::icase</code></a> est défini, les caractères sont égaux si les valeurs de retour de <a href="regex_traits/translate_nocase.html"><code>std::regex_traits::translate_nocase</code></a> sont égales <em>(C++ uniquement)</em>.</p>
+</li>
+<li>
+<p>Sinon, si <a href="syntax_option_type.html"><code>std::regex_constants::collate</code></a> est défini, les caractères sont égaux si les valeurs de retour de <a href="regex_traits/translate.html"><code>std::regex_traits::translate</code></a> sont égales <em>(C++ uniquement)</em>.</p>
+</li>
+<li>
+<p>Sinon, les caractères sont égaux si <code>operator==</code> renvoie <code>true</code>.</p>
+</li>
+</ol>
+<p>Chaque <em>Atome</em> constitué du caractère d'échappement <code>\</code> suivi d'un <em>CharacterEscape</em>, ainsi que l'échappement décimal spécial <code>\0</code>, correspond et consomme un caractère de l'entrée s'il est égal au caractère représenté par le <em>CharacterEscape</em>. Les séquences d'échappement de caractères suivantes sont reconnues :</p>
+<p><em>CharacterEscape</em> ::</p>
+<p><em>ControlEscape</em><code>c</code> <em>ControlLetter<strong>HexEscapeSequence</strong>UnicodeEscapeSequence**IdentityEscape</em></p>
+<p>Ici, <em>ControlEscape</em> est l'un des cinq caractères suivants : <code>f n r t v</code></p>
+<table>
+<thead>
+<tr>
+<th>ControlEscape</th>
+<th>unité de code</th>
+<th>Nom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>f</code></td>
+<td>U+000C</td>
+<td>saut de page</td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>U+000A</td>
+<td>nouvelle ligne</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>U+000D</td>
+<td>retour chariot</td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td>U+0009</td>
+<td>tabulation horizontale</td>
+</tr>
+<tr>
+<td><code>v</code></td>
+<td>U+000B</td>
+<td>tabulation verticale</td>
+</tr>
+</tbody>
+</table>
+<p><em>ControlLetter</em> est n'importe quelle lettre ASCII minuscule ou majuscule, et cet échappement de caractère correspond au caractère dont l'unité de code est égale au reste de la division de la valeur de l'unité de code de <em>ControlLetter</em> par <code>32</code>. Par exemple, <code>\cD</code> et <code>\cd</code> correspondent tous deux à l'unité de code <code>U+0004</code> (EOT) car 'D' vaut <code>U+0044</code> et <code>0x44 % 32 == 4</code>, et 'd' vaut <code>U+0064</code> et <code>0x64 % 32 == 4</code>.</p>
+<p><em>HexEscapeSequence</em> est la lettre <code>x</code> suivie d'exactement deux <em>HexDigit</em> (où <em>HexDigit</em> est l'un de <code>0 1 2 3 4 5 6 7 8 9 a b c d e f A B C D E F</code>). Cet échappement de caractère correspond au caractère dont l'unité de code est égale à la valeur numérique du nombre hexadécimal à deux chiffres.</p>
+<p><em>UnicodeEscapeSequence</em> est la lettre <code>u</code> suivie d'exactement quatre <em>HexDigit</em>. Cet échappement de caractère correspond au caractère dont l'unité de code est égale à la valeur numérique de ce nombre hexadécimal à quatre chiffres. Si la valeur ne tient pas dans le <code>CharT</code> de ce <a href="basic_regex.html"><code>std::basic_regex</code></a>, <a href="regex_error.html"><code>std::regex_error</code></a> est levée <em>(C++ only)</em>.</p>
+<p><em>IdentityEscape</em> peut être n'importe quel caractère non alphanumérique : par exemple, une autre barre oblique inverse. Il correspond au caractère tel quel.</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;regex&gt;
+#include &lt;string&gt;
+
+void show_matches(const std::wstring&amp; in, const std::wstring&amp; re)
+{
+    std::wsmatch m;
+    std::regex_search(in, m, std::wregex(re));
+    if (!m.empty())
+    {
+        std::wcout &lt;&lt; L&quot;input=[&quot; &lt;&lt; in &lt;&lt; L&quot;], regex=[&quot; &lt;&lt; re &lt;&lt; L&quot;]\n  &quot;
+                      L&quot;prefix=[&quot; &lt;&lt; m.prefix() &lt;&lt; L&quot;]\n  wsmatch: &quot;;
+        for (std::size_t n = 0; n &lt; m.size(); ++n)
+            std::wcout &lt;&lt; L&quot;m[&quot; &lt;&lt; n &lt;&lt; L&quot;]=[&quot; &lt;&lt; m[n] &lt;&lt; L&quot;] &quot;;
+        std::wcout &lt;&lt; L&quot;\n  suffix=[&quot; &lt;&lt; m.suffix() &lt;&lt; L&quot;]\n&quot;;
+    }
+    else
+        std::wcout &lt;&lt; L&quot;input=[&quot; &lt;&lt; in &lt;&lt; &quot;], regex=[&quot; &lt;&lt; re &lt;&lt; L&quot;]: NO MATCH\n&quot;;
+}
+
+int main()
+{
+    // La plupart des échappements sont similaires au C++, à l'exception des métacaractères. Il faudra
+    // doubler l'échappement ou utiliser des chaînes brutes pour les barres obliques, cependant.
+    show_matches(L&quot;C++\\&quot;, LR&quot;(C\+\+\\)&quot;);
+
+    // Séquences d'échappement et NUL.
+    std::wstring s(L&quot;ab\xff\0cd&quot;, 5);
+    show_matches(s, L&quot;(\\0|\\u00ff)&quot;);
+
+    // Aucune correspondance pour l'Unicode hors BMP n'est définie, car ECMAScript utilise UTF-16
+    // atomes. La correspondance de cette banane emoji peut dépendre de la plateforme :
+    // Celles-ci doivent être des chaînes larges !
+    show_matches(L&quot;\U0001f34c&quot;, L&quot;[\\u0000-\\ufffe]+&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">input=[C++\], regex=[C\+\+\\]
+  prefix=[]
+  wsmatch: m[0]=[C++\]
+  suffix=[]
+input=[ab?c], regex=[(\0{{!}}\u00ff)]
+  prefix=[ab]
+  wsmatch: m[0]=[?] m[1]=[?]
+  suffix=[c]
+input=[?], regex=[[\u0000-\ufffe]+]: NO MATCH
+</code></pre>
+<h2 id="Character_classes">Classes de caractères</h2>
+<p>Un Atom peut représenter une classe de caractères, c'est-à-dire qu'il correspondra à un caractère et le consommera s'il appartient à l'un des groupes prédéfinis de caractères.</p>
+<p>Une classe de caractères peut être introduite par un échappement de classe de caractères :</p>
+<p><em>Atome</em> ::</p>
+<p><code>\</code> <em>CharacterClassEscape</em></p>
+<p>ou directement</p>
+<p><em>Atome</em> ::</p>
+<p><em>CharacterClass</em></p>
+<p>Les échappements de classes de caractères sont des raccourcis pour certaines classes de caractères courantes, comme suit :</p>
+<table>
+<thead>
+<tr>
+<th>CharacterClassEscape</th>
+<th>ClassName expression*(C++ only)*</th>
+<th>Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>d</code></td>
+<td><code>[[:digit:]]</code></td>
+<td>digits</td>
+</tr>
+<tr>
+<td><code>D</code></td>
+<td><code>[^[:digit:]]</code></td>
+<td>non-chiffres</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td><code>[[:space:]]</code></td>
+<td>caractères d'espacement</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td><code>[^[:space:]]</code></td>
+<td>caractères autres que d'espacement</td>
+</tr>
+<tr>
+<td><code>w</code></td>
+<td><code>[_[:alnum:]]</code></td>
+<td>caractères alphanumériques et le caractère <code>_</code></td>
+</tr>
+<tr>
+<td><code>W</code></td>
+<td><code>[^_[:alnum:]]</code></td>
+<td>caractères autres qu'alphanumériques ou <code>_</code></td>
+</tr>
+</tbody>
+</table>
+<p>La signification exacte de chacun de ces échappements de classes de caractères en C++ est définie à partir des classes de caractères nommées dépendantes de la locale, et non en énumérant explicitement les caractères acceptés comme en ECMAScript.</p>
+<p>Une <em>CharacterClass</em> est une séquence entre crochets de <em>ClassRanges</em>, commençant éventuellement par l'opérateur de négation <code>^</code>. Si elle commence par <code>^</code>, cet <em>Atom</em> correspond à tout caractère qui n'appartient PAS à l'ensemble des caractères représentés par l'union de tous les <em>ClassRanges</em>. Sinon, ce <em>Atom</em> correspond à tout caractère qui appartient à l'ensemble des caractères représentés par l'union de tous les <em>ClassRanges</em>.</p>
+<p><em>CharacterClass</em> ::</p>
+<p><code>[</code> <code>[</code> <em>lookahead ∉ {</em><code>^</code><em>}]</em> <em>ClassRanges</em> <code>][</code> <code>^</code> <em>ClassRanges</em> <code>]</code></p>
+<p>ClassRanges ::</p>
+<p>[empty]<em>NonemptyClassRanges</em></p>
+<p><em>NonemptyClassRanges</em> ::</p>
+<p><em>ClassAtom**ClassAtom</em> <em>NonemptyClassRangesNoDash**ClassAtom</em> - <em>ClassAtom</em> <em>ClassRanges</em></p>
+<p>Si la plage de classe non vide a la forme <code>ClassAtom - ClassAtom</code>, elle correspond à tout caractère d'une plage définie comme suit : <em>(C++ only)</em></p>
+<p>Le premier <em>ClassAtom</em> doit correspondre à un seul élément de collationnement <code>c1</code> et le second <em>ClassAtom</em> doit correspondre à un seul élément de collationnement <code>c2</code>. Pour vérifier si le caractère d'entrée <code>c</code> est reconnu par cette plage, les étapes suivantes sont effectuées :</p>
+<ol>
+<li>
+<p>Si <a href="syntax_option_type.html"><code>std::regex_constants::collate</code></a> n'est pas activé, le caractère est reconnu par comparaison directe des points de code : <code>c</code> est reconnu si <code>c1 &lt;= c &amp;&amp; c &lt;= c2</code></p>
+</li>
+<li>
+<p>Sinon (si <a href="syntax_option_type.html"><code>std::regex_constants::collate</code></a> est activé) :</p>
+</li>
+<li>
+<p>Si <a href="syntax_option_type.html"><code>std::regex_constants::icase</code></a> est activé, les trois caractères (<code>c</code>, <code>c1</code> et <code>c2</code>) sont transmis <a href="regex_traits/translate_nocase.html"><code>std::regex_traits::translate_nocase</code></a></p>
+</li>
+<li>
+<p>Sinon (si <a href="syntax_option_type.html"><code>std::regex_constants::icase</code></a> n'est pas défini), les trois caractères (<code>c</code>, <code>c1</code> et <code>c2</code>) sont transmis <a href="regex_traits/translate.html"><code>std::regex_traits::translate</code></a></p>
+</li>
+<li>
+<p>Les chaînes résultantes sont comparées à l'aide de <a href="regex_traits/transform.html"><code>std::regex_traits::transform</code></a> et le caractère <code>c</code> est reconnu si <code>transformed c1 &lt;= transformed c &amp;&amp; transformed c &lt;= transformed c2</code></p>
+</li>
+</ol>
+<p>Le caractère <code>-</code> est traité littéralement s'il est</p>
+<ul>
+<li>le premier ou le dernier caractère de <em>ClassRanges</em></li>
+<li>le ClassAtom de début ou de fin d'une spécification de plage séparée par un tiret</li>
+<li>placé immédiatement après une spécification de plage séparée par un tiret.</li>
+<li>échappé avec une barre oblique inverse comme <em>CharacterEscape</em></li>
+</ul>
+<p>NonemptyClassRangesNoDash ::</p>
+<p><em>ClassAtom**ClassAtomNoDash</em> <em>NonemptyClassRangesNoDash**ClassAtomNoDash</em> - <em>ClassAtom</em> <em>ClassRanges</em></p>
+<p><em>ClassAtom</em> ::</p>
+<p><code>-</code><em>ClassAtomNoDash<strong>ClassAtomExClass</strong>(C++ only)<strong>ClassAtomCollatingElement</strong>(C++ only)<strong>ClassAtomEquivalence</strong>(C++ only)</em></p>
+<p>ClassAtomNoDash ::</p>
+<p><em>SourceCharacter</em> sauf l'un de <code>\ or ] or -\</code> <em>ClassEscape</em></p>
+<p>Chaque <em>ClassAtomNoDash</em> représente un seul caractère, soit <em>SourceCharacter</em> tel quel, soit échappé comme suit :</p>
+<p>ClassEscape ::</p>
+<p><em>DecimalEscape</em><code>b</code><em>CharacterEscape**CharacterClassEscape</em></p>
+<p>Le spécificateur spécial <em>ClassEscape</em> <code>\b</code> produit un ensemble de caractères qui correspond à l'unité de code U+0008 (retour arrière). En dehors de <em>CharacterClass</em>, il s'agit de l'<em>Assertion</em> de limite de mot.</p>
+<p>L'utilisation de <code>\B</code> et l'utilisation de toute référence arrière (<em>DecimalEscape</em> autre que zéro) à l'intérieur d'une <em>CharacterClass</em> est une erreur.</p>
+<p>Les caractères <code>-</code> et <code>]</code> peuvent devoir être échappés dans certaines situations pour être traités comme des atomes. Les autres caractères ayant une signification particulière en dehors de <em>CharacterClass</em>, tels que <code>*</code> ou <code>?</code>, n'ont pas besoin d'être échappés.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+<h2 id="POSIX-based_character_classes">Classes de caractères basées sur POSIX</h2>
+<p>Ces classes de caractères sont une extension de la grammaire ECMAScript et sont équivalentes aux classes de caractères des expressions régulières POSIX.</p>
+<p>ClassAtomExClass*(C++ only)* ::</p>
+<p><code>[:</code> <em>ClassName</em> <code>:]</code></p>
+<p>Représente tous les caractères qui sont membres de la classe de caractères nommée <em>ClassName</em>. Le nom n'est valide que si <a href="regex_traits/lookup_classname.html"><code>std::regex_traits::lookup_classname</code></a> renvoie une valeur non nulle pour ce nom. Comme décrit dans <a href="regex_traits/lookup_classname.html"><code>std::regex_traits::lookup_classname</code></a>, les noms suivants sont garantis d'être reconnus : <code>alnum, alpha, blank, cntrl, digit, graph, lower, print, punct, space, upper, xdigit, d, s, w</code>. D'autres noms peuvent être fournis par les locales fournies par le système (comme <code>jdigit</code> ou <code>jkanji</code> en japonais) ou implémentés comme extension définie par l'utilisateur.</p>
+<p>ClassAtomCollatingElement*(C++ only)* ::</p>
+<p><code>[.</code> <em>ClassName</em> <code>.]</code></p>
+<p>Représente l'élément de collationnement nommé, qui peut représenter un seul caractère ou une séquence de caractères qui se collationne comme une unité unique sous la locale imprégnée, comme <code>[.tilde.]</code> ou <code>[.ch.]</code> en tchèque. Le nom n'est valide que si <a href="regex_traits/lookup_collatename.html"><code>std::regex_traits::lookup_collatename</code></a> n'est pas une chaîne vide.</p>
+<p>Lors de l'utilisation de <a href="syntax_option_type.html"><code>std::regex_constants::collate</code></a>, les éléments de collationnement peuvent toujours être utilisés comme extrémités d'une plage (par exemple <code>[[.dz.]-g]</code> en hongrois).</p>
+<p>ClassAtomEquivalence*(C++ only)* ::</p>
+<p><code>[=</code> <em>ClassName</em> <code>=]</code></p>
+<p>Représente tous les caractères qui sont membres de la même classe d'équivalence que l'élément de collationnement nommé, c'est-à-dire tous les caractères dont la clé de collationnement primaire est la même que celle de l'élément de collationnement <em>ClassName</em>. Le nom n'est valide que si <a href="regex_traits/lookup_collatename.html"><code>std::regex_traits::lookup_collatename</code></a> pour ce nom n'est pas une chaîne vide et si la valeur renvoyée par <a href="regex_traits/transform_primary.html"><code>std::regex_traits::transform_primary</code></a> pour le résultat de l'appel à <a href="regex_traits/lookup_collatename.html"><code>std::regex_traits::lookup_collatename</code></a> n'est pas une chaîne vide.</p>
+<p>Une clé de tri primaire est une clé qui ignore la casse, les accents ou les adaptations propres à la locale ; ainsi par exemple <code>[[=a=]]</code> correspond à n'importe lequel des caractères : <code>a, À, Á, Â, Ã, Ä, Å, A, à, á, â, ã, ä and å.</code></p>
+<p>ClassName*(C++ only)* ::</p>
+<p>ClassNameCharacterClassNameCharacter ClassName</p>
+<p>ClassNameCharacter*(C++ only)* ::</p>
+<p><em>SourceCharacter</em> sauf l'un de <code>. = :</code></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : aucun exemple</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

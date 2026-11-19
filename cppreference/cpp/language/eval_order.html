@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordre d&#x27;évaluation — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="ordre-d-évaluation">Ordre d'évaluation</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/eval_order">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>L'ordre d'évaluation de toute partie de toute expression, y compris l'ordre d'évaluation des arguments de fonction, est <em>non spécifié</em> (à quelques exceptions près listées ci-dessous). Le compilateur peut évaluer les opérandes et les autres sous-expressions dans n'importe quel ordre, et peut choisir un autre ordre lorsque la même expression est de nouveau évaluée.</p>
+<p>Il n'existe pas en C++ de notion d'évaluation de gauche à droite ou de droite à gauche. Il ne faut pas la confondre avec l'associativité de gauche à droite ou de droite à gauche des opérateurs : l'expression <code>a() + b() + c()</code> est analysée comme <code>(a() + b()) + c()</code> en raison de l'associativité de gauche à droite de operator+, mais <code>c()</code> peut être évalué en premier, en dernier, ou entre <code>a()</code> et <code>b()</code> à l'exécution :</p>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+
+int a() { return std::puts(&quot;a&quot;); }
+int b() { return std::puts(&quot;b&quot;); }
+int c() { return std::puts(&quot;c&quot;); }
+
+void z(int, int, int) {}
+
+int main()
+{
+    z(a(), b(), c());       // les 6 permutations possibles de la sortie sont autorisées
+    return a() + b() + c(); // les 6 permutations possibles de la sortie sont autorisées
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">b
+c
+a
+c
+a
+b
+</code></pre>
+<h2 id=".22Sequenced_before.22_rules_.28since_C.2B.2B11.29">Règles de « séquencement avant » (depuis C++11)</h2>
+<h3 id="Evaluation_of_Expressions">Évaluation des expressions</h3>
+<p>L'évaluation de chaque expression comprend :</p>
+<ul>
+<li><em>Calculs de valeur</em> : calcul de la valeur renvoyée par l'expression. Cela peut impliquer la détermination de l'identité de l'objet (évaluation de glvalue, par exemple si l'expression renvoie une référence à un objet) ou la lecture de la valeur précédemment affectée à un objet (évaluation de prvalue, par exemple si l'expression renvoie un nombre ou une autre valeur).</li>
+<li>Déclenchement des <em>effets de bord</em> : accès (lecture ou écriture) à un objet désigné par une glvalue volatile, modification (écriture) d'un objet, appel d'une fonction d'E/S de la bibliothèque, ou appel d'une fonction effectuant l'une de ces opérations.</li>
+</ul>
+<h3 id="Ordering">Ordonnancement</h3>
+<p><em>Séquencé avant</em> est une relation asymétrique, transitive et deux à deux entre des évaluations au sein du même thread.</p>
+<ul>
+<li>Si A est séquencé avant B (ou, de manière équivalente, B est <em>séquencé après</em> A), alors l'évaluation de A sera terminée avant que l'évaluation de B ne commence.</li>
+<li>Si A n'est pas séquencé avant B et que B est séquencé avant A, alors l'évaluation de B sera terminée avant que l'évaluation de A ne commence.</li>
+<li>Si A n'est pas séquencé avant B et que B n'est pas séquencé avant A, alors deux possibilités existent :
+<ul>
+<li>Les évaluations de A et de B sont <em>non séquencées</em> : elles peuvent être effectuées dans n'importe quel ordre et peuvent se chevaucher (au sein d'un unique fil d'exécution, le compilateur peut entrelacer les instructions processeur qui composent A et B).</li>
+<li>Les évaluations de A et de B sont <em>séquencées de manière indéterminée</em> : elles peuvent être effectuées dans n'importe quel ordre mais ne peuvent pas se chevaucher : soit A sera terminée avant B, soit B sera terminée avant A. L'ordre peut être inverse la prochaine fois que la même expression sera évaluée.</li>
+</ul>
+</li>
+</ul>
+<h3 id="Rules">Règles</h3>
+<ol>
+<li>
+<p>Chaque calcul de valeur et chaque effet de bord d'une <a href="expressions.html#Full-expressions">expression complète</a> est séquencé avant chaque calcul de valeur et chaque effet de bord de l'expression complète suivante.</p>
+</li>
+<li>
+<p>Les calculs de valeur (mais pas les effets de bord) des opérandes de tout <a href="expressions.html#Operators">opérateur</a> sont séquencés avant le calcul de valeur du résultat de l'opérateur (mais pas ses effets de bord).</p>
+</li>
+<li>
+<p>Lors de l'appel d'une fonction (que la fonction soit ou non en ligne, et que la syntaxe d'appel explicite de fonction soit ou non utilisée), chaque calcul de valeur et chaque effet de bord associés à une expression d'argument, ou à l'expression postfixée désignant la fonction appelée, sont séquencés avant l'exécution de chaque expression ou instruction du corps de la fonction appelée.</p>
+</li>
+<li>
+<p>Le calcul de valeur des opérateurs d'<a href="operator_incdec.html#Built-in_postfix_operators">incrémentation et de décrémentation postfixés</a> intégrés est séquencé avant leur effet de bord.</p>
+</li>
+<li>
+<p>L'effet de bord des opérateurs d'<a href="operator_incdec.html#Built-in_prefix_operators">incrémentation et de décrémentation préfixés</a> intégrés est séquencé avant leur calcul de valeur (règle implicite due à la définition comme affectation composée).</p>
+</li>
+<li>
+<p>Chaque calcul de valeur et chaque effet de bord du premier argument (de gauche) de l'opérateur ET <a href="operator_logical.html">logique</a> intégré <code>&amp;&amp;</code>, de l'opérateur OU logique intégré <code>||</code> et de l'<a href="operator_other.html#Built-in_comma_operator">opérateur virgule</a> intégré <code>,</code> sont séquencés avant chaque calcul de valeur et chaque effet de bord du second argument (de droite).</p>
+</li>
+<li>
+<p>Chaque calcul de valeur et chaque effet de bord associés à la première expression de l'<a href="operator_other.html#Conditional_operator">opérateur conditionnel</a> <code>?:</code> sont séquencés avant chaque calcul de valeur et chaque effet de bord associés à la deuxième ou à la troisième expression.</p>
+</li>
+<li>
+<p>L'effet de bord (modification de l'argument de gauche) de l'opérateur d'<a href="operator_assignment.html#Builtin_direct_assignment">affectation</a> intégré et de tous les opérateurs d'affectation <a href="operator_assignment.html#Builtin_compound_assignment">composée</a> intégrés est séquencé après le calcul de valeur (mais pas les effets de bord) des arguments de gauche et de droite, et est séquencé avant le calcul de valeur de l'expression d'affectation (c'est-à-dire avant la renvoi de la référence à l'objet modifié).</p>
+</li>
+<li>
+<p>Dans une <a href="list_initialization.html">initialisation par liste</a>, chaque calcul de valeur et chaque effet de bord d'une clause d'initialisation donnée sont séquencés avant chaque calcul de valeur et chaque effet de bord associés à toute clause d'initialisation qui la suit dans la liste d'initialiseurs entre accolades et séparés par des virgules.</p>
+</li>
+<li>
+<p>Un appel de fonction qui n'est ni séquencé avant ni séquencé après une autre évaluation d'expression située en dehors de la fonction (éventuellement un autre appel de fonction) est séquencé de manière indéterminée par rapport à cette évaluation (le programme doit se comporter <a href="as_if.html">comme si</a> les instructions processeur constituant un appel de fonction n'étaient pas entrelacées avec les instructions constituant les évaluations d'autres expressions, y compris d'autres appels de fonction, même si la fonction a été mise en ligne).</p>
+</li>
+</ol>
+<blockquote>
+<p>La règle 10 comporte une exception : les appels de fonction effectués par un algorithme de la bibliothèque standard s'exécutant sous la politique d'exécution <a href="../algorithm/execution_policy_tag_t.html"><code>std::execution::par_unseq</code></a> sont non séquencés et peuvent être entrelacés de manière arbitraire les uns avec les autres.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<ol start="11">
+<li>
+<p>L'appel de la fonction d'allocation (<a href="../memory/new/operator_new.html"><code>operator new</code></a>) est [séquencé de manière indéterminée par rapport à <em>(jusqu'à C++17)</em> | séquencé avant <em>(depuis C++17)</em>] l'évaluation des arguments du constructeur dans une expression <a href="new.html"><code>new</code></a>.</p>
+</li>
+<li>
+<p>Lors du retour d'une fonction, l'initialisation par copie du temporaire qui est le résultat de l'évaluation de l'appel de fonction est séquencée avant la destruction de tous les temporaires à la fin de l'opérande de l'instruction <a href="return.html"><code>return</code></a>, laquelle est à son tour séquencée avant la destruction des variables locales du bloc englobant l'instruction <code>return</code>.</p>
+</li>
+</ol>
+<blockquote>
+<ol start="13">
+<li>
+<p>Dans une expression d'appel de fonction, l'expression qui désigne la fonction est séquencée avant chaque expression d'argument et chaque argument par défaut.</p>
+</li>
+<li>
+<p>Dans un appel de fonction, les calculs de valeur et les effets de bord de l'initialisation de chaque paramètre sont séquencés de manière indéterminée par rapport aux calculs de valeur et aux effets de bord de tout autre paramètre.</p>
+</li>
+<li>
+<p>Chaque opérateur surchargé respecte les règles de séquencement de l'opérateur intégré qu'il surcharge lorsqu'il est appelé avec la notation d'opérateur.</p>
+</li>
+<li>
+<p>Dans une expression d'indice <code>E1[E2]</code>, chaque calcul de valeur et chaque effet de bord de <code>E1</code> sont séquencés avant chaque calcul de valeur et chaque effet de bord de <code>E2</code>.</p>
+</li>
+<li>
+<p>Dans une expression de pointeur vers membre <code>E1.*E2</code> ou <code>E1-&gt;*E2</code>, chaque calcul de valeur et chaque effet de bord de <code>E1</code> sont séquencés avant chaque calcul de valeur et chaque effet de bord de <code>E2</code> (sauf si le type dynamique de <code>E1</code> ne contient pas le membre auquel <code>E2</code> fait référence).</p>
+</li>
+<li>
+<p>Dans une expression d'opérateur de décalage <code>E1 &lt;&lt; E2</code> et <code>E1 &gt;&gt; E2</code>, chaque calcul de valeur et chaque effet de bord de <code>E1</code> sont séquencés avant chaque calcul de valeur et chaque effet de bord de <code>E2</code>.</p>
+</li>
+<li>
+<p>Dans chaque expression d'affectation simple <code>E1 = E2</code> et chaque expression d'affectation composée <code>E1 @= E2</code>, chaque calcul de valeur et chaque effet de bord de <code>E2</code> sont séquencés avant chaque calcul de valeur et chaque effet de bord de <code>E1</code>.</p>
+</li>
+<li>
+<p>Chaque expression d'une liste d'expressions séparées par des virgules dans un initialiseur entre parenthèses est évaluée comme pour un appel de fonction (séquencement indéterminé).</p>
+</li>
+</ol>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h3 id="Undefined_behavior">Comportement indéfini</h3>
+<p>Le comportement est <a href="ub.html">indéfini</a> dans les cas suivants :</p>
+<ol>
+<li>Un effet de bord sur un <a href="memory_model.html#Memory_location">emplacement mémoire</a> est non séquencé par rapport à un autre effet de bord sur le même emplacement mémoire :</li>
+</ol>
+<pre><code class="language-cpp">i = ++i + 2;       // bien défini
+i = i++ + 2;       // comportement indéfini jusqu'à C++17
+f(i = -2, i = -2); // comportement indéfini jusqu'à C++17
+f(++i, ++i);       // comportement indéfini jusqu'à C++17, non spécifié après C++17
+i = ++i + i++;     // comportement indéfini
+</code></pre>
+<ol start="2">
+<li>Un effet de bord sur un emplacement mémoire est non séquencé par rapport à un calcul de valeur utilisant la valeur de tout objet situé dans le même emplacement mémoire :</li>
+</ol>
+<pre><code class="language-cpp">cout &lt;&lt; i &lt;&lt; i++; // comportement indéfini jusqu'à C++17
+a[i] = i++;       // comportement indéfini jusqu'à C++17
+n = ++i + i;      // comportement indéfini
+</code></pre>
+<ol start="3">
+<li>Le début ou la fin de la <a href="lifetime.html">durée de vie</a> d'un objet dans un emplacement mémoire est non séquencé par rapport à l'une des opérations suivantes :</li>
+</ol>
+<ul>
+<li>un effet de bord sur le même emplacement mémoire</li>
+<li>un calcul de valeur utilisant la valeur de tout objet situé dans le même emplacement mémoire</li>
+<li>le début ou la fin de la durée de vie d'un objet occupant un stockage qui chevauche l'emplacement mémoire</li>
+</ul>
+<pre><code class="language-cpp">union U { int x, y; } u;
+(u.x = 1, 0) + (u.y = 2, 0); // comportement indéfini
+</code></pre>
+<h2 id="Sequence_point_rules_.28until_C.2B.2B11.29">Règles des points de séquence (jusqu'à C++11)</h2>
+<h3 id="Pre-C.2B.2B11_Definitions">Définitions antérieures à C++11</h3>
+<p>L'évaluation d'une expression peut produire des effets de bord, à savoir : accès à un objet désigné par une lvalue volatile, modification d'un objet, appel d'une fonction d'E/S de la bibliothèque, ou appel d'une fonction effectuant l'une de ces opérations.</p>
+<p>Un <em>point de séquence</em> est un point de la séquence d'exécution où tous les effets de bord des évaluations précédentes de la séquence sont terminés, et aucun effet de bord des évaluations suivantes n'a commencé.</p>
+<h3 id="Pre-C.2B.2B11_Rules">Règles antérieures à C++11</h3>
+<ol>
+<li>
+<p>Il existe un point de séquence à la fin de chaque <a href="expressions.html#Full-expressions">expression complète</a> (en général, au point-virgule).</p>
+</li>
+<li>
+<p>Lors de l'appel d'une fonction (que la fonction soit inline ou non et que la syntaxe d'appel de fonction ait été utilisée ou non), il existe un point de séquence après l'évaluation de tous les arguments de fonction (le cas échéant), qui a lieu avant l'exécution de toute expression ou instruction du corps de la fonction.</p>
+</li>
+<li>
+<p>Lors du retour d'une fonction, il existe un point de séquence après l'initialisation par copie du résultat de l'appel de fonction, et avant la destruction de tous les objets temporaires à la fin de <code>expression</code> dans l'<a href="return.html">instruction <code>return</code></a> (le cas échéant).</p>
+</li>
+<li>
+<p>Il existe un point de séquence après la copie d'une valeur de retour d'une fonction et avant l'exécution de toute expression située en dehors de la fonction.</p>
+</li>
+<li>
+<p>Une fois l'exécution d'une fonction commencée, aucune expression de la fonction appelante n'est évaluée tant que l'exécution de la fonction appelée n'est pas terminée (les fonctions ne peuvent pas être entrelacées).</p>
+</li>
+<li>
+<p>Lors de l'évaluation de chacune des quatre expressions suivantes, utilisant les opérateurs intégrés (non surchargés), il existe un point de séquence après l'évaluation de l'expression <code>a</code>.</p>
+</li>
+</ol>
+<pre><code class="language-cpp">a &amp;&amp; b
+a || b
+a ? b : c
+a , b
+</code></pre>
+<h3 id="Pre-C.2B.2B11_Undefined_behavior">Comportement indéfini antérieur à C++11</h3>
+<p>Le comportement est <a href="ub.html">indéfini</a> dans les cas suivants :</p>
+<ol>
+<li>Entre le point de séquence précédent et le suivant, la valeur d'un objet situé à un emplacement mémoire est modifiée plus d'une fois par l'évaluation d'une expression :</li>
+</ol>
+<pre><code class="language-cpp">i = ++i + i++;     // comportement indéfini
+i = i++ + 1;       // comportement indéfini
+i = ++i + 1;       // comportement indéfini
+++ ++i;            // comportement indéfini
+f(++i, ++i);       // comportement indéfini
+f(i = -1, i = -1); // comportement indéfini
+</code></pre>
+<ol start="2">
+<li>Entre le point de séquence précédent et le suivant, pour un objet dont la valeur est modifiée par l'évaluation d'une expression, son ancienne valeur est accédée d'une autre manière que pour déterminer la valeur à stocker :</li>
+</ol>
+<pre><code class="language-cpp">cout &lt;&lt; i &lt;&lt; i++; // comportement indéfini
+a[i] = i++;       // comportement indéfini
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1885.html">CWG 1885</a></td>
+<td>C++11</td>
+<td>l'ordonnancement de la destruction des variables automatiques lors du retour de fonction n'était pas explicite</td>
+<td>règles d'ordonnancement ajoutées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1949.html">CWG 1949</a></td>
+<td>C++11</td>
+<td>« sequenced after » était utilisé sans être défini dans la norme C++</td>
+<td>défini comme l'inverse de « sequenced before »</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1953.html">CWG 1953</a></td>
+<td>C++11</td>
+<td>les effets de bord et les calculs de valeur impliquant un emplacement mémoire pouvaient être non séquencés par rapport au début ou à la fin de la durée de vie d'un objet situé au même emplacement mémoire</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2146.html">CWG 2146</a></td>
+<td>C++98</td>
+<td>les cas impliquant des comportements indéfinis ne prenaient pas en compte les champs de bits</td>
+<td>considered</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>6.9.1 Exécution du programme [intro.execution]</li>
+<li>7.6.1.6 Incrémentation et décrémentation [expr.post.incr]</li>
+<li>7.6.2.8 New [expr.new]</li>
+<li>7.6.14 Opérateur ET logique [expr.log.and]</li>
+<li>7.6.15 Opérateur OU logique [expr.log.or]</li>
+<li>7.6.16 Opérateur conditionnel [expr.cond]</li>
+<li>7.6.19 Opérateurs d'affectation et d'affectation composée [expr.ass]</li>
+<li>7.6.20 Opérateur virgule [expr.comma]</li>
+<li>9.4.5 Initialisation par liste [dcl.init.list]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>6.9.1 Exécution du programme [intro.execution]</li>
+<li>7.6.1.5 Incrémentation et décrémentation [expr.post.incr]</li>
+<li>7.6.2.7 New [expr.new]</li>
+<li>7.6.14 Opérateur ET logique [expr.log.and]</li>
+<li>7.6.15 Opérateur OU logique [expr.log.or]</li>
+<li>7.6.16 Opérateur conditionnel [expr.cond]</li>
+<li>7.6.19 Opérateurs d'affectation et d'affectation composée [expr.ass]</li>
+<li>7.6.20 Opérateur virgule [expr.comma]</li>
+<li>9.4.4 Initialisation par liste [dcl.init.list]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>4.6 Exécution du programme [intro.execution]</li>
+<li>8.2.6 Incrémentation et décrémentation [expr.post.incr]</li>
+<li>8.3.4 New [expr.new]</li>
+<li>8.14 Opérateur ET logique [expr.log.and]</li>
+<li>8.15 Opérateur OU logique [expr.log.or]</li>
+<li>8.16 Opérateur conditionnel [expr.cond]</li>
+<li>8.18 Opérateurs d'affectation et d'affectation composée [expr.ass]</li>
+<li>8.19 Opérateur virgule [expr.comma]</li>
+<li>11.6.4 Initialisation par liste [dcl.init.list]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>1.9 Exécution du programme [intro.execution]</li>
+<li>5.2.6 Incrémentation et décrémentation [expr.post.incr]</li>
+<li>5.3.4 New [expr.new]</li>
+<li>5.14 Opérateur ET logique [expr.log.and]</li>
+<li>5.15 Opérateur OU logique [expr.log.or]</li>
+<li>5.16 Opérateur conditionnel [expr.cond]</li>
+<li>5.17 Opérateurs d'affectation et d'affectation composée [expr.ass]</li>
+<li>5.18 Opérateur virgule [expr.comma]</li>
+<li>8.5.4 Initialisation par liste [dcl.init.list]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>1.9 Exécution du programme [intro.execution]</li>
+<li>5.2.6 Incrémentation et décrémentation [expr.post.incr]</li>
+<li>5.3.4 New [expr.new]</li>
+<li>5.14 Opérateur ET logique [expr.log.and]</li>
+<li>5.15 Opérateur OU logique [expr.log.or]</li>
+<li>5.16 Opérateur conditionnel [expr.cond]</li>
+<li>5.17 Opérateurs d'affectation et d'affectation composée [expr.ass]</li>
+<li>5.18 Opérateur virgule [expr.comma]</li>
+<li>8.5.4 Initialisation par liste [dcl.init.list]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="operator_precedence.html">Priorité des opérateurs</a> qui définit la manière dont les expressions sont construites à partir de leur représentation dans le code source.</li>
+</ul>
+<p><strong><a href="../../c/language/eval_order.html">Documentation C</a> pour Ordre d'évaluation</strong></p>
+
+</main>
+</body>
+</html>

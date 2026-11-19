@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spécialisation explicite (complète) de modèle — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="spécialisation-explicite-complète-de-modèle">Spécialisation explicite (complète) de modèle</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/template_specialization">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet de personnaliser le code du modèle pour un ensemble donné d'arguments de modèle.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>template &lt;&gt;</code> <code>declaration</code> | | |
+|</p>
+<p>Chacun des éléments suivants peut être entièrement spécialisé :</p>
+<ol>
+<li><a href="function_template.html">modèle de fonction</a></li>
+<li><a href="class_template.html">modèle de classe</a></li>
+<li><a href="variable_template.html">modèle de variable</a> <em>(depuis C++14)</em></li>
+<li><a href="member_functions.html">fonction membre</a> d'un modèle de classe</li>
+<li><a href="static.html">membre de données statique</a> d'un modèle de classe</li>
+<li><a href="nested_classes.html">classe membre</a> d'un modèle de classe</li>
+<li><a href="enum.html">énumération</a> membre d'un modèle de classe</li>
+<li><a href="member_template.html">modèle de classe membre</a> d'une classe ou d'un modèle de classe</li>
+<li><a href="member_template.html#Member_function_templates">modèle de fonction membre</a> d'une classe ou d'un modèle de classe</li>
+<li><a href="member_template.html#Member_variable_templates">modèle de variable membre</a> d'une classe ou d'un modèle de classe <em>(depuis C++14)</em></li>
+</ol>
+<p>Par exemple,</p>
+<pre><code class="language-cpp">#include &lt;type_traits&gt;
+
+template&lt;typename T&gt; // modèle primaire
+struct is_void : std::false_type {};
+template&lt;&gt;           // spécialisation explicite pour T = void
+struct is_void&lt;void&gt; : std::true_type {};
+
+int main()
+{
+    static_assert(is_void&lt;char&gt;::value == false,
+        &quot;for any type T other than void, the class is derived from false_type&quot;);
+    static_assert(is_void&lt;void&gt;::value == true,
+        &quot;but when T is void, the class is derived from true_type&quot;);
+}
+</code></pre>
+<h2 id="In_detail">En détail</h2>
+<p>Une spécialisation explicite peut être déclarée dans toute portée où son modèle primaire peut être défini (ce qui peut différer de la portée où le modèle primaire est défini ; par exemple, avec une spécialisation hors classe d'un <a href="member_template.html">modèle membre</a>). Une spécialisation explicite doit apparaître après la déclaration du modèle non spécialisé.</p>
+<pre><code class="language-cpp">namespace N
+{
+    template&lt;class T&gt; // modèle primaire
+    class X { /*...*/ };
+    template&lt;&gt;        // spécialisation dans le même espace de noms
+    class X&lt;int&gt; { /*...*/ };
+
+    template&lt;class T&gt; // modèle primaire
+    class Y { /*...*/ };
+    template&lt;&gt;        // déclaration anticipée de la spécialisation pour double
+    class Y&lt;double&gt;;
+}
+
+template&lt;&gt; // OK : spécialisation dans le même espace de noms
+class N::Y&lt;double&gt; { /*...*/ };
+</code></pre>
+<p>La spécialisation doit être déclarée avant la première utilisation qui entraînerait une instanciation implicite, dans chaque unité de traduction où une telle utilisation apparaît :</p>
+<pre><code class="language-cpp">class String {};
+
+template&lt;class T&gt;
+class Array { /*...*/ };
+
+template&lt;class T&gt; // modèle primaire
+void sort(Array&lt;T&gt;&amp; v) { /*...*/ }
+
+void f(Array&lt;String&gt;&amp; v)
+{
+    sort(v); // instancie implicitement sort(Array&lt;String&gt;&amp;),
+}            // en utilisant le modèle primaire pour sort()
+
+template&lt;&gt; // ERREUR : spécialisation explicite de sort(Array&lt;String&gt;)
+void sort&lt;String&gt;(Array&lt;String&gt;&amp; v); // après l'instanciation implicite
+</code></pre>
+<p>Une spécialisation de modèle déclarée mais non définie peut être utilisée comme tout autre <a href="incomplete_type.html">type incomplet</a> (par exemple, des pointeurs et des références vers celle-ci peuvent être utilisés) :</p>
+<pre><code class="language-cpp">template&lt;class T&gt; // modèle primaire
+class X;
+template&lt;&gt;        // spécialisation (déclarée, non définie)
+class X&lt;int&gt;;
+
+X&lt;int&gt;* p; // OK : pointeur vers un type incomplet
+X&lt;int&gt; x;  // erreur : objet de type incomplet
+</code></pre>
+<p>Le fait qu'une spécialisation explicite d'un modèle de fonctionou de variable <em>(depuis C++14)</em> soit <a href="inline.html"><code>inline</code></a>[/<a href="constexpr.html"><code>constexpr</code></a> <em>(depuis C++11)</em> | /<a href="constinit.html"><code>constinit</code></a>/<a href="consteval.html"><code>consteval</code></a> <em>(depuis C++20)</em>] est déterminé par la spécialisation explicite elle-même, indépendamment du fait que le modèle primaire soit déclaré avec ce spécificateur.De même, <a href="attributes.html">les attributs</a> figurant dans la déclaration d'un modèle n'ont aucun effet sur une spécialisation explicite de ce modèle : <em>(depuis C++11)</em></p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T) { /* ... */ }
+template&lt;&gt;
+inline void f&lt;&gt;(int) { /* ... */ } // OK, inline
+
+template&lt;class T&gt;
+inline T g(T) { /* ... */ }
+template&lt;&gt;
+int g&lt;&gt;(int) { /* ... */ }         // OK, non inline
+
+template&lt;typename&gt;
+[[noreturn]] void h([[maybe_unused]] int i);
+template&lt;&gt; void h&lt;int&gt;(int i)
+{
+    // [[noreturn]] n'a aucun effet, mais [[maybe_unused]] en a un
+}
+</code></pre>
+<h2 id="Explicit_specializations_of_function_templates">Spécialisations explicites de modèles de fonctions</h2>
+<p>Lors de la spécialisation d'un modèle de fonction, ses arguments de modèle peuvent être omis si la <a href="template_argument_deduction.html">déduction d'arguments de modèle</a> peut les fournir à partir des arguments de la fonction :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+class Array { /*...*/ };
+
+template&lt;class T&gt; // modèle primaire
+void sort(Array&lt;T&gt;&amp; v);
+template&lt;&gt;        // spécialisation pour T = int
+void sort(Array&lt;int&gt;&amp;);
+
+// inutile à écrire
+// template&lt;&gt; void sort&lt;int&gt;(Array&lt;int&gt;&amp;);
+</code></pre>
+<p>Une fonction de même nom et de même liste d'arguments qu'une spécialisation n'est pas une spécialisation (voir surcharge de modèles dans <a href="function_template.html">modèle de fonction</a>).</p>
+<p>Des <a href="default_arguments.html">arguments par défaut de fonction</a> ne peuvent pas être spécifiés dans les spécialisations explicites de modèles de fonctions, de modèles de fonctions membres et de fonctions membres de modèles de classe lorsque la classe est implicitement instanciée.</p>
+<p>Une spécialisation explicite ne peut pas être une <a href="friend.html">déclaration d'amitié</a>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : revoir l'exigence de spécification d'exception selon les différentes versions de C++</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Members_of_specializations">Membres des spécialisations</h2>
+<p>Lors de la définition d'un membre d'un modèle de classe explicitement spécialisé en dehors du corps de la classe, la syntaxe <code>template&lt;&gt;</code> n'est pas utilisée, sauf s'il s'agit d'un membre d'un modèle de classe membre explicitement spécialisé, spécialisé comme modèle de classe, car sinon la syntaxe obligerait une telle définition à commencer par <code>template&lt;parameters&gt;</code> requis par le modèle imbriqué</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct A
+{
+    struct B {};      // classe membre
+
+    template&lt;class U&gt; // modèle de classe membre
+    struct C {};
+};
+
+template&lt;&gt; // specialization
+struct A&lt;int&gt;
+{
+    void f(int); // fonction membre d'une spécialisation
+};
+// template&lt;&gt; non utilisé pour un membre d'une spécialisation
+void A&lt;int&gt;::f(int) { /* ... */ }
+
+template&lt;&gt; // spécialisation d'une classe membre
+struct A&lt;char&gt;::B
+{
+    void f();
+};
+// template&lt;&gt; non utilisé non plus pour un membre d'une classe membre spécialisée
+void A&lt;char&gt;::B::f() { /* ... */ }
+
+template&lt;&gt; // spécialisation d'un modèle de classe membre
+template&lt;class U&gt;
+struct A&lt;char&gt;::C
+{
+    void f();
+};
+
+// template&lt;&gt; est utilisé lors de la définition d'un membre d'un modèle de classe membre explicitement
+// modèle de classe membre spécialisé, spécialisé comme modèle de classe
+template&lt;&gt;
+template&lt;class U&gt;
+void A&lt;char&gt;::C&lt;U&gt;::f() { /* ... */ }
+</code></pre>
+<p>Une spécialisation explicite d'un membre de données statique d'un modèle est une définition si la déclaration comporte un initialiseur ; sinon, c'est une déclaration. Ces définitions doivent utiliser des accolades pour l'initialisation par défaut :</p>
+<pre><code class="language-cpp">template&lt;&gt;
+X Q&lt;int&gt;::x;    // déclaration d'un membre statique
+template&lt;&gt;
+X Q&lt;int&gt;::x (); // erreur : déclaration de fonction
+template&lt;&gt;
+X Q&lt;int&gt;::x {}; // définition d'un membre statique initialisé par défaut
+</code></pre>
+<p>Un membre ou un modèle membre d'un modèle de classe peut être explicitement spécialisé pour une instanciation implicite donnée du modèle de classe, même si le membre ou le modèle membre est défini dans la définition du modèle de classe.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct A
+{
+    void f(T);         // membre, déclaré dans le modèle primaire
+
+    void h(T) {}       // membre, défini dans le modèle primaire
+
+    template&lt;class X1&gt; // modèle de membre
+    void g1(T, X1);
+
+    template&lt;class X2&gt; // modèle de membre
+    void g2(T, X2);
+};
+
+// spécialisation d'un membre
+template&lt;&gt;
+void A&lt;int&gt;::f(int);
+
+// spécialisation de membre OK même si défini dans la classe
+template&lt;&gt;
+void A&lt;int&gt;::h(int) {}
+
+// définition de modèle membre hors de la classe
+template&lt;class T&gt;
+template&lt;class X1&gt;
+void A&lt;T&gt;::g1(T, X1) {}
+
+// spécialisation de modèle membre
+template&lt;&gt;
+template&lt;class X1&gt;
+void A&lt;int&gt;::g1(int, X1);
+
+// spécialisation de modèle membre
+template&lt;&gt;
+template&lt;&gt;
+void A&lt;int&gt;::g2&lt;char&gt;(int, char); // pour X2 = char
+
+// idem, par déduction d'arguments de modèle (X1 = char)
+template&lt;&gt;
+template&lt;&gt;
+void A&lt;int&gt;::g1(int, char);
+</code></pre>
+<p>Un membre ou un modèle membre peut être imbriqué dans plusieurs modèles de classes englobants. Dans une spécialisation explicite pour un tel membre, il y a un <code>template&lt;&gt;</code> pour chaque modèle de classe englobant qui est explicitement spécialisé.</p>
+<pre><code class="language-cpp">template&lt;class T1&gt;
+struct A
+{
+    template&lt;class T2&gt;
+    struct B
+    {
+        template&lt;class T3&gt;
+        void mf();
+    };
+};
+
+template&lt;&gt;
+struct A&lt;int&gt;;
+
+template&lt;&gt;
+template&lt;&gt;
+struct A&lt;char&gt;::B&lt;double&gt;;
+
+template&lt;&gt;
+template&lt;&gt;
+template&lt;&gt;
+void A&lt;char&gt;::B&lt;char&gt;::mf&lt;double&gt;();
+</code></pre>
+<p>Dans une telle déclaration imbriquée, certains niveaux peuvent rester non spécialisés (sauf qu'il est impossible de spécialiser un modèle de classe membre en portée d'espace de noms si sa classe englobante n'est pas spécialisée). Pour chacun de ces niveaux, la déclaration nécessite <code>template&lt;arguments&gt;</code>, car ces spécialisations sont elles-mêmes des modèles :</p>
+<pre><code class="language-cpp">template&lt;class T1&gt;
+class A
+{
+    template&lt;class T2&gt;
+    class B
+    {
+        template&lt;class T3&gt; // modèle de membre
+        void mf1(T3);
+
+        void mf2();        // membre non modèle
+    };
+};
+
+// specialization
+template&lt;&gt;        // pour le A spécialisé
+template&lt;class X&gt; // pour le B non spécialisé
+class A&lt;int&gt;::B
+{
+    template&lt;class T&gt;
+    void mf1(T);
+};
+
+// specialization
+template&lt;&gt;        // pour le A spécialisé
+template&lt;&gt;        // pour le B spécialisé
+template&lt;class T&gt; // pour le mf1 non spécialisé
+void A&lt;int&gt;::B&lt;double&gt;::mf1(T t) {}
+
+// ERREUR : B&lt;double&gt; est spécialisé et est un modèle membre, donc sa classe englobante A doit aussi être spécialisée
+// doit aussi être spécialisée
+template&lt;class Y&gt;
+template&lt;&gt;
+void A&lt;Y&gt;::B&lt;double&gt;::mf2() {}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/531.html">CWG 531</a></td>
+<td>C++98</td>
+<td>la syntaxe de définition des membres de spécialisations explicites en portée d'espace de noms n'était pas spécifiée</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/727.html">CWG 727</a></td>
+<td>C++98</td>
+<td>spécialisations partielles et complètes non autorisées dans la portée de classe</td>
+<td>autorisées dans n'importe quelle portée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/730.html">CWG 730</a></td>
+<td>C++98</td>
+<td>les modèles membres de classes non modèles ne pouvaient pas être entièrement spécialisés</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2478.html">CWG 2478</a></td>
+<td>C++20</td>
+<td>il n'était pas clair si le <code>constinit</code> et le <code>consteval</code> du modèle primaire étaient reportés dans ses spécialisations explicites</td>
+<td>non reportés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2604.html">CWG 2604</a></td>
+<td>C++11</td>
+<td>il n'était pas clair si les attributs du modèle primaire étaient reportés dans ses spécialisations explicites</td>
+<td>non reportés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="templates.html">templates</a></li>
+<li><a href="class_template.html">modèle de classe</a></li>
+<li><a href="function_template.html">modèle de fonction</a></li>
+<li><a href="partial_specialization.html">spécialisation partielle</a></li>
+</ul>
+
+</main>
+</body>
+</html>

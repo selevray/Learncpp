@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expressions de pliage (depuis C++17) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="expressions-de-pliage-depuis-c-17">Expressions de pliage (depuis C++17)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/fold">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Réduit (<a href="https://en.wikipedia.org/wiki/Fold_(higher-order_function)">plie</a>) un <a href="parameter_pack.html">paquet</a> sur un opérateur binaire.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>(</code> <code>pack op</code> <code>... )</code> | (1) | |
+|
+| <code>( ...</code> <code>op pack</code> <code>)</code> | (2) | |
+|
+| <code>(</code> <code>pack op</code> <code>...</code> <code>op init</code> <code>)</code> | (3) | |
+|
+| <code>(</code> <code>init op</code> <code>...</code> <code>op pack</code> <code>)</code> | (4) | |
+|</p>
+<ol>
+<li>
+<p>Pliage droit unaire.</p>
+</li>
+<li>
+<p>Pliage gauche unaire.</p>
+</li>
+<li>
+<p>Pliage droit binaire.</p>
+</li>
+<li>
+<p>Pliage gauche binaire.</p>
+</li>
+</ol>
+<ul>
+<li><code>op</code> — l'un quelconque des 32 opérateurs <em>binaires</em> suivants : <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code> <code>^</code> <code>&amp;</code> <code>|</code> <code>=</code> <code>&lt;</code> <code>&gt;</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code> <code>^=</code> <code>&amp;=</code> <code>|=</code> <code>&lt;&lt;=</code> <code>&gt;&gt;=</code> <code>==</code> <code>!=</code> <code>&lt;=</code> <code>&gt;=</code> <code>&amp;&amp;</code> <code>||</code> <code>,</code> <code>.*</code> <code>-&gt;*</code>. Dans un pliage binaire, les deux <code>op</code> doivent être identiques.</li>
+<li><code>pack</code> — une expression qui contient un <a href="parameter_pack.html">paquet</a> non développé et ne contient pas d'opérateur de <a href="operator_precedence.html">précédence</a> inférieure à celle du cast au niveau supérieur (formellement, une <code>cast-expression</code>)</li>
+<li><code>init</code> — une expression qui ne contient pas de <a href="parameter_pack.html">paquet</a> non développé et ne contient pas d'opérateur de <a href="operator_precedence.html">précédence</a> inférieure à celle du cast au niveau supérieur (formellement, une <code>cast-expression</code>)</li>
+</ul>
+<p>Notez que les parenthèses ouvrante et fermante font partie obligatoire de l'expression de pliage.</p>
+<h2 id="Explanation">Explication</h2>
+<p>L'instanciation d'une <em>expression de pliage</em> développe l'expression <code>e</code> de la manière suivante :</p>
+<ol>
+<li>
+<p>Pliage droit unaire <code>(E op ...)</code> devient <code>(E1 op (... op (EN-1 op EN)))</code></p>
+</li>
+<li>
+<p>Pliage gauche unaire <code>(... op E)</code> devient <code>(((E1 op E2) op ...) op EN)</code></p>
+</li>
+<li>
+<p>Pliage droit binaire <code>(E op ... op I)</code> devient <code>(E1 op (... op (EN−1 op (EN op I))))</code></p>
+</li>
+<li>
+<p>Pliage gauche binaire <code>(I op ... op E)</code> devient <code>((((I op E1) op E2) op ...) op EN)</code></p>
+</li>
+</ol>
+<p>(où <code>N</code> est le nombre d'éléments de l'expansion du paquet)</p>
+<p>Par exemple,</p>
+<pre><code class="language-cpp">template&lt;typename... Args&gt;
+bool all(Args... args) { return (... &amp;&amp; args); }
+
+bool b = all(true, true, true, false);
+// dans all(), le pliage gauche unaire se développe ainsi
+//  return ((true &amp;&amp; true) &amp;&amp; true) &amp;&amp; false;
+// b vaut false
+</code></pre>
+<p>Lorsqu'un pliage unaire est utilisé avec une expansion de paquet de longueur nulle, seuls les opérateurs suivants sont autorisés :</p>
+<ol>
+<li>
+<p>ET logique (<code>&amp;&amp;</code>). La valeur pour le paquet vide est <code>true</code>.</p>
+</li>
+<li>
+<p>OU logique (<code>||</code>). La valeur pour le paquet vide est <code>false</code>.</p>
+</li>
+<li>
+<p>L'opérateur virgule (<code>,</code>). La valeur pour le paquet vide est <code>void()</code>.</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>Si l'expression utilisée comme <code>init</code> ou comme <code>pack</code> contient un opérateur de <a href="operator_precedence.html">précédence</a> inférieure à celle du cast au niveau supérieur, elle doit être entre parenthèses :</p>
+<pre><code class="language-cpp">template&lt;typename... Args&gt;
+int sum(Args&amp;&amp;... args)
+{
+//  return (args + ... + 1 * 2);   // Erreur : opérateur de précédence inférieure à celle du cast
+    return (args + ... + (1 * 2)); // OK
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_fold_expressions"><code>__cpp_fold_expressions</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_fold_expressions_201603L"><code>201603L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><a href="fold.html#top">Expressions de pliage</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;climits&gt;
+#include &lt;concepts&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;type_traits&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+// Utilisation de base, pliage d'arguments variadiques sur operator&lt;&lt;
+template&lt;typename... Args&gt;
+void printer(Args&amp;&amp;... args)
+{
+    (std::cout &lt;&lt; ... &lt;&lt; args) &lt;&lt; '\n';
+}
+
+// Pliage d'une expression utilisant directement le paquet sur operator,
+template&lt;typename... Ts&gt;
+void print_limits()
+{
+    ((std::cout &lt;&lt; +std::numeric_limits&lt;Ts&gt;::max() &lt;&lt; ' '), ...) &lt;&lt; '\n';
+}
+
+// Un pliage sur operator&amp;&amp; utilisant le paquet
+// et sur operator, utilisant les arguments variadiques
+template&lt;typename T, typename... Args&gt;
+void push_back_vec(std::vector&lt;T&gt;&amp; v, Args&amp;&amp;... args)
+{
+    static_assert((std::is_constructible_v&lt;T, Args&amp;&amp;&gt; &amp;&amp; ...));
+    (v.push_back(std::forward&lt;Args&gt;(args)), ...);
+}
+
+// Utilisation d'une séquence d'entiers pour exécuter une expression
+// N fois, en pliant une lambda sur operator,
+template&lt;class T, std::size_t... dummy_pack&gt;
+constexpr T bswap_impl(T i, std::index_sequence&lt;dummy_pack...&gt;)
+{
+    T low_byte_mask = static_cast&lt;unsigned char&gt;(-1);
+    T ret{};
+    ([&amp;]
+    {
+        (void)dummy_pack;
+        ret &lt;&lt;= CHAR_BIT;
+        ret |= i &amp; low_byte_mask;
+        i &gt;&gt;= CHAR_BIT;
+    }(), ...);
+    return ret;
+}
+
+constexpr auto bswap(std::unsigned_integral auto i)
+{
+    return bswap_impl(i, std::make_index_sequence&lt;sizeof(i)&gt;{});
+}
+
+int main()
+{
+    printer(1, 2, 3, &quot;abc&quot;);
+    print_limits&lt;uint8_t, uint16_t, uint32_t&gt;();
+
+    std::vector&lt;int&gt; v;
+    push_back_vec(v, 6, 2, 45, 12);
+    push_back_vec(v, 1, 2, 9);
+    for (int i : v)
+        std::cout &lt;&lt; i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    static_assert(bswap&lt;std::uint16_t&gt;(0x1234u) == 0x3412u);
+    static_assert(bswap&lt;std::uint64_t&gt;(0x0123456789abcdefull) == 0xefcdab8967452301ULL);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">123abc
+255 65535 4294967295
+6 2 45 12 1 2 9
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.5.6 Expressions de pliage [expr.prim.fold]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.5.6 Expressions de pliage [expr.prim.fold]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>8.1.6 Expressions de pliage [expr.prim.fold]</li>
+</ul>
+</li>
+</ul>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2611.html">CWG 2611</a></td>
+<td>C++17</td>
+<td>les résultats de développement des expressions de pliage n'étaient pas entourés de parenthèses</td>
+<td>entourés de parenthèses</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

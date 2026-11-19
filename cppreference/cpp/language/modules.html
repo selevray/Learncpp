@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modules (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="modules-depuis-c-20">Modules (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/modules">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>La plupart des projets C++ utilisent plusieurs unités de traduction ; ils ont donc besoin de partager des <a href="declarations.html">déclarations</a> et des <a href="definition.html">définitions</a> entre ces unités. L'usage des <a href="../standard_library.html#Headers">en-têtes</a> est très répandu à cette fin, la <a href="../standard_library.html">bibliothèque standard</a> en étant un exemple : ses déclarations sont fournies par <a href="../standard_library.html#Including_headers">l'inclusion de l'en-tête correspondant</a>.</p>
+<p>Les modules sont une fonctionnalité du langage permettant de partager des déclarations et des définitions entre unités de traduction. Ils constituent une alternative à certains cas d'usage des en-têtes.</p>
+<p>Les modules sont orthogonaux aux <a href="namespace.html">espaces de noms</a>.</p>
+<pre><code class="language-cpp">// helloworld.cpp
+export module helloworld; // déclaration de module
+
+import &lt;iostream&gt;;        // déclaration d'importation
+
+export void hello()       // déclaration d'exportation
+{
+    std::cout &lt;&lt; &quot;Hello world!\n&quot;;
+}
+</code></pre>
+<pre><code class="language-cpp">// main.cpp
+import helloworld; // déclaration d'importation
+
+int main()
+{
+    hello();
+}
+</code></pre>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>export</code><em>(facultatif)</em> <code>module</code> <code>module-name module-partition</code> ﻿*(facultatif)* <code>attr</code> ﻿*(facultatif)* <code>;</code> | (1) | |
+|
+| <code>export</code> <code>declaration</code> | (2) | |
+|
+| <code>export {</code> <code>declaration-seq</code> ﻿*(facultatif)* <code>}</code> | (3) | |
+|
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>module-name attr</code> ﻿*(facultatif)* <code>;</code> | (4) | |
+|
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>module-partition attr</code> ﻿*(facultatif)* <code>;</code> | (5) | |
+|
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>header-name attr</code> ﻿*(facultatif)* <code>;</code> | (6) | |
+|
+| <code>module;</code> | (7) | |
+|
+| <code>module : private;</code> | (8) | |
+|</p>
+<ol>
+<li>Déclaration de module. Déclare que l'unité de traduction courante est une <em>unité de module</em>.</li>
+</ol>
+<p>2,3) Déclaration d'exportation. Exporte toutes les déclarations de portée d'espace de noms dans <code>declaration</code> ou <code>declaration-seq</code>.</p>
+<p>4,5,6) Déclaration d'importation. Importe une unité de module, une partition de module ou une unité d'en-tête.</p>
+<ol start="7">
+<li>
+<p>Commence un <a href="modules.html#Global_module_fragment">fragment de module global</a>.</p>
+</li>
+<li>
+<p>Commence un <a href="modules.html#Private_module_fragment">fragment de module privé</a>.</p>
+</li>
+</ol>
+<h2 id="Module_declarations">Déclarations de module</h2>
+<p>Une unité de traduction peut avoir une déclaration de module, auquel cas elle est considérée comme une <em>unité de module</em>. La <em>déclaration de module</em>, si elle est fournie, doit être la première déclaration de l'unité de traduction (à l'exception du <em>fragment de module global</em>, traité plus loin). Chaque unité de module est associée à un <em>nom de module</em> (et éventuellement à une partition), fourni dans la déclaration de module.</p>
+<p>|
+| |
+| <code>export</code><em>(facultatif)</em> <code>module</code> <code>module-name module-partition</code> ﻿*(facultatif)* <code>attr</code> ﻿*(facultatif)* <code>;</code> | | |
+|</p>
+<p>Le nom de module est constitué d'un ou plusieurs identificateurs séparés par des points (par exemple : <code>mymodule</code>, <code>mymodule.mysubmodule</code>, <code>mymodule2</code>...). Les points n'ont pas de signification intrinsèque, mais sont utilisés informellement pour représenter une hiérarchie.</p>
+<p>Si un identificateur du nom de module ou de la partition de module est défini comme <a href="../preprocessor/replace.html">macro de type objet</a>, le programme est mal formé.</p>
+<p>Un <em>module nommé</em> est l'ensemble des unités de module ayant le même nom de module.</p>
+<p>Les unités de module dont la déclaration comporte le mot-clé <code>export</code> sont appelées <em>unités d'interface de module</em> ; toutes les autres unités de module sont appelées <em>unités d'implémentation de module</em>.</p>
+<p>Pour chaque module nommé, il doit exister exactement une unité d'interface de module ne spécifiant aucune partition de module ; cette unité est appelée <em>unité d'interface de module primaire</em>. Son contenu exporté sera disponible lors de l'importation du module nommé correspondant.</p>
+<pre><code class="language-cpp">// (chaque ligne représente une unité de traduction distincte)
+
+export module A;   // déclare l'unité d'interface de module primaire du module nommé 'A'
+module A;          // déclare une unité d'implémentation de module pour le module nommé 'A'
+module A;          // déclare une autre unité d'implémentation de module pour le module nommé 'A'
+export module A.B; // déclare l'unité d'interface de module primaire du module nommé 'A.B'
+module A.B;        // déclare une unité d'implémentation de module pour le module nommé 'A.B'
+</code></pre>
+<h2 id="Exporting_declarations_and_definitions">Exportation de déclarations et de définitions</h2>
+<p>Les unités d'interface de module peuvent exporter des déclarations (y compris des définitions), qui peuvent être importées par d'autres unités de traduction. Pour exporter une déclaration, soit la faire précéder du mot-clé <code>export</code>, soit la placer dans un bloc <code>export</code>.</p>
+<p>|
+| |
+| <code>export</code> <code>declaration</code> | | |
+|
+| <code>export {</code> <code>declaration-seq</code> ﻿*(facultatif)* <code>}</code> | | |
+|</p>
+<pre><code class="language-cpp">export module A; // déclare l'unité d'interface de module primaire du module nommé 'A'
+
+// hello() sera visible par les unités de traduction important 'A'
+export char const* hello() { return &quot;hello&quot;; }
+
+// world() ne sera PAS visible.
+char const* world() { return &quot;world&quot;; }
+
+// one() et zero() seront tous deux visibles.
+export
+{
+    int one()  { return 1; }
+    int zero() { return 0; }
+}
+
+// L'exportation d'espaces de noms fonctionne aussi : hi::english() et hi::french() seront visibles.
+export namespace hi
+{
+    char const* english() { return &quot;Hi!&quot;; }
+    char const* french()  { return &quot;Salut!&quot;; }
+}
+</code></pre>
+<h2 id="Importing_modules_and_header_units">Importation de modules et d'unités d'en-tête</h2>
+<p>Les modules sont importés via une <em>déclaration d'importation</em> :</p>
+<p>|
+| |
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>module-name attr</code> ﻿*(facultatif)* <code>;</code> | | |
+|</p>
+<p>Toutes les déclarations et définitions exportées dans les unités d'interface du module nommé donné seront disponibles dans l'unité de traduction utilisant la déclaration d'importation.</p>
+<p>Les déclarations d'importation peuvent être exportées dans une unité d'interface de module. Autrement dit, si le module <code>B</code> export-imports <code>A</code>, alors l'importation de <code>B</code> rendra également visibles toutes les exportations de <code>A</code>.</p>
+<p>Dans les unités de module, toutes les déclarations d'importation (y compris les export-imports) doivent être regroupées après la déclaration de module et avant toutes les autres déclarations.</p>
+<pre><code class="language-cpp">/////// A.cpp (unité d'interface de module primaire de 'A')
+export module A;
+
+export char const* hello() { return &quot;hello&quot;; }
+
+/////// B.cpp (unité d'interface de module primaire de 'B')
+export module B;
+
+export import A;
+
+export char const* world() { return &quot;world&quot;; }
+
+/////// main.cpp (pas une unité de module)
+#include &lt;iostream&gt;
+import B;
+
+int main()
+{
+    std::cout &lt;&lt; hello() &lt;&lt; ' ' &lt;&lt; world() &lt;&lt; '\n';
+}
+</code></pre>
+<p><a href="../preprocessor/include.html"><code>#include</code></a> ne doit pas être utilisé dans une unité de module (en dehors du <em>fragment de module global</em>), car toutes les déclarations et définitions incluses seraient considérées comme faisant partie du module. On peut à la place importer les en-têtes comme <em>unités d'en-tête</em> avec une <em>déclaration d'importation</em> :</p>
+<p>|
+| |
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>header-name attr</code> ﻿*(facultatif)* <code>;</code> | | |
+|</p>
+<p>Une unité d'en-tête est une unité de traduction distincte synthétisée à partir d'un en-tête. Importer une unité d'en-tête rend accessibles toutes ses définitions et déclarations. Les macros du préprocesseur le sont aussi (car les déclarations d'importation sont reconnues par le préprocesseur).</p>
+<p>Toutefois, contrairement à <code>#include</code>, les macros de préprocesseur déjà définies au point de la déclaration d'importation n'affectent pas le traitement de l'en-tête. Cela peut être gênant dans certains cas (certains en-têtes utilisent des macros de préprocesseur comme forme de configuration) ; il faut alors utiliser un <em>fragment de module global</em>.</p>
+<pre><code class="language-cpp">/////// A.cpp (unité d'interface de module primaire de 'A')
+export module A;
+
+import &lt;iostream&gt;;
+export import &lt;string_view&gt;;
+
+export void print(std::string_view message)
+{
+    std::cout &lt;&lt; message &lt;&lt; std::endl;
+}
+
+/////// main.cpp (pas une unité de module)
+import A;
+
+int main()
+{
+    std::string_view message = &quot;Hello, world!&quot;;
+    print(message);
+}
+</code></pre>
+<h2 id="Global_module_fragment">Fragment de module global</h2>
+<p>Les unités de module peuvent être précédées d'un <em>fragment de module global</em>, qui permet d'inclure des en-têtes lorsque leur importation n'est pas possible (notamment lorsque l'en-tête utilise des macros de préprocesseur comme configuration).</p>
+<p><code>module;</code></p>
+<p><code>preprocessing-directives</code> ﻿*(facultatif)*</p>
+<p><code>module-declaration</code></p>
+<p>Si une unité de module possède un fragment de module global, sa première déclaration doit être <code>module;</code>. Ensuite, seules des <a href="../preprocessor.html#Directives">directives de préprocesseur</a> peuvent apparaître dans le fragment de module global. Puis une déclaration de module standard marque la fin du fragment de module global et le début du contenu du module.</p>
+<pre><code class="language-cpp">/////// A.cpp (unité d'interface de module primaire de 'A')
+module;
+
+// La définition de _POSIX_C_SOURCE ajoute des fonctions aux en-têtes standard,
+// conformément à la norme POSIX.
+#define _POSIX_C_SOURCE 200809L
+#include &lt;stdlib.h&gt;
+
+export module A;
+
+import &lt;ctime&gt;;
+
+// Uniquement à des fins de démonstration (mauvaise source d'aléa).
+// Utilisez plutôt le &lt;random&gt; du C++.
+export double weak_random()
+{
+    std::timespec ts;
+    std::timespec_get(&amp;ts, TIME_UTC); // depuis &lt;ctime&gt;
+
+    // Fourni dans &lt;stdlib.h&gt; conformément à la norme POSIX.
+    srand48(ts.tv_nsec);
+
+    // drand48() renvoie un nombre aléatoire entre 0 et 1.
+    return drand48();
+}
+
+/////// main.cpp (pas une unité de module)
+import &lt;iostream&gt;;
+import A;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Random value between 0 and 1: &quot; &lt;&lt; weak_random() &lt;&lt; '\n';
+}
+</code></pre>
+<h2 id="Private_module_fragment">Fragment de module privé</h2>
+<p>L'unité d'interface de module primaire peut être suivie d'un <em>fragment de module privé</em>, qui permet de représenter un module comme une seule unité de traduction sans rendre tout son contenu accessible aux importateurs.</p>
+<p><code>module : private;</code></p>
+<p><code>declaration-seq</code> ﻿*(facultatif)*</p>
+<p>Le <em>fragment de module privé</em> termine la partie de l'unité d'interface de module pouvant affecter le comportement des autres unités de traduction. Si une unité de module contient un <em>fragment de module privé</em>, elle sera la seule unité de module de son module.</p>
+<pre><code class="language-cpp">export module foo;
+
+export int f();
+
+module : private; // termine la partie de l'unité d'interface de module qui
+                  // peut affecter le comportement d'autres unités de traduction
+                  // débute un fragment privé de module
+
+int f()           // définition non accessible depuis les importateurs de foo
+{
+    return 42;
+}
+</code></pre>
+<h2 id="Module_partitions">Partitions de module</h2>
+<p>Un module peut avoir des <em>unités de partition de module</em>. Ce sont des unités de module dont la déclaration de module comprend une partition de module, qui commence par un deux-points <code>:</code> et est placée après le nom du module.</p>
+<pre><code class="language-cpp">export module A:B; // Déclare une unité d'interface de module pour le module 'A', partition ':B'.
+</code></pre>
+<p>Une partition de module représente exactement une unité de module (deux unités de module ne peuvent pas désigner la même partition de module). Elles ne sont visibles qu'à l'intérieur du module nommé (les unités de traduction extérieures au module nommé ne peuvent pas importer directement une partition de module).</p>
+<p>Une partition de module peut être importée par les unités de module du même module nommé.</p>
+<p>|
+| |
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>module-partition attr</code> ﻿*(facultatif)* <code>;</code> | | |
+|</p>
+<pre><code class="language-cpp">/////// A-B.cpp
+export module A:B;
+...
+
+/////// A-C.cpp
+module A:C;
+...
+
+/////// A.cpp
+export module A;
+
+import :C;
+export import :B;
+
+...
+</code></pre>
+<p>Toutes les définitions et déclarations d'une partition de module sont visibles par l'unité de module qui l'importe, qu'elles soient exportées ou non.</p>
+<p>Les partitions de module peuvent être des unités d'interface de module (lorsque leurs déclarations de module comportent <code>export</code>). Elles doivent être export-importées par l'unité d'interface de module primaire, et leurs instructions exportées seront visibles lorsque le module sera importé.</p>
+<p>|
+| |
+| <code>export</code><em>(facultatif)</em> <code>import</code> <code>module-partition attr</code> ﻿*(facultatif)* <code>;</code> | | |
+|</p>
+<pre><code class="language-cpp">///////  A.cpp
+export module A;     // unité d'interface de module primaire
+
+export import :B;    // Hello() est visible lors de l'importation de 'A'.
+import :C;           // WorldImpl() n'est désormais visible que pour 'A.cpp'.
+// export import :C; // ERREUR : impossible d'exporter une unité d'implémentation de module.
+
+// World() est visible par toute unité de traduction important 'A'.
+export char const* World()
+{
+    return WorldImpl();
+}
+</code></pre>
+<pre><code class="language-cpp">/////// A-B.cpp
+export module A:B; // unité d'interface de module de partition
+
+// Hello() est visible par toute unité de traduction important 'A'.
+export char const* Hello() { return &quot;Hello&quot;; }
+</code></pre>
+<pre><code class="language-cpp">/////// A-C.cpp
+module A:C; // unité d'implémentation de module de partition
+
+// WorldImpl() est visible par toute unité de module de 'A' important ':C'.
+char const* WorldImpl() { return &quot;World&quot;; }
+</code></pre>
+<pre><code class="language-cpp">/////// main.cpp
+import A;
+import &lt;iostream&gt;;
+
+int main()
+{
+    std::cout &lt;&lt; Hello() &lt;&lt; ' ' &lt;&lt; World() &lt;&lt; '\n';
+    // WorldImpl(); // ERREUR : WorldImpl() n'est pas visible.
+}
+</code></pre>
+<h2 id="Module_ownership">Appartenance à un module</h2>
+<p>En général, si une déclaration apparaît après la déclaration de module dans une unité de module, elle est <em>rattachée à</em> ce module.</p>
+<p>Si la déclaration d'une entité est rattachée à un module nommé, cette entité ne peut être définie que dans ce module. Toutes les déclarations d'une telle entité doivent être rattachées au même module.</p>
+<p>Si une déclaration est rattachée à un module nommé et n'est pas exportée, le nom déclaré possède une <a href="storage_duration.html#Module_linkage">liaison de module</a>.</p>
+<pre><code class="language-cpp">export module lib_A;
+
+int f() { return 0; } // f a une liaison de module
+export int x = f();   // x vaut 0
+</code></pre>
+<pre><code class="language-cpp">export module lib_B;
+
+int f() { return 1; } // OK, f dans lib_A et f dans lib_B désignent des entités différentes
+export int y = f(); // y vaut 1
+</code></pre>
+<p>Si <a href="conflicting_declarations.html#Multiple_declarations_of_the_same_entity">deux déclarations d'une entité</a> sont rattachées à des modules différents, le programme est mal formé ; aucun diagnostic n'est requis si aucune des deux n'est accessible depuis l'autre.</p>
+<pre><code class="language-cpp">/////// decls.h
+int f(); // #1, rattachée au module global
+int g(); // #2, rattachée au module global
+</code></pre>
+<pre><code class="language-cpp">/////// Interface du module M
+module;
+#include &quot;decls.h&quot;
+export module M;
+export using ::f; // OK, ne déclare aucune entité, exporte #1
+int g();          // Erreur : correspond à #2, mais rattachée à M
+export int h();   // #3
+export int k();   // #4
+</code></pre>
+<pre><code class="language-cpp">/////// Autre unité de traduction
+import M;
+static int h();   // Erreur : correspond à #3
+int k();          // Erreur : correspond à #4
+</code></pre>
+<p>Les déclarations suivantes ne sont rattachées à aucun module nommé (l'entité déclarée peut donc être définie en dehors du module) :</p>
+<ul>
+<li><a href="namespace.html">définitions d'espaces de noms</a> à liaison externe ;</li>
+<li>déclarations à l'intérieur d'une spécification de <a href="language_linkage.html">liaison de langage</a>.</li>
+</ul>
+<pre><code class="language-cpp">export module lib_A;
+
+namespace ns // ns n'est pas rattaché à lib_A.
+{
+    export extern &quot;C++&quot; int f(); // f n'est pas rattachée à lib_A.
+           extern &quot;C++&quot; int g(); // g n'est pas rattachée à lib_A.
+    export              int h(); // h est rattachée à lib_A.
+}
+// ns::h doit être définie dans lib_A, mais ns::f et ns::g peuvent être définies ailleurs (par exemple
+// dans un fichier source traditionnel).
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_modules"><code>__cpp_modules</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_modules_201907L"><code>201907L</code></a></td>
+<td><em>(C++20)</em></td>
+<td>Modules — prise en charge du noyau du langage</td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_modules"><code>__cpp_lib_modules</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_lib_modules_202207L"><code>202207L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><a href="../standard_library.html#Importing_modules">Modules de la bibliothèque standard</a> <code>std</code> et <code>std.compat</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/private.html"><code>private</code></a>,
+<a href="../identifier_with_special_meaning/module.html"><code>module</code></a>,
+<a href="../identifier_with_special_meaning/import.html"><code>import</code></a>,
+<a href="../keyword/export.html"><code>export</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2732.html">CWG 2732</a></td>
+<td>C++20</td>
+<td>il n'était pas clair si les en-têtes importables peuvent réagir à l'état du préprocesseur à partir du point d'importation</td>
+<td>aucune réaction</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P3034R1">P3034R1</a></td>
+<td>C++20</td>
+<td>les noms de modules et les partitions de modules peuvent contenir des identifiants définis comme macros de type objet</td>
+<td>prohibited</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

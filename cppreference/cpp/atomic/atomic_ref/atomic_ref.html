@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic_ref&lt;T&gt;::atomic_ref — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/atomic/atomic_ref.html">std::atomic_ref</a></nav>
+<h1 id="std-atomic_ref-t-atomic_ref"><code>std::atomic_ref&lt;T&gt;::atomic_ref</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic_ref/atomic_ref">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">explicit atomic_ref( T&amp; obj );  // (1) (constexpr depuis C++26)
+
+atomic_ref( const atomic_ref&amp; ref ) noexcept;  // (2) (constexpr depuis C++26)
+</code></pre>
+<p>Construit un nouvel objet <code>atomic_ref</code>.</p>
+<ol>
+<li>Construit un objet <code>atomic_ref</code> référençant l'objet <code>obj</code>.</li>
+</ol>
+<p>Si <code>obj</code> n'est pas aligné sur <a href="required_alignment.html"><code>required_alignment</code></a>, le comportement est indéfini.</p>
+<ol start="2">
+<li>Construit un objet <code>atomic_ref</code> référençant l'objet référencé par <code>ref</code>.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>obj</code> — objet à référencer</li>
+<li><code>ref</code> — un autre objet <code>atomic_ref</code> à copier</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>Le programme incrémente les valeurs d'un conteneur à l'aide de plusieurs threads. Puis la somme finale est affichée. Un accès non atomique peut &quot;perdre&quot; les résultats de certaines opérations en raison de situations de course (data races).</p>
+<pre><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+#include &lt;numeric&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    using Data = std::vector&lt;char&gt;;
+
+    auto inc_atomically = [](Data&amp; data)
+    {
+        for (Data::value_type&amp; x : data)
+        {
+            auto xx = std::atomic_ref&lt;Data::value_type&gt;(x);
+            ++xx; // lecture-modification-écriture atomique
+        }
+    };
+
+    auto inc_directly = [](Data&amp; data)
+    {
+        for (Data::value_type&amp; x : data)
+            ++x;
+    };
+
+    auto test_run = [](const auto Fun)
+    {
+        Data data(10'000'000);
+        {
+            std::jthread j1{Fun, std::ref(data)};
+            std::jthread j2{Fun, std::ref(data)};
+            std::jthread j3{Fun, std::ref(data)};
+            std::jthread j4{Fun, std::ref(data)};
+        }
+        std::cout &lt;&lt; &quot;sum = &quot; &lt;&lt; std::accumulate(cbegin(data), cend(data), 0) &lt;&lt; '\n';
+    };
+
+    test_run(inc_atomically);
+    test_run(inc_directly);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">sum = 40000000
+sum = 39994973
+</code></pre>
+
+</main>
+</body>
+</html>

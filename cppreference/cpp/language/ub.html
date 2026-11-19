@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comportement indéfini — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="comportement-indéfini">Comportement indéfini</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/ub">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Rend le programme entier dénué de sens si certaines règles du langage sont violées.</p>
+<h2 id="Explanation">Explication</h2>
+<p>La norme C++ définit précisément le <a href="as_if.html">comportement observable</a> de chaque programme C++ qui n'appartient à aucune des classes suivantes :</p>
+<ul>
+<li>
+<p><em>mal formé</em> - Le programme contient des erreurs de syntaxe ou des erreurs sémantiques détectables.</p>
+<ul>
+<li>Un compilateur C++ conforme est tenu d'émettre un diagnostic, même s'il définit une extension du langage qui donne un sens à ce code (comme avec les tableaux de taille variable).</li>
+<li>Le texte de la norme utilise <em>shall</em>, <em>shall not</em> et <em>ill-formed</em> pour indiquer ces exigences.</li>
+</ul>
+</li>
+<li>
+<p><em>mal formé, <a href="ndr.html">aucun diagnostic requis</a></em> - Le programme contient des erreurs sémantiques qui peuvent ne pas être détectables dans le cas général (par exemple des violations de la <a href="definition.html">ODR</a> ou d'autres erreurs détectables seulement à l'édition des liens).</p>
+<ul>
+<li>Le comportement est indéfini si un tel programme est exécuté.</li>
+</ul>
+</li>
+<li>
+<p><em>comportement défini par l'implémentation</em> - Le comportement du programme varie selon les implémentations, et l'implémentation conforme doit documenter les effets de chaque comportement.</p>
+<ul>
+<li>Par exemple, le type de <a href="../types/size_t.html"><code>std::size_t</code></a> ou le nombre de bits d'un octet, ou le texte de <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc::what</code></a>.</li>
+<li>Un sous-ensemble du comportement défini par l'implémentation est le <em>comportement spécifique à la locale</em>, qui dépend de la <a href="../locale.html">locale</a> fournie par l'implémentation.</li>
+</ul>
+</li>
+<li>
+<p><em>comportement non spécifié</em> - Le comportement du programme varie selon les implémentations, et l'implémentation conforme n'est pas tenue de documenter les effets de chaque comportement.</p>
+<ul>
+<li>Par exemple, <a href="eval_order.html">l'ordre d'évaluation</a>, le fait que des <a href="string_literal.html">littéraux de chaîne</a> identiques soient distincts, la quantité de surcharge d'allocation des tableaux, etc.</li>
+<li>Chaque comportement non spécifié produit l'un d'un ensemble de résultats valides.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><em>comportement erroné</em> - Le comportement (incorrect) que l'implémentation est encouragée à diagnostiquer.</li>
+<li>Un comportement erroné résulte toujours d'un code de programme incorrect.</li>
+<li>L'évaluation d'une expression constante ne produit jamais de comportement erroné.</li>
+<li>Si l'exécution contient une opération spécifiée comme ayant un comportement erroné, l'implémentation est autorisée et encouragée à émettre un diagnostic, et peut arrêter l'exécution à un moment non spécifié après cette opération.</li>
+<li>Une implémentation peut émettre un diagnostic si elle peut déterminer qu'un comportement erroné est atteignable selon un ensemble d'hypothèses propres à l'implémentation sur le comportement du programme, ce qui peut produire des faux positifs.</li>
+</ul>
+<p><strong>Exemples de comportements erronés</strong></p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;cstring&gt;
+
+void f()
+{
+    int d1, d2;       // d1, d2 ont des valeurs erronées
+    int e1 = d1;      // comportement erroné
+    int e2 = d1;      // comportement erroné
+    assert(e1 == e2); // holds
+    assert(e1 == d1); // holds, comportement erroné
+    assert(e2 == d1); // holds, comportement erroné
+
+    std::memcpy(&amp;d2, &amp;d1, sizeof(int)); // pas de comportement erroné, mais
+                                        // d2 a une valeur erronée
+
+    assert(e1 == d2); // holds, comportement erroné
+    assert(e2 == d2); // holds, comportement erroné
+}
+
+unsigned char g(bool b)
+{
+    unsigned char c;     // c a une valeur erronée
+    unsigned char d = c; // pas de comportement erroné, mais d a une valeur erronée
+    assert(c == d);      // holds, les deux promotions intégrales ont un comportement erroné
+    int e = d;           // comportement erroné
+    return b ? d : 0;    // comportement erroné si b est vrai
+}
+</code></pre>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<ul>
+<li><em>comportement indéfini</em> - Il n'existe aucune restriction sur le comportement du programme.
+<ul>
+<li>Quelques exemples de comportement indéfini sont les courses de données, les accès mémoire en dehors des bornes d'un tableau, le dépassement de capacité des entiers signés, le déréférencement d'un pointeur nul, <a href="eval_order.html">plus d'une</a> modification du même scalaire dans une expression [sans aucun point de séquence intermédiaire <em>(jusqu'à C++11)</em> | qui est non séquencée <em>(depuis C++11)</em>], l'accès à un objet via <a href="reinterpret_cast.html#Type_aliasing">un pointeur d'un type différent</a>, etc.</li>
+<li>Les implémentations ne sont pas tenues de diagnostiquer le comportement indéfini (bien que de nombreuses situations simples soient diagnostiquées), et le programme compilé n'est pas tenu de faire quoi que ce soit de significatif.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li><em>comportement indéfini à l'exécution</em> - Comportement indéfini sauf lorsqu'il se produit pendant l'évaluation d'une expression en tant qu'<a href="constant_expression.html#Core_constant_expression">expression constante de base</a>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="UB_and_optimization">UB et optimisation</h2>
+<p>Parce que les programmes C++ corrects sont exempts de comportement indéfini, les compilateurs peuvent produire des résultats inattendus lorsqu'un programme qui présente réellement un UB est compilé avec l'optimisation activée :</p>
+<p>Par exemple,</p>
+<h3 id="Signed_overflow">Dépassement de capacité signé</h3>
+<pre><code class="language-cpp">int foo(int x)
+{
+    return x + 1 &gt; x; // soit vrai, soit UB dû au dépassement de capacité signé
+}
+</code></pre>
+<p>peut être compilé comme (<a href="https://godbolt.org/z/re39h7P1K">démo</a>)</p>
+<pre><code class="language-cpp">foo(int):
+        mov     eax, 1
+        ret
+</code></pre>
+<h3 id="Access_out_of_bounds">Accès hors bornes</h3>
+<pre><code class="language-cpp">int table[4] = {};
+bool exists_in_table(int v)
+{
+    // renvoie true dans l'une des 4 premières itérations, ou UB dû à un accès hors bornes
+    for (int i = 0; i &lt;= 4; i++)
+        if (table[i] == v)
+            return true;
+    return false;
+}
+</code></pre>
+<p>Peut être compilé comme (<a href="https://godbolt.org/z/vMbsdo5az">démo</a>)</p>
+<pre><code class="language-cpp">exists_in_table(int):
+        mov     eax, 1
+        ret
+</code></pre>
+<h3 id="Uninitialized_scalar">Scalaire non initialisé</h3>
+<pre><code class="language-cpp">std::size_t f(int x)
+{
+    std::size_t a;
+    if (x) // soit x non nul, soit UB
+        a = 42;
+    return a;
+}
+</code></pre>
+<p>Peut être compilé comme (<a href="https://godbolt.org/z/1sraffdM8">démo</a>)</p>
+<pre><code class="language-cpp">f(int):
+        mov     eax, 42
+        ret
+</code></pre>
+<p>La sortie présentée a été observée avec une version plus ancienne de gcc</p>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+
+int main()
+{
+    bool p; // variable locale non initialisée
+    if (p)  // accès UB à un scalaire non initialisé
+        std::puts(&quot;p is true&quot;);
+    if (!p) // accès UB à un scalaire non initialisé
+        std::puts(&quot;p is false&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">p is true
+p is false
+</code></pre>
+<h3 id="Invalid_scalar">Scalaire invalide</h3>
+<pre><code class="language-cpp">int f()
+{
+    bool b = true;
+    unsigned char* p = reinterpret_cast&lt;unsigned char*&gt;(&amp;b);
+    *p = 10;
+    // la lecture de b est désormais UB
+    return b == 0;
+}
+</code></pre>
+<p>Peut être compilé comme (<a href="https://godbolt.org/z/4vKxhcea4">démo</a>)</p>
+<pre><code class="language-cpp">f():
+        mov     eax, 11
+        ret
+</code></pre>
+<h3 id="Null_pointer_dereference">Déréférencement d'un pointeur nul</h3>
+<p>Les exemples montrent la lecture du résultat du déréférencement d'un pointeur nul.</p>
+<pre><code class="language-cpp">int foo(int* p)
+{
+    int x = *p;
+    if (!p)
+        return x; // Soit UB ci-dessus, soit cette branche n'est jamais prise
+    else
+        return 0;
+}
+
+int bar()
+{
+    int* p = nullptr;
+    return *p; // UB inconditionnel
+}
+</code></pre>
+<p>peut être compilé comme (<a href="https://godbolt.org/z/edxr5W5T7">démo</a>)</p>
+<pre><code class="language-cpp">foo(int*):
+        xor     eax, eax
+        ret
+bar():
+        ret
+</code></pre>
+<h3 id="Access_to_pointer_passed_to_std::realloc">Accès à un pointeur passé à <a href="../memory/c/realloc.html"><code>std::realloc</code></a></h3>
+<p>Choisissez clang pour observer la sortie présentée</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    int* p = (int*)std::malloc(sizeof(int));
+    int* q = (int*)std::realloc(p, sizeof(int));
+    *p = 1; // accès UB à un pointeur qui a été passé à realloc
+    *q = 2;
+    if (p == q) // accès UB à un pointeur qui a été passé à realloc
+        std::cout &lt;&lt; *p &lt;&lt; *q &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">12
+</code></pre>
+<h3 id="Infinite_loop_without_side-effects">Boucle infinie sans effets de bord</h3>
+<p>Choisissez clang ou la dernière version de gcc pour observer la sortie présentée.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+bool fermat()
+{
+    const int max_value = 1000;
+
+    // Une boucle infinie non triviale sans effets de bord est UB
+    for (int a = 1, b = 1, c = 1; true; )
+    {
+        if (((a * a * a) == ((b * b * b) + (c * c * c))))
+            return true; // disproved :()
+        a++;
+        if (a &gt; max_value)
+        {
+            a = 1;
+            b++;
+        }
+        if (b &gt; max_value)
+        {
+            b = 1;
+            c++;
+        }
+        if (c &gt; max_value)
+            c = 1;
+    }
+
+    return false; // non réfuté
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Fermat's Last Theorem &quot;;
+    fermat()
+        ? std::cout &lt;&lt; &quot;has been disproved!\n&quot;
+        : std::cout &lt;&lt; &quot;has not been disproved.\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Fermat's Last Theorem has been disproved!
+</code></pre>
+<h2 id="Ill-formed_with_diagnostic_message">Mal formé avec message de diagnostic</h2>
+<p>Notez que les compilateurs sont autorisés à étendre le langage d'une manière qui donne un sens aux programmes mal formés. La seule chose que la norme C++ exige dans ces cas est un message de diagnostic (avertissement du compilateur), sauf si le programme est « mal formé, aucun diagnostic requis ».</p>
+<p>Par exemple, à moins que les extensions du langage ne soient désactivées via <code>--pedantic-errors</code>, GCC compilera l'exemple suivant <a href="https://coliru.stacked-crooked.com/a/3cc6bdd9576df9a5">avec seulement un avertissement</a> alors qu'il <a href="https://eel.is/c++draft/dcl.init.list#example-6">apparaît dans la norme C++</a> comme exemple d'« erreur » (voir aussi <a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55783">GCC Bugzilla #55783</a>)</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Modification d'exemple, ne pas utiliser constant
+double a{1.0};
+
+// Norme C++23, §9.4.5 List-initialization [dcl.init.list], Exemple #6 :
+struct S
+{
+    // aucun constructeur à liste d'initialisation
+    S(int, double, double); // #1
+    S();                    // #2
+    // ...
+};
+
+S s1 = {1, 2, 3.0}; // OK, appeler #1
+S s2{a, 2, 3}; // error: narrowing
+S s3{}; // OK, appeler #2
+// — fin de l'exemple]
+
+S::S(int, double, double) {}
+S::S() {}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;All checks have passed.\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">main.cpp:17:6: error: type 'double' cannot be narrowed to 'int' in initializer ⮠
+list [-Wc++11-narrowing]
+S s2{a, 2, 3}; // error: narrowing
+     ^
+main.cpp:17:6: note: insert an explicit cast to silence this issue
+S s2{a, 2, 3}; // error: narrowing
+     ^
+     static_cast&lt;int&gt;( )
+1 error generated.
+</code></pre>
+<h2 id="References">Références</h2>
+<p><strong>Contenu étendu</strong></p>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>3.25 programme mal formé [defns.ill.formed]</li>
+<li>3.26 comportement défini par l'implémentation [defns.impl.defined]</li>
+<li>3.66 comportement non spécifié [defns.unspecified]</li>
+<li>3.68 programme bien formé [defns.well.formed]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>TBD programme mal formé [defns.ill.formed]</li>
+<li>TBD comportement défini par l'implémentation [defns.impl.defined]</li>
+<li>TBD comportement non spécifié [defns.unspecified]</li>
+<li>TBD programme bien formé [defns.well.formed]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>TBD programme mal formé [defns.ill.formed]</li>
+<li>TBD comportement défini par l'implémentation [defns.impl.defined]</li>
+<li>TBD comportement non spécifié [defns.unspecified]</li>
+<li>TBD programme bien formé [defns.well.formed]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>TBD programme mal formé [defns.ill.formed]</li>
+<li>TBD comportement défini par l'implémentation [defns.impl.defined]</li>
+<li>TBD comportement non spécifié [defns.unspecified]</li>
+<li>TBD programme bien formé [defns.well.formed]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>TBD programme mal formé [defns.ill.formed]</li>
+<li>TBD comportement défini par l'implémentation [defns.impl.defined]</li>
+<li>TBD comportement non spécifié [defns.unspecified]</li>
+<li>TBD programme bien formé [defns.well.formed]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>TBD programme mal formé [defns.ill.formed]</li>
+<li>TBD comportement défini par l'implémentation [defns.impl.defined]</li>
+<li>TBD comportement non spécifié [defns.unspecified]</li>
+<li>TBD programme bien formé [defns.well.formed]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><code>[[assume(expression)]]</code> (C++23)</strong> — spécifie que l'<em>expression</em> s'évaluera toujours à <code>true</code> en un point donné <em>(spécificateur d'attribut)</em></li>
+<li><strong><code>[[indeterminate]]</code> (C++26)</strong> — spécifie qu'un objet a une valeur indéterminée s'il n'est pas initialisé <em>(spécificateur d'attribut)</em></li>
+<li><strong><a href="../utility/unreachable.html">unreachable</a> (C++23)</strong> — marque un point d'exécution inatteignable <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../c/language/behavior.html">Documentation C</a> pour Comportement indéfini</strong></p>
+<h2 id="External_links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://blog.llvm.org/2011/05/what-every-c-programmer-should-know.html">The LLVM Project Blog: What Every C Programmer Should Know About Undefined Behavior #1/3</a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://blog.llvm.org/2011/05/what-every-c-programmer-should-know_14.html">The LLVM Project Blog: What Every C Programmer Should Know About Undefined Behavior #2/3</a></td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://blog.llvm.org/2011/05/what-every-c-programmer-should-know_21.html">The LLVM Project Blog: What Every C Programmer Should Know About Undefined Behavior #3/3</a></td>
+</tr>
+<tr>
+<td>4.</td>
+<td><a href="https://devblogs.microsoft.com/oldnewthing/20140627-00/?p=633">Le comportement indéfini peut entraîner un voyage dans le temps (entre autres, mais le voyage dans le temps est le plus farfelu)</a></td>
+</tr>
+<tr>
+<td>5.</td>
+<td><a href="https://www.cs.utah.edu/~regehr/papers/overflow12.pdf">Comprendre le dépassement de capacité des entiers en C/C++</a></td>
+</tr>
+<tr>
+<td>6.</td>
+<td><a href="https://lwn.net/Articles/342330/">Fun with NULL pointers, part 1</a> (exploit local dans Linux 2.6.30 causé par un UB dû au déréférencement d'un pointeur nul)</td>
+</tr>
+<tr>
+<td>7.</td>
+<td><a href="https://web.archive.org/web/20201108094235/https://kukuruku.co/post/undefined-behavior-and-fermats-last-theorem/">Comportement indéfini et le dernier théorème de Fermat</a></td>
+</tr>
+<tr>
+<td>8.</td>
+<td><a href="https://pvs-studio.com/en/blog/posts/cpp/1129/">Guide du programmeur C++ sur le comportement indéfini</a></td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::forward_like — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-forward_like"><code>std::forward_like</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/forward_like">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;utility&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class U &gt;
+constexpr auto&amp;&amp; forward_like( U&amp;&amp; x ) noexcept;  // (depuis C++23)
+</code></pre>
+<p>Renvoie une référence à <code>x</code> qui a des propriétés similaires à <code>T&amp;&amp;</code>.</p>
+<p>Le type de retour est déterminé comme suit :</p>
+<ol>
+<li>Si <code>std::remove_reference_t&lt;T&gt;</code> est un type qualifié const, alors le type référencé du type de retour est <code>const std::remove_reference_t&lt;U&gt;</code>. Sinon, le type référencé est <code>std::remove_reference_t&lt;U&gt;</code>.</li>
+<li>Si <code>T&amp;&amp;</code> est un type référence lvalue, alors le type de retour est aussi un type référence lvalue. Sinon, le type de retour est un type référence rvalue.</li>
+</ol>
+<p>Si <code>T</code> n'est pas un <a href="../meta.html#Definitions">type référençable</a>, le programme est mal formé.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>x</code> — une valeur doit être transmise comme le type <code>T</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une référence à <code>x</code> du type déterminé ci-dessus.</p>
+<h2 id="Notes">Notes</h2>
+<p>Comme <a href="forward.html"><code>std::forward</code></a>, <a href="move.html"><code>std::move</code></a> et <a href="as_const.html"><code>std::as_const</code></a>, <code>std::forward_like</code> est un transtypage qui n'influence que la <a href="../language/value_category.html">catégorie de valeur</a> d'une expression, ou ajoute éventuellement une qualification const.</p>
+<p>Lorsque <code>m</code> est un membre réel et que <code>o.m</code> est donc une expression valide, cela s'écrit généralement <code>std::forward&lt;decltype(o)&gt;(o).m</code> en code C++20.</p>
+<p>Cela conduit à trois modèles possibles, appelés <em>merge</em>, <em>tuple</em> et <em>language</em>.</p>
+<ul>
+<li><em>merge</em> : fusionne les qualificateurs <code>const</code> et adopte la catégorie de valeur de <code>Owner</code>.</li>
+<li><em>tuple</em> : ce que fait <code>std::get&lt;0&gt;(Owner)</code>, en supposant que <code>Owner</code> est un <code>std::tuple&lt;Member&gt;</code>.</li>
+<li><em>language</em> : ce que fait <code>std::forward&lt;decltype(Owner)&gt;(o).m</code>.</li>
+</ul>
+<p>Le scénario principal auquel <code>std::forward_like</code> répond est l'adaptation d'objets « éloignés ». Ni le scénario <em>tuple</em> ni le scénario <em>language</em> ne font le bon choix pour ce cas d'usage principal, donc le modèle <em>merge</em> est utilisé pour <code>std::forward_like</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_forward_like"><code>__cpp_lib_forward_like</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_lib_forward_like_202207L"><code>202207L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><a href="forward_like.html#Top"><code>std::forward_like</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class T, class U&gt;
+constexpr auto&amp;&amp; forward_like(U&amp;&amp; x) noexcept
+{
+    constexpr bool is_adding_const = std::is_const_v&lt;std::remove_reference_t&lt;T&gt;&gt;;
+    if constexpr (std::is_lvalue_reference_v&lt;T&amp;&amp;&gt;)
+    {
+        if constexpr (is_adding_const)
+            return std::as_const(x);
+        else
+            return static_cast&lt;U&amp;&gt;(x);
+    }
+    else
+    {
+        if constexpr (is_adding_const)
+            return std::move(std::as_const(x));
+        else
+            return std::move(x);
+    }
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;optional&gt;
+#include &lt;type_traits&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+struct TypeTeller
+{
+    void operator()(this auto&amp;&amp; self)
+    {
+        using SelfType = decltype(self);
+        using UnrefSelfType = std::remove_reference_t&lt;SelfType&gt;;
+        if constexpr (std::is_lvalue_reference_v&lt;SelfType&gt;)
+        {
+            if constexpr (std::is_const_v&lt;UnrefSelfType&gt;)
+                std::cout &lt;&lt; &quot;const lvalue\n&quot;;
+            else
+                std::cout &lt;&lt; &quot;mutable lvalue\n&quot;;
+        }
+        else
+        {
+            if constexpr (std::is_const_v&lt;UnrefSelfType&gt;)
+                std::cout &lt;&lt; &quot;const rvalue\n&quot;;
+            else
+                std::cout &lt;&lt; &quot;mutable rvalue\n&quot;;
+        }
+    }
+};
+
+struct FarStates
+{
+    std::unique_ptr&lt;TypeTeller&gt; ptr;
+    std::optional&lt;TypeTeller&gt; opt;
+    std::vector&lt;TypeTeller&gt; container;
+
+    auto&amp;&amp; from_opt(this auto&amp;&amp; self)
+    {
+        return std::forward_like&lt;decltype(self)&gt;(self.opt.value());
+        // Il est correct d'utiliser std::forward&lt;decltype(self)&gt;(self).opt.value(),
+        // car std::optional fournit des accesseurs adaptés.
+    }
+
+    auto&amp;&amp; operator[](this auto&amp;&amp; self, std::size_t i)
+    {
+        return std::forward_like&lt;decltype(self)&gt;(self.container.at(i));
+        // Il n'est pas très bon d'utiliser std::forward&lt;decltype(self)&gt;(self)[i], car
+        // les conteneurs ne fournissent pas d'accès par indice pour les rvalues, bien qu'ils pourraient le faire.
+    }
+
+    auto&amp;&amp; from_ptr(this auto&amp;&amp; self)
+    {
+        if (!self.ptr)
+            throw std::bad_optional_access{};
+        return std::forward_like&lt;decltype(self)&gt;(*self.ptr);
+        // Il n'est pas bon d'utiliser *std::forward&lt;decltype(self)&gt;(self).ptr, car
+        // std::unique_ptr&lt;TypeTeller&gt; se déréférence toujours en une lvalue non const.
+    }
+};
+
+int main()
+{
+    FarStates my_state
+    {
+        .ptr{std::make_unique&lt;TypeTeller&gt;()},
+        .opt{std::in_place, TypeTeller{}},
+        .container{std::vector&lt;TypeTeller&gt;(1)},
+    };
+
+    my_state.from_ptr()();
+    my_state.from_opt()();
+    my_state[0]();
+
+    std::cout &lt;&lt; '\n';
+
+    std::as_const(my_state).from_ptr()();
+    std::as_const(my_state).from_opt()();
+    std::as_const(my_state)[0]();
+
+    std::cout &lt;&lt; '\n';
+
+    std::move(my_state).from_ptr()();
+    std::move(my_state).from_opt()();
+    std::move(my_state)[0]();
+
+    std::cout &lt;&lt; '\n';
+
+    std::move(std::as_const(my_state)).from_ptr()();
+    std::move(std::as_const(my_state)).from_opt()();
+    std::move(std::as_const(my_state))[0]();
+
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">mutable lvalue
+mutable lvalue
+mutable lvalue
+
+const lvalue
+const lvalue
+const lvalue
+
+mutable rvalue
+mutable rvalue
+mutable rvalue
+
+const rvalue
+const rvalue
+const rvalue
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="move.html">move</a> (C++11)</strong> — convertit l'argument en xvalue <em>(modèle de fonction)</em></li>
+<li><strong><a href="forward.html">forward</a> (C++11)</strong> — transmet un argument de fonction et utilise l'argument de modèle de type pour préserver sa catégorie de valeur <em>(modèle de fonction)</em></li>
+<li><strong><a href="as_const.html">as_const</a> (C++17)</strong> — obtient une référence <code>const</code> vers son argument <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

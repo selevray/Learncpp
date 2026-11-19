@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::mem_fn — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/functional.html">Objets fonctions</a></nav>
+<h1 id="std-mem_fn"><code>std::mem_fn</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/functional/mem_fn">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;functional&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class M, class T &gt;
+/* unspecified */ mem_fn( M T::* pm ) noexcept;  // (depuis C++11) (constexpr depuis C++20)
+</code></pre>
+<p>Le modèle de fonction <code>std::mem_fn</code> génère des objets enveloppes pour les pointeurs vers membres, qui peuvent stocker, copier et invoquer un <a href="../../language/pointer.html#Pointers_to_members">pointeur vers membre</a>. Des références comme des pointeurs (y compris les pointeurs intelligents) vers un objet peuvent être utilisés lors de l'invocation d'un <code>std::mem_fn</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>pm</code> — pointeur vers membre à encapsuler</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>std::mem_fn</code> renvoie un objet d'appel enveloppant <code>fn</code> de type non spécifié, possédant les membres suivants :</p>
+<h2 id="std::mem_fn_return_type">std::mem_fn <em>type de retour</em></h2>
+<blockquote>
+<h3 id="Member_types">Types membres</h3>
+<p><strong>type
+definition</strong></p>
+<ul>
+<li><strong><code>result_type</code> (obsolète en C++17)</strong> — le type de retour de <code>pm</code> si <code>pm</code> est un pointeur vers fonction membre, non défini pour un pointeur vers objet membre</li>
+<li><strong><code>argument_type</code> (obsolète en C++17)</strong> — <code>T*</code>, éventuellement qualifié cv, si <code>pm</code> est un pointeur vers fonction membre ne prenant aucun argument</li>
+<li><strong><code>first_argument_type</code> (obsolète en C++17)</strong> — <code>T*</code> si <code>pm</code> est un pointeur vers fonction membre prenant un argument</li>
+<li><strong><code>second_argument_type</code> (obsolète en C++17)</strong> — <code>T1</code> si <code>pm</code> est un pointeur vers fonction membre prenant un argument de type <code>T1</code></li>
+</ul>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<h2 id="Member_function">Fonction membre</h2>
+<pre><code class="language-cpp">template&lt; class... Args &gt;
+/* voir ci-dessous */ operator()(Args&amp;&amp;... args) /* cvref-qualifiers */
+    noexcept(/* voir ci-dessous */);  // (constexpr depuis C++20)
+</code></pre>
+<p>L'expression <code>fn(args)</code> est équivalente à <code>INVOKE(pmd, args)</code>, où <code>pmd</code> est l'objet <a href="../../named_req/Callable.html"><em>Callable</em></a> détenu par <code>fn</code>, de type <code>M T::*</code> et initialisé directement, sans liste, avec <code>pm</code>.</p>
+<p>Ainsi, le type de retour de <code>operator()</code> est <code>std::result_of&lt;decltype(pm)(Args&amp;&amp;...)&gt;::type</code> ou de manière équivalente <code>std::invoke_result_t&lt;decltype(pm), Args&amp;&amp;...&gt;</code>, et la valeur dans le spécificateur <code>noexcept</code> est égale à <code>std::is_nothrow_invocable_v&lt;decltype(pm), Args&amp;&amp;...&gt;)</code> <em>(depuis C++17)</em>.</p>
+<p>Chaque argument de <code>args</code> est transmis parfaitement, comme par <code>std::forward&lt;Args&gt;(args)...</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>Utilisez <code>std::mem_fn</code> pour stocker et exécuter une fonction membre et un objet membre :</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+struct Foo
+{
+    void display_greeting()
+    {
+        std::cout &lt;&lt; &quot;Hello, world.\n&quot;;
+    }
+
+    void display_number(int i)
+    {
+        std::cout &lt;&lt; &quot;number: &quot; &lt;&lt; i &lt;&lt; '\n';
+    }
+
+    int add_xy(int x, int y)
+    {
+        return data + x + y;
+    }
+
+    template&lt;typename... Args&gt; int add_many(Args... args)
+    {
+        return data + (args + ...);
+    }
+
+    auto add_them(auto... args) // C++20 requis
+    {
+        return data + (args + ...);
+    }
+
+    int data = 7;
+};
+
+int main()
+{
+    auto f = Foo{};
+
+    auto greet = std::mem_fn(&amp;Foo::display_greeting);
+    greet(f);
+
+    auto print_num = std::mem_fn(&amp;Foo::display_number);
+    print_num(f, 42);
+
+    auto access_data = std::mem_fn(&amp;Foo::data);
+    std::cout &lt;&lt; &quot;data: &quot; &lt;&lt; access_data(f) &lt;&lt; '\n';
+
+    auto add_xy = std::mem_fn(&amp;Foo::add_xy);
+    std::cout &lt;&lt; &quot;add_xy: &quot; &lt;&lt; add_xy(f, 1, 2) &lt;&lt; '\n';
+
+    auto u = std::make_unique&lt;Foo&gt;();
+    std::cout &lt;&lt; &quot;access_data(u): &quot; &lt;&lt; access_data(u) &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;add_xy(u, 1, 2): &quot; &lt;&lt; add_xy(u, 1, 2) &lt;&lt; '\n';
+
+    auto add_many = std::mem_fn(&amp;Foo::add_many&lt;short, int, long&gt;);
+    std::cout &lt;&lt; &quot;add_many(u, ...): &quot; &lt;&lt; add_many(u, 1, 2, 3) &lt;&lt; '\n';
+
+    auto add_them = std::mem_fn(&amp;Foo::add_them&lt;short, int, float, double&gt;);
+    std::cout &lt;&lt; &quot;add_them(u, ...): &quot; &lt;&lt; add_them(u, 5, 7, 10.0f, 13.0) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Hello, world.
+number: 42
+data: 7
+add_xy: 10
+access_data(u): 7
+add_xy(u, 1, 2): 10
+add_many(u, ...): 13
+add_them(u, ...): 42
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2048">LWG 2048</a></td>
+<td>C++11</td>
+<td>surcharges inutiles fournies</td>
+<td>removed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2489">LWG 2489</a></td>
+<td>C++11</td>
+<td><code>noexcept</code> non requis</td>
+<td>required</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="function.html">function</a> (C++11)</strong> — enveloppe copiable de tout objet appelable copiable <em>(modèle de classe)</em></li>
+<li><strong><a href="move_only_function.html">move_only_function</a> (C++23)</strong> — enveloppe uniquement déplaçable de tout objet appelable prenant en charge les qualificateurs dans une signature d'appel donnée <em>(modèle de classe)</em></li>
+<li><strong><a href="bind.html">bind</a> (C++11)</strong> — lie un ou plusieurs arguments à un objet fonction <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

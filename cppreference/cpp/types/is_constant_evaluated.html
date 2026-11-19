@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::is_constant_evaluated — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-is_constant_evaluated"><code>std::is_constant_evaluated</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/is_constant_evaluated">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">constexpr bool is_constant_evaluated() noexcept;  // (depuis C++20)
+</code></pre>
+<p>Détecte si l'appel de fonction a lieu dans un contexte évalué à la compilation. Renvoie <code>true</code> si l'évaluation de l'appel a lieu au sein de l'évaluation d'une expression ou d'une conversion qui est <a href="../language/constant_expression.html#Manifestly_constant-evaluated_expressions">manifestement évaluée à la compilation</a> ; sinon renvoie <code>false</code>.</p>
+<p>Pour déterminer si les initialiseurs des variables suivantes sont manifestement évalués à la compilation, les compilateurs peuvent d'abord effectuer une évaluation à la compilation d'essai :</p>
+<ul>
+<li>variables de type référence ou de type entier ou énumération qualifié const ;</li>
+<li>variables à durée de stockage statique et à durée de stockage thread_local.</li>
+</ul>
+<p>Il n'est pas recommandé de dépendre du résultat dans ce cas.</p>
+<pre><code class="language-cpp">int y = 0;
+const int a = std::is_constant_evaluated() ? y : 1;
+// L'évaluation à la compilation d'essai échoue. L'évaluation à la compilation est abandonnée.
+// La variable a est initialisée dynamiquement avec 1
+
+const int b = std::is_constant_evaluated() ? 2 : y;
+// L'évaluation à la compilation avec std::is_constant_evaluated() == true réussit.
+// La variable b est initialisée statiquement avec 2
+</code></pre>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si l'évaluation de l'appel a lieu au sein de l'évaluation d'une expression ou d'une conversion manifestement évaluée à la compilation ; sinon <code>false</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">// Cette implémentation requiert C++23 pour if consteval.
+constexpr bool is_constant_evaluated() noexcept
+{
+    if consteval
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Lorsqu'elle est utilisée directement comme condition d'une déclaration <a href="../language/static_assert.html"><code>static_assert</code></a> ou d'une instruction <a href="../language/if.html#constexpr_if">constexpr if</a>, <code>std::is_constant_evaluated()</code> renvoie toujours <code>true</code>.</p>
+<p>Comme <a href="../language/if.html#Consteval_if"><code>if consteval</code></a> est absent en C++20, <code>std::is_constant_evaluated</code> est généralement implémenté à l'aide d'une extension du compilateur.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_is_constant_evaluated"><code>__cpp_lib_is_constant_evaluated</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_is_constant_evaluated_201811L"><code>201811L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><code>std::is_constant_evaluated</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;iostream&gt;
+#include &lt;type_traits&gt;
+
+constexpr double power(double b, int x)
+{
+    if (std::is_constant_evaluated() &amp;&amp; !(b == 0.0 &amp;&amp; x &lt; 0))
+    {
+        // Contexte d'évaluation à la compilation : utiliser un algorithme compatible avec constexpr.
+        if (x == 0)
+            return 1.0;
+        double r {1.0};
+        double p {x &gt; 0 ? b : 1.0 / b};
+        for (auto u = unsigned(x &gt; 0 ? x : -x); u != 0; u /= 2)
+        {
+            if (u &amp; 1)
+                r *= p;
+            p *= p;
+        }
+        return r;
+    }
+    else
+    {
+        // Laisser le générateur de code s'en charger.
+        return std::pow(b, double(x));
+    }
+}
+
+int main()
+{
+    // Un contexte d'expression constante
+    constexpr double kilo = power(10.0, 3);
+    int n = 3;
+    // Pas une expression constante, car n ne peut pas être converti en rvalue
+    // dans un contexte d'expression constante
+    // Équivalent à std::pow(10.0, double(n))
+    double mucho = power(10.0, n);
+
+    std::cout &lt;&lt; kilo &lt;&lt; &quot; &quot; &lt;&lt; mucho &lt;&lt; &quot;\n&quot;; // (3)
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1000 1000
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../language/constexpr.html">spécificateur <code>constexpr</code></a> (depuis C++11)</strong> — spécifie que la valeur d'une variable ou d'une fonction peut être calculée à la compilation</li>
+<li><strong><a href="../language/consteval.html"><code>consteval</code> spécificateur</a> (C++20)</strong> — spécifie qu'une fonction est une <em>fonction immédiate</em>, c'est-à-dire que chaque appel à la fonction doit se faire dans une évaluation constante</li>
+<li><strong><a href="../language/constinit.html"><code>constinit</code> spécificateur</a> (C++20)</strong> — affirme qu'une variable a une initialisation statique, c'est-à-dire une <a href="../language/zero_initialization.html">initialisation à zéro</a> et une <a href="../language/constant_initialization.html">initialisation constante</a></li>
+</ul>
+
+</main>
+</body>
+</html>

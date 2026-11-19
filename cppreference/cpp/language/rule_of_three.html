@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La règle du trois/cinq/zéro — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="la-règle-du-trois-cinq-zéro">La règle du trois/cinq/zéro</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/rule_of_three">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<h2 id="Rule_of_three">Règle du trois</h2>
+<p>Si une classe nécessite un <a href="destructor.html">destructeur</a> défini par l'utilisateur, un <a href="copy_constructor.html">constructeur de copie</a> défini par l'utilisateur ou un <a href="as_operator.html">opérateur d'affectation par copie</a> défini par l'utilisateur, elle en nécessite presque certainement les trois.</p>
+<p>Parce que C++ copie et affecte par copie des objets de types définis par l'utilisateur dans diverses situations (passage ou retour par valeur, manipulation d'un conteneur, etc.), ces fonctions membres spéciales seront appelées, si elles sont accessibles, et si elles ne sont pas définies par l'utilisateur, elles sont définies implicitement par le compilateur.</p>
+<p>Les fonctions membres spéciales définies implicitement ne doivent pas être utilisées si la classe gère une ressource dont le descripteur ne détruit pas lui-même la ressource (pointeur brut, descripteur de fichier POSIX, etc.), dont le destructeur ne fait rien et dont le constructeur de copie et l'opérateur d'affectation par copie ne font que copier la valeur du descripteur, sans dupliquer la ressource sous-jacente.</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;cstring&gt;
+#include &lt;iostream&gt;
+#include &lt;utility&gt;
+
+class rule_of_three
+{
+    char* cstring; // pointeur brut utilisé comme descripteur d'un
+                   // bloc de mémoire alloué dynamiquement
+
+public:
+    rule_of_three(const char* s, std::size_t n)
+        : cstring(new char[n + 1]) // allocate
+    {
+        std::memcpy(cstring, s, n); // populate
+        cstring[n] = '\0';          // tail 0
+    }
+
+    explicit rule_of_three(const char* s = &quot;&quot;)
+        : rule_of_three(s, std::strlen(s))
+    {
+    }
+
+    ~rule_of_three() // I. destructeur
+    {
+        delete[] cstring; // deallocate
+    }
+
+    rule_of_three(const rule_of_three&amp; other) // II. constructeur de copie
+        : rule_of_three(other.cstring)
+    {
+    }
+
+    rule_of_three&amp; operator=(const rule_of_three&amp; other) // III. affectation par copie
+    {
+        if (this == &amp;other)
+            return *this;
+
+        rule_of_three temp(other); // utilise le constructeur de copie
+        std::swap(cstring, temp.cstring); // échange la ressource sous-jacente
+
+        return *this;
+    }
+
+    const char* c_str() const // accessor
+    {
+        return cstring;
+    }
+};
+
+int main()
+{
+    rule_of_three o1{&quot;abc&quot;};
+    std::cout &lt;&lt; o1.c_str() &lt;&lt; ' ';
+    auto o2{o1}; // II. utilise le constructeur de copie
+    std::cout &lt;&lt; o2.c_str() &lt;&lt; ' ';
+    rule_of_three o3{&quot;def&quot;};
+    std::cout &lt;&lt; o3.c_str() &lt;&lt; ' ';
+    o3 = o2; // III. utilise l'affectation par copie
+    std::cout &lt;&lt; o3.c_str() &lt;&lt; '\n';
+}   // I. tous les destructeurs sont appelés ici
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">abc abc def abc
+</code></pre>
+<p>Les classes qui gèrent des ressources non copiables via des descripteurs copiables peuvent devoir [déclarer le constructeur de copie et l'opérateur d'affectation par copie <code>private</code> sans en fournir les définitions <em>(jusqu'à C++11)</em> | définir le constructeur de copie et l'opérateur d'affectation par copie comme <code>= delete</code> <em>(depuis C++11)</em>]. C'est une autre application de la règle du trois : supprimer l'un et laisser l'autre être défini implicitement est généralement incorrect.</p>
+<h2 id="Rule_of_five">Règle du cinq</h2>
+<p>Parce que la présence d'un destructeur, d'un constructeur de copie ou d'un opérateur d'affectation par copie défini par l'utilisateur (y compris déclaré via <code>= default</code> ou <code>= delete</code>) empêche la définition implicite du <a href="move_constructor.html">constructeur de déplacement</a> et de l'<a href="move_operator.html">opérateur d'affectation par déplacement</a>, toute classe pour laquelle la sémantique de déplacement est souhaitable doit déclarer les cinq fonctions membres spéciales :</p>
+<pre><code class="language-cpp">#include &lt;cstddef&gt;
+#include &lt;cstring&gt;
+#include &lt;utility&gt;
+
+class rule_of_five
+{
+    char* cstring; // pointeur brut utilisé comme descripteur d'un
+                   // bloc de mémoire alloué dynamiquement
+
+public:
+    rule_of_five(const char* s, std::size_t n)
+        : cstring(new char[n + 1]) // allocate
+    {
+        std::memcpy(cstring, s, n); // populate
+        cstring[n] = '\0';          // tail 0
+    }
+
+    explicit rule_of_five(const char* s)
+        : rule_of_five(s, std::strlen(s))
+    {
+    }
+
+    ~rule_of_five() // I. destructeur
+    {
+        delete[] cstring; // deallocate
+    }
+
+    rule_of_five(const rule_of_five&amp; other) // II. constructeur de copie
+        : rule_of_five(other.cstring)
+    {
+    }
+
+    rule_of_five&amp; operator=(const rule_of_five&amp; other) // III. affectation par copie
+    {
+        if (this == &amp;other)
+            return *this;
+
+        rule_of_five temp(other); // utilise le constructeur de copie
+        std::swap(cstring, temp.cstring); // échange la ressource sous-jacente
+
+        return *this;
+    }
+
+    rule_of_five(rule_of_five&amp;&amp; other) noexcept // IV. constructeur de déplacement
+        : cstring(std::exchange(other.cstring, nullptr))
+    {
+    }
+
+    rule_of_five&amp; operator=(rule_of_five&amp;&amp; other) noexcept // V. affectation par déplacement
+    {
+        rule_of_five temp(std::move(other));
+        std::swap(cstring, temp.cstring);
+        return *this;
+    }
+};
+</code></pre>
+<p>Contrairement à la règle du trois, ne pas fournir le constructeur de déplacement et l'opérateur d'affectation par déplacement n'est généralement pas une erreur, mais cela entraîne une perte de performance.</p>
+<h2 id="Rule_of_zero">Règle du zéro</h2>
+<p>Les classes qui ont des destructeurs, des constructeurs de copie/déplacement ou des opérateurs d'affectation par copie/déplacement personnalisés doivent traiter exclusivement de la propriété (ce qui découle du <a href="https://en.wikipedia.org/wiki/Single_responsibility_principle">principe de responsabilité unique</a>). Les autres classes ne devraient pas avoir de destructeurs, constructeurs de copie/déplacement ou opérateurs d'affectation par copie/déplacement personnalisés<a href="rule_of_three.html#cite_note-1">[1]</a>.</p>
+<p>Cette règle apparaît aussi dans les C++ Core Guidelines sous la forme <a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rc-zero">C.20 : Si vous pouvez éviter de définir les opérations par défaut, faites-le</a>.</p>
+<pre><code class="language-cpp">class rule_of_zero
+{
+    std::string cppstring;
+public:
+    // redondant, la définition implicite est préférable
+    // rule_of_zero(const std::string&amp; arg) : cppstring(arg) {}
+};
+</code></pre>
+<p>Lorsqu'une classe de base est destinée à un usage polymorphe, son destructeur peut devoir être déclaré <code>public</code> et <code>virtual</code>. Cela bloque les déplacements implicites (et déprécie les copies implicites), de sorte que les fonctions membres spéciales doivent être définies comme <code>= default</code><a href="rule_of_three.html#cite_note-2">[2]</a>.</p>
+<pre><code class="language-cpp">class base_of_five_defaults
+{
+public:
+    base_of_five_defaults(const base_of_five_defaults&amp;) = default;
+    base_of_five_defaults(base_of_five_defaults&amp;&amp;) = default;
+    base_of_five_defaults&amp; operator=(const base_of_five_defaults&amp;) = default;
+    base_of_five_defaults&amp; operator=(base_of_five_defaults&amp;&amp;) = default;
+    virtual ~base_of_five_defaults() = default;
+};
+</code></pre>
+<p>Cependant, cela rend la classe sujette au découpage (slicing), c'est pourquoi les classes polymorphes définissent souvent la copie comme <code>= delete</code> (voir <a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#c67-a-polymorphic-class-should-suppress-public-copymove">C.67 : Une classe polymorphe doit supprimer la copie et le déplacement publics</a> dans les C++ Core Guidelines), ce qui conduit à la formulation générique suivante de la règle du cinq :</p>
+<p><a href="https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#c21-if-you-define-or-delete-any-copy-move-or-destructor-function-define-or-delete-them-all">C.21 : Si vous définissez ou =delete une fonction de copie, de déplacement ou un destructeur, définissez ou =delete-les toutes.</a></p>
+<h2 id="External_links">Liens externes</h2>
+<ol>
+<li><a href="rule_of_three.html#cite_ref-1">↑</a> <a href="https://web.archive.org/web/20130211035910/http://flamingdangerzone.com/cxx11/2012/08/15/rule-of-zero.html">&quot;Rule of Zero&quot;, R. Martinho Fernandes 08/15/2012</a></li>
+<li><a href="rule_of_three.html#cite_ref-2">↑</a> <a href="https://scottmeyers.blogspot.fr/2014/03/a-concern-about-rule-of-zero.html">&quot;A Concern about the Rule of Zero&quot;, Scott Meyers, 3/13/2014</a>.</li>
+</ol>
+
+</main>
+</body>
+</html>

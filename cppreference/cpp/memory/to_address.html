@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::to_address — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-to_address"><code>std::to_address</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/to_address">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Ptr &gt;
+constexpr auto to_address( const Ptr&amp; p ) noexcept;  // (1) (depuis C++20)
+
+template&lt; class T &gt;
+constexpr T* to_address( T* p ) noexcept;  // (2) (depuis C++20)
+</code></pre>
+<p>Obtient l'adresse représentée par <code>p</code> sans former de référence vers l'objet pointé par <code>p</code>.</p>
+<ol>
+<li>
+<p><a href="../named_req/Allocator.html#Fancy_pointers">Surcharge pour pointeur élaboré</a> : si l'expression <code>std::pointer_traits&lt;Ptr&gt;::to_address(p)</code> est bien formée, retourne le résultat de cette expression. Sinon, retourne <code>std::to_address(p.operator-&gt;())</code>.</p>
+</li>
+<li>
+<p>Surcharge pour pointeur brut : si <code>T</code> est un type fonction, le programme est mal formé. Sinon, retourne <code>p</code> sans modification.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur élaboré ou brut</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Pointeur brut qui représente la même adresse que <code>p</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class T&gt;
+constexpr T* to_address(T* p) noexcept
+{
+    static_assert(!std::is_function_v&lt;T&gt;);
+    return p;
+}
+
+template&lt;class T&gt;
+constexpr auto to_address(const T&amp; p) noexcept
+{
+    if constexpr (requires{ std::pointer_traits&lt;T&gt;::to_address(p); })
+        return std::pointer_traits&lt;T&gt;::to_address(p);
+    else
+        return std::to_address(p.operator-&gt;());
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><code>std::to_address</code> peut être utilisé même lorsque <code>p</code> ne référence pas un stockage dans lequel un objet a été construit, auquel cas <code>std::addressof(*p)</code> ne peut pas être utilisé car il n'existe aucun objet valide auquel le paramètre de <code>std::addressof</code> puisse se lier.</p>
+<p>La surcharge pour pointeur élaboré de <code>std::to_address</code> inspecte la spécialisation <code>std::pointer_traits&lt;Ptr&gt;</code>. Si l'instanciation de cette spécialisation est elle-même mal formée (typiquement parce que <code>element_type</code> ne peut pas être défini), cela produit une erreur franche en dehors du contexte immédiat et rend le programme mal formé.</p>
+<p><code>std::to_address</code> peut en outre être utilisé sur des itérateurs qui satisfont <a href="../iterator/contiguous_iterator.html"><code>std::contiguous_iterator</code></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_to_address"><code>__cpp_lib_to_address</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_to_address_201711L"><code>201711L</code></a></td>
+<td><em>(C++20)</em></td>
+<td>Utilitaire de conversion d'un pointeur en pointeur brut (<code>std::to_address</code>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;memory&gt;
+
+template&lt;class A&gt;
+auto allocator_new(A&amp; a)
+{
+    auto p = a.allocate(1);
+    try
+    {
+        std::allocator_traits&lt;A&gt;::construct(a, std::to_address(p));
+    }
+    catch (...)
+    {
+        a.deallocate(p, 1);
+        throw;
+    }
+    return p;
+}
+
+template&lt;class A&gt;
+void allocator_delete(A&amp; a, typename std::allocator_traits&lt;A&gt;::pointer p)
+{
+    std::allocator_traits&lt;A&gt;::destroy(a, std::to_address(p));
+    a.deallocate(p, 1);
+}
+
+int main()
+{
+    std::allocator&lt;int&gt; a;
+    auto p = allocator_new(a);
+    allocator_delete(a, p);
+}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="pointer_traits.html">pointer_traits</a> (C++11)</strong> — fournit des informations sur les types de type pointeur <em>(modèle de classe)</em></li>
+<li><strong><a href="pointer_traits/to_address.html">to_address</a> [statique] (C++20) <em>(optional)</em></strong> — obtient un pointeur brut à partir d'un pointeur élaboré (inverse de <code>pointer_to</code>) <em>(fonction membre statique publique de <code>std::pointer_traits&lt;Ptr&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

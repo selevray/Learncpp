@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::shared_lock&lt;Mutex&gt;::shared_lock — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/shared_lock.html">std::shared_lock</a></nav>
+<h1 id="std-shared_lock-mutex-shared_lock"><code>std::shared_lock&lt;Mutex&gt;::shared_lock</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/shared_lock/shared_lock">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">shared_lock() noexcept;  // (1) (depuis C++14)
+
+shared_lock( shared_lock&amp;&amp; other ) noexcept;  // (2) (depuis C++14)
+
+explicit shared_lock( mutex_type&amp; m );  // (3) (depuis C++14)
+
+shared_lock( mutex_type&amp; m, std::defer_lock_t t ) noexcept;  // (4) (depuis C++14)
+
+shared_lock( mutex_type&amp; m, std::try_to_lock_t t );  // (5) (depuis C++14)
+
+shared_lock( mutex_type&amp; m, std::adopt_lock_t t );  // (6) (depuis C++14)
+
+template&lt; class Rep, class Period &gt;
+shared_lock( mutex_type&amp; m,
+             const std::chrono::duration&lt;Rep,Period&gt;&amp; timeout_duration );  // (7) (depuis C++14)
+
+template&lt; class Clock, class Duration &gt;
+shared_lock( mutex_type&amp; m,
+             const std::chrono::time_point&lt;Clock,Duration&gt;&amp; timeout_time );  // (8) (depuis C++14)
+</code></pre>
+<p>Construit un <code>shared_lock</code>, en verrouillant optionnellement le mutex fourni.</p>
+<ol>
+<li>
+<p>Construit un <code>shared_lock</code> sans mutex associé.</p>
+</li>
+<li>
+<p>Constructeur de déplacement. Initialise le <code>shared_lock</code> avec le contenu de <code>other</code>. Laisse <code>other</code> sans mutex associé.</p>
+</li>
+</ol>
+<p>3-8) Construit un <code>shared_lock</code> avec <code>m</code> comme mutex associé. De plus :</p>
+<ol start="3">
+<li>
+<p>Verrouille le mutex associé en mode partagé en appelant <code>m.lock_shared()</code>.</p>
+</li>
+<li>
+<p>Ne verrouille pas le mutex associé.</p>
+</li>
+<li>
+<p>Tente de verrouiller le mutex associé en mode partagé sans blocage en appelant <code>m.try_lock_shared()</code>.</p>
+</li>
+<li>
+<p>Suppose que le thread appelant détient déjà un verrou partagé (c.-à-d. un verrou acquis par <code>lock_shared</code>, <code>try_lock_shared</code>, <code>try_lock_shared_for</code> ou <code>try_lock_shared_until</code>) sur <code>m</code>. Le comportement est indéfini si ce n'est pas le cas.</p>
+</li>
+<li>
+<p>Tente de verrouiller le mutex associé en mode partagé en appelant <code>m.try_lock_shared_for(timeout_duration)</code>, ce qui bloque jusqu'à ce que la <code>timeout_duration</code> spécifiée soit écoulée ou que le verrou soit acquis, selon ce qui survient en premier. Peut bloquer plus longtemps que <code>timeout_duration</code>. Le comportement est indéfini si <code>Mutex</code> ne satisfait pas aux exigences <a href="../../named_req/SharedTimedLockable.html"><em>SharedTimedLockable</em></a>.</p>
+</li>
+<li>
+<p>Tente de verrouiller le mutex associé en mode partagé en appelant <code>m.try_lock_shared_until(timeout_time)</code>, ce qui bloque jusqu'à ce que le <code>timeout_time</code> spécifié soit atteint ou que le verrou soit acquis, selon ce qui survient en premier. Peut bloquer plus longtemps que jusqu'à ce que <code>timeout_time</code> soit atteint. Le comportement est indéfini si <code>Mutex</code> ne satisfait pas aux exigences <a href="../../named_req/SharedTimedLockable.html"><em>SharedTimedLockable</em></a>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>other</code> — un autre <code>shared_lock</code> pour initialiser l'état</li>
+<li><code>m</code> — mutex à associer au verrou et dont on acquiert optionnellement la propriété</li>
+<li><code>t</code> — paramètre d'étiquette utilisé pour sélectionner les constructeurs avec différentes stratégies de verrouillage</li>
+<li><code>timeout_duration</code> — durée maximale de blocage</li>
+<li><code>timeout_time</code> — point temporel maximal jusqu'auquel bloquer</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;shared_mutex&gt;
+#include &lt;syncstream&gt;
+#include &lt;thread&gt;
+
+std::shared_timed_mutex m;
+int i = 10;
+
+void read_shared_var(int id)
+{
+     // les deux threads accèdent à l'entier i
+     std::shared_lock&lt;std::shared_timed_mutex&gt; slk(m);
+     const int ii = i; // lit i global
+
+     std::osyncstream(std::cout) &lt;&lt; '#' &lt;&lt; id &lt;&lt; &quot; read i as &quot; &lt;&lt; ii &lt;&lt; &quot;...\n&quot;;
+     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+     std::osyncstream(std::cout) &lt;&lt; '#' &lt;&lt; id &lt;&lt; &quot; woke up...&quot; &lt;&lt; std::endl;
+}
+
+int main()
+{
+     std::thread r1{read_shared_var, 1};
+     std::thread r2{read_shared_var, 2};
+
+     r1.join();
+     r2.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">#2 read i as 10...
+#1 read i as 10...
+#2 woke up...
+#1 woke up...
+</code></pre>
+
+</main>
+</body>
+</html>

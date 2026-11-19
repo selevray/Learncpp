@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::addressof — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-addressof"><code>std::addressof</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/addressof">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+T* addressof( T&amp; arg ) noexcept;  // (1) (depuis C++11) (constexpr depuis C++17)
+
+template&lt; class T &gt;
+const T* addressof( const T&amp;&amp; ) = delete;  // (2) (depuis C++11)
+</code></pre>
+<ol>
+<li>
+<p>Obtient l'adresse réelle de l'objet ou de la fonction <code>arg</code>, même en présence de <code>operator&amp;</code> surchargé.</p>
+</li>
+<li>
+<p>La surcharge pour les rvalues est supprimée afin d'empêcher de prendre l'adresse des <code>const</code> rvalues.</p>
+</li>
+</ol>
+<blockquote>
+<p>L'expression <code>std::addressof(e)</code> est une <a href="../language/constant_expression.html">sous-expression constante</a>, si <code>e</code> est une sous-expression constante de type lvalue.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>arg</code> — objet ou fonction lvalue</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Pointeur vers <code>arg</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>L'implémentation ci-dessous n'est pas <code>constexpr</code>, car <code>reinterpret_cast</code> n'est pas utilisable dans une expression constante. Une prise en charge par le compilateur est nécessaire (voir ci-dessous).</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+typename std::enable_if&lt;std::is_object&lt;T&gt;::value, T*&gt;::type addressof(T&amp; arg) noexcept
+{
+    return reinterpret_cast&lt;T*&gt;(
+               &amp;const_cast&lt;char&amp;&gt;(
+                   reinterpret_cast&lt;const volatile char&amp;&gt;(arg)));
+}
+
+template&lt;class T&gt;
+typename std::enable_if&lt;!std::is_object&lt;T&gt;::value, T*&gt;::type addressof(T&amp; arg) noexcept
+{
+    return &amp;arg;
+}
+</code></pre>
+<p>Une implémentation correcte de cette fonction nécessite une prise en charge par le compilateur : <a href="https://github.com/gcc-mirror/gcc/blob/b8806796ec64585de39ca6ee3b7b30cc08f27d62/libstdc++-v3/include/bits/move.h#L47-L50">GNU libstdc++</a>, <a href="https://github.com/llvm/llvm-project/blob/5146b57b403b3a512dc64e766695b13803ef3b54/libcxx/include/__memory/addressof.h#L21-L28">LLVM libc++</a>, <a href="https://github.com/microsoft/STL/blob/1e312b38db8df1dfbea17adc344454feb8d00dd9/stl/inc/type_traits#L1548-L1551">Microsoft STL</a>.</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_addressof_constexpr"><code>__cpp_lib_addressof_constexpr</code></a></td>
+<td><a href="../compiler_support/17.html#cpp_lib_addressof_constexpr_201603L"><code>201603L</code></a></td>
+<td><em>(C++17)</em></td>
+<td><code>constexpr</code> <code>std::addressof</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>constexpr</code> pour <code>addressof</code> est ajouté par <a href="https://cplusplus.github.io/LWG/issue2296">LWG2296</a>, et MSVC STL applique le changement au mode C++14 en tant que rapport de défaut.</p>
+<p>Il existe des cas particuliers où l'utilisation de <code>operator&amp;</code> intégré est mal formée à cause de la <a href="../language/adl.html">recherche dépendante des arguments</a>, même s'il n'est pas surchargé, et <code>std::addressof</code> peut être utilisé à la place.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct holder { T t; };
+
+struct incomp;
+
+int main()
+{
+    holder&lt;holder&lt;incomp&gt;*&gt; x{};
+    // &amp;x; // erreur : la recherche dépendante des arguments tente d'instancier holder&lt;incomp&gt;
+    std::addressof(x); // OK
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p><code>operator&amp;</code> peut être surchargé pour une classe enveloppe de pointeur afin d'obtenir un pointeur vers pointeur :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+template&lt;class T&gt;
+struct Ptr
+{
+    T* pad; // ajoute un remplissage pour montrer la différence entre 'this' et 'data'
+    T* data;
+    Ptr(T* arg) : pad(nullptr), data(arg)
+    {
+        std::cout &lt;&lt; &quot;Ctor this = &quot; &lt;&lt; this &lt;&lt; '\n';
+    }
+
+    ~Ptr() { delete data; }
+    T** operator&amp;() { return &amp;data; }
+};
+
+template&lt;class T&gt;
+void f(Ptr&lt;T&gt;* p)
+{
+    std::cout &lt;&lt; &quot;Ptr   overload called with p = &quot; &lt;&lt; p &lt;&lt; '\n';
+}
+
+void f(int** p)
+{
+    std::cout &lt;&lt; &quot;int** overload called with p = &quot; &lt;&lt; p &lt;&lt; '\n';
+}
+
+int main()
+{
+    Ptr&lt;int&gt; p(new int(42));
+    f(&amp;p);                // appelle la surcharge int**
+    f(std::addressof(p)); // appelle la surcharge Ptr&lt;int&gt;*, (= this)
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Ctor this = 0x7fff59ae6e88
+int** overload called with p = 0x7fff59ae6e90
+Ptr   overload called with p = 0x7fff59ae6e88
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2598">LWG 2598</a></td>
+<td>C++11</td>
+<td><code>std::addressof&lt;const T&gt;</code> pourrait prendre l'adresse de rvalues</td>
+<td>interdit par une surcharge supprimée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="allocator.html">allocator</a></strong> — l'allocateur par défaut <em>(modèle de classe)</em></li>
+<li><strong><a href="pointer_traits/pointer_to.html">pointer_to</a> [statique]</strong> — obtient un pointeur déréférençable vers son argument <em>(fonction membre statique publique de <code>std::pointer_traits&lt;Ptr&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

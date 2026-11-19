@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::aligned_alloc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/c.html">bibliothèque C de gestion de la mémoire</a></nav>
+<h1 id="std-aligned_alloc"><code>std::aligned_alloc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/c/aligned_alloc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdlib&gt;</strong></p>
+<pre><code class="language-cpp">void* aligned_alloc( std::size_t alignment, std::size_t size );  // (depuis C++17)
+</code></pre>
+<p>Alloue <code>size</code> octets de stockage non initialisé dont l'alignement est spécifié par <code>alignment</code> (<a href="../../language/objects.html#Object_creation">création implicite</a> d'objets dans la zone de destination). Le paramètre <code>size</code> doit être un multiple entier de <code>alignment</code>.</p>
+<p>Les fonctions suivantes doivent être thread-safe :</p>
+<ul>
+<li>Les versions de la bibliothèque de <a href="../new/operator_new.html"><code>operator new</code></a> et de <a href="../new/operator_delete.html"><code>operator delete</code></a></li>
+<li>Les versions de remplacement définies par l'utilisateur des <a href="../new/operator_new.html"><code>operator new</code></a> et <a href="../new/operator_delete.html"><code>operator delete</code></a> globales</li>
+<li><a href="calloc.html"><code>std::calloc</code></a>, <a href="malloc.html"><code>std::malloc</code></a>, <a href="realloc.html"><code>std::realloc</code></a>, <code>std::aligned_alloc</code>, <a href="free.html"><code>std::free</code></a></li>
+</ul>
+<p>Les appels à ces fonctions qui allouent ou libèrent une unité de stockage donnée se produisent selon un ordre total unique, et chaque appel de désallocation <a href="../../atomic/memory_order.html">happens-before</a> l'allocation suivante (le cas échéant) dans cet ordre.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>alignment</code> — spécifie l'alignement. Doit être un alignement valide pris en charge par l'implémentation.</li>
+<li><code>size</code> — nombre d'octets à allouer. Un multiple entier de <code>alignment</code>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, retourne le pointeur vers le début de la mémoire nouvellement allouée. Pour éviter une fuite mémoire, le pointeur retourné doit être libéré avec <a href="free.html"><code>std::free</code></a> ou <a href="realloc.html"><code>std::realloc</code></a>.</p>
+<p>En cas d'échec, retourne un pointeur nul.</p>
+<h2 id="Notes">Notes</h2>
+<p>Passer un <code>size</code> qui n'est pas un multiple entier de <code>alignment</code> ou un <code>alignment</code> qui n'est pas valide ou non pris en charge par l'implémentation fait échouer la fonction, qui renvoie un pointeur nul (en C11, tel que publié, cela spécifiait un comportement indéfini dans ce cas ; cela a été corrigé par <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/summary.htm#dr_460">DR460</a>).</p>
+<p>À titre d'exemple de l'exigence « pris en charge par l'implémentation », la fonction POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/posix_memalign.html"><code>posix_memalign</code></a> accepte tout <code>alignment</code> qui est une puissance de deux et un multiple de <code>sizeof(void*)</code>, et les implémentations basées sur POSIX de <code>aligned_alloc</code> héritent de cette exigence.</p>
+<p>Les alignements fondamentaux sont toujours pris en charge. Si <code>alignment</code> est une puissance de deux et n'est pas supérieur à <code>alignof(std::max_align_t)</code>, <code>aligned_alloc</code> peut simplement appeler <a href="malloc.html"><code>std::malloc</code></a>.</p>
+<p><a href="malloc.html"><code>std::malloc</code></a> ordinaire aligne la mémoire adaptée à tout type d'objet ayant un alignement fondamental. Cette fonction est utile pour les allocations sur-alignées, comme celles alignées sur les frontières de <a href="https://en.wikipedia.org/wiki/Streaming_SIMD_Extensions">SSE</a>, de ligne de cache ou de <a href="https://en.wikipedia.org/wiki/Page_(computer_memory)#Multiple_page_sizes">page mémoire virtuelle</a>.</p>
+<p>Cette fonction n'est pas prise en charge dans la bibliothèque Runtime C de Microsoft, car son implémentation de <a href="free.html"><code>std::free</code></a> est <a href="https://learn.microsoft.com/en-us/cpp/standard-library/cstdlib#remarks-6">incapable de gérer les allocations alignées</a>, quelles qu'elles soient. À la place, MS CRT fournit <a href="https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-malloc"><code>_aligned_malloc</code></a> (à libérer avec <a href="https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-free"><code>_aligned_free</code></a>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+#include &lt;cstdlib&gt;
+
+int main()
+{
+    int* p1 = static_cast&lt;int*&gt;(std::malloc(10 * sizeof *p1));
+    std::printf(&quot;default-aligned address:   %p\n&quot;, static_cast&lt;void*&gt;(p1));
+    std::free(p1);
+
+    int* p2 = static_cast&lt;int*&gt;(std::aligned_alloc(1024, 1024));
+    std::printf(&quot;1024-byte aligned address: %p\n&quot;, static_cast&lt;void*&gt;(p2));
+    std::free(p2);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">default-aligned address:   0x2221c20
+1024-byte aligned address: 0x2222400
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../types/aligned_storage.html">aligned_storage</a> (since C++11) (deprecated in C++23)</strong> — définit le type adapté à être utilisé comme stockage non initialisé pour des types de taille donnée <em>(modèle de classe)</em></li>
+</ul>
+<p><strong><a href="../../../c/memory/aligned_alloc.html">Documentation C</a> pour aligned_alloc</strong></p>
+
+</main>
+</body>
+</html>

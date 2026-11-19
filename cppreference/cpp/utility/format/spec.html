@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spécification de format standard (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/format.html">Bibliothèque de formatage (depuis C++20)</a></nav>
+<h1 id="spécification-de-format-standard-depuis-c-20">Spécification de format standard (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/format/spec">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Pour les types de base et les types chaîne, la spécification de format est fondée sur la <a href="https://docs.python.org/3/library/string.html#formatspec">spécification de format en Python</a>.</p>
+<p>La syntaxe des spécifications de format est :</p>
+<p>|
+| |
+| <code>fill-and-align</code> ﻿*(facultatif)* <code>sign</code> ﻿*(facultatif)* <code>#</code><em>(facultatif)</em> <code>0</code><em>(facultatif)</em> <code>width</code> ﻿*(facultatif)* <code>precision</code> ﻿*(facultatif)* <code>L</code><em>(facultatif)</em> <code>type</code> ﻿*(facultatif)* | | |
+|</p>
+<p>Les options <code>sign</code>, <code>#</code> et <code>0</code> ne sont valides que lorsqu'un type de présentation entier ou à virgule flottante est utilisé.</p>
+<h2 id="Fill_and_align">Remplissage et alignement</h2>
+<p><code>fill-and-align</code> est un caractère de <em>remplissage</em> facultatif (qui peut être n'importe quel caractère autre que <code>{</code> ou <code>}</code>), suivi de l'une des options d'<em>alignement</em> <code>&lt;</code>, <code>&gt;</code>, <code>^</code>.</p>
+<p>Si aucun caractère de remplissage n'est spécifié, il vaut par défaut le caractère espace. Pour une spécification de format dans un encodage Unicode, le caractère de remplissage doit correspondre à une seule valeur scalaire Unicode.</p>
+<p>La signification des options d'<em>alignement</em> est la suivante :</p>
+<ul>
+<li>
+<p><code>&lt;</code> : Force l'argument formaté à être aligné au début de l'espace disponible en insérant n caractères de remplissage après l'argument formaté. C'est la valeur par défaut lorsqu'un type de présentation autre qu'entier et autre que à virgule flottante est utilisé.</p>
+</li>
+<li>
+<p><code>&gt;</code> : Force l'argument formaté à être aligné à la fin de l'espace disponible en insérant n caractères de remplissage avant l'argument formaté. C'est la valeur par défaut lorsqu'un type de présentation entier ou à virgule flottante est utilisé.</p>
+</li>
+<li>
+<p><code>^</code> : Force l'argument formaté à être centré dans l'espace disponible en insérant ⌊</p>
+<p>n</p>
+<p>2</p>
+<p>⌋ caractères avant et ⌈</p>
+<p>n</p>
+<p>2</p>
+<p>⌉ caractères après l'argument formaté.</p>
+</li>
+</ul>
+<p>Dans chaque cas, n est la différence entre la largeur minimale du champ (spécifiée par <code>width</code>) et la <a href="spec.html#Width_estimation">largeur estimée</a> de l'argument formaté, ou 0 si la différence est inférieure à 0.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;format&gt;
+
+int main()
+{
+    char c = 120;
+    assert(std::format(&quot;{:6}&quot;, 42)    == &quot;    42&quot;);
+    assert(std::format(&quot;{:6}&quot;, 'x')   == &quot;x     &quot;);
+    assert(std::format(&quot;{:*&lt;6}&quot;, 'x') == &quot;x*****&quot;);
+    assert(std::format(&quot;{:*&gt;6}&quot;, 'x') == &quot;*****x&quot;);
+    assert(std::format(&quot;{:*^6}&quot;, 'x') == &quot;**x***&quot;);
+    assert(std::format(&quot;{:6d}&quot;, c)    == &quot;   120&quot;);
+    assert(std::format(&quot;{:6}&quot;, true)  == &quot;true  &quot;);
+}
+</code></pre>
+<h2 id="Sign.2C_.23.2C_and_0">Signe, #, et 0</h2>
+<p>L'option <code>sign</code> peut être l'une des suivantes :</p>
+<ul>
+<li><code>+</code> : Indique qu'un signe doit être utilisé pour les nombres positifs et négatifs. Le signe <code>+</code> est inséré avant la valeur de sortie pour les nombres positifs ou nuls.</li>
+<li><code>-</code> : Indique qu'un signe doit être utilisé uniquement pour les nombres négatifs (c'est le comportement par défaut).</li>
+<li>espace : Indique qu'une espace initiale doit être utilisée pour les nombres positifs ou nuls, et un signe moins pour les nombres négatifs.</li>
+</ul>
+<p>Le zéro négatif est traité comme un nombre négatif.</p>
+<p>L'option <code>sign</code> s'applique à l'infini et à NaN à virgule flottante.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;format&gt;
+#include &lt;limits&gt;
+
+int main()
+{
+    double inf = std::numeric_limits&lt;double&gt;::infinity();
+    double nan = std::numeric_limits&lt;double&gt;::quiet_NaN();
+    assert(std::format(&quot;{0:},{0:+},{0:-},{0: }&quot;, 1)   == &quot;1,+1,1, 1&quot;);
+    assert(std::format(&quot;{0:},{0:+},{0:-},{0: }&quot;, -1)  == &quot;-1,-1,-1,-1&quot;);
+    assert(std::format(&quot;{0:},{0:+},{0:-},{0: }&quot;, inf) == &quot;inf,+inf,inf, inf&quot;);
+    assert(std::format(&quot;{0:},{0:+},{0:-},{0: }&quot;, nan) == &quot;nan,+nan,nan, nan&quot;);
+}
+</code></pre>
+<p>L'option <code>#</code> fait utiliser la <em>forme alternative</em> pour la conversion.</p>
+<ul>
+<li>Pour les types entiers, lorsque le type de présentation binaire, octal ou hexadécimal est utilisé, la forme alternative insère le préfixe (<code>0b</code>, <code>0</code> ou <code>0x</code>) dans la valeur de sortie après le caractère de signe (éventuellement une espace) s'il y en a un, ou l'ajoute avant la valeur de sortie sinon.</li>
+<li>Pour les types à virgule flottante, la forme alternative fait que le résultat de la conversion des valeurs finies contient toujours un caractère de séparation décimale, même si aucun chiffre ne le suit. Normalement, un caractère de séparation décimale n'apparaît dans le résultat de ces conversions que si un chiffre le suit. De plus, pour les conversions <code>g</code> et <code>G</code>, les zéros de fin ne sont pas supprimés du résultat.</li>
+</ul>
+<p>L'option <code>0</code> complète le champ avec des zéros initiaux (après toute indication de signe ou de base) jusqu'à la largeur du champ, sauf lorsqu'elle est appliquée à un infini ou à NaN. Si le caractère <code>0</code> et une option d'<em>alignement</em> apparaissent tous deux, le caractère <code>0</code> est ignoré.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;format&gt;
+
+int main()
+{
+    char c = 120;
+    assert(std::format(&quot;{:+06d}&quot;, c)   == &quot;+00120&quot;);
+    assert(std::format(&quot;{:#06x}&quot;, 0xa) == &quot;0x000a&quot;);
+    assert(std::format(&quot;{:&lt;06}&quot;, -42)  == &quot;-42   &quot;); // 0 est ignoré à cause de '&lt;'
+}
+</code></pre>
+<h2 id="Width_and_precision">Largeur et précision</h2>
+<p><code>width</code> est soit un nombre décimal positif, soit un champ de remplacement imbriqué (<code>{}</code> ou <code>{</code><em>n</em><code>}</code>). S'il est présent, il spécifie la largeur minimale du champ.</p>
+<p><code>precision</code> est un point (<code>.</code>) suivi soit d'un nombre décimal non négatif, soit d'un champ de remplacement imbriqué. Ce champ indique la précision ou la taille maximale du champ. Il ne peut être utilisé qu'avec les types à virgule flottante et chaîne.</p>
+<ul>
+<li>Pour les types à virgule flottante, ce champ spécifie la précision de formatage.</li>
+<li>Pour les types chaîne, il fournit une borne supérieure à la largeur estimée (voir <a href="spec.html#Width_estimation">ci-dessous</a>) du préfixe de la chaîne à copier vers la sortie. Pour une chaîne dans un encodage Unicode, le texte à copier vers la sortie est le plus long préfixe de groupes de graphèmes étendus entiers dont la largeur estimée n'excède pas la précision.</li>
+</ul>
+<p>Si un champ de remplacement imbriqué est utilisé pour <code>width</code> ou <code>precision</code>, et que l'argument correspondant n'est pas de [<a href="../../language/type-id.html">type entier</a> <em>(jusqu'à C++23)</em> | <a href="../../language/type-id.html">type entier signé ou non signé standard</a> <em>(depuis C++23)</em>], ou est négatif, une exception de type <a href="format_error.html"><code>std::format_error</code></a> est levée.</p>
+<pre><code class="language-cpp">float pi = 3.14f;
+assert(std::format(&quot;{:10f}&quot;, pi)           == &quot;  3.140000&quot;); // width = 10
+assert(std::format(&quot;{:{}f}&quot;, pi, 10)       == &quot;  3.140000&quot;); // width = 10
+assert(std::format(&quot;{:.5f}&quot;, pi)           == &quot;3.14000&quot;);    // precision = 5
+assert(std::format(&quot;{:.{}f}&quot;, pi, 5)       == &quot;3.14000&quot;);    // precision = 5
+assert(std::format(&quot;{:10.5f}&quot;, pi)         == &quot;   3.14000&quot;); // width = 10, precision = 5
+assert(std::format(&quot;{:{}.{}f}&quot;, pi, 10, 5) == &quot;   3.14000&quot;); // width = 10, precision = 5
+
+auto b1 = std::format(&quot;{:{}f}&quot;, pi, 10.0); // lève une exception : width n'est pas de type entier
+auto b2 = std::format(&quot;{:{}f}&quot;, pi, -10);  // lève une exception : width est négatif
+auto b3 = std::format(&quot;{:.{}f}&quot;, pi, 5.0); // lève une exception : precision n'est pas de type entier
+</code></pre>
+<p>La largeur d'une chaîne est définie comme le nombre estimé de colonnes appropriées pour l'afficher dans un terminal.</p>
+<p>Pour le calcul de la largeur, une chaîne est supposée être dans un encodage défini par l'implémentation. La méthode de calcul de la largeur n'est pas spécifiée, mais pour une chaîne dans un encodage Unicode, l'implémentation doit estimer la largeur de la chaîne comme la somme des largeurs estimées des premiers points de code de ses <a href="https://www.unicode.org/reports/tr29/">groupes de graphèmes étendus</a>. La largeur estimée vaut 2 pour les points de code suivants, et 1 sinon :</p>
+<ul>
+<li>Tout point de code dont la propriété Unicode <a href="https://www.unicode.org/reports/tr44/#East_Asian_Width"><code>East_Asian_Width</code></a> a la valeur Fullwidth (<code>F</code>) ou Wide (<code>W</code>)</li>
+<li>U+4DC0 - U+4DFF (Symboles des hexagrammes du Yijing)</li>
+<li>U+1F300 – U+1F5FF (Symboles divers et pictogrammes)</li>
+<li>U+1F900 – U+1F9FF (Symboles et pictogrammes supplémentaires)</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;format&gt;
+
+int main()
+{
+    assert(std::format(&quot;{:.^5s}&quot;,   &quot;🐱&quot;)    == &quot;.🐱..&quot;);
+    assert(std::format(&quot;{:.5s}&quot;,    &quot;🐱🐱🐱&quot;) == &quot;🐱🐱&quot;);
+    assert(std::format(&quot;{:.&lt;5.5s}&quot;, &quot;🐱🐱🐱&quot;) == &quot;🐱🐱.&quot;);
+}
+</code></pre>
+<h2 id="L_.28locale-specific_formatting.29">L (formatage propre à la locale)</h2>
+<p>L'option <code>L</code> fait utiliser la forme propre à la locale. Cette option n'est valide que pour les types arithmétiques.</p>
+<ul>
+<li>Pour les types entiers, la forme propre à la locale insère les caractères séparateurs de groupes de chiffres appropriés selon la locale du contexte.</li>
+<li>Pour les types à virgule flottante, la forme propre à la locale insère les caractères séparateurs de groupes de chiffres et de séparateur décimal appropriés selon la locale du contexte.</li>
+<li>Pour la représentation textuelle de <code>bool</code>, la forme propre à la locale utilise la chaîne appropriée, comme si elle était obtenue par <a href="../../locale/numpunct/truefalsename.html"><code>std::numpunct::truename</code></a> ou <a href="../../locale/numpunct/truefalsename.html"><code>std::numpunct::falsename</code></a>.</li>
+</ul>
+<h2 id="Type">Type</h2>
+<p>L'option <code>type</code> détermine la manière dont les données doivent être présentées.</p>
+<p>Les types de présentation de chaîne disponibles sont :</p>
+<ul>
+<li>none, <code>s</code> : Copie la chaîne vers la sortie.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>?</code> : Copie la chaîne échappée (voir <a href="spec.html#Formatting_escaped_characters_and_strings">ci-dessous</a>) vers la sortie.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Les types de présentation entiers disponibles pour les types entiers autres que <code>char</code>, <code>wchar_t</code> et <code>bool</code> sont :</p>
+<ul>
+<li><code>b</code> : Format binaire. Produit la sortie comme si l'on appelait <code>std::to_chars(first, last, value, 2)</code>. Le préfixe de base est <code>0b</code>.</li>
+<li><code>B</code> : identique à <code>b</code>, sauf que le préfixe de base est <code>0B</code>.</li>
+<li><code>c</code> : Copie le caractère <code>static_cast&lt;CharT&gt;(value)</code> vers la sortie, où <code>CharT</code> est le type de caractère de la chaîne de format. Lève <a href="format_error.html"><code>std::format_error</code></a> si la valeur n'est pas dans l'intervalle des valeurs représentables pour <code>CharT</code>.</li>
+<li><code>d</code> : Format décimal. Produit la sortie comme si l'on appelait <code>std::to_chars(first, last, value)</code>.</li>
+<li><code>o</code> : Format octal. Produit la sortie comme si l'on appelait <code>std::to_chars(first, last, value, 8)</code>. Le préfixe de base est <code>0</code> si la valeur de l'argument correspondant est non nulle, et vide sinon.</li>
+<li><code>x</code> : Format hexadécimal. Produit la sortie comme si l'on appelait <code>std::to_chars(first, last, value, 16)</code>. Le préfixe de base est <code>0x</code>.</li>
+<li><code>X</code> : identique à <code>x</code>, sauf qu'il utilise des lettres majuscules pour les chiffres supérieurs à 9 et que le préfixe de base est <code>0X</code>.</li>
+<li>none : identique à <code>d</code>.</li>
+</ul>
+<p>Les types de présentation disponibles de <code>char</code> et <code>wchar_t</code> sont :</p>
+<ul>
+<li>none, <code>c</code> : copie le caractère vers la sortie.</li>
+<li><code>b</code>, <code>B</code>, <code>d</code>, <code>o</code>, <code>x</code>, <code>X</code> : utilise les types de présentation entiers avec la valeur <code>static_cast&lt;unsigned char&gt;(value)</code> ou <code>static_cast&lt;std::make_unsigned_t&lt;wchar_t&gt;&gt;(value)</code> respectivement.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>?</code> : copie le caractère échappé (voir <a href="spec.html#Formatting_escaped_characters_and_strings">ci-dessous</a>) vers la sortie.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Les types de présentation disponibles de <code>bool</code> sont :</p>
+<ul>
+<li>none, <code>s</code> : copie la représentation textuelle (<code>true</code> ou <code>false</code>, ou la forme propre à la locale) vers la sortie.</li>
+<li><code>b</code>, <code>B</code>, <code>d</code>, <code>o</code>, <code>x</code>, <code>X</code> : utilise les types de présentation entiers avec la valeur <code>static_cast&lt;unsigned char&gt;(value)</code>.</li>
+</ul>
+<p>Les types de présentation à virgule flottante disponibles sont :</p>
+<ul>
+<li><code>a</code> : si <em>precision</em> est spécifiée, produit la sortie comme par un appel à <code>std::to_chars(first, last, value, std::chars_format::hex, precision)</code> où <code>precision</code> est la précision spécifiée ; sinon, la sortie est produite comme par un appel à <code>std::to_chars(first, last, value, std::chars_format::hex)</code>.</li>
+<li><code>A</code> : identique à <code>a</code>, sauf qu'il utilise des lettres majuscules pour les chiffres supérieurs à 9 et utilise <code>P</code> pour indiquer l'exposant.</li>
+<li><code>e</code> : produit la sortie comme par un appel à <code>std::to_chars(first, last, value, std::chars_format::scientific, precision)</code> où <code>precision</code> est la précision spécifiée, ou 6 si precision n'est pas spécifiée.</li>
+<li><code>E</code> : identique à <code>e</code>, sauf qu'il utilise <code>E</code> pour indiquer l'exposant.</li>
+<li><code>f</code>, <code>F</code> : produit la sortie comme par un appel à <code>std::to_chars(first, last, value, std::chars_format::fixed, precision)</code> où <code>precision</code> est la précision spécifiée, ou 6 si precision n'est pas spécifiée.</li>
+<li><code>g</code> : produit la sortie comme par un appel à <code>std::to_chars(first, last, value, std::chars_format::general, precision)</code> où <code>precision</code> est la précision spécifiée, ou 6 si precision n'est pas spécifiée.</li>
+<li><code>G</code> : identique à <code>g</code>, sauf qu'il utilise <code>E</code> pour indiquer l'exposant.</li>
+<li>none : si <em>precision</em> est spécifiée, produit la sortie comme par un appel à <code>std::to_chars(first, last, value, std::chars_format::general, precision)</code> où <code>precision</code> est la précision spécifiée ; sinon, la sortie est produite comme par un appel à <code>std::to_chars(first, last, value)</code>.</li>
+</ul>
+<p>Pour les types de présentation en minuscules, l'infini et NaN sont formatés respectivement en <code>inf</code> et <code>nan</code>. Pour les types de présentation en majuscules, l'infini et NaN sont formatés respectivement en <code>INF</code> et <code>NAN</code>.</p>
+<p>Les types de présentation de pointeur disponibles (également utilisés pour <a href="../../types/nullptr_t.html"><code>std::nullptr_t</code></a>) sont :</p>
+<ul>
+<li>none, <code>p</code> : si <a href="../../types/integer.html"><code>std::uintptr_t</code></a> est définie, produit la sortie comme par un appel à <code>std::to_chars(first, last, reinterpret_cast&lt;std::uintptr_t&gt;(value), 16)</code> avec le préfixe <code>0x</code> ajouté à la sortie ; sinon, la sortie est définie par l'implémentation.</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>P</code> : identique à <code>p</code>, sauf qu'il utilise des lettres majuscules pour les chiffres supérieurs à 9 et que le préfixe de base est <code>0X</code>.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<blockquote>
+<h3 id="Formatting_escaped_characters_and_strings">Formatage des caractères et chaînes échappés</h3>
+<p>Un caractère ou une chaîne peut être formaté en <em>échappé</em> pour le rendre plus adapté au débogage ou à la journalisation.</p>
+<p>L'échappement s'effectue comme suit :</p>
+<ul>
+<li>Pour chaque séquence d'unités de code bien formée qui encode un caractère <em>C</em> :</li>
+<li>Si <em>C</em> est l'un des caractères du tableau suivant, la séquence d'échappement correspondante est utilisée.</li>
+</ul>
+<p><strong>Caractère</strong> | <strong>Séquence d'échappement</strong> | <strong>Notes</strong></p>
+<p>tabulation horizontale (octet 0x09 en encodage ASCII) | <code>\t</code></p>
+<p>saut de ligne - nouvelle ligne (octet 0x0a en encodage ASCII) | <code>\n</code></p>
+<p>retour chariot (octet 0x0d en encodage ASCII) | <code>\r</code></p>
+<p>guillemet double (octet 0x22 en encodage ASCII) | <code>\&quot;</code> | Utilisé uniquement si la sortie est une chaîne entre guillemets doubles</p>
+<p>apostrophe (octet 0x27 en encodage ASCII) | <code>\'</code> | Utilisé uniquement si la sortie est une chaîne entre apostrophes</p>
+<p>barre oblique inverse (octet 0x5c en encodage ASCII) | <code>\\</code></p>
+<ul>
+<li>
+<p>Sinon, si <em>C</em> n'est pas le caractère espace (octet 0x20 en encodage ASCII), et que</p>
+</li>
+<li>
+<p>l'encodage de caractères associé est un encodage Unicode et</p>
+</li>
+<li>
+<p><em>C</em> correspond à une valeur scalaire Unicode dont la propriété Unicode <a href="https://www.unicode.org/reports/tr44/#General_Category_Values"><code>General_Category</code></a> a une valeur dans les groupes <code>Separator</code> (<code>Z</code>) ou <code>Other</code> (<code>C</code>), ou</p>
+</li>
+<li>
+<p><em>C</em> n'est pas immédiatement précédé d'un caractère non échappé, et <em>C</em> correspond à une valeur scalaire Unicode qui possède la propriété Unicode <code>Grapheme_Extend=Yes</code>, ou</p>
+</li>
+<li>
+<p>l'encodage de caractères associé n'est pas un encodage Unicode et <em>C</em> est l'un des ensembles de séparateurs ou de caractères non imprimables défini par l'implémentation la séquence d'échappement est <code>\u{hex-digit-sequence}</code>, où <code>hex-digit-sequence</code> est la représentation hexadécimale la plus courte de <em>C</em> en utilisant des chiffres hexadécimaux en minuscules.</p>
+</li>
+<li>
+<p>Sinon, <em>C</em> est copié tel quel.</p>
+</li>
+<li>
+<p>Une séquence d'unités de code qui est une séquence de décalage a un effet non spécifié sur la sortie et sur le décodage ultérieur de la chaîne.</p>
+</li>
+<li>
+<p>Les autres unités de code (c'est-à-dire celles des séquences d'unités de code mal formées) sont chacune remplacées par <code>\x{hex-digit-sequence}</code>, où <code>hex-digit-sequence</code> est la représentation hexadécimale la plus courte de l'unité de code en utilisant des chiffres hexadécimaux en minuscules.</p>
+</li>
+</ul>
+<p>La représentation échappée d'une chaîne est construite en échappant les séquences d'unités de code de la chaîne, comme décrit ci-dessus, puis en entourant le résultat de guillemets doubles.</p>
+<p>La représentation échappée d'un caractère est construite en l'échappant comme décrit ci-dessus, puis en entourant le résultat d'apostrophes.</p>
+<p><a href="https://godbolt.org/z/WxhTs6b69">Démonstration sur Compiler Explorer</a> :</p>
+<pre><code class="language-cpp">#include &lt;print&gt;
+
+int main()
+{
+    std::println(&quot;[{:?}]&quot;, &quot;h\tllo&quot;);             // affiche : [&quot;h\tllo&quot;]
+    std::println(&quot;[{:?}]&quot;, &quot;Спасибо, Виктор ♥!&quot;); // prints: [&quot;Спасибо, Виктор ♥!&quot;]
+    std::println(&quot;[{:?}] [{:?}]&quot;, '\'', '&quot;');     // prints: ['\'', '&quot;']
+
+    // Les exemples suivants supposent l'utilisation de l'encodage UTF-8
+    std::println(&quot;[{:?}]&quot;, std::string(&quot;\0 \n \t \x02 \x1b&quot;, 9));
+                                             // prints: [&quot;\u{0} \n \t \u{2} \u{1b}&quot;]
+    std::println(&quot;[{:?}]&quot;, &quot;\xc3\x28&quot;);      // UTF-8 invalide
+                                             // prints: [&quot;\x{c3}(&quot;]
+    std::println(&quot;[{:?}]&quot;, &quot;\u0301&quot;);        // prints: [&quot;\u{301}&quot;]
+    std::println(&quot;[{:?}]&quot;, &quot;\\\u0301&quot;);      // prints: [&quot;\\\u{301}&quot;]
+    std::println(&quot;[{:?}]&quot;, &quot;e\u0301\u0323&quot;); // prints: [&quot;ẹ́&quot;]
+}
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Dans la plupart des cas la syntaxe est similaire à l'ancien formatage <code>%</code>, avec l'ajout de <code>{}</code> et avec <code>:</code> utilisé à la place de <code>%</code>. Par exemple, <code>&quot;%03.2f&quot;</code> peut être traduit en <code>&quot;{:03.2f}&quot;</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_format_uchar"><code>__cpp_lib_format_uchar</code></a></td>
+<td><a href="../../compiler_support/20.html#cpp_lib_format_uchar_202311L"><code>202311L</code></a></td>
+<td><em>(C++20)</em> <em>(DR)</em></td>
+<td>Formatage des unités de code sous forme d'entiers non signés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3721">LWG 3721</a></td>
+<td>C++20</td>
+<td>zéro n'est pas autorisé pour le champ de largeur dans la spécification de format standard</td>
+<td>zéro est autorisé s'il est spécifié via un champ de remplacement</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2909R4">P2909R4</a></td>
+<td>C++20</td>
+<td><code>char</code> ou <code>wchar_t</code> pouvaient être formatés comme des valeurs entières non signées hors limites</td>
+<td>les unités de code sont converties dans le type non signé correspondant avant un tel formatage</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

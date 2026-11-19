@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::generate_random — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-generate_random"><code>std::ranges::generate_random</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/generate_random">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;random&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; class R, class G &gt;
+    requires ranges::output_range&lt;R, std::invoke_result_t&lt;G&amp;&gt;&gt; &amp;&amp;
+             std::uniform_random_bit_generator&lt;std::remove_cvref_t&lt;G&gt;&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt;
+    generate_random( R&amp;&amp; r, G&amp;&amp; g );  // (1) (depuis C++26)
+
+template&lt; class G, std::output_iterator&lt;std::invoke_result_t&lt;G&amp;&gt;&gt; O,
+          std::sentinel_for&lt;O&gt; S &gt;
+    requires std::uniform_random_bit_generator&lt;std::remove_cvref_t&lt;G&gt;&gt;
+constexpr O
+    generate_random( O first, S last, G&amp;&amp; g );  // (2) (depuis C++26)
+
+template&lt; class R, class G, class D &gt;
+    requires ranges::output_range&lt;R, std::invoke_result_t&lt;D&amp;, G&amp;&gt;&gt; &amp;&amp;
+             std::invocable&lt;D&amp;, G&amp;&gt; &amp;&amp;
+             std::uniform_random_bit_generator&lt;std::remove_cvref_t&lt;G&gt;&gt; &amp;&amp;
+             std::is_arithmetic_v&lt;std::invoke_result_t&lt;D&amp;, G&amp;&gt;&gt;
+constexpr ranges::borrowed_iterator_t&lt;R&gt;
+    generate_random( R&amp;&amp; r, G&amp;&amp; g, D&amp;&amp; d );  // (3) (depuis C++26)
+
+template&lt; class G, class D, std::output_iterator&lt;std::invoke_result_t&lt;D&amp;, G&amp;&gt;&gt; O,
+          std::sentinel_for&lt;O&gt; S &gt;
+    requires std::invocable&lt;D&amp;, G&amp;&gt; &amp;&amp;
+             std::uniform_random_bit_generator&lt;std::remove_cvref_t&lt;G&gt;&gt; &amp;&amp;
+             std::is_arithmetic_v&lt;std::invoke_result_t&lt;D&amp;, G&amp;&gt;&gt;
+constexpr O
+    generate_random( O first, S last, G&amp;&amp; g, D&amp;&amp; d );  // (4) (depuis C++26)
+</code></pre>
+<p>Tente de générer des nombres aléatoires à l'aide de la fonction membre <code>generate_random</code> du générateur de nombres aléatoires ou de la distribution, qui devrait être plus efficace. Revient à une génération élément par élément si aucune fonction membre <code>generate_random</code> n'est disponible.</p>
+<p>Soit l'opération de repli l'appel de <code>ranges::generate(std::forward&lt;R&gt;(r), std::ref(g))</code> ou de <code>ranges::generate(std::forward&lt;R&gt;(r), [&amp;d, &amp;g] { return std::invoke(d, g); })</code> pour <code>(1)</code> ou <code>(3)</code> respectivement.</p>
+<ol>
+<li>Appelle <code>g.generate_random(std::forward&lt;R&gt;(r))</code> si cette expression est bien formée.</li>
+</ol>
+<p>Sinon, soit <code>I</code> égal à <code>std::invoke_result_t&lt;G&amp;&gt;</code>. Si <code>R</code> modélise <a href="../../ranges/sized_range.html"><code>sized_range</code></a>, remplit <code>r</code> avec <code>ranges::size(r)</code> valeurs de <code>I</code> en effectuant un nombre non spécifié d'appels de la forme <code>g()</code> ou <code>g.generate_random(s)</code>, si une telle expression est bien formée pour une valeur <code>N</code> et un objet <code>s</code> de type <code>std::span&lt;I, N&gt;</code>.</p>
+<p>Sinon, effectue l'opération de repli.</p>
+<ol start="3">
+<li>Appelle <code>d.generate_random(std::forward&lt;R&gt;(r), g)</code> si cette expression est bien formée.</li>
+</ol>
+<p>Sinon, soit <code>I</code> égal à <code>std::invoke_result_t&lt;D&amp;, G&amp;&gt;</code>. Si <code>R</code> modélise <a href="../../ranges/sized_range.html"><code>sized_range</code></a>, remplit <code>r</code> avec <code>ranges::size(r)</code> valeurs de type <code>I</code> en effectuant un nombre non spécifié d'appels de la forme <code>std::invoke(d, g)</code> ou <code>d.generate_random(s, g)</code>, si une telle expression est bien formée pour une valeur <code>N</code> et un objet <code>s</code> de type <code>std::span&lt;I, N&gt;</code>.</p>
+<p>Sinon, effectue l'opération de repli.</p>
+<p>2,4) Équivalent à <code>(1,3)</code> respectivement, où <code>r</code> est obtenu à partir de <code>ranges::subrange&lt;O, S&gt;(std::move(first), last)</code>.</p>
+<p>Si les effets de <code>(1)</code> ou de <code>(3)</code> ne sont pas équivalents à ceux de l'opération de repli correspondante, le comportement est indéfini.</p>
+<p>La valeur de <code>N</code> peut différer d'un appel à l'autre. Les implémentations peuvent choisir des valeurs plus petites pour des intervalles plus courts.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — paire itérateur-sentinelle désignant l'intervalle dans lequel les nombres aléatoires sont écrits</li>
+<li><code>r</code> — intervalle dans lequel les nombres aléatoires sont écrits</li>
+<li><code>g</code> — générateur uniforme de bits aléatoires</li>
+<li><code>d</code> — objet de distribution de nombres aléatoires</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Au moment de la standardisation de <code>std::ranges::generate_random</code>, aucun générateur de nombres aléatoires ni aucune distribution de la bibliothèque standard ne fournit de fonction membre <code>generate_random</code>.</p>
+<p><code>std::ranges::generate_random</code> peut être plus efficace lorsqu'il est utilisé avec un générateur de nombres aléatoires défini par l'utilisateur qui encapsule une API vectorisée sous-jacente.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_ranges_generate_random"><code>__cpp_lib_ranges_generate_random</code></a></td>
+<td><a href="../../compiler_support/26.html#cpp_lib_ranges_generate_random_202403L"><code>202403L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>std::ranges::generate_random</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;random&gt;
+
+int main()
+{
+    std::default_random_engine eng;
+    std::default_random_engine::result_type rs[16]{};
+    std::ranges::generate_random(rs, eng);
+
+    std::cout &lt;&lt; std::left;
+    for (int i{}; auto n : rs)
+        std::cout &lt;&lt; std::setw(11) &lt;&lt; n &lt;&lt; (++i % 4 ? ' ' : '\n');
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">16807       282475249   1622650073  984943658
+1144108930  470211272   101027544   1457850878
+1458777923  2007237709  823564440   1115438165
+1784484492  74243042    114807987   1137522503
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="generate.html">ranges::generate</a> (C++20)</strong> — enregistre le résultat d'une fonction dans un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../../numeric/random/UniformRandomBitGenerator.html">uniform_random_bit_generator</a> (C++20)</strong> — spécifie qu'un type est un générateur uniforme de bits aléatoires <em>(concept)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

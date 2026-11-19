@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::aligned_union — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/types.html">Support des types (types de base, RTTI)</a></nav>
+<h1 id="std-aligned_union"><code>std::aligned_union</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/aligned_union">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;type_traits&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; std::size_t Len, class... Types &gt;
+struct aligned_union;  // (depuis C++11) (obsolète en C++23)
+</code></pre>
+<p>Fournit le type imbriqué <code>type</code>, qui est un type <a href="../named_req/TrivialType.html">trivial</a> et de <a href="../named_req/StandardLayoutType.html">disposition standard</a> d'une taille et d'un alignement adaptés à un stockage non initialisé pour un objet de l'un quelconque des types listés dans <code>Types</code>. La taille du stockage est au moins <code>Len</code>. <code>std::aligned_union</code> détermine aussi l'exigence d'alignement la plus stricte (la plus grande) parmi tous les <code>Types</code> et la rend disponible sous la forme de la constante <code>alignment_value</code>.</p>
+<p>Si <code>sizeof...(Types) == 0</code> ou si l'un des types de <code>Types</code> n'est pas un type d'objet complet, le comportement est indéfini.</p>
+<p>Il est défini par l'implémentation de savoir si un <a href="../language/objects.html#Alignment">alignement étendu</a> quelconque est pris en charge.</p>
+<p>Si le programme ajoute des spécialisations pour <code>std::aligned_union</code>, le comportement est indéfini.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>type</code></strong> — un type trivial et de disposition standard adapté au stockage de tout type de <code>Types</code></li>
+</ul>
+<h2 id="Helper_types">Types auxiliaires</h2>
+<pre><code class="language-cpp">template&lt; std::size_t Len, class... Types &gt;
+using aligned_union_t = typename aligned_union&lt;Len,Types...&gt;::type;  // (depuis C++14) (obsolète en C++23)
+</code></pre>
+<h2 id="Member_constants">Constantes membres</h2>
+<ul>
+<li><strong>alignment_value [statique]</strong> — l'exigence d'alignement la plus stricte de tous les <code>Types</code> <em>(constante membre statique publique)</em></li>
+</ul>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+
+template&lt;std::size_t Len, class... Types&gt;
+struct aligned_union
+{
+    static constexpr std::size_t alignment_value = std::max({alignof(Types)...});
+
+    struct type
+    {
+        alignas(alignment_value) char _s[std::max({Len, sizeof(Types)...})];
+    };
+};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;type_traits&gt;
+
+int main()
+{
+    std::cout &lt;&lt; sizeof(std::aligned_union_t&lt;0, char&gt;) &lt;&lt; ' ' // 1
+              &lt;&lt; sizeof(std::aligned_union_t&lt;2, char&gt;) &lt;&lt; ' ' // 2
+              &lt;&lt; sizeof(std::aligned_union_t&lt;2, char[3]&gt;) &lt;&lt; ' ' // 3 (!)
+              &lt;&lt; sizeof(std::aligned_union_t&lt;3, char[4]&gt;) &lt;&lt; ' ' // 4
+              &lt;&lt; sizeof(std::aligned_union_t&lt;1, char, int, double&gt;) &lt;&lt; ' '    // 8
+              &lt;&lt; sizeof(std::aligned_union_t&lt;12, char, int, double&gt;) &lt;&lt; '\n'; // 16 (!)
+
+    using var_t = std::aligned_union&lt;16, int, std::string&gt;;
+
+    std::cout &lt;&lt; &quot;var_t::alignment_value = &quot; &lt;&lt; var_t::alignment_value &lt;&lt; '\n'
+              &lt;&lt; &quot;sizeof(var_t::type) = &quot; &lt;&lt; sizeof(var_t::type) &lt;&lt; '\n';
+
+    var_t::type aligned_storage;
+    int* int_ptr = new(&amp;aligned_storage) int(42); // placement new
+    std::cout &lt;&lt; &quot;*int_ptr = &quot; &lt;&lt; *int_ptr &lt;&lt; '\n';
+
+    std::string* string_ptr = new(&amp;aligned_storage) std::string(&quot;bar&quot;);
+    std::cout &lt;&lt; &quot;*string_ptr = &quot; &lt;&lt; *string_ptr &lt;&lt; '\n';
+    *string_ptr = &quot;baz&quot;;
+    std::cout &lt;&lt; &quot;*string_ptr = &quot; &lt;&lt; *string_ptr &lt;&lt; '\n';
+    string_ptr-&gt;~basic_string();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1 2 3 4 8 16
+var_t::alignment_value = 8
+sizeof(var_t::type) = 32
+*int_ptr = 42
+*string_ptr = bar
+*string_ptr = baz
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2979">LWG 2979</a></td>
+<td>C++11</td>
+<td>un type complet n'était pas requis</td>
+<td>requiert des types complets</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="alignment_of.html">alignment_of</a> (C++11)</strong> — obtient les exigences d'alignement du type <em>(modèle de classe)</em></li>
+<li><strong><a href="aligned_storage.html">aligned_storage</a> (since C++11) (deprecated in C++23)</strong> — définit le type adapté à être utilisé comme stockage non initialisé pour des types de taille donnée <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

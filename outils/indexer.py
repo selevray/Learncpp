@@ -7,7 +7,9 @@
    - ./lessons/*.html      (vos leçons)
    - ./reference/*.html    (vos fiches mémo)
    - ./exercices/*/README.md
-   - ./cours/**/*.html     (le cours LearnCpp)
+   - ./NN - Chapitre…/*.html et ./Hors sommaire/*.html  (le cours LearnCpp)
+3. Construit ./assets/index-cppreference.js (titre + début de chaque page de la
+   référence cppreference traduite, ./cppreference/{cpp,c}/…), chargé à part.
 
 À lancer après chaque nouvelle leçon, fiche ou exercice :
     .venv/bin/python outils/indexer.py
@@ -30,6 +32,15 @@ SOURCE_COURS = Path.home() / "learncpp" / "cours"
 SOURCE_IMAGES = Path.home() / "learncpp" / "images"
 COURS = RACINE / "cours"
 INDEX = RACINE / "assets" / "index-recherche.js"
+INDEX_CPPREF = RACINE / "assets" / "index-cppreference.js"
+CPPREF = RACINE / "cppreference"
+
+
+def pages_cours() -> list[Path]:
+    """Pages du cours LearnCpp : dossiers de chapitres à la racine + « Hors sommaire »."""
+    pages = sorted(RACINE.glob("[0-9][0-9] - */*.html"))
+    pages += sorted((RACINE / "Hors sommaire").glob("*.html"))
+    return pages
 
 
 # ------------------------------------------------------------ Markdown -> HTML
@@ -245,9 +256,8 @@ def construire_index() -> None:
         t = f.read_text()
         titre = (t.splitlines() or [f.parent.name])[0].lstrip("# ").strip()
         ajouter("exercice", f, titre, re.sub(r"\s+", " ", t))
-    for f in sorted(COURS.rglob("*.html")) if COURS.exists() else []:
-        if f.name != "index.html":
-            ajouter_page("cours", f)
+    for f in pages_cours():
+        ajouter_page("cours", f)
 
     INDEX.write_text("window.INDEX_RECHERCHE = " + json.dumps(entrees, ensure_ascii=False) + ";\n")
     pages = {g: len({e["url"] for e in entrees if e["genre"] == g}) for g in ("lecon", "fiche", "exercice", "cours")}
@@ -255,8 +265,31 @@ def construire_index() -> None:
           f"{pages['cours']} pages du cours ({len(entrees)} sections)")
 
 
+def construire_index_cppref() -> None:
+    """Une entrée par page : titre + début du texte (sans le code), pour rester léger."""
+    if not CPPREF.exists():
+        return
+    pages = [CPPREF / "cpp.html", CPPREF / "c.html"] + sorted((CPPREF / "cpp").rglob("*.html")) \
+        + sorted((CPPREF / "c").rglob("*.html"))
+    entrees = []
+    for f in pages:
+        if not f.exists():
+            continue
+        source = f.read_text(errors="replace").split("<main>", 1)[-1]
+        m = re.search(r"<h1[^>]*>(.*?)</h1>", source, flags=re.S)
+        titre = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", m.group(1)))).strip() if m else f.stem
+        corps = source[m.end():] if m else source
+        corps = re.sub(r'<p class="ref-source">.*?</p>|<pre>.*?</pre>', " ", corps, flags=re.S)
+        texte = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", corps))).strip()
+        entrees.append({"genre": "ref", "url": f.relative_to(RACINE).as_posix(), "ancre": "",
+                        "titre": titre, "section": "", "texte": texte[:300]})
+    INDEX_CPPREF.write_text("window.INDEX_CPPREF = " + json.dumps(entrees, ensure_ascii=False) + ";\n")
+    print(f"Index cppreference : {len(entrees)} pages")
+
+
 if __name__ == "__main__":
     if "--forcer" in sys.argv and COURS.exists():
         shutil.rmtree(COURS)
     convertir_cours()
     construire_index()
+    construire_index_cppref()

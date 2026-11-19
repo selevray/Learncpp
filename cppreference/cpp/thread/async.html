@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::async — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-async"><code>std::async</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/async">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;future&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class F, class... Args &gt;
+std::future&lt;/* voir ci-dessous */&gt; async( F&amp;&amp; f, Args&amp;&amp;... args );  // (1) (depuis C++11)
+
+template&lt; class F, class... Args &gt;
+std::future&lt;/* voir ci-dessous */&gt; async( std::launch policy,
+                                    F&amp;&amp; f, Args&amp;&amp;... args );  // (2) (depuis C++11)
+</code></pre>
+<p>Le modèle de fonction <code>std::async</code> exécute la fonction <code>f</code> de manière asynchrone (potentiellement dans un thread séparé, pouvant faire partie d'un pool de threads) et renvoie un <a href="future.html"><code>std::future</code></a> qui contiendra à terme le résultat de cet appel de fonction.</p>
+<ol>
+<li>
+<p>Se comporte comme si <code>(2)</code> était appelé avec <code>policy</code> valant <code>std::launch::async | std::launch::deferred</code>.</p>
+</li>
+<li>
+<p>Appelle une fonction <code>f</code> avec les arguments <code>args</code> selon une politique de lancement spécifique <code>policy</code> (voir <a href="async.html#Launch_policies">ci-dessous</a>).</p>
+</li>
+</ol>
+<p>Le type de retour de <code>std::async</code> est <code>std::future&lt;V&gt;</code>, où <code>V</code> est :</p>
+<blockquote>
+<p><code>typename std::result_of&lt;typename std::decay&lt;F&gt;::type(</code><br />
+<code>typename std::decay&lt;Args&gt;::type...)&gt;::type</code>.</p>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::invoke_result_t&lt;std::decay_t&lt;F&gt;, std::decay_t&lt;Args&gt;...&gt;</code>.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<p>Si l'une des conditions suivantes est satisfaite, le programme est mal formé :</p>
+<ul>
+<li><code>F</code> n'est pas <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a>.</li>
+<li>Tout type dans <code>Args</code> n'est pas <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a>.</li>
+<li><code>INVOKE(decay-copy(std::forward&lt;F&gt;(f)), decay-copy(std::forward&lt;Args&gt;(args))...)</code> n'est pas une expression valide.</li>
+</ul>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Si l'un des éléments suivants est <code>false</code>, le programme est mal formé :</p>
+<ul>
+<li><code>std::is_constructible_v&lt;std::decay_t&lt;F&gt;, F&gt;</code></li>
+<li><code>(std::is_constructible_v&lt;std::decay_t&lt;Args&gt;, Args&gt; &amp;&amp; ...)</code></li>
+<li><code>std::is_invocable_v&lt;std::decay_t&lt;F&gt;, std::decay_t&lt;Args&gt;...&gt;</code></li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>L'appel à <code>std::async</code> <a href="../atomic/memory_order.html">se synchronise avec</a> l'appel à <code>f</code>, et la fin de <code>f</code> est <a href="../language/eval_order.html">séquencée avant</a> la mise à l'état prêt de l'état partagé.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>f</code> — <a href="../named_req/Callable.html"><em>Callable</em></a> objet à appeler</li>
+<li><code>args</code> — paramètres à passer à <code>f</code></li>
+<li><code>policy</code> — valeur de masque binaire, où chaque bit contrôle les méthodes d'exécution autorisées</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><a href="future.html"><code>std::future</code></a> faisant référence à l'état partagé créé par cet appel à <code>std::async</code>.</p>
+<h2 id="Launch_policies">Politiques de lancement</h2>
+<h3 id="Async_invocation">Invocation asynchrone</h3>
+<p>Si le drapeau <em>async</em> est positionné, c'est-à-dire <code>(policy &amp; std::launch::async) != 0</code>, alors <code>std::async</code> appelle</p>
+<blockquote>
+<p><code>INVOKE(decay-copy(std::forward&lt;F&gt;(f)), decay-copy(std::forward&lt;Args&gt;(args))...)</code></p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::invoke(auto(std::forward&lt;F&gt;(f)), auto(std::forward&lt;Args&gt;(args))...)</code></p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>comme dans un nouveau fil d'exécution représenté par un objet <a href="thread.html"><code>std::thread</code></a>.</p>
+<blockquote>
+<p>Les appels de <a href="../standard_library/decay-copy.html"><code>decay-copy</code></a> sont évalués dans le fil courant.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>Les valeurs produites par <code>auto</code> sont <a href="../language/implicit_cast.html#Temporary_materialization">matérialisées</a> dans le fil courant.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Si la fonction <code>f</code> renvoie une valeur ou lève une exception, celle-ci est stockée dans l'état partagé accessible par le <a href="future.html"><code>std::future</code></a> que <code>std::async</code> renvoie à l'appelant.</p>
+<h3 id="Deferred_invocation">Invocation différée</h3>
+<p>Si le drapeau <em>deferred</em> est positionné (c'est-à-dire <code>(policy &amp; std::launch::deferred) != 0</code>), alors <code>std::async</code> stocke</p>
+<blockquote>
+<p><code>decay-copy(std::forward&lt;F&gt;(f))</code> et <code>decay-copy(std::forward&lt;Args&gt;(args))...</code> dans l'état partagé.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>auto(std::forward&lt;F&gt;(f))</code> et <code>auto(std::forward&lt;Args&gt;(args))...</code> dans l'état partagé.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p><em>L'évaluation paresseuse</em> est effectuée :</p>
+<ul>
+<li>Le premier appel à une fonction d'attente non temporisée sur le <a href="future.html"><code>std::future</code></a> que <code>std::async</code> a renvoyé à l'appelant évaluera <code>INVOKE(std::move(g), std::move(xyz))</code> dans le fil qui a appelé la fonction d'attente (qui n'a pas besoin d'être le fil ayant initialement appelé <code>std::async</code>), où</li>
+</ul>
+<blockquote>
+<ul>
+<li><code>g</code> est la valeur stockée de <code>decay-copy(std::forward&lt;F&gt;(f))</code> et</li>
+<li><code>xyz</code> est la copie stockée de <code>decay-copy(std::forward&lt;Args&gt;(args))...</code>.</li>
+</ul>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>g</code> est la valeur stockée de <code>auto(std::forward&lt;F&gt;(f))</code> et</li>
+<li><code>xyz</code> est la copie stockée de <code>auto(std::forward&lt;Args&gt;(args))...</code>.</li>
+</ul>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<ul>
+<li>Le résultat ou l'exception est placé dans l'état partagé associé au <a href="future.html"><code>std::future</code></a> renvoyé, et seulement ensuite il est mis à l'état prêt. Tous les accès ultérieurs au même <a href="future.html"><code>std::future</code></a> renverront le résultat immédiatement.</li>
+</ul>
+<h3 id="Other_policies">Autres politiques</h3>
+<p>Si ni <a href="launch.html"><code>std::launch::async</code></a> ni <a href="launch.html"><code>std::launch::deferred</code></a>, ni aucun drapeau de politique défini par l'implémentation n'est défini dans <code>policy</code>, le comportement est indéfini.</p>
+<h2 id="Policy_selection">Sélection de la politique</h2>
+<p>Si plusieurs drapeaux sont définis, la politique sélectionnée est définie par l'implémentation. Pour la valeur par défaut (les drapeaux <a href="launch.html"><code>std::launch::async</code></a> et <a href="launch.html"><code>std::launch::deferred</code></a> sont tous deux définis dans <code>policy</code>), la norme recommande (sans l'exiger) d'utiliser la concurrence disponible et de différer les tâches supplémentaires.</p>
+<p>Si la politique <a href="launch.html"><code>std::launch::async</code></a> est choisie,</p>
+<ul>
+<li>un appel à une fonction d'attente sur un objet de retour asynchrone partageant l'état partagé créé par cet appel <code>std::async</code> bloque jusqu'à ce que le thread associé se termine, comme s'il avait été joint, ou expire ; et</li>
+<li>la fin du thread associé <em>se synchronise avec</em> le retour réussi de la première fonction qui attend sur l'état partagé, ou avec le retour de la dernière fonction qui libère l'état partagé, selon ce qui survient en premier.</li>
+</ul>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Lève</p>
+<ul>
+<li><a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a>, si la mémoire des structures de données internes ne peut pas être allouée, ou</li>
+<li><a href="../error/system_error.html"><code>std::system_error</code></a> avec la condition d'erreur <a href="../error/errc.html"><code>std::errc::resource_unavailable_try_again</code></a>, si <code>policy == std::launch::async</code> et que l'implémentation ne peut pas démarrer un nouveau thread.
+<ul>
+<li>Si <code>policy</code> vaut <code>std::launch::async | std::launch::deferred</code> ou possède des bits supplémentaires définis, il se rabat sur l'invocation différée ou sur les politiques définies par l'implémentation dans ce cas.</li>
+</ul>
+</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>L'implémentation peut étendre le comportement de la première surcharge de <code>std::async</code> en activant des bits supplémentaires (définis par l'implémentation) dans la politique de lancement par défaut.</p>
+<p>Exemples de politiques de lancement définies par l'implémentation : la politique sync (exécution immédiate, dans l'appel <code>std::async</code>) et la politique task (similaire à <code>std::async</code>, mais les thread-locals ne sont pas effacées)</p>
+<p>Si le <a href="future.html"><code>std::future</code></a> obtenu à partir de <code>std::async</code> n'est ni déplacé ni lié à une référence, le destructeur de <a href="future.html"><code>std::future</code></a> bloque à la fin de l'expression complète jusqu'à ce que l'opération asynchrone se termine, rendant en pratique synchrone du code tel que le suivant :</p>
+<pre><code class="language-cpp">std::async(std::launch::async, []{ f(); }); // le destructeur du temporaire attend f()
+std::async(std::launch::async, []{ g(); }); // ne démarre pas tant que f() n'est pas terminé
+</code></pre>
+<p>Notez que les destructeurs des <a href="future.html"><code>std::future</code></a> obtenus par un moyen autre qu'un appel à <code>std::async</code> ne bloquent jamais.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;numeric&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+std::mutex m;
+
+struct X
+{
+    void foo(int i, const std::string&amp; str)
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(m);
+        std::cout &lt;&lt; str &lt;&lt; ' ' &lt;&lt; i &lt;&lt; '\n';
+    }
+
+    void bar(const std::string&amp; str)
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(m);
+        std::cout &lt;&lt; str &lt;&lt; '\n';
+    }
+
+    int operator()(int i)
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(m);
+        std::cout &lt;&lt; i &lt;&lt; '\n';
+        return i + 10;
+    }
+};
+
+template&lt;typename RandomIt&gt;
+int parallel_sum(RandomIt beg, RandomIt end)
+{
+    auto len = end - beg;
+    if (len &lt; 1000)
+        return std::accumulate(beg, end, 0);
+
+    RandomIt mid = beg + len / 2;
+    auto handle = std::async(std::launch::async,
+                             parallel_sum&lt;RandomIt&gt;, mid, end);
+    int sum = parallel_sum(beg, mid);
+    return sum + handle.get();
+}
+
+int main()
+{
+    std::vector&lt;int&gt; v(10000, 1);
+    std::cout &lt;&lt; &quot;The sum is &quot; &lt;&lt; parallel_sum(v.begin(), v.end()) &lt;&lt; '\n';
+
+    X x;
+    // Appelle (&amp;x)-&gt;foo(42, &quot;Hello&quot;) avec la politique par défaut :
+    // peut afficher &quot;Hello 42&quot; de façon concurrente ou différer l'exécution
+    auto a1 = std::async(&amp;X::foo, &amp;x, 42, &quot;Hello&quot;);
+    // Appelle x.bar(&quot;world!&quot;) avec la politique différée
+    // affiche &quot;world!&quot; lorsque a2.get() ou a2.wait() est appelé
+    auto a2 = std::async(std::launch::deferred, &amp;X::bar, x, &quot;world!&quot;);
+    // Appelle X()(43); avec la politique async
+    // affiche &quot;43&quot; de façon concurrente
+    auto a3 = std::async(std::launch::async, X(), 43);
+    a2.wait();                     // affiche &quot;world!&quot;
+    std::cout &lt;&lt; a3.get() &lt;&lt; '\n'; // prints &quot;53&quot;
+} // si a1 n'est pas terminé à ce stade, le destructeur de a1 affiche &quot;Hello 42&quot; ici
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">The sum is 10000
+43
+world!
+53
+Hello 42
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2021">LWG 2021</a></td>
+<td>C++11</td>
+<td>type de retour incorrect et catégorie de valeur des arguments peu claire dans le cas différé</td>
+<td>type de retour corrigé et précisé que des rvalues sont utilisées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2078">LWG 2078</a></td>
+<td>C++11</td>
+<td>on ne savait pas si <a href="../error/system_error.html"><code>std::system_error</code></a> pouvait être levée lorsque <code>policy</code> spécifie d'autres politiques de lancement que <a href="launch.html"><code>std::launch::async</code></a></td>
+<td>ne peut être levée que si <code>policy == std::launch::async</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2100">LWG 2100</a></td>
+<td>C++11</td>
+<td>les fonctions d'attente temporisées ne pouvaient pas expirer si la politique <a href="launch.html"><code>std::launch::async</code></a> est utilisée</td>
+<td>allowed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2120">LWG 2120</a></td>
+<td>C++11</td>
+<td>le comportement était peu clair si aucune politique standard ou définie par l'implémentation n'est définie</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2186">LWG 2186</a></td>
+<td>C++11</td>
+<td>on ne savait pas comment la valeur retournée et l' exception levée par l'évaluation paresseuse étaient traitées</td>
+<td>elles sont stockées dans l'état partagé</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2752">LWG 2752</a></td>
+<td>C++11</td>
+<td><code>std::async</code> pourrait ne pas lever <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si la mémoire des structures de données internes ne peut pas être allouée</td>
+<td>throws</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3476">LWG 3476</a></td>
+<td>C++20</td>
+<td>(les types décayés de) <code>F</code> et les types des arguments étaient directement exigés comme constructibles par déplacement</td>
+<td>ces exigences ont été supprimées<a href="async.html#cite_note-1">[1]</a></td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li><a href="async.html#cite_ref-1">↑</a> La constructibilité par déplacement est déjà exigée indirectement par <a href="../types/is_constructible.html"><code>std::is_constructible_v</code></a>.</li>
+</ol>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="future.html">future</a> (C++11)</strong> — attend une valeur définie de manière asynchrone <em>(modèle de classe)</em></li>
+</ul>
+<p><strong><a href="../experimental/execution.html">Documentation C++</a> pour Bibliothèque de support d'exécution</strong></p>
+
+</main>
+</body>
+</html>

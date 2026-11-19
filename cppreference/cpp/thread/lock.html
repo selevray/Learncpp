@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::lock — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-lock"><code>std::lock</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/lock">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;mutex&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Lockable1, class Lockable2, class... LockableN &gt;
+void lock( Lockable1&amp; lock1, Lockable2&amp; lock2, LockableN&amp;... lockn );  // (depuis C++11)
+</code></pre>
+<p>Verrouille les <a href="../named_req/Lockable.html"><em>Lockable</em></a> objets donnés <code>lock1</code>, <code>lock2</code>, <code>...</code>, <code>lockn</code> à l'aide d'un algorithme d'évitement d'interblocage pour éviter les blocages.</p>
+<p>Les objets sont verrouillés par une série non spécifiée d'appels à <code>lock</code>, <code>try_lock</code> et <code>unlock</code>. Si un appel à <code>lock</code> ou <code>unlock</code> lève une exception, <code>unlock</code> est appelé pour tous les objets verrouillés avant de relancer l'exception.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>lock1, lock2, ... , lockn</code> — les objets <a href="../named_req/Lockable.html"><em>Lockable</em></a> à verrouiller</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p><a href="https://www.boost.org/doc/libs/release/doc/html/thread/synchronization.html#thread.synchronization.lock_functions.lock_range">Boost fournit une version de cette fonction</a> qui prend une séquence d'objets <a href="../named_req/Lockable.html"><em>Lockable</em></a> définie par une paire d'itérateurs.</p>
+<p><a href="scoped_lock.html"><code>std::scoped_lock</code></a> offre un wrapper <a href="../language/raii.html">RAII</a> pour cette fonction, et est généralement préféré à un appel direct à <code>std::lock</code>.</p>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant utilise <code>std::lock</code> pour verrouiller des paires de mutex sans interblocage.</p>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+struct Employee
+{
+    Employee(std::string id) : id(id) {}
+    std::string id;
+    std::vector&lt;std::string&gt; lunch_partners;
+    std::mutex m;
+    std::string output() const
+    {
+        std::string ret = &quot;Employee &quot; + id + &quot; has lunch partners: &quot;;
+        for (auto n{lunch_partners.size()}; const auto&amp; partner : lunch_partners)
+            ret += partner + (--n ? &quot;, &quot; : &quot;&quot;);
+        return ret;
+    }
+};
+
+void send_mail(Employee&amp;, Employee&amp;)
+{
+    // Simule une opération de messagerie longue
+    std::this_thread::sleep_for(std::chrono::milliseconds(696));
+}
+
+void assign_lunch_partner(Employee&amp; e1, Employee&amp; e2)
+{
+    static std::mutex io_mutex;
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(io_mutex);
+        std::cout &lt;&lt; e1.id &lt;&lt; &quot; and &quot; &lt;&lt; e2.id &lt;&lt; &quot; are waiting for locks&quot; &lt;&lt; std::endl;
+    }
+
+    // Utilise std::lock pour acquérir deux verrous sans craindre
+    // que d'autres appels à assign_lunch_partner ne nous bloquent
+    {
+        std::lock(e1.m, e2.m);
+        std::lock_guard&lt;std::mutex&gt; lk1(e1.m, std::adopt_lock);
+        std::lock_guard&lt;std::mutex&gt; lk2(e2.m, std::adopt_lock);
+    // Code équivalent (si des unique_locks sont nécessaires, par exemple pour les variables de condition)
+    //  std::unique_lock&lt;std::mutex&gt; lk1(e1.m, std::defer_lock);
+    //  std::unique_lock&lt;std::mutex&gt; lk2(e2.m, std::defer_lock);
+    //  std::lock(lk1, lk2);
+    // Solution supérieure disponible en C++17
+    //  std::scoped_lock lk(e1.m, e2.m);
+        {
+            std::lock_guard&lt;std::mutex&gt; lk(io_mutex);
+            std::cout &lt;&lt; e1.id &lt;&lt; &quot; and &quot; &lt;&lt; e2.id &lt;&lt; &quot; got locks&quot; &lt;&lt; std::endl;
+        }
+        e1.lunch_partners.push_back(e2.id);
+        e2.lunch_partners.push_back(e1.id);
+    }
+    send_mail(e1, e2);
+    send_mail(e2, e1);
+}
+
+int main()
+{
+    Employee alice(&quot;Alice&quot;), bob(&quot;Bob&quot;), christina(&quot;Christina&quot;), dave(&quot;Dave&quot;);
+
+    // Affecte en parallèle dans des threads car l'envoi des affectations de déjeuner aux utilisateurs
+    // prend beaucoup de temps
+    std::vector&lt;std::thread&gt; threads;
+    threads.emplace_back(assign_lunch_partner, std::ref(alice), std::ref(bob));
+    threads.emplace_back(assign_lunch_partner, std::ref(christina), std::ref(bob));
+    threads.emplace_back(assign_lunch_partner, std::ref(christina), std::ref(alice));
+    threads.emplace_back(assign_lunch_partner, std::ref(dave), std::ref(bob));
+
+    for (auto&amp; thread : threads)
+        thread.join();
+
+    std::cout &lt;&lt; alice.output() &lt;&lt; '\n'
+              &lt;&lt; bob.output() &lt;&lt; '\n'
+              &lt;&lt; christina.output() &lt;&lt; '\n'
+              &lt;&lt; dave.output() &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Alice and Bob are waiting for locks
+Alice and Bob got locks
+Christina and Bob are waiting for locks
+Christina and Bob got locks
+Christina and Alice are waiting for locks
+Dave and Bob are waiting for locks
+Dave and Bob got locks
+Christina and Alice got locks
+Employee Alice has lunch partners: Bob, Christina
+Employee Bob has lunch partners: Alice, Christina, Dave
+Employee Christina has lunch partners: Bob, Alice
+Employee Dave has lunch partners: Bob
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="unique_lock.html">unique_lock</a> (C++11)</strong> — implémente un wrapper de propriété de mutex déplaçable <em>(modèle de classe)</em></li>
+<li><strong><a href="try_lock.html">try_lock</a> (C++11)</strong> — tente d'obtenir la propriété de mutex par des appels répétés à <code>try_lock</code> <em>(modèle de fonction)</em></li>
+<li><strong><a href="scoped_lock.html">scoped_lock</a> (C++17)</strong> — wrapper RAII évitant les interblocages pour plusieurs mutex <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

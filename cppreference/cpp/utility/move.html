@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::move — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-move"><code>std::move</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/move">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;utility&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+typename std::remove_reference&lt;T&gt;::type&amp;&amp; move( T&amp;&amp; t ) noexcept;  // (depuis C++11) (jusqu'à C++14)
+
+template&lt; class T &gt;
+constexpr std::remove_reference_t&lt;T&gt;&amp;&amp; move( T&amp;&amp; t ) noexcept;  // (depuis C++14)
+</code></pre>
+<p><code>std::move</code> est utilisé pour <em>indiquer</em> qu'un objet <code>t</code> peut être « déplacé », c'est-à-dire permettre le transfert efficace des ressources de <code>t</code> vers un autre objet.</p>
+<p>En particulier, <code>std::move</code> produit une expression <a href="../language/value_category.html">xvalue</a> qui identifie son argument <code>t</code>. Elle est exactement équivalente à un <code>static_cast</code> vers un type de référence rvalue.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>t</code> — l'objet à déplacer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>static_cast&lt;typename std::remove_reference&lt;T&gt;::type&amp;&amp;&gt;(t)</code></p>
+<h2 id="Notes">Notes</h2>
+<p>Les fonctions qui acceptent des paramètres de référence rvalue (y compris les <a href="../language/move_constructor.html">constructeurs de déplacement</a>, les <a href="../language/move_operator.html">opérateurs d'affectation par déplacement</a> et les fonctions membres ordinaires telles que <a href="../container/vector/push_back.html"><code>std::vector::push_back</code></a>) sont sélectionnées, par <a href="../language/overload_resolution.html">résolution de surcharge</a>, lorsqu'elles sont appelées avec des arguments <a href="../language/value_category.html">rvalue</a> (soit des <a href="../language/value_category.html">prvalues</a>, comme un objet temporaire, soit des <a href="../language/value_category.html">xvalues</a>, comme celle produite par <code>std::move</code>). Si l'argument identifie un objet propriétaire de ressources, ces surcharges ont la possibilité, sans y être obligées, de <em>déplacer</em> les ressources détenues par l'argument. Par exemple, un constructeur de déplacement d'une liste chaînée peut copier le pointeur vers la tête de la liste et stocker <code>nullptr</code> dans l'argument, au lieu d'allouer et de copier les nœuds un à un.</p>
+<p>Les noms des variables de <a href="../language/reference.html">référence rvalue</a> sont des <a href="../language/value_category.html">lvalues</a> et doivent être convertis en <a href="../language/value_category.html">xvalues</a> pour être liés aux surcharges de fonctions qui acceptent des paramètres de référence rvalue, ce qui explique pourquoi les <a href="../language/move_constructor.html">constructeurs de déplacement</a> et les <a href="../language/move_operator.html">opérateurs d'affectation par déplacement</a> utilisent généralement <code>std::move</code> :</p>
+<pre><code class="language-cpp">// Constructeur de déplacement simple
+A(A&amp;&amp; arg) : member(std::move(arg.member)) // l'expression « arg.member » est une lvalue
+{}
+
+// Opérateur d'affectation par déplacement simple
+A&amp; operator=(A&amp;&amp; other)
+{
+    member = std::move(other.member);
+    return *this;
+}
+</code></pre>
+<p>Une exception existe lorsque le type du paramètre de fonction est une <a href="../language/reference.html#Forwarding_references">référence de transfert</a> (qui ressemble à une référence rvalue vers un paramètre de modèle de type), auquel cas <a href="forward.html"><code>std::forward</code></a> est utilisé à la place.</p>
+<p>Sauf indication contraire, tous les objets de la bibliothèque standard qui ont été déplacés sont placés dans un « état valide mais non spécifié », ce qui signifie que les invariants de classe de l'objet sont respectés (ainsi, les fonctions sans préconditions, comme l'opérateur d'affectation, peuvent être utilisées sans risque sur l'objet après son déplacement) :</p>
+<pre><code class="language-cpp">std::vector&lt;std::string&gt; v;
+std::string str = &quot;example&quot;;
+v.push_back(std::move(str)); // str est désormais valide mais non spécifié
+str.back(); // comportement indéfini si size() == 0 : back() a pour précondition !empty()
+if (!str.empty())
+    str.back(); // OK, empty() n'a pas de précondition et la précondition de back() est respectée
+
+str.clear(); // OK, clear() n'a pas de préconditions
+</code></pre>
+<p>De plus, les fonctions de la bibliothèque standard appelées avec des arguments xvalue peuvent supposer que l'argument est la seule référence vers l'objet ; s'il a été construit à partir d'une lvalue avec <code>std::move</code>, aucune vérification d'aliasing n'est effectuée. Toutefois, l'auto-affectation par déplacement des types de la bibliothèque standard place garanti l'objet dans un état valide (mais généralement non spécifié) :</p>
+<pre><code class="language-cpp">std::vector&lt;int&gt; v = {2, 3, 3};
+v = std::move(v); // la valeur de v est non spécifiée
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::string str = &quot;Salut&quot;;
+    std::vector&lt;std::string&gt; v;
+
+    // utilise la surcharge push_back(const T&amp;), ce qui signifie
+    // nous supportons le coût de la copie de str
+    v.push_back(str);
+    std::cout &lt;&lt; &quot;After copy, str is &quot; &lt;&lt; std::quoted(str) &lt;&lt; '\n';
+
+    // utilise la surcharge à référence rvalue push_back(T&amp;&amp;),
+    // ce qui signifie qu'aucune chaîne n'est copiée ; à la place, le contenu
+    // de str est déplacé dans le vecteur. Ceci est moins
+    // coûteux, mais signifie aussi que str peut maintenant être vide.
+    v.push_back(std::move(str));
+    std::cout &lt;&lt; &quot;After move, str is &quot; &lt;&lt; std::quoted(str) &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;The contents of the vector are {&quot; &lt;&lt; std::quoted(v[0])
+              &lt;&lt; &quot;, &quot; &lt;&lt; std::quoted(v[1]) &lt;&lt; &quot;}\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">After copy, str is &quot;Salut&quot;
+After move, str is &quot;&quot;
+The contents of the vector are {&quot;Salut&quot;, &quot;Salut&quot;}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="forward.html">forward</a> (C++11)</strong> — transmet un argument de fonction et utilise l'argument de modèle de type pour préserver sa catégorie de valeur <em>(modèle de fonction)</em></li>
+<li><strong><a href="move_if_noexcept.html">move_if_noexcept</a> (C++11)</strong> — convertit l'argument en xvalue si le constructeur de déplacement ne lève pas d'exception <em>(modèle de fonction)</em></li>
+<li><strong><a href="../algorithm/move.html">move</a> (C++11)</strong> — déplace un intervalle d'éléments vers un nouvel emplacement <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

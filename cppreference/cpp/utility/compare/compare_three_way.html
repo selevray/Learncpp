@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::compare_three_way — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-compare_three_way"><code>std::compare_three_way</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/compare/compare_three_way">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;compare&gt;</strong></p>
+<p><strong>Défini dans l'en-tête &lt;functional&gt;</strong></p>
+<pre><code class="language-cpp">struct compare_three_way;  // (depuis C++20)
+</code></pre>
+<p>Objet fonction permettant d'effectuer des comparaisons. Déduit les types des paramètres et le type de retour de l'opérateur d'appel de fonction.</p>
+<h2 id="Nested_types">Types imbriqués</h2>
+<p><strong>Type imbriqué Définition</strong></p>
+<ul>
+<li><strong><code>is_transparent</code></strong> — <a href="../functional.html#Transparent_function_objects">unspecified</a></li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong>operator()</strong> — obtient le résultat de la comparaison à trois voies des deux arguments <em>(fonction membre publique)</em></li>
+</ul>
+<h2 id="std::compare_three_way::operator.28.29">std::compare_three_way::operator()</h2>
+<pre><code class="language-cpp">template&lt; class T, class U &gt;
+constexpr auto operator()( T&amp;&amp; t, U&amp;&amp; u ) const;
+</code></pre>
+<p>Étant donnée l'expression <code>std::forward&lt;T&gt;(t) &lt;=&gt; std::forward&lt;U&gt;(u)</code> comme <code>expr</code> :</p>
+<ul>
+<li>
+<p>Si <code>expr</code> produit un appel à l'<a href="../../language/operator_comparison.html#Built-in_pointer_equality_comparison">opérateur intégré</a> <code>operator&lt;=&gt;</code> comparant des pointeurs, en prenant le <a href="../../language/pointer.html#Composite_pointer_type">type de pointeur composite</a> de <code>t</code> et <code>u</code> comme <code>P</code> :</p>
+<ul>
+<li>Compare les deux pointeurs convertis (de type <code>P</code>) selon l'<a href="../../language/operator_comparison.html#Pointer_total_order">ordre total strict défini par l'implémentation sur les pointeurs</a> :
+<ul>
+<li>Si <code>t</code> précède <code>u</code>, renvoie <a href="strong_ordering.html"><code>std::strong_ordering::less</code></a>.</li>
+<li>Si <code>u</code> précède <code>t</code>, renvoie <a href="strong_ordering.html"><code>std::strong_ordering::greater</code></a>.</li>
+<li>Sinon, renvoie <a href="strong_ordering.html"><code>std::strong_ordering::equal</code></a>.</li>
+</ul>
+</li>
+<li>Si la séquence de conversion de <code>T</code> vers <code>P</code> ou la séquence de conversion de <code>U</code> vers <code>P</code> n'est pas <a href="../../concepts.html#Equality_preservation">préservant l'égalité</a>, le comportement est indéfini.</li>
+</ul>
+</li>
+<li>
+<p>Otherwise:</p>
+<ul>
+<li>Renvoie le résultat de <code>expr</code>.</li>
+<li>Si <code>std::three_way_comparable_with&lt;T, U&gt;</code> n'est pas modélisé, le comportement est indéfini.</li>
+</ul>
+</li>
+</ul>
+<p>Cette surcharge ne participe à la résolution de surcharge que si <code>std::three_way_comparable_with&lt;T, U&gt;</code> est satisfait.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;compare&gt;
+#include &lt;iostream&gt;
+
+struct Rational
+{
+    int num;
+    int den; // &gt; 0
+
+    // Bien que la comparaison X &lt;=&gt; Y fonctionne, un appel direct
+    // à std::compare_three_way{}(X, Y) exige que l'operator== soit défini
+    // pour satisfaire std::three_way_comparable_with.
+    constexpr bool operator==(Rational const&amp;) const = default;
+};
+
+constexpr std::weak_ordering operator&lt;=&gt;(Rational lhs, Rational rhs)
+{
+    return lhs.num * rhs.den &lt;=&gt; rhs.num * lhs.den;
+}
+
+void print(std::weak_ordering value)
+{
+    value &lt; 0 ? std::cout &lt;&lt; &quot;less\n&quot; :
+    value &gt; 0 ? std::cout &lt;&lt; &quot;greater\n&quot; :
+                std::cout &lt;&lt; &quot;equal\n&quot;;
+}
+
+int main()
+{
+    Rational a{6, 5};
+    Rational b{8, 7};
+    print(a &lt;=&gt; b);
+    print(std::compare_three_way{}(a, b));
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">greater
+greater
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3530">LWG 3530</a></td>
+<td>C++20</td>
+<td>les vérifications syntaxiques ont été assouplies lors de la comparaison de pointeurs</td>
+<td>seules les exigences sémantiques ont été assouplies</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../functional/ranges/equal_to.html">ranges::equal_to</a> (C++20)</strong> — objet fonction contraint implémentant <code>x == y</code> <em>(classe)</em></li>
+<li><strong><a href="../functional/ranges/not_equal_to.html">ranges::not_equal_to</a> (C++20)</strong> — objet fonction contraint implémentant <code>x != y</code> <em>(classe)</em></li>
+<li><strong><a href="../functional/ranges/less.html">ranges::less</a> (C++20)</strong> — objet fonction contraint implémentant <code>x &lt; y</code> <em>(classe)</em></li>
+<li><strong><a href="../functional/ranges/greater.html">ranges::greater</a> (C++20)</strong> — objet fonction contraint implémentant <code>x &gt; y</code> <em>(classe)</em></li>
+<li><strong><a href="../functional/ranges/less_equal.html">ranges::less_equal</a> (C++20)</strong> — objet fonction contraint implémentant <code>x &lt;= y</code> <em>(classe)</em></li>
+<li><strong><a href="../functional/ranges/greater_equal.html">ranges::greater_equal</a> (C++20)</strong> — objet fonction contraint implémentant <code>x &gt;= y</code> <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

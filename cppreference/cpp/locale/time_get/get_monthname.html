@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::time_get&lt;CharT,InputIt&gt;::get_monthname, std::time_get&lt;CharT,InputIt&gt;::do_get_monthname — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/time_get.html">std::time_get</a></nav>
+<h1 id="std-time_get-chart-inputit-get_monthname-std-time_get-chart-inputit-do_get_monthname"><code>std::time_get&lt;CharT,InputIt&gt;::get_monthname, std::time_get&lt;CharT,InputIt&gt;::do_get_monthname</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/time_get/get_monthname">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+iter_type get_monthname( iter_type beg, iter_type end, std::ios_base&amp; str,
+                         std::ios_base::iostate&amp; err, std::tm* t ) const;  // (1)
+
+protected:
+virtual iter_type do_get_monthname( iter_type beg, iter_type end, std::ios_base&amp; str,
+                                    std::ios_base::iostate&amp; err, std::tm* t ) const;  // (2)
+</code></pre>
+<ol>
+<li>
+<p>Fonction membre publique, appelle la fonction membre virtuelle protégée <code>do_get_monthname</code> de la classe la plus dérivée.</p>
+</li>
+<li>
+<p>Lit successivement les caractères de la séquence <code>[beg,end)</code> et analyse le nom du mois (éventuellement abrégé), en utilisant le format par défaut des noms de mois attendu par cette locale, qui est le même format que <code>&quot;%b&quot;</code> tel qu'utilisé par les fonctions <a href="../../io/manip/get_time.html"><code>std::get_time</code></a>, <a href="get.html"><code>time_get::get</code></a>, et la fonction POSIX <code>strptime()</code>.</p>
+</li>
+</ol>
+<p>Si elle trouve un nom abrégé suivi des caractères valides pour le nom complet, elle continue de lire jusqu'à consommer tous les caractères du nom complet ou jusqu'à rencontrer un caractère inattendu, auquel cas l'analyse échoue même si les premiers caractères formaient une abréviation valide.</p>
+<p>Le mois analysé est stocké dans le champ <a href="../../chrono/c/tm.html"><code>std::tm</code></a> <code>t-&gt;tm_mon</code>.</p>
+<p>Si l'itérateur de fin est atteint avant qu'un nom de mois valide ne soit lu, la fonction définit <a href="../../io/ios_base/iostate.html"><code>std::ios_base::eofbit</code></a> dans <code>err</code>. Si une erreur d'analyse est rencontrée, la fonction définit <a href="../../io/ios_base/iostate.html"><code>std::ios_base::failbit</code></a> dans <code>err</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>beg</code> — itérateur désignant le début de la séquence à analyser</li>
+<li><code>end</code> — itérateur de fin, pointant juste après la fin de la séquence à analyser</li>
+<li><code>str</code> — un objet flux que cette fonction utilise pour obtenir les facettes de locale lorsque nécessaire, par exemple <a href="../ctype.html"><code>std::ctype</code></a> pour ignorer les espaces ou <a href="../collate.html"><code>std::collate</code></a> pour comparer des chaînes</li>
+<li><code>err</code> — objet d'indicateurs d'erreur du flux, modifié par cette fonction pour signaler les erreurs</li>
+<li><code>t</code> — pointeur vers l'objet <a href="../../chrono/c/tm.html"><code>std::tm</code></a> qui contiendra le résultat de cet appel de fonction</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Itérateur pointant un caractère après le dernier caractère de <code>[beg,end)</code> reconnu comme faisant partie d'un nom de mois valide.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction est généralement insensible à la casse.</p>
+<p>En cas d'erreur d'analyse, la plupart des implémentations de cette fonction laissent <code>*t</code> inchangé.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;ctime&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;locale&gt;
+#include &lt;sstream&gt;
+#include &lt;string_view&gt;
+
+void try_get_mon(std::string_view locale_name, std::string_view source)
+{
+    try
+    {
+        std::locale::global(std::locale(locale_name.data()));
+    }
+    catch (std::runtime_error const&amp; ex)
+    {
+        std::cout &lt;&lt; &quot;Cannot setup locale: &quot; &lt;&lt; locale_name &lt;&lt; &quot;\n&quot;
+                     &quot;Exception: &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+        return;
+    }
+
+    std::cout &lt;&lt; &quot;Parsing the month out of '&quot; &lt;&lt; source
+              &lt;&lt; &quot;' in the locale &quot; &lt;&lt; std::locale().name() &lt;&lt; '\n';
+    std::istringstream str{source.data()};
+    std::ios_base::iostate err = std::ios_base::goodbit;
+
+    std::tm t;
+    std::time_get&lt;char&gt; const&amp; facet = std::use_facet&lt;std::time_get&lt;char&gt;&gt;(str.getloc());
+    std::istreambuf_iterator&lt;char&gt; ret = facet.get_monthname({str}, {}, str, err, &amp;t);
+    str.setstate(err);
+    std::istreambuf_iterator&lt;char&gt; last{};
+
+    if (str)
+    {
+        std::cout &lt;&lt; &quot;Successfully parsed, month number is &quot; &lt;&lt; t.tm_mon;
+
+        if (ret != last)
+        {
+            std::cout &lt;&lt; &quot;. Remaining content: &quot;;
+            std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+        }
+        else
+            std::cout &lt;&lt; &quot;. The input was fully consumed&quot;;
+    }
+    else
+    {
+        std::cout &lt;&lt; &quot;Parse failed. Unparsed string: &quot;;
+        std::copy(ret, last, std::ostreambuf_iterator&lt;char&gt;(std::cout));
+    }
+
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    try_get_mon(&quot;ja_JP.utf8&quot;, &quot;2月&quot;);
+    try_get_mon(&quot;th_TH.utf8&quot;, &quot;กุมภาพันธ์&quot;);
+    try_get_mon(&quot;el_GR.utf8&quot;, &quot;Φεβ&quot;);
+    try_get_mon(&quot;el_GR.utf8&quot;, &quot;Φεβρουάριος&quot;);
+    try_get_mon(&quot;en_US.utf8&quot;, &quot;Febrile&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Parsing the month out of '2月' in the locale ja_JP.utf8
+Successfully parsed, month number is 1. The input was fully consumed
+Parsing the month out of 'กุมภาพันธ์' in the locale th_TH.utf8
+Successfully parsed, month number is 1. The input was fully consumed
+Parsing the month out of 'Φεβ' in the locale el_GR.utf8
+Successfully parsed, month number is 1. The input was fully consumed
+Parsing the month out of 'Φεβρουάριος' in the locale el_GR.utf8
+Successfully parsed, month number is 1. The input was fully consumed
+Parsing the month out of 'Febrile' in the locale en_US.utf8
+Parse failed. Unparsed string: ile
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue248">LWG 248</a></td>
+<td>C++98</td>
+<td><code>eofbit</code> n'a pas été défini lors de l'atteinte de l'itérateur de fin</td>
+<td>définit <code>eofbit</code> si aucun nom de mois valide n'a été lu</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../io/manip/get_time.html">get_time</a> (C++11)</strong> — analyse une valeur de date/heure au format spécifié <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

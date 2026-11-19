@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entités locales à l&#x27;unité de traduction (depuis C++20) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="entités-locales-à-l-unité-de-traduction-depuis-c-20">Entités locales à l'unité de traduction (depuis C++20)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/tu_local">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les entités locales à l'unité de traduction (entités TU-local) sont introduites pour empêcher que des entités censées être locales (non utilisées dans aucune autre unité de traduction) soient exposées et utilisées dans d'autres unités de traduction.</p>
+<p>Un exemple tiré de <a href="https://vector-of-bool.github.io/2019/03/31/modules-2.html">Understanding C++ Modules: Part 2</a> illustre le problème de l'absence de contrainte sur les expositions :</p>
+<pre><code class="language-cpp">// Unité de module sans contraintes TU-local
+export module Foo;
+
+import &lt;iostream&gt;;
+
+namespace
+{
+   class LolWatchThis {        // liaison interne, ne peut pas être exportée
+       static void say_hello()
+       {
+           std::cout &lt;&lt; &quot;Hello, everyone!\n&quot;;
+       }
+   };
+}
+
+export LolWatchThis lolwut() { // LolWatchThis est exposé comme type de retour
+    return LolWatchThis();
+}
+</code></pre>
+<pre><code class="language-cpp">// main.cpp
+import Foo;
+
+int main()
+{
+    auto evil = lolwut();        // 'evil' a le type 'LolWatchThis'
+    decltype(evil)::say_hello(); // la définition de 'LolWatchThis' n'est plus à liaison interne
+}
+</code></pre>
+<h2 id="TU-local_entities">Entités TU-local</h2>
+<p>Une entité est <em>TU-local</em> si elle est</p>
+<ol>
+<li>un type, une fonction, une variable ou un modèle qui
+<ol>
+<li>a un nom à <a href="storage_duration.html#internal_linkage">liaison interne</a>, ou</li>
+<li>n'a pas de nom avec liaison et est déclaré, ou introduit par une <a href="lambda.html">expression lambda</a>, dans la définition d'une entité TU-local,</li>
+</ol>
+</li>
+<li>un type sans nom défini en dehors d'un <a href="class.html">class-specifier</a>, d'un corps de fonction ou d'un initialiseur, ou introduit par un spécificateur de type définissant (type-specifier, class-specifier ou enum-specifier) utilisé pour ne déclarer que des entités TU-local,</li>
+<li>une spécialisation d'un modèle TU-local,</li>
+<li>une spécialisation d'un modèle avec un argument de modèle TU-local quelconque, ou</li>
+<li>une spécialisation d'un modèle dont la déclaration (éventuellement instanciée) est une exposition (définie ci-dessous).</li>
+</ol>
+<pre><code class="language-cpp">// Entités TU-local à liaison interne
+namespace { // tous les noms déclarés dans un espace de noms sans nom ont une liaison interne
+    int tul_var = 1;                          // variable TU-local
+    int tul_func() { return 1; }              // fonction TU-local
+    struct tul_type { int mem; };             // type (classe) TU-local
+}
+template&lt;typename T&gt;
+static int tul_func_temp() { return 1; }      // modèle TU-local
+
+// spécialisation de modèle TU-local
+template&lt;&gt;
+static int tul_func_temp&lt;int&gt;() { return 3; } // spécialisation TU-local
+
+// spécialisation de modèle avec argument de modèle TU-local
+template &lt;&gt; struct std::hash&lt;tul_type&gt; {      // spécialisation TU-local
+    std::size_t operator()(const tul_type&amp; t) const { return 4u; }
+};
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : exemples manquants pour les règles #1.2, #2 et #5</td>
+</tr>
+</tbody>
+</table>
+<p>Une valeur ou un objet est <em>TU-local</em> si l'une des conditions suivantes est vérifiée</p>
+<ol>
+<li>il est, ou est un pointeur vers, une fonction TU-local ou l'objet associé à une variable TU-local, ou</li>
+<li>il est un objet de type classe ou tableau dont l'un des <a href="objects.html#Subobjects">sous-objets</a>, ou l'un des objets ou fonctions désignés par ses membres non statiques de type référence, est TU-local et est <a href="constant_expression.html#Usable_in_constant_expressions">utilisable dans des expressions constantes</a>.</li>
+</ol>
+<pre><code class="language-cpp">static int tul_var = 1;             // variable TU-local
+static int tul_func() { return 1; } // fonction TU-local
+
+int* tul_var_ptr = &amp;tul_var;        // TU-local : pointeur vers une variable TU-local
+int (* tul_func_ptr)() = &amp;tul_func; // TU-local : pointeur vers une fonction TU-local
+
+constexpr static int tul_const = 1; // variable TU-local utilisable dans des expressions constantes
+int tul_arr[] = { tul_const };      // TU-local : tableau d'objet constexpr TU-local
+struct tul_class { int mem; };
+tul_class tul_obj{tul_const};       // TU-local : possède un membre objet constexpr TU-local
+</code></pre>
+<h2 id="Exposures">Expositions</h2>
+<p>Une déclaration D <em>nomme</em> une entité E si</p>
+<ol>
+<li>D contient une expression lambda dont le type de fermeture est E,</li>
+<li>E n'est ni une fonction ni un modèle de fonction, et D contient un id-expression, un type-specifier, un nested-name-specifier, un template-name ou un concept-name désignant E, ou</li>
+<li>E est une fonction ou un modèle de fonction, et D contient une expression qui nomme E ou un id-expression qui fait référence à un ensemble de surcharges contenant E.</li>
+</ol>
+<pre><code class="language-cpp">// nommage par expression lambda
+auto x = [] {}; // nomme decltype(x)
+
+// nommage d'une entité non fonction (modèle)
+int y1 = 1;                      // noms y1 (id-expression)
+struct y2 { int mem; };
+y2 y2_obj{1};                    // noms y2 (type-specifier)
+struct y3 { int mem_func(); };
+int y3::mem_func() { return 0; } // noms y3 (nested-name-specifier)
+template&lt;typename T&gt; int y4 = 1;
+int var = y4&lt;y2&gt;;                // noms y4 (template-name)
+template&lt;typename T&gt; concept y5 = true;
+template&lt;typename T&gt; void func(T&amp;&amp;) requires y5&lt;T&gt;; // noms y5 (concept-name)
+
+// nommage de fonction (modèle)
+int z1(int arg)    { std::cout &lt;&lt; &quot;no overload&quot;; return 0; }
+int z2(int arg)    { std::cout &lt;&lt; &quot;overload 1&quot;;  return 1; }
+int z2(double arg) { std::cout &lt;&lt; &quot;overload 2&quot;;  return 2; }
+
+int val1 = z1(0); // noms z1
+int val2 = z2(0); // noms z2 ( int z2(int) )
+</code></pre>
+<p>Une déclaration est une <em>exposition</em> si elle nomme une entité TU-local, en ignorant</p>
+<ol>
+<li>le corps de fonction d'une fonction non inline ou d'un modèle de fonction non inline (mais pas le type de retour déduit pour une définition (éventuellement instanciée) d'une fonction à type de retour déclaré qui utilise un <a href="auto.html">type substituable</a>),</li>
+<li>l'initialiseur d'une variable ou d'un modèle de variable (mais pas le type de la variable),</li>
+<li>les déclarations d'amitié dans une définition de classe, et</li>
+<li>toute référence à un objet ou une référence const non volatile, à liaison interne ou sans liaison, initialisé avec une expression constante qui n'est pas une <a href="definition.html#ODR-use">odr-use</a>,</li>
+</ol>
+<p>ou définit une variable constexpr initialisée à une valeur TU-local.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : exemples manquants pour les expositions</td>
+</tr>
+</tbody>
+</table>
+<h2 id="TU-local_constraints">Contraintes TU-local</h2>
+<p>Si une <a href="declarations.html">déclaration</a> (éventuellement instanciée) de, ou un <a href="ctad.html#Deduction_for_class_templates">guide de déduction</a> pour, une entité non locale à l'unité de traduction dans une <a href="modules.html">unité d'interface de module</a> (en dehors de la private-module-fragment, le cas échéant) ou une partition de module constitue une exposition, le programme est mal formé. Une telle déclaration dans tout autre contexte est obsolète.</p>
+<p>Si une déclaration apparaissant dans une unité de traduction nomme une entité TU-local déclarée dans une autre unité de traduction qui n'est pas une unité d'en-tête, le programme est mal formé. Une déclaration instanciée pour une spécialisation de modèle apparaît au point d'instanciation de la spécialisation.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : exemples manquants pour les contraintes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<p>Unité de traduction #1 :</p>
+<pre><code class="language-cpp">export module A;
+static void f() {}
+inline void it() { f(); }         // erreur : est une exposition de f
+static inline void its() { f(); } // OK
+template&lt;int&gt; void g() { its(); } // OK
+template void g&lt;0&gt;();
+
+decltype(f) *fp;                             // erreur : f (mais pas son type) est TU-local
+auto &amp;fr = f;                                // OK
+constexpr auto &amp;fr2 = fr;                    // erreur : est une exposition de f
+constexpr static auto fp2 = fr;              // OK
+struct S { void (&amp;ref)(); } s{f};            // OK : la valeur est TU-local
+constexpr extern struct W { S &amp;s; } wrap{s}; // OK : la valeur n'est pas TU-local
+
+static auto x = []{ f(); }; // OK
+auto x2 = x;                // erreur : le type de fermeture est TU-local
+int y = ([]{ f(); }(), 0);  // erreur : le type de fermeture n'est pas TU-local
+int y2 = (x, 0);            // OK
+
+namespace N
+{
+    struct A {};
+    void adl(A);
+    static void adl(int);
+}
+void adl(double);
+
+inline void h(auto x) { adl(x); } // OK, mais une spécialisation pourrait être une exposition
+</code></pre>
+<p>Unité de traduction #2 :</p>
+<pre><code class="language-cpp">module A;
+void other()
+{
+    g&lt;0&gt;();                  // OK : la spécialisation est explicitement instanciée
+    g&lt;1&gt;();                  // erreur : l'instanciation utilise its TU-local
+    h(N::A{});               // erreur : l'ensemble de surcharge contient N::adl(int) qui est TU-local
+    h(0);                    // OK : appelle adl(double)
+    adl(N::A{});             // OK ; N::adl(int) non trouvé, appelle N::adl(N::A)
+    fr();                    // OK : appelle f
+    constexpr auto ptr = fr; // erreur : fr n'est pas utilisable dans des expressions constantes ici
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : les exemples sont trop complexes, il faut une meilleure disposition</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

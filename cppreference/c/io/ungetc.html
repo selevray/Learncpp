@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ungetc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/io.html">Entrées/sorties de fichiers</a></nav>
+<h1 id="ungetc"><code>ungetc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/io/ungetc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdio.h&gt;</strong></p>
+<pre><code class="language-c">int ungetc( int ch, FILE* stream );
+</code></pre>
+<p>Si <code>ch</code> ne vaut pas <a href="../io.html"><code>EOF</code></a>, pousse le caractère <code>ch</code> (réinterprété en tant que <code>unsigned char</code>) dans le tampon d'entrée associé au flux <code>stream</code> de telle sorte que la lecture suivante depuis <code>stream</code> récupère ce caractère. Le périphérique externe associé au flux n'est pas modifié.</p>
+<p>Les opérations de repositionnement de flux <a href="fseek.html"><code>fseek</code></a>, <a href="fsetpos.html"><code>fsetpos</code></a> et <a href="rewind.html"><code>rewind</code></a> annulent les effets de <code>ungetc</code>.</p>
+<p>Si <code>ungetc</code> est appelée plus d'une fois sans lecture ni repositionnement intermédiaire, elle peut échouer (autrement dit, un tampon de retour arrière de taille 1 est garanti, mais tout tampon plus grand est défini par l'implémentation). Si plusieurs <code>ungetc</code> réussis ont été effectués, les opérations de lecture récupèrent les caractères remis en arrière dans l'ordre inverse de <code>ungetc</code>.</p>
+<p>Si <code>ch</code> vaut <a href="../io.html"><code>EOF</code></a>, l'opération échoue et le flux n'est pas modifié.</p>
+<p>Un appel réussi à <code>ungetc</code> efface l'indicateur d'état de fin de fichier <a href="feof.html"><code>feof</code></a>.</p>
+<p>Un appel réussi à <code>ungetc</code> sur un flux binaire décrémente de un l'indicateur de position du flux (le comportement est indéterminé si l'indicateur de position du flux valait zéro).</p>
+<p>Un appel réussi à <code>ungetc</code> sur un flux texte modifie l'indicateur de position du flux de manière non spécifiée, mais garantit qu'après la récupération de tous les caractères remis par une opération de lecture, l'indicateur de position du flux est égal à sa valeur avant <code>ungetc</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ch</code> — caractère à replacer dans le tampon du flux d'entrée</li>
+<li><code>stream</code> — flux de fichier dans lequel replacer le caractère</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, <code>ch</code> est retourné.</p>
+<p>En cas d'échec, <a href="../io.html"><code>EOF</code></a> est retourné et le flux donné reste inchangé.</p>
+<h2 id="Notes">Notes</h2>
+<p>La taille du tampon de retour varie en pratique de 4 ko (Linux, MacOS) à seulement 4 (Solaris), voire au minimum garanti de 1 (HPUX, AIX).</p>
+<p>La taille apparente du tampon de retour peut être plus grande si le caractère replacé est égal au caractère existant à cette position dans la séquence de caractères externe (l'implémentation peut simplement décrémenter l'indicateur de position de lecture du fichier et éviter de maintenir un tampon de retour).</p>
+<h2 id="Example">Exemple</h2>
+<p>Illustre la raison d'être initiale de <code>ungetc</code> : implémentation de <a href="fscanf.html"><code>scanf</code></a></p>
+<pre><code class="language-c">#include &lt;ctype.h&gt;
+#include &lt;stdio.h&gt;
+
+void demo_scanf(const char* fmt, FILE* s)
+{
+    while (*fmt != '\0')
+    {
+        if (*fmt == '%')
+        {
+            int c;
+            switch (*++fmt)
+            {
+                case 'u':
+                    while (isspace(c=getc(s))) {}
+                    unsigned int num = 0;
+                    while (isdigit(c))
+                    {
+                        num = num*10 + c-'0';
+                        c = getc(s);
+                    }
+                    printf(&quot;%%u scanned %u\n&quot;, num);
+                    ungetc(c, s);
+                    break;
+                case 'c':
+                    c = getc(s);
+                    printf(&quot;%%c scanned '%c'\n&quot;, c);
+                    break;
+            }
+        }
+        else
+            ++fmt;
+    }
+}
+
+int main(void)
+{
+    FILE* f = fopen(&quot;input.txt&quot;, &quot;w+&quot;);
+    if (f != NULL)
+    {
+        fputs(&quot;123x&quot;, f);
+        rewind(f);
+        demo_scanf(&quot;%u%c&quot;, f);
+        fclose(f);
+    }
+    return 0;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">%u scanned 123
+%c scanned 'x'
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.21.7.10 La fonction ungetc (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.21.7.10 La fonction ungetc (p : 243)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.21.7.10 La fonction ungetc (p : 334)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.19.7.11 La fonction ungetc (p : 300)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.9.7.11 La fonction ungetc</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="fgetc.html">fgetcgetc</a></strong> — lit un caractère depuis un flux de fichier <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/io/c/ungetc.html">Documentation C++</a> pour ungetc</strong></p>
+
+</main>
+</body>
+</html>

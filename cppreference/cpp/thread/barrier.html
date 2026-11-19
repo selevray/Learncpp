@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::barrier — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-barrier"><code>std::barrier</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/barrier">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;barrier&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class CompletionFunction = /* voir ci-dessous */ &gt;
+class barrier;  // (depuis C++20)
+</code></pre>
+<p>Le modèle de classe <code>std::barrier</code> fournit un mécanisme de coordination entre threads qui bloque un groupe de threads de taille connue jusqu'à ce que tous les threads de ce groupe aient atteint la barrière. Contrairement à <a href="latch.html"><code>std::latch</code></a>, les barrières sont réutilisables : une fois qu'un groupe de threads arrivés est débloqué, la barrière peut être réutilisée. Contrairement à <a href="latch.html"><code>std::latch</code></a>, les barrières exécutent un appelable éventuellement vide avant de débloquer les threads.</p>
+<p>La durée de vie d'un objet barrière se compose d'une ou plusieurs phases. Chaque phase définit un <em>point de synchronisation de phase</em> où les threads en attente sont bloqués. Des threads peuvent arriver à la barrière, mais différer l'attente sur le <em>point de synchronisation de phase</em> en appelant <a href="barrier/arrive.html"><code>arrive</code></a>. Ces threads peuvent ensuite se bloquer sur le <em>point de synchronisation de phase</em> en appelant <a href="barrier/wait.html"><code>wait</code></a>.</p>
+<p>Une <em>phase</em> de barrière se compose des étapes suivantes :</p>
+<ol>
+<li>Le <em>compteur attendu</em> est décrémenté à chaque appel de <a href="barrier/arrive.html"><code>arrive</code></a> ou de <a href="barrier/arrive_and_drop.html"><code>arrive_and_drop</code></a>.</li>
+<li>Lorsque le compteur attendu atteint zéro, l'<em>étape de complétion de phase</em> est exécutée, c'est-à-dire que <a href="barrier.html#Data_members"><code>completion</code></a> est invoqué, et tous les threads bloqués sur le point de synchronisation de phase sont débloqués. La fin de l'étape de complétion <a href="../atomic/memory_order.html#Strongly_happens-before">arrive strictement avant</a> le retour de tous les appels débloqués par cette étape.<br />
+Exactement une fois après que le compteur attendu a atteint zéro, un thread exécute l'étape de complétion lors de son appel à <a href="barrier/arrive.html"><code>arrive</code></a>, <a href="barrier/arrive_and_drop.html"><code>arrive_and_drop</code></a> ou <a href="barrier/wait.html"><code>wait</code></a>, sauf qu'il est défini par l'implémentation de savoir si l'étape est exécutée lorsqu'aucun thread n'appelle <a href="barrier/wait.html"><code>wait</code></a>.</li>
+<li>Lorsque l'étape de complétion se termine, le compteur attendu est réinitialisé à la valeur spécifiée à la construction, diminuée du nombre d'appels à <a href="barrier/arrive_and_drop.html"><code>arrive_and_drop</code></a> effectués depuis, et la <em>phase de barrière</em> suivante commence.</li>
+</ol>
+<p>Les invocations concurrentes des fonctions membres de <code>barrier</code>, à l'exception du destructeur, n'introduisent pas de courses de données.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>CompletionFunction</code> — un type d'objet fonction</li>
+<li><code>CompletionFunction</code> doit satisfaire les exigences de <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a> et de <a href="../named_req/Destructible.html"><em>Destructible</em></a>. <code>std::is_nothrow_invocable_v&lt;CompletionFunction&amp;&gt;</code> doit être <code>true</code>.</li>
+</ul>
+<p>L'argument de modèle par défaut de <code>CompletionFunction</code> est un type d'objet fonction non spécifié qui satisfait en plus les exigences de <a href="../named_req/DefaultConstructible.html"><em>DefaultConstructible</em></a>. Appeler une lvalue de ce type sans arguments n'a aucun effet.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><code>arrival_token</code></strong> — un type d'objet non spécifié satisfaisant les exigences de <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a>, <a href="../named_req/MoveAssignable.html"><em>MoveAssignable</em></a> et <a href="../named_req/Destructible.html"><em>Destructible</em></a></li>
+</ul>
+<h2 id="Data_members">Membres de données</h2>
+<p><strong>Membre Définition</strong></p>
+<ul>
+<li><strong><code>CompletionFunction</code> <code>completion</code></strong> — un objet fonction de complétion, appelé à chaque étape de complétion de phase <em>(membre objet exposé uniquement</em>)*</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="barrier/barrier.html">(constructeur)</a></strong> — construit un <code>barrier</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="barrier/~barrier.html">(destructeur)</a></strong> — détruit le <code>barrier</code> <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — <code>barrier</code> n'est pas affectable <em>(fonction membre publique)</em></li>
+<li><strong><a href="barrier/arrive.html">arrive</a></strong> — arrive à la barrière et décrémente le compte attendu <em>(fonction membre publique)</em></li>
+<li><strong><a href="barrier/wait.html">wait</a></strong> — bloque au point de synchronisation de phase jusqu'à ce que son étape de complétion de phase soit exécutée <em>(fonction membre publique)</em></li>
+<li><strong><a href="barrier/arrive_and_wait.html">arrive_and_wait</a></strong> — arrive à la barrière et décrémente le compteur attendu d'une unité, puis bloque jusqu'à la fin de la phase courante <em>(fonction membre publique)</em></li>
+<li><strong><a href="barrier/arrive_and_drop.html">arrive_and_drop</a></strong> — décrémente d'une unité à la fois le compteur initial attendu pour les phases suivantes et le compteur attendu pour la phase courante <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Constantes {#Constants}</strong></p>
+<ul>
+<li><strong><a href="barrier/max.html">max</a> [statique]</strong> — la valeur maximale du compteur attendu prise en charge par l'implémentation <em>(fonction membre statique publique)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><strong>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_lib_barrier"><code>__cpp_lib_barrier</code></a> | <a href="../compiler_support/20.html#cpp_lib_barrier_201907L"><code>201907L</code></a> | <em>(C++20)</em> | <a href="barrier.html#top"><code>std::barrier</code></a></p>
+<p><a href="../compiler_support/20.html#cpp_lib_barrier_202302L"><code>202302L</code></a> | <em>(C++20)</em><br />
+<em>(DR)</em> | Garanties relâchées pour la complétion de phase</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;barrier&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;syncstream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    const auto workers = {&quot;Anil&quot;, &quot;Busara&quot;, &quot;Carl&quot;};
+
+    auto on_completion = []() noexcept
+    {
+        // verrouillage non nécessaire ici
+        static auto phase =
+            &quot;... done\n&quot;
+            &quot;Cleaning up...\n&quot;;
+        std::cout &lt;&lt; phase;
+        phase = &quot;... done\n&quot;;
+    };
+
+    std::barrier sync_point(std::ssize(workers), on_completion);
+
+    auto work = [&amp;](std::string name)
+    {
+        std::string product = &quot;  &quot; + name + &quot; worked\n&quot;;
+        std::osyncstream(std::cout) &lt;&lt; product;  // ok, l'appel à op&lt;&lt; est atomique
+        sync_point.arrive_and_wait();
+
+        product = &quot;  &quot; + name + &quot; cleaned\n&quot;;
+        std::osyncstream(std::cout) &lt;&lt; product;
+        sync_point.arrive_and_wait();
+    };
+
+    std::cout &lt;&lt; &quot;Starting...\n&quot;;
+    std::vector&lt;std::jthread&gt; threads;
+    threads.reserve(std::size(workers));
+    for (auto const&amp; worker : workers)
+        threads.emplace_back(work, worker);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Starting...
+  Anil worked
+  Carl worked
+  Busara worked
+... done
+Cleaning up...
+  Busara cleaned
+  Carl cleaned
+  Anil cleaned
+... done
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P2588R3">P2588R3</a></td>
+<td>C++20</td>
+<td>les anciennes garanties de complétion de phase pourraient empêcher l'accélération matérielle</td>
+<td>relaxed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="latch.html">latch</a> (C++20)</strong> — barrière de threads à usage unique <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

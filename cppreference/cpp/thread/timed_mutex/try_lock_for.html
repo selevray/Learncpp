@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::timed_mutex::try_lock_for — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/timed_mutex.html">std::timed_mutex</a></nav>
+<h1 id="std-timed_mutex-try_lock_for"><code>std::timed_mutex::try_lock_for</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/timed_mutex/try_lock_for">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class Rep, class Period &gt;
+bool try_lock_for( const std::chrono::duration&lt;Rep, Period&gt;&amp; timeout_duration );  // (depuis C++11)
+</code></pre>
+<p>Tente de verrouiller le mutex. Bloque jusqu'à ce que la durée spécifiée <code>timeout_duration</code> soit écoulée (délai d'attente) ou que le verrou soit acquis (possession du mutex), selon ce qui survient en premier. En cas d'acquisition réussie du verrou, retourne <code>true</code>, sinon retourne <code>false</code>.</p>
+<p>Si <code>timeout_duration</code> est inférieur ou égal à <code>timeout_duration.zero()</code>, la fonction se comporte comme <a href="try_lock.html"><code>try_lock()</code></a>.</p>
+<p>Cette fonction peut bloquer pendant une durée supérieure à <code>timeout_duration</code> en raison de retards d'ordonnancement ou de contention de ressources.</p>
+<p>La norme recommande d'utiliser une <code>std::steady_clock</code> pour mesurer la durée. Si une implémentation utilise à la place une <code>std::system_clock</code>, le temps d'attente peut aussi être sensible aux ajustements d'horloge.</p>
+<p>Comme pour <a href="try_lock.html"><code>try_lock()</code></a>, cette fonction peut échouer de manière fortuite et retourner <code>false</code> même si le mutex n'a été verrouillé par aucun autre thread à un moment quelconque pendant <code>timeout_duration</code>.</p>
+<p>Toute opération <a href="unlock.html"><code>unlock()</code></a> antérieure sur le même mutex <em>se synchronise avec</em> (comme défini dans <a href="../../atomic/memory_order.html"><code>std::memory_order</code></a>) cette opération si elle retourne <code>true</code>.</p>
+<p>Si <code>try_lock_for</code> est appelée par un thread qui possède déjà le mutex, le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>timeout_duration</code> — durée minimale de blocage</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si le verrou a été acquis avec succès, sinon <code>false</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute exception levée par <code>timeout_duration</code> (les durées fournies par la bibliothèque standard ne lèvent jamais d'exception).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;sstream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+using namespace std::chrono_literals;
+
+std::mutex cout_mutex; // contrôle l'accès à std::cout
+std::timed_mutex mutex;
+
+void job(int id)
+{
+    std::ostringstream stream;
+
+    for (int i = 0; i &lt; 3; ++i)
+    {
+        if (mutex.try_lock_for(100ms))
+        {
+            stream &lt;&lt; &quot;success &quot;;
+            std::this_thread::sleep_for(100ms);
+            mutex.unlock();
+        }
+        else
+            stream &lt;&lt; &quot;failed &quot;;
+
+        std::this_thread::sleep_for(100ms);
+    }
+
+    std::lock_guard&lt;std::mutex&gt; lock{cout_mutex};
+    std::cout &lt;&lt; '[' &lt;&lt; id &lt;&lt; &quot;] &quot; &lt;&lt; stream.str() &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::vector&lt;std::thread&gt; threads;
+    for (int i{0}; i &lt; 4; ++i)
+        threads.emplace_back(job, i);
+
+    for (auto&amp; th : threads)
+        th.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">[0] failed failed failed
+[3] failed failed success
+[2] failed success failed
+[1] success failed success
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2093">LWG 2093</a></td>
+<td>C++11</td>
+<td><code>try_lock_for</code> ne lève rien</td>
+<td>lève des exceptions liées aux délais d'attente</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="lock.html">lock</a></strong> — verrouille le mutex, bloque si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="try_lock.html">try_lock</a></strong> — tente de verrouiller le mutex, retourne si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="try_lock_until.html">try_lock_until</a></strong> — tente de verrouiller le mutex, retourne si le mutex est resté indisponible jusqu'à ce que le point temporel spécifié soit atteint <em>(fonction membre publique)</em></li>
+<li><strong><a href="unlock.html">unlock</a></strong> — déverrouille le mutex <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::variant&lt;Types...&gt;::operator= — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/variant.html">std::variant</a></nav>
+<h1 id="std-variant-types-operator"><code>std::variant&lt;Types...&gt;::operator=</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/variant/operator=">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">constexpr variant&amp; operator=( const variant&amp; rhs );  // (1) (depuis C++17)
+
+constexpr variant&amp; operator=( variant&amp;&amp; rhs ) noexcept(/* voir ci-dessous */);  // (2) (depuis C++17)
+
+template&lt; class T &gt;
+variant&amp; operator=( T&amp;&amp; t ) noexcept(/* voir ci-dessous */);  // (3) (depuis C++17) (constexpr depuis C++20)
+</code></pre>
+<p>Affecte une nouvelle valeur à un objet <code>variant</code> existant.</p>
+<ol>
+<li>Affectation par copie :</li>
+</ol>
+<ul>
+<li>Si <code>*this</code> et <code>rhs</code> sont tous deux sans valeur par exception, ne fait rien.</li>
+<li>Sinon, si <code>rhs</code> est sans valeur, mais <code>*this</code> ne l'est pas, détruit la valeur contenue dans <code>*this</code> et la rend sans valeur.</li>
+<li>Sinon, si <code>rhs</code> contient la même alternative que <code>*this</code>, affecte la valeur contenue dans <code>rhs</code> à la valeur contenue dans <code>*this</code>. Si une exception est levée, <code>*this</code> ne devient pas sans valeur : la valeur dépend de la garantie de sûreté d'exception de l'affectation par copie de l'alternative.</li>
+<li>Sinon, si l'alternative contenue dans <code>rhs</code> est soit constructible par copie sans lever d'exception, soit <em>non</em> constructible par déplacement sans lever d'exception (selon ce que déterminent respectivement <a href="../../types/is_copy_constructible.html"><code>std::is_nothrow_copy_constructible</code></a> et <a href="../../types/is_move_constructible.html"><code>std::is_nothrow_move_constructible</code></a>), équivalent à <code>this-&gt;emplace&lt;rhs.index()&gt;(*std::get_if&lt;rhs.index()&gt;(std::addressof(rhs)))</code>. <code>*this</code> peut devenir <a href="valueless_by_exception.html"><code>valueless_by_exception</code></a> si une exception est levée lors de la construction par copie dans <a href="emplace.html"><code>emplace</code></a>.</li>
+<li>Sinon, équivalent à <code>this-&gt;operator=(variant(rhs))</code>.</li>
+</ul>
+<p>Cette surcharge est définie comme supprimée, sauf si <code>std::is_copy_constructible_v&lt;T_i&gt;</code> et <code>std::is_copy_assignable_v&lt;T_i&gt;</code> sont toutes deux <code>true</code> pour tout <code>T_i</code> dans <code>Types...</code>. Cette surcharge est triviale si <code>std::is_trivially_copy_constructible_v&lt;T_i&gt;</code>, <code>std::is_trivially_copy_assignable_v&lt;T_i&gt;</code> et <code>std::is_trivially_destructible_v&lt;T_i&gt;</code> sont toutes <code>true</code> pour tout <code>T_i</code> dans <code>Types...</code>.</p>
+<ol start="2">
+<li>Affectation par déplacement :</li>
+</ol>
+<ul>
+<li>Si <code>*this</code> et <code>rhs</code> sont tous deux sans valeur par exception, ne fait rien.</li>
+<li>Sinon, si <code>rhs</code> est sans valeur, mais <code>*this</code> ne l'est pas, détruit la valeur contenue dans <code>*this</code> et la rend sans valeur.</li>
+<li>Sinon, si <code>rhs</code> contient la même alternative que <code>*this</code>, affecte <code>std::move(*std::get_if&lt;j&gt;(std::addressof(rhs)))</code> à la valeur contenue dans <code>*this</code>, <code>j</code> étant <code>index()</code>. Si une exception est levée, <code>*this</code> ne devient pas sans valeur : la valeur dépend de la garantie de sûreté d'exception de l'affectation par déplacement de l'alternative.</li>
+<li>Sinon (si <code>rhs</code> et <code>*this</code> contiennent des alternatives différentes), équivalent à <code>this-&gt;emplace&lt;rhs.index()&gt;(std::move(*std::get_if&lt;rhs.index()&gt;(std::addressof(rhs))))</code>. Si une exception est levée par le constructeur de déplacement de <code>T_i</code>, <code>*this</code> devient <a href="valueless_by_exception.html"><code>valueless_by_exception</code></a>.</li>
+</ul>
+<p>Cette surcharge ne participe à la résolution de surcharge que si <code>std::is_move_constructible_v&lt;T_i&gt;</code> et <code>std::is_move_assignable_v&lt;T_i&gt;</code> sont toutes deux <code>true</code> pour tout <code>T_i</code> dans <code>Types...</code>. Cette surcharge est triviale si <code>std::is_trivially_move_constructible_v&lt;T_i&gt;</code>, <code>std::is_trivially_move_assignable_v&lt;T_i&gt;</code> et <code>std::is_trivially_destructible_v&lt;T_i&gt;</code> sont toutes <code>true</code> pour tout <code>T_i</code> dans <code>Types...</code>.</p>
+<ol start="3">
+<li>Affectation convertissante.</li>
+</ol>
+<ul>
+<li>
+<p>Détermine le type d'alternative <code>T_j</code> qui serait sélectionné par la résolution de surcharge pour l'expression <code>F(std::forward&lt;T&gt;(t))</code> s'il existait une surcharge de la fonction imaginaire <code>F(T_i)</code> pour chaque <code>T_i</code> de <code>Types...</code> dans la portée au même moment, à l'exception de ceci :</p>
+<ul>
+<li>Une surcharge <code>F(T_i)</code> n'est prise en compte que si la déclaration <code>T_i x[] = { std::forward&lt;T&gt;(t) };</code> est valide pour une variable inventée <code>x</code> ;</li>
+</ul>
+</li>
+<li>
+<p>Si <code>*this</code> contient déjà un <code>T_j</code>, affecte <code>std::forward&lt;T&gt;(t)</code> à la valeur contenue dans <code>*this</code>. Si une exception est levée, <code>*this</code> ne devient pas sans valeur : la valeur dépend de la garantie de sûreté d'exception de l'affectation appelée.</p>
+</li>
+<li>
+<p>Sinon, si <code>std::is_nothrow_constructible_v&lt;T_j, T&gt; || !std::is_nothrow_move_constructible_v&lt;T_j&gt;</code> est <code>true</code>, équivalent à <code>this-&gt;emplace&lt;j&gt;(std::forward&lt;T&gt;(t))</code>. <code>*this</code> peut devenir <a href="valueless_by_exception.html"><code>valueless_by_exception</code></a> si une exception est levée lors de l'initialisation dans <a href="emplace.html"><code>emplace</code></a>.</p>
+</li>
+<li>
+<p>Sinon, équivalent à <code>this-&gt;emplace&lt;j&gt;(T_j(std::forward&lt;T&gt;(t)))</code>.</p>
+</li>
+</ul>
+<p>Cette surcharge ne participe à la résolution de surcharge que si [<code>std::decay_t&lt;T&gt;</code> <em>(jusqu'à C++20)</em> | <code>std::remove_cvref_t&lt;T&gt;</code> <em>(depuis C++20)</em>] n'est pas le même type que <a href="../variant.html"><code>variant</code></a>, que <code>std::is_assignable_v&lt;T_j&amp;, T&gt;</code> est <code>true</code> et que <code>std::is_constructible_v&lt;T_j, T&gt;</code> est <code>true</code>, et que l'expression <code>F(std::forward&lt;T&gt;(t))</code> (avec F étant l'ensemble des fonctions imaginaires mentionnées ci-dessus) est bien formée.</p>
+<pre><code class="language-cpp">std::variant&lt;std::string&gt; v1;
+v1 = &quot;abc&quot;; // OK
+std::variant&lt;std::string, std::string&gt; v2;
+v2 = &quot;abc&quot;; // Erreur
+std::variant &lt;std::string, bool&gt; v3;
+v3 = &quot;abc&quot;; // OK, choisit string ; bool n'est pas candidat
+std::variant&lt;float, long, double&gt; v4; // contient un float
+v4 = 0; // OK, contient un long ; float et double ne sont pas candidats
+</code></pre>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>rhs</code> — un autre <code>variant</code></li>
+<li><code>t</code> — une valeur convertible en l'une des alternatives de la variante</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>*this</code></p>
+<h2 id="Exceptions">Exceptions</h2>
+<ol>
+<li>Peut lever toute exception levée par l'affectation et l'initialisation par copie/déplacement de n'importe quelle alternative.</li>
+</ol>
+<p>2)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept(((std::is_nothrow_move_constructible_v&lt;Types&gt; &amp;&amp; std::is_nothrow_move_assignable_v&lt;Types&gt;) &amp;&amp; ...))</code></p>
+<p>3)<a href="../../language/noexcept_spec.html"><code>noexcept</code></a> specification:<code>noexcept(std::is_nothrow_assignable_v&lt;T_j&amp;, T&gt; &amp;&amp; std::is_nothrow_constructible_v&lt;T_j, T&gt;)</code></p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_variant"><code>__cpp_lib_variant</code></a></td>
+<td><a href="../../compiler_support/20.html#cpp_lib_variant_202106L"><code>202106L</code></a></td>
+<td><em>(C++20)</em> <em>(DR)</em></td>
+<td>Entièrement <code>constexpr</code> <code>std::variant</code> <code>(3)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;type_traits&gt;
+#include &lt;variant&gt;
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, std::variant&lt;int, std::string&gt; const&amp; va)
+{
+    os &lt;&lt; &quot;: { &quot;;
+
+    std::visit([&amp;](auto&amp;&amp; arg)
+    {
+        using T = std::decay_t&lt;decltype(arg)&gt;;
+        if constexpr (std::is_same_v&lt;T, int&gt;)
+            os &lt;&lt; arg;
+        else if constexpr (std::is_same_v&lt;T, std::string&gt;)
+            os &lt;&lt; std::quoted(arg);
+    }, va);
+
+    return os &lt;&lt; &quot; };\n&quot;;
+}
+
+int main()
+{
+    std::variant&lt;int, std::string&gt; a{2017}, b{&quot;CppCon&quot;};
+    std::cout &lt;&lt; &quot;a&quot; &lt;&lt; a &lt;&lt; &quot;b&quot; &lt;&lt; b &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;(1) operator=( const variant&amp; rhs )\n&quot;;
+    a = b;
+    std::cout &lt;&lt; &quot;a&quot; &lt;&lt; a &lt;&lt; &quot;b&quot; &lt;&lt; b &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;(2) operator=( variant&amp;&amp; rhs )\n&quot;;
+    a = std::move(b);
+    std::cout &lt;&lt; &quot;a&quot; &lt;&lt; a &lt;&lt; &quot;b&quot; &lt;&lt; b &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;(3) operator=( T&amp;&amp; t ), where T is int\n&quot;;
+    a = 2019;
+    std::cout &lt;&lt; &quot;a&quot; &lt;&lt; a &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;(3) operator=( T&amp;&amp; t ), where T is std::string\n&quot;;
+    std::string s{&quot;CppNow&quot;};
+    std::cout &lt;&lt; &quot;s: &quot; &lt;&lt; std::quoted(s) &lt;&lt; '\n';
+    a = std::move(s);
+    std::cout &lt;&lt; &quot;a&quot; &lt;&lt; a &lt;&lt; &quot;s: &quot; &lt;&lt; std::quoted(s) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">a: { 2017 };
+b: { &quot;CppCon&quot; };
+
+(1) operator=( const variant&amp; rhs )
+a: { &quot;CppCon&quot; };
+b: { &quot;CppCon&quot; };
+
+(2) operator=( variant&amp;&amp; rhs )
+a: { &quot;CppCon&quot; };
+b: { &quot;&quot; };
+
+(3) operator=( T&amp;&amp; t ), where T is int
+a: { 2019 };
+
+(3) operator=( T&amp;&amp; t ), where T is std::string
+s: &quot;CppNow&quot;
+a: { &quot;CppNow&quot; };
+s: &quot;&quot;
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3024">LWG 3024</a></td>
+<td>C++17</td>
+<td>l'opérateur d'affectation par copie ne participe pas à la résolution de surcharge si un type membre n'est pas copiable</td>
+<td>défini comme supprimé à la place</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3585">LWG 3585</a></td>
+<td>C++17</td>
+<td>l'affectation convertissante était parfois mal formée de façon inattendue car aucune affectation par déplacement n'était disponible</td>
+<td>rendue bien formée</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0602R4">P0602R4</a></td>
+<td>C++17</td>
+<td>l'affectation par copie/déplacement peut ne pas être triviale même si les opérations sous-jacentes le sont</td>
+<td>requis pour propager la trivialité</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0608R3">P0608R3</a></td>
+<td>C++17</td>
+<td>l'affectation convertissante assemble aveuglément un ensemble de surcharges, menant à des conversions non voulues</td>
+<td>conversions restrictives et booléennes non prises en compte</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P2231R1">P2231R1</a></td>
+<td>C++20</td>
+<td>l'affectation convertissante <code>(3)</code> n'était pas <code>constexpr</code> alors que les opérations requises peuvent être <code>constexpr</code> en C++20</td>
+<td>rendu <code>constexpr</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="emplace.html">emplace</a></strong> — construit une valeur dans la <code>variant</code>, sur place <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

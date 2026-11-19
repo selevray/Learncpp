@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Constructeurs de copie — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="constructeurs-de-copie">Constructeurs de copie</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/copy_constructor">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un constructeur de copie est un <a href="initializer_list.html">constructeur</a> qui peut être appelé avec un argument du même type de classe et qui copie le contenu de l'argument sans modifier cet argument.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>class-name</code> ﻿<code>(parameter-list</code> ﻿<code>);</code> | (1) | |
+|
+| <code>class-name</code> ﻿<code>(parameter-list</code> ﻿<code>)</code> <code>function-body</code> | (2) | |
+|
+| <code>class-name</code> ﻿<code>(single-parameter-list</code> ﻿<code>) = default;</code> | (3) | (depuis C++11) |
+|
+| <code>class-name</code> ﻿<code>(parameter-list</code> ﻿<code>) = delete;</code> | (4) | (depuis C++11) |
+|
+| <code>class-name</code> ﻿<code>::class-name</code> ﻿<code>(parameter-list</code> ﻿<code>)</code> <code>function-body</code> | (5) | |
+|
+| <code>class-name</code> ﻿<code>::class-name</code> ﻿<code>(single-parameter-list</code> ﻿<code>) = default;</code> | (6) | (depuis C++11) |
+|</p>
+<ul>
+<li><code>class-name</code> — la classe dont le constructeur de copie est déclaré</li>
+<li><code>parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> non vide satisfaisant toutes les conditions suivantes :
+<ul>
+<li>étant donné le type de classe comme <code>T</code>, le premier paramètre est de type <code>T&amp;</code>, <code>const T&amp;</code>, <code>volatile T&amp;</code> ou <code>const volatile T&amp;</code>, et</li>
+<li>soit il n'y a pas d'autres paramètres, soit tous les autres paramètres ont des <a href="default_arguments.html">arguments par défaut</a>.</li>
+</ul>
+</li>
+<li><code>single-parameter-list</code> — une <a href="function.html#Parameter_list">liste de paramètres</a> ne comportant qu'un seul paramètre, de type <code>T&amp;</code>, <code>const T&amp;</code>, <code>volatile T&amp;</code> ou <code>const volatile T&amp;</code>, et n'ayant pas d'argument par défaut</li>
+<li><code>function-body</code> — le <a href="initializer_list.html">corps de fonction</a> du constructeur de copie</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<ol>
+<li>Déclaration d'un constructeur de copie à l'intérieur de la définition de classe.</li>
+</ol>
+<p>2-4) Définition d'un constructeur de copie à l'intérieur de la définition de classe.</p>
+<ol start="3">
+<li>
+<p>Le constructeur de copie est explicitement défaut.</p>
+</li>
+<li>
+<p>Le constructeur de copie est supprimé.</p>
+</li>
+</ol>
+<p>5,6) Définition d'un constructeur de copie en dehors de la définition de classe (la classe doit contenir une déclaration <code>(1)</code>).</p>
+<ol start="6">
+<li>Le constructeur de copie est explicitement défaut.</li>
+</ol>
+<pre><code class="language-cpp">struct X
+{
+    X(X&amp; other); // constructeur de copie
+//  X(X other);  // Erreur : type de paramètre incorrect
+};
+
+union Y
+{
+    Y(Y&amp; other, int num = 1); // constructeur de copie avec plusieurs paramètres
+//  Y(Y&amp; other, int num);     // Erreur : `num` n'a pas d'argument par défaut
+};
+</code></pre>
+<p>Le constructeur de copie est appelé chaque fois qu'un objet est <a href="initialization.html">initialisé</a> (par <a href="direct_initialization.html">initialisation directe</a> ou <a href="copy_initialization.html">initialisation par copie</a>) à partir d'un autre objet du même type (sauf si la <a href="overload_resolution.html">résolution de surcharge</a> sélectionne une meilleure correspondance ou si l'appel est <a href="copy_elision.html">élidé</a>), ce qui inclut</p>
+<ul>
+<li>initialisation : <code>T a = b;</code> ou <code>T a(b);</code>, où <code>b</code> est de type <code>T</code> ;</li>
+<li>passage d'arguments de fonction : <code>f(a);</code>, où <code>a</code> est de type <code>T</code> et <code>f</code> est <code>void f(T t)</code> ;</li>
+<li>retour de fonction : <code>return a;</code> dans une fonction telle que <code>T f()</code>, où <code>a</code> est de type <code>T</code>, qui n'a pas de <a href="move_constructor.html">constructeur de déplacement</a>.</li>
+</ul>
+<h2 id="Implicitly-declared_copy_constructor">Constructeur de copie déclaré implicitement</h2>
+<p>Si aucun constructeur de copie défini par l'utilisateur n'est fourni pour un type de classe, le compilateur déclare toujours un constructeur de copie comme membre non <a href="explicit.html">explicit</a> <code>inline public</code> de sa classe. Ce constructeur de copie déclaré implicitement a la forme <code>T::T(const T&amp;)</code> si toutes les conditions suivantes sont vraies :</p>
+<ul>
+<li>chaque <code>B</code> de base directe et virtuelle de <code>T</code> possède un constructeur de copie dont les paramètres sont de type <code>const B&amp;</code> ou <code>const volatile B&amp;</code> ;</li>
+<li>chaque <code>M</code> membre de données non statique de <code>T</code> de type classe ou de type tableau de classe possède un constructeur de copie dont les paramètres sont de type <code>const M&amp;</code> ou <code>const volatile M&amp;</code>.</li>
+</ul>
+<p>Sinon, le constructeur de copie déclaré implicitement est <code>T::T(T&amp;)</code>.</p>
+<p>En raison de ces règles, le constructeur de copie déclaré implicitement ne peut pas se lier à un argument lvalue <code>volatile</code>.</p>
+<p>Une classe peut avoir plusieurs constructeurs de copie, par exemple à la fois <code>T::T(const T&amp;)</code> et <code>T::T(T&amp;)</code>.</p>
+<blockquote>
+<p>Même si certains constructeurs de copie définis par l'utilisateur sont présents, l'utilisateur peut tout de même forcer la déclaration implicite du constructeur de copie à l'aide du mot-clé <code>default</code>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Le constructeur de copie déclaré implicitement (ou défini par défaut lors de sa première déclaration) a une spécification d'exception décrite dans [<a href="except_spec.html">spécification d'exception dynamique</a> <em>(jusqu'à C++17)</em> | <a href="noexcept_spec.html">spécification noexcept</a> <em>(depuis C++17)</em>].</p>
+<h2 id="Implicitly-defined_copy_constructor">Constructeur de copie défini implicitement</h2>
+<p>Si le constructeur de copie déclaré implicitement n'est pas supprimé, il est défini (c'est-à-dire qu'un corps de fonction est généré et compilé) par le compilateur si il est <a href="definition.html#ODR-use">utilisé par ODR</a>ou <a href="constant_expression.html#Functions_and_variables_needed_for_constant_evaluation">nécessaire à l'évaluation constante</a> <em>(depuis C++11)</em>. Pour les types union, le constructeur de copie défini implicitement copie la représentation de l'objet (comme par <a href="../string/byte/memmove.html"><code>std::memmove</code></a>). Pour les types de classes non union, le constructeur effectue une copie membre à membre complète des sous-objets de base directs et des sous-objets membres de l'objet, dans leur ordre d'initialisation, en utilisant l'initialisation directe. Pour chaque membre de données non statique de type référence, le constructeur de copie lie la référence au même objet ou à la même fonction auquel la référence source est liée.</p>
+<blockquote>
+<p>Si cela satisfait les exigences d'un [<a href="constexpr.html#constexpr_constructor">constructeur constexpr</a> <em>(jusqu'à C++23)</em> | <a href="constexpr.html#constexpr_function">fonction constexpr</a> <em>(depuis C++23)</em>], le constructeur de copie généré est <code>constexpr</code>.</p>
+<p>La génération du constructeur de copie défini implicitement est obsolète si <code>T</code> possède un destructeur défini par l'utilisateur ou un opérateur d'affectation par copie défini par l'utilisateur.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Deleted_copy_constructor">Constructeur de copie supprimé</h2>
+<p>Le constructeur de copie déclaré implicitement ou explicitement défaut <em>(depuis C++11)</em> de la classe <code>T</code> est [non défini <em>(jusqu'à C++11)</em> | défini comme supprimé <em>(depuis C++11)</em>] si l'une des conditions suivantes est satisfaite :</p>
+<blockquote>
+<ul>
+<li><code>T</code> possède un membre de données non statique de type référence rvalue.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li><code>T</code> possède un <a href="objects.html#Potentially_constructed_subobject">sous-objet potentiellement construit</a> de type classe <code>M</code> (ou éventuellement un tableau multidimensionnel de celui-ci) tel que
+<ul>
+<li><code>M</code> possède un destructeur qui estsupprimé ou <em>(depuis C++11)</em> inaccessible depuis le constructeur de copie, ou</li>
+<li>la résolution de surcharge appliquée pour trouver le constructeur de copie de <code>M</code>
+<ul>
+<li>ne produit aucun candidat utilisable, ou</li>
+<li>dans le cas où le sous-objet est un <a href="union.html#Union-like_classes">membre variant</a>, sélectionne une fonction non triviale.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Le constructeur de copie déclaré implicitement pour la classe <code>T</code> est défini comme supprimé si <code>T</code> déclare un <a href="move_constructor.html">constructeur de déplacement</a> ou un <a href="move_operator.html">opérateur d'affectation par déplacement</a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Trivial_copy_constructor">Constructeur de copie trivial</h2>
+<p>Le constructeur de copie de la classe <code>T</code> est trivial si toutes les conditions suivantes sont vraies :</p>
+<ul>
+<li>il n'est pas fourni par l'utilisateur (c'est-à-dire qu'il est défini implicitement ou défaut) ;</li>
+<li><code>T</code> ne possède aucune fonction membre virtuelle ;</li>
+<li><code>T</code> ne possède aucune classe de base virtuelle ;</li>
+<li>le constructeur de copie sélectionné pour chaque base directe de <code>T</code> est trivial ;</li>
+<li>le constructeur de copie sélectionné pour chaque membre de type classe non statique (ou de type tableau de classe) de <code>T</code> est trivial ;</li>
+</ul>
+<p>Un constructeur de copie trivial pour une classe non union copie effectivement chaque sous-objet scalaire (y compris, récursivement, les sous-objets des sous-objets, et ainsi de suite) de l'argument et n'effectue aucune autre action. Cependant, les octets de remplissage n'ont pas besoin d'être copiés, et même les représentations d'objet des sous-objets copiés n'ont pas besoin d'être identiques tant que leurs valeurs sont identiques.</p>
+<p>Les objets <a href="../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a> peuvent être copiés en copiant manuellement leurs représentations d'objet, par exemple avec <a href="../string/byte/memmove.html"><code>std::memmove</code></a>. Tous les types de données compatibles avec le langage C (types POD) sont trivialement copiables.</p>
+<h2 id="Eligible_copy_constructor">Constructeur de copie éligible</h2>
+<blockquote>
+<p>Un constructeur de copie est éligible s'il est déclaré par l'utilisateur ou à la fois déclaré implicitement et définissable.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Un constructeur de copie est éligible s'il n'est pas supprimé.</p>
+<p><em>(depuis C++11) (jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p>Un constructeur de copie est éligible si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li>Il n'est pas supprimé.</li>
+<li>Ses <a href="constraints.html">contraintes associées</a> (le cas échéant) sont satisfaites.</li>
+<li>Aucun constructeur de copie dont les contraintes associées sont satisfaites n'est <a href="constraints.html#Partial_ordering_of_constraints">plus contraint</a>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La trivialité des constructeurs de copie éligibles détermine si la classe est un <a href="lifetime.html#Implicit-lifetime_types">type à durée de vie implicite</a>, et si la classe est un <a href="../named_req/TriviallyCopyable.html">type trivialement copiable</a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Dans de nombreuses situations, les constructeurs de copie sont optimisés même s'ils pourraient produire des effets de bord observables, voir <a href="copy_elision.html">élision de copie</a>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">struct A
+{
+    int n;
+    A(int n = 1) : n(n) {}
+    A(const A&amp; a) : n(a.n) {} // constructeur de copie défini par l'utilisateur
+};
+
+struct B : A
+{
+    // constructeur par défaut implicite B::B()
+    // constructeur de copie implicite B::B(const B&amp;)
+};
+
+struct C : B
+{
+    C() : B() {}
+private:
+    C(const C&amp;); // non copiable, style C++98
+};
+
+int main()
+{
+    A a1(7);
+    A a2(a1); // appelle le constructeur de copie
+
+    B b;
+    B b2 = b;
+    A a3 = b; // conversion vers A&amp; et constructeur de copie
+
+    volatile A va(10);
+    // A a4 = va; // erreur de compilation
+
+    C c;
+    // C c2 = c; // erreur de compilation
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1353.html">CWG 1353</a></td>
+<td>C++98</td>
+<td>les conditions dans lesquelles les constructeurs de copie déclarés implicitement sont non définis ne prenaient pas en compte les types de tableaux multidimensionnels</td>
+<td>prendre en compte ces types</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2094.html">CWG 2094</a></td>
+<td>C++11</td>
+<td>les membres volatils rendent la copie non triviale (<a href="https://cplusplus.github.io/CWG/issues/496.html">CWG issue 496</a>)</td>
+<td>la trivialité n'est pas affectée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2171.html">CWG 2171</a></td>
+<td>C++11</td>
+<td><code>X(X&amp;) = default</code> était non trivial</td>
+<td>rendu trivial</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2595.html">CWG 2595</a></td>
+<td>C++20</td>
+<td>un constructeur de copie n'était pas éligible s'il existait un autre constructeur de copie plus contraint mais ne satisfaisant pas ses contraintes associées</td>
+<td>il peut être éligible dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="converting_constructor.html">constructeur de conversion</a></li>
+<li><a href="as_operator.html">affectation par copie</a></li>
+<li><a href="copy_elision.html">élision de copie</a></li>
+<li><a href="default_constructor.html">constructeur par défaut</a></li>
+<li><a href="destructor.html">destructor</a></li>
+<li><a href="explicit.html"><code>explicit</code></a></li>
+<li><a href="initialization.html">initialization</a>
+<ul>
+<li><a href="aggregate_initialization.html">initialisation agrégat</a></li>
+<li><a href="constant_initialization.html">initialisation constante</a></li>
+<li><a href="copy_initialization.html">initialisation par copie</a></li>
+<li><a href="default_initialization.html">initialisation par défaut</a></li>
+<li><a href="direct_initialization.html">initialisation directe</a></li>
+<li><a href="initializer_list.html">liste d'initialisation</a></li>
+<li><a href="list_initialization.html">initialisation par liste</a></li>
+<li><a href="reference_initialization.html">initialisation de référence</a></li>
+<li><a href="value_initialization.html">initialisation par valeur</a></li>
+<li><a href="zero_initialization.html">initialisation à zéro</a></li>
+</ul>
+</li>
+<li><a href="move_operator.html">affectation par déplacement</a></li>
+<li><a href="move_constructor.html">constructeur de déplacement</a></li>
+<li><a href="new.html"><code>new</code></a></li>
+</ul>
+
+</main>
+</body>
+</html>

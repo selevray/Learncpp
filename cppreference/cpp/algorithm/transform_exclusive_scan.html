@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::transform_exclusive_scan — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-transform_exclusive_scan"><code>std::transform_exclusive_scan</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/transform_exclusive_scan">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;numeric&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class InputIt, class OutputIt, class T,
+          class BinaryOp, class UnaryOp &gt;
+OutputIt transform_exclusive_scan
+    ( InputIt first, InputIt last, OutputIt d_first, T init,
+      BinaryOp binary_op, UnaryOp unary_op );  // (1) (depuis C++17) (constexpr depuis C++20)
+
+template&lt; class ExecutionPolicy,
+          class ForwardIt1, class ForwardIt2, class T,
+          class BinaryOp, class UnaryOp &gt;
+ForwardIt2 transform_exclusive_scan
+    ( ExecutionPolicy&amp;&amp; policy,
+      ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first, T init,
+      BinaryOp binary_op, UnaryOp unary_op );  // (2) (depuis C++17)
+</code></pre>
+<ol>
+<li>Calcule la somme préfixe exclusive en utilisant <code>op</code>.</li>
+</ol>
+<p>Pour chaque entier <code>i</code> dans <code>[0,std::distance(first, last))</code>, effectue les opérations suivantes dans l'ordre :</p>
+<ol>
+<li>Crée une séquence formée de <code>init</code> suivi des valeurs transformées à partir des éléments de <code>[first,iter)</code> dans l'ordre par <code>unary_op</code>, où <code>iter</code> est l'itérateur suivant <code>i</code>th de <code>first</code>.</li>
+<li>Calcule la somme non commutative généralisée de la séquence sur <code>binary_op</code>.</li>
+<li>Affecte le résultat à <code>*dest</code>, où <code>dest</code> est le <code>i</code>ème itérateur suivant de <code>d_first</code>.</li>
+</ol>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais exécuté selon <code>policy</code>.</li>
+</ol>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</p>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::decay_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<blockquote>
+<p><code>std::is_execution_policy_v&lt;std::remove_cvref_t&lt;ExecutionPolicy&gt;&gt;</code> is <code>true</code>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>La <em>somme non commutative généralisée</em> d'une séquence d'éléments sur une opération binaire <code>binary_op</code> est définie comme suit :</p>
+<ul>
+<li>Si la séquence ne comporte qu'un seul élément, la somme est la valeur de cet élément.</li>
+<li>Sinon, effectue les opérations suivantes dans l'ordre :</li>
+</ul>
+<ol>
+<li>Sélectionne deux éléments adjacents quelconques <code>elem1</code> et <code>elem2</code> de la séquence.</li>
+<li>Calcule <code>binary_op(elem1, elem2)</code> et remplace les deux éléments de la séquence par le résultat.</li>
+<li>Répète les étapes 1 et 2 jusqu'à ce qu'il ne reste qu'un seul élément dans la séquence.</li>
+</ol>
+<p>Le résultat est non déterministe si <code>binary_op</code> n'est pas associative (comme l'addition en virgule flottante).</p>
+<p>Si l'une des valeurs suivantes n'est pas convertible en <code>T</code>, le programme est mal formé :</p>
+<ul>
+<li><code>binary_op(init, init)</code></li>
+<li><code>binary_op(init, unary_op(*first))</code></li>
+<li><code>binary_op(unary_op(*first), unary_op(*first))</code></li>
+</ul>
+<p>Si l'une des conditions suivantes est satisfaite, le comportement est indéfini :</p>
+<ul>
+<li><code>T</code> n'est pas <a href="../named_req/MoveConstructible.html"><em>MoveConstructible</em></a>.</li>
+<li><code>unary_op</code> ou <code>binary_op</code> modifie un élément de <code>[first,last)</code>.</li>
+<li><code>unary_op</code> ou <code>binary_op</code> invalide un itérateur ou un sous-intervalle de <code>[first,last]</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle des éléments à sommer</li>
+<li><code>d_first</code> — le début de l'intervalle de destination, peut être égal à <code>first</code></li>
+<li><code>policy</code> — la <a href="execution_policy_tag_t.html">politique d'exécution</a> à utiliser</li>
+<li><code>init</code> — la valeur initiale</li>
+<li><code>unary_op</code> — unaire <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a> qui sera appliqué à chaque élément de l'intervalle d'entrée. Le type de retour doit être acceptable comme entrée de <code>binary_op</code>.</li>
+<li><code>binary_op</code> — binaire <a href="../named_req/FunctionObject.html"><em>FunctionObject</em></a> qui sera appliqué au résultat de <code>unary_op</code>, aux résultats des autres <code>binary_op</code>, et à <code>init</code>.</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+<li><code>OutputIt</code> doit satisfaire aux exigences de <a href="../named_req/OutputIterator.html"><em>LegacyOutputIterator</em></a>.</li>
+<li><code>ForwardIt1, ForwardIt2</code> doit satisfaire aux exigences de <a href="../named_req/ForwardIterator.html"><em>LegacyForwardIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Itérateur vers l'élément suivant le dernier élément écrit.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Étant donné (\scriptsize N)N valant <code>std::distance(first, last)</code> :</p>
+<p>1,2) (\scriptsize O(N))O(N) applications de <code>unary_op</code> et <code>binary_op</code> respectivement.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>La surcharge avec un paramètre de modèle nommé <code>ExecutionPolicy</code> signale les erreurs comme suit :</p>
+<ul>
+<li>Si l'exécution d'une fonction invoquée dans le cadre de l'algorithme lève une exception et <code>ExecutionPolicy</code> est l'une des <a href="execution_policy_tag_t.html">politiques standard</a>, <a href="../error/terminate.html"><code>std::terminate</code></a> est appelée. Pour toute autre <code>ExecutionPolicy</code>, le comportement est défini par l'implémentation.</li>
+<li>Si l'algorithme échoue à allouer de la mémoire, <a href="../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> est levée.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><code>unary_op</code> n'est jamais appliqué à <code>init</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+#include &lt;numeric&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector data{3, 1, 4, 1, 5, 9, 2, 6};
+
+    auto times_10 = [](int x) { return x * 10; };
+
+    std::cout &lt;&lt; &quot;10 times exclusive sum: &quot;;
+    std::transform_exclusive_scan(data.begin(), data.end(),
+                                  std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;),
+                                  0, std::plus&lt;int&gt;{}, times_10);
+    std::cout &lt;&lt; &quot;\n10 times inclusive sum: &quot;;
+    std::transform_inclusive_scan(data.begin(), data.end(),
+                                  std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;),
+                                  std::plus&lt;int&gt;{}, times_10);
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">10 times exclusive sum: 0 30 40 80 90 140 230 250
+10 times inclusive sum: 30 40 80 90 140 230 250 310
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="partial_sum.html">partial_sum</a></strong> — calcule la somme partielle d'un intervalle d'éléments <em>(modèle de fonction)</em></li>
+<li><strong><a href="exclusive_scan.html">exclusive_scan</a> (C++17)</strong> — similaire à <a href="partial_sum.html"><code>std::partial_sum</code></a>, exclut le ie élément d'entrée de la ie somme <em>(modèle de fonction)</em></li>
+<li><strong><a href="transform_inclusive_scan.html">transform_inclusive_scan</a> (C++17)</strong> — applique un invocable, puis calcule le scan inclusif <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

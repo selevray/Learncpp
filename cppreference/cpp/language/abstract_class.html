@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classe abstraite — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="classe-abstraite">Classe abstraite</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/abstract_class">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Définit un type abstrait qui ne peut pas être instancié, mais qui peut être utilisé comme classe de base.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Une <em>fonction virtuelle pure</em> est une <a href="virtual.html">fonction virtuelle</a> dont le <a href="function.html">déclarateur</a> a la syntaxe suivante :</p>
+<p>|
+| |
+| <code>declarator</code> <code>virt-specifier</code> ﻿*(facultatif)* <code>=</code> <code>0</code> | | |
+|</p>
+<p>Ici, la séquence <code>= 0</code> est appelée <code>pure-specifier</code>, et apparaît soit immédiatement après le <code>declarator</code>, soit après le <code>virt-specifier</code> optionnel (<a href="override.html"><code>override</code></a> ou <a href="final.html"><code>final</code></a>).</p>
+<p><code>pure-specifier</code> ne peut pas apparaître dans la définition d'une fonction membre ni dans une déclaration <a href="friend.html">friend</a>.</p>
+<pre><code class="language-cpp">struct Base
+{
+    virtual int g();
+    virtual ~Base() {}
+};
+
+struct A : Base
+{
+    // OK : déclare trois fonctions membres virtuelles, dont deux sont pures
+    virtual int f() = 0, g() override = 0, h();
+
+    // OK : le destructeur peut aussi être pur
+    ~A() = 0;
+
+    // Erreur : spécificateur pur sur une définition de fonction
+    virtual int b() = 0 {}
+};
+</code></pre>
+<p>Une <em>classe abstraite</em> est une classe qui définit ou hérite d'au moins une fonction dont <a href="virtual.html">le redéfinisseur final</a> est <em>virtuel pur</em>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les classes abstraites servent à représenter des concepts généraux (par exemple Shape, Animal), qui peuvent être utilisés comme classes de base pour des classes concrètes (par exemple Circle, Dog).</p>
+<p>Aucun objet d'une classe abstraite ne peut être créé (sauf les sous-objets de base d'une classe qui en dérive), et aucun membre de données non statique dont le type est une classe abstraite ne peut être déclaré.</p>
+<p>Les types abstraits ne peuvent pas être utilisés comme types de paramètres, comme types de retour de fonction, ni comme type d'une conversion explicite (notez que cela est vérifié au point de définition et d'appel de fonction, puisqu'au point de déclaration de la fonction les types de paramètres et de retour peuvent être incomplets).</p>
+<p>Des pointeurs et des références vers une classe abstraite peuvent être déclarés.</p>
+<pre><code class="language-cpp">struct Abstract
+{
+    virtual void f() = 0;  // virtuelle pure
+}; // « Abstract » est abstraite
+
+struct Concrete : Abstract
+{
+    void f() override {}   // virtuelle non pure
+    virtual void g();      // virtuelle non pure
+}; // « Concrete » est non abstraite
+
+struct Abstract2 : Concrete
+{
+    void g() override = 0; // redéfinition virtuelle pure
+}; // « Abstract2 » est abstraite
+
+int main()
+{
+    // Abstract a;   // Erreur : classe abstraite
+    Concrete b;      // OK
+    Abstract&amp; a = b; // OK pour référencer la base abstraite
+    a.f();           // appel virtuel dispatché vers Concrete::f()
+    // Abstract2 a2; // Erreur : classe abstraite (le redéfinisseur final de g() est pur)
+}
+</code></pre>
+<p>La définition d'une fonction virtuelle pure peut être fournie (et doit l'être si la fonction virtuelle pure est le <a href="destructor.html">destructeur</a>) : les fonctions membres de la classe dérivée peuvent appeler librement la fonction virtuelle pure de la base abstraite en utilisant un identifiant de fonction qualifié. Cette définition doit être fournie en dehors du corps de la classe (la syntaxe d'une déclaration de fonction ne permet pas à la fois le spécificateur pur <code>= 0</code> et un corps de fonction).</p>
+<p>Effectuer un appel virtuel vers une fonction virtuelle pure depuis un constructeur ou le destructeur de la classe abstraite est un comportement indéfini (qu'elle ait une définition ou non).</p>
+<pre><code class="language-cpp">struct Abstract
+{
+    virtual void f() = 0; // virtuelle pure
+    virtual void g() {}   // virtuelle non pure
+
+    ~Abstract()
+    {
+        g();           // OK : appelle Abstract::g()
+        // f();        // comportement indéfini
+        Abstract::f(); // OK : appel non virtuel
+    }
+};
+
+// définition de la fonction virtuelle pure
+void Abstract::f()
+{
+    std::cout &lt;&lt; &quot;A::f()\n&quot;;
+}
+
+struct Concrete : Abstract
+{
+    void f() override
+    {
+        Abstract::f(); // OK : appelle la fonction virtuelle pure
+    }
+
+    void g() override {}
+
+    ~Concrete()
+    {
+        g(); // OK : appelle Concrete::g()
+        f(); // OK : appelle Concrete::f()
+    }
+};
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/390.html">CWG 390</a></td>
+<td>C++98</td>
+<td>un destructeur virtuel pur non défini pourrait être appelé</td>
+<td>une définition est requise dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2153.html">CWG 2153</a></td>
+<td>C++98</td>
+<td><code>pure-specifier</code> pourrait apparaître dans des déclarations friend</td>
+<td>prohibited</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="virtual.html"><code>virtual</code></a></li>
+</ul>
+
+</main>
+</body>
+</html>

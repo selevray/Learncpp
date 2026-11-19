@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Génération de nombres pseudo-aléatoires — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/numeric.html">Bibliothèque numérique</a></nav>
+<h1 id="génération-de-nombres-pseudo-aléatoires">Génération de nombres pseudo-aléatoires</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/numeric/random">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>La bibliothèque des nombres aléatoires fournit des classes qui génèrent des nombres aléatoires et pseudo-aléatoires. Ces classes comprennent :</p>
+<ul>
+<li>Générateurs de bits aléatoires uniformes (URBG), qui comprennent à la fois les moteurs de nombres aléatoires, c'est-à-dire des générateurs de nombres pseudo-aléatoires produisant des suites d'entiers selon une distribution uniforme, et les générateurs de nombres véritablement aléatoires (si disponibles).</li>
+<li>Distributions de nombres aléatoires (par ex. <a href="random/uniform_int_distribution.html">uniforme</a>, <a href="random/normal_distribution.html">normale</a> ou <a href="random/poisson_distribution.html">de Poisson</a>) qui convertissent la sortie des URBG en diverses distributions statistiques.</li>
+</ul>
+<p>Les URBG et les distributions sont conçus pour être utilisés ensemble afin de produire des valeurs aléatoires. Tous les moteurs de nombres aléatoires peuvent être initialisés explicitement, sérialisés et désérialisés pour être utilisés avec des simulateurs reproductibles.</p>
+<h2 id="Uniform_random_bit_generators">Générateurs de bits aléatoires uniformes</h2>
+<p>Un <em>générateur de bits aléatoires uniforme</em> est un objet fonction renvoyant des valeurs entières non signées telles que chaque valeur de l'intervalle des résultats possibles ait (idéalement) une probabilité égale d'être renvoyée.</p>
+<p>Tous les générateurs de bits aléatoires uniformes satisfont aux exigences <a href="../named_req/UniformRandomBitGenerator.html"><em>UniformRandomBitGenerator</em></a>. C++20 définit également un concept <a href="random/UniformRandomBitGenerator.html"><code>uniform_random_bit_generator</code></a>.</p>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<ul>
+<li><strong><a href="random/UniformRandomBitGenerator.html">uniform_random_bit_generator</a> (C++20)</strong> — spécifie qu'un type est un générateur uniforme de bits aléatoires <em>(concept)</em></li>
+</ul>
+<h2 id="Random_number_engines">Moteurs de nombres aléatoires</h2>
+<p>Un <em>moteur de nombres aléatoires</em> (souvent abrégé en <em>moteur</em> ﻿) est un générateur de bits aléatoires uniforme qui produit des nombres pseudo-aléatoires à partir de données de germe utilisées comme source d'entropie.</p>
+<p>À tout moment, un moteur <code>e</code> de type <code>E</code> possède un état <code>ei</code> pour un entier non négatif <code>i</code>. À la construction, <code>e</code> a un état initial <code>e0</code>, déterminé par les paramètres du moteur et une graine initiale (ou une suite de graines).</p>
+<p>Les propriétés suivantes sont toujours définies pour tout type de moteur <code>E</code> :</p>
+<ul>
+<li>La <em>taille</em> de l'état de <code>E</code> en multiples de la taille de <code>E::result_type</code> (c.-à-d. <code>(sizeof ei) / sizeof(E::result_type)</code>).</li>
+<li>L'<em>algorithme de transition</em> <code>TA</code> par lequel l'état <code>ei</code> de <code>e</code> est amené à son état successeur <code>ei+1</code> (c.-à-d. <code>TA(ei) == ei+1</code>).</li>
+<li>L'<em>algorithme de génération</em> <code>GA</code> par lequel l'état de <code>e</code> est transformé en une valeur de type <code>E::result_type</code> ; le résultat est un nombre pseudo-aléatoire.</li>
+</ul>
+<p>Une suite de nombres pseudo-aléatoires peut être générée en appelant alternativement <code>TA</code> et <code>GA</code>.</p>
+<p>La bibliothèque standard fournit les implémentations de trois classes différentes d'algorithmes de génération de nombres pseudo-aléatoires, sous forme de modèles de classes, afin que les algorithmes puissent être personnalisés. Le choix du moteur à utiliser implique plusieurs compromis :</p>
+<ul>
+<li>Le <a href="random/linear_congruential_engine.html">moteur congruentiel linéaire</a> est modérément rapide et ne nécessite qu'un très petit espace de stockage pour son état.</li>
+<li>Le <a href="random/mersenne_twister_engine.html">moteur de Mersenne twister</a> est plus lent et nécessite davantage de stockage pour son état, mais avec les bons paramètres, il possède la plus longue suite sans répétition, ainsi que les caractéristiques spectrales les plus souhaitables (pour une définition donnée de « souhaitable »).</li>
+<li>Le <a href="random/subtract_with_carry_engine.html">moteur à soustraction avec retenue</a> est très rapide, même sur les processeurs dépourvus de jeux d'instructions arithmétiques avancés, au prix d'un stockage d'état plus important et de caractéristiques spectrales parfois moins souhaitables.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Le <a href="random/philox_engine.html">moteur Philox</a> est un <a href="https://en.wikipedia.org/wiki/counter-based_random_number_generator">générateur de nombres aléatoires à compteur</a>. Il possède un petit état et une longue période (non inférieure à 2^130) et est destiné aux simulations de Monte-Carlo nécessitant une génération de nombres aléatoires massivement parallèle. Il se vectorise et se parallélise facilement et est implémenté dans des bibliothèques optimisées pour GPU.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Aucun de ces moteurs de nombres aléatoires n'est <a href="https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator">cryptographiquement sûr</a>. Comme pour toute opération sécurisée, une bibliothèque cryptographique doit être utilisée à cette fin (par ex. <a href="https://www.openssl.org/docs/manmaster/man3/RAND_bytes.html">OpenSSL <code>RAND_bytes</code></a>).</p>
+<p>Tous les types instanciés à partir de ces modèles satisfont aux exigences <a href="../named_req/RandomNumberEngine.html"><em>RandomNumberEngine</em></a>.</p>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<ul>
+<li><strong><a href="random/linear_congruential_engine.html">linear_congruential_engine</a> (C++11)</strong> — implémente l'algorithme <a href="https://en.wikipedia.org/wiki/Linear_congruential_generator">congruentiel linéaire</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/mersenne_twister_engine.html">mersenne_twister_engine</a> (C++11)</strong> — implémente l'algorithme <a href="https://en.wikipedia.org/wiki/Mersenne_twister">de Mersenne twister</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/subtract_with_carry_engine.html">subtract_with_carry_engine</a> (C++11)</strong> — implémente un algorithme de soustraction avec retenue (<a href="https://en.wikipedia.org/wiki/Lagged_Fibonacci_generator">de Fibonacci retardé</a>) <em>(modèle de classe)</em></li>
+<li><strong><a href="random/philox_engine.html">philox_engine</a> (C++26)</strong> — un générateur parallélisable basé sur un compteur <em>(modèle de classe)</em></li>
+</ul>
+<h2 id="Random_number_engine_adaptors">Adaptateurs de moteurs de nombres aléatoires</h2>
+<p>Les adaptateurs de moteurs de nombres aléatoires génèrent des nombres pseudo-aléatoires en utilisant un autre moteur de nombres aléatoires comme source d'entropie. Ils servent généralement à modifier les caractéristiques spectrales du moteur sous-jacent.</p>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<ul>
+<li><strong><a href="random/discard_block_engine.html">discard_block_engine</a> (C++11)</strong> — ignore une partie de la sortie d'un moteur de nombres aléatoires <em>(modèle de classe)</em></li>
+<li><strong><a href="random/independent_bits_engine.html">independent_bits_engine</a> (C++11)</strong> — regroupe la sortie d'un moteur de nombres aléatoires en blocs d'un nombre de bits spécifié <em>(modèle de classe)</em></li>
+<li><strong><a href="random/shuffle_order_engine.html">shuffle_order_engine</a> (C++11)</strong> — fournit la sortie d'un moteur de nombres aléatoires dans un ordre différent <em>(modèle de classe)</em></li>
+</ul>
+<h2 id="Predefined_random_number_generators">Générateurs de nombres aléatoires prédéfinis</h2>
+<p>Plusieurs algorithmes populaires et spécifiques sont prédéfinis.</p>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li>
+<p><strong><code>minstd_rand0</code> (C++11)</strong> — <code>std::linear_congruential_engine&lt;std::uint_fast32_t,</code> <code>16807, 0, 2147483647&gt;</code></p>
+<p>Découvert en 1969 par Lewis, Goodman et Miller, adopté comme « Minimal standard » en 1988 par Park et Miller</p>
+</li>
+<li>
+<p><strong><code>minstd_rand</code> (C++11)</strong> —</p>
+<p><code>std::linear_congruential_engine&lt;std::uint_fast32_t,</code> <code>48271, 0, 2147483647&gt;</code> Version plus récente « Minimum standard », recommandée par Park, Miller et Stockmeyer en 1993</p>
+</li>
+<li>
+<p><strong><code>mt19937</code> (C++11)</strong> —</p>
+<p><code>std::mersenne_twister_engine&lt;std::uint_fast32_t,</code> <code>32, 624, 397, 31,</code> <code>0x9908b0df, 11,</code> <code>0xffffffff, 7,</code> <code>0x9d2c5680, 15,</code> <code>0xefc60000, 18, 1812433253&gt;</code> Mersenne Twister 32 bits, par Matsumoto et Nishimura, 1998</p>
+</li>
+<li>
+<p><strong><code>mt19937_64</code> (C++11)</strong> —</p>
+<p><code>std::mersenne_twister_engine&lt;std::uint_fast64_t,</code> <code>64, 312, 156, 31,</code> <code>0xb5026f5aa96619e9, 29,</code> <code>0x5555555555555555, 17,</code> <code>0x71d67fffeda60000, 37,</code> <code>0xfff7eee000000000, 43,</code> <code>6364136223846793005&gt;</code> Mersenne Twister 64 bits, par Matsumoto et Nishimura, 2000</p>
+</li>
+<li>
+<p><strong><code>ranlux24_base</code> (C++11)</strong> — <code>std::subtract_with_carry_engine&lt;std::uint_fast32_t, 24, 10, 24&gt;</code></p>
+</li>
+<li>
+<p><strong><code>ranlux48_base</code> (C++11)</strong> — <code>std::subtract_with_carry_engine&lt;std::uint_fast64_t, 48, 5, 12&gt;</code></p>
+</li>
+<li>
+<p><strong><code>ranlux24</code> (C++11)</strong> — <code>std::discard_block_engine&lt;std::ranlux24_base, 223, 23&gt;</code></p>
+<p>Générateur RANLUX de 24 bits de Martin Lüscher et Fred James, 1994</p>
+</li>
+<li>
+<p><strong><code>ranlux48</code> (C++11)</strong> — <code>std::discard_block_engine&lt;std::ranlux48_base, 389, 11&gt;</code></p>
+<p>Générateur RANLUX de 48 bits de Martin Lüscher et Fred James, 1994</p>
+</li>
+<li>
+<p><strong><code>knuth_b</code> (C++11)</strong> — <code>std::shuffle_order_engine&lt;std::minstd_rand0, 256&gt;</code></p>
+</li>
+<li>
+<p><strong><code>philox4x32</code> (C++26)</strong> — <code>std::philox_engine&lt;std::uint_fast32_t, 32, 4, 10,</code> <code>0xD2511F53, 0x9E3779B9,</code> <code>0xCD9E8D57, 0xBB67AE85&gt;</code></p>
+</li>
+<li>
+<p><strong><code>philox4x64</code> (C++26)</strong> — <code>std::philox_engine&lt;std::uint_fast64_t, 64, 4, 10,</code> <code>0xD2E7470EE14C6C93, 0x9E3779B97F4A7C15,</code> <code>0xCA5A826395121157, 0xBB67AE8584CAA73B&gt;</code></p>
+</li>
+<li>
+<p><strong><code>default_random_engine</code> (C++11)</strong> — <em>défini par l'implémentation</em></p>
+</li>
+</ul>
+<h2 id="Non-deterministic_random_numbers">Nombres aléatoires non déterministes</h2>
+<p><a href="random/random_device.html"><code>std::random_device</code></a> est un générateur de bits aléatoires uniforme non déterministe, bien que les implémentations soient autorisées à implémenter <a href="random/random_device.html"><code>std::random_device</code></a> à l'aide d'un moteur de nombres pseudo-aléatoires s'il n'existe aucune prise en charge de la génération non déterministe de nombres aléatoires.</p>
+<ul>
+<li><strong><a href="random/random_device.html">random_device</a> (C++11)</strong> — générateur de nombres aléatoires non déterministe utilisant une source d'entropie matérielle <em>(classe)</em></li>
+</ul>
+<h2 id="Random_number_distributions">Distributions de nombres aléatoires</h2>
+<p>Une distribution de nombres aléatoires post-traite la sortie d'un URBG de telle sorte que la sortie obtenue suive une fonction de densité de probabilité statistique définie.</p>
+<p>Les distributions de nombres aléatoires satisfont aux <a href="../named_req/RandomNumberDistribution.html"><em>RandomNumberDistribution</em></a>.</p>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<p><strong>##### Distributions uniformes {#Uniform_distributions}</strong></p>
+<ul>
+<li><strong><a href="random/uniform_int_distribution.html">uniform_int_distribution</a> (C++11)</strong> — produit des valeurs entières réparties uniformément sur un intervalle <em>(modèle de classe)</em></li>
+<li><strong><a href="random/uniform_real_distribution.html">uniform_real_distribution</a> (C++11)</strong> — produit des valeurs réelles réparties uniformément sur un intervalle <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Distributions de Bernoulli {#Bernoulli_distributions}</strong></p>
+<ul>
+<li><strong><a href="random/bernoulli_distribution.html">bernoulli_distribution</a> (C++11)</strong> — produit des <code>bool</code> valeurs selon une <a href="https://en.wikipedia.org/wiki/Bernoulli_distribution">distribution de Bernoulli</a> <em>(classe)</em></li>
+<li><strong><a href="random/binomial_distribution.html">binomial_distribution</a> (C++11)</strong> — produit des valeurs entières selon une <a href="https://en.wikipedia.org/wiki/Binomial_distribution">distribution binomiale</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/negative_binomial_distribution.html">negative_binomial_distribution</a> (C++11)</strong> — produit des valeurs entières selon une <a href="https://en.wikipedia.org/wiki/Negative_binomial_distribution">distribution binomiale négative</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/geometric_distribution.html">geometric_distribution</a> (C++11)</strong> — produit des valeurs entières selon une <a href="https://en.wikipedia.org/wiki/Geometric_distribution">distribution géométrique</a> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Distributions de Poisson {#Poisson_distributions}</strong></p>
+<ul>
+<li><strong><a href="random/poisson_distribution.html">poisson_distribution</a> (C++11)</strong> — produit des valeurs entières selon une <a href="https://en.wikipedia.org/wiki/Poisson_distribution">distribution de Poisson</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/exponential_distribution.html">exponential_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Exponential_distribution">distribution exponentielle</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/gamma_distribution.html">gamma_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Gamma_distribution">distribution gamma</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/weibull_distribution.html">weibull_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Weibull_distribution">distribution de Weibull</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/extreme_value_distribution.html">extreme_value_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Generalized_extreme_value_distribution">distribution des valeurs extrêmes</a> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Distributions normales {#Normal_distributions}</strong></p>
+<ul>
+<li><strong><a href="random/normal_distribution.html">normal_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Normal_distribution">distribution normale (gaussienne) standard</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/lognormal_distribution.html">lognormal_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Lognormal_distribution">distribution log-normale</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/chi_squared_distribution.html">chi_squared_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Chi-squared_distribution">distribution du khi-deux</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/cauchy_distribution.html">cauchy_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Cauchy_distribution">distribution de Cauchy</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/fisher_f_distribution.html">fisher_f_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/F-distribution">distribution F de Fisher</a> <em>(modèle de classe)</em></li>
+<li><strong><a href="random/student_t_distribution.html">student_t_distribution</a> (C++11)</strong> — produit des valeurs réelles selon une <a href="https://en.wikipedia.org/wiki/Student%27s_t-distribution">distribution t de Student</a> <em>(modèle de classe)</em></li>
+</ul>
+<p><strong>##### Distributions d'échantillonnage {#Sampling_distributions}</strong></p>
+<ul>
+<li><strong><a href="random/discrete_distribution.html">discrete_distribution</a> (C++11)</strong> — produit des valeurs entières selon une distribution discrète <em>(modèle de classe)</em></li>
+<li><strong><a href="random/piecewise_constant_distribution.html">piecewise_constant_distribution</a> (C++11)</strong> — produit des valeurs réelles réparties sur des sous-intervalles constants <em>(modèle de classe)</em></li>
+<li><strong><a href="random/piecewise_linear_distribution.html">piecewise_linear_distribution</a> (C++11)</strong> — produit des valeurs réelles réparties sur des sous-intervalles définis <em>(modèle de classe)</em></li>
+</ul>
+<h2 id="Utilities">Utilitaires</h2>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<ul>
+<li><strong><a href="random/generate_canonical.html">generate_canonical</a> (C++11)</strong> — répartit uniformément des valeurs réelles de précision donnée sur <code>[0,1)</code> <em>(modèle de fonction)</em></li>
+<li><strong><a href="random/seed_seq.html">seed_seq</a> (C++11)</strong> — générateur de séquence de graines mélangée, générique et sans biais <em>(classe)</em></li>
+</ul>
+<h2 id="Random_number_algorithms">Algorithmes de nombres aléatoires</h2>
+<p><strong>Défini dans l'en-tête <code>&lt;random&gt;</code></strong></p>
+<ul>
+<li><strong><a href="../algorithm/ranges/generate_random.html">ranges::generate_random</a> (C++26)</strong> — remplit un intervalle avec des nombres aléatoires provenant d'un générateur de bits aléatoires uniforme <em>(objet fonction d'algorithme)</em></li>
+</ul>
+<h2 id="C_random_library">Bibliothèque aléatoire du C</h2>
+<p>En plus des moteurs et des distributions décrits ci-dessus, les fonctions et constantes de la bibliothèque aléatoire du C sont également disponibles, bien que non recommandées :</p>
+<p><strong>Défini dans l'en-tête <code>&lt;cstdlib&gt;</code></strong></p>
+<ul>
+<li><strong><a href="random/rand.html">rand</a></strong> — génère un nombre pseudo-aléatoire <em>(fonction)</em></li>
+<li><strong><a href="random/srand.html">srand</a></strong> — initialise le générateur de nombres pseudo-aléatoires <em>(fonction)</em></li>
+<li><strong><a href="random/RAND_MAX.html">RAND_MAX</a></strong> — valeur maximale possible générée par <a href="random/rand.html"><code>std::rand</code></a> <em>(constante macro)</em></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cmath&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;map&gt;
+#include &lt;random&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    // Initialiser avec une valeur aléatoire réelle, si disponible
+    std::random_device r;
+
+    // Choisir une moyenne aléatoire entre 1 et 6
+    std::default_random_engine e1(r());
+    std::uniform_int_distribution&lt;int&gt; uniform_dist(1, 6);
+    int mean = uniform_dist(e1);
+    std::cout &lt;&lt; &quot;Randomly-chosen mean: &quot; &lt;&lt; mean &lt;&lt; '\n';
+
+    // Générer une distribution normale autour de cette moyenne
+    std::seed_seq seed2{r(), r(), r(), r(), r(), r(), r(), r()};
+    std::mt19937 e2(seed2);
+    std::normal_distribution&lt;&gt; normal_dist(mean, 2);
+
+    std::map&lt;int, int&gt; hist;
+    for (int n = 0; n != 10000; ++n)
+        ++hist[std::round(normal_dist(e2))];
+
+    std::cout &lt;&lt; &quot;Normal distribution around &quot; &lt;&lt; mean &lt;&lt; &quot;:\n&quot;
+              &lt;&lt; std::fixed &lt;&lt; std::setprecision(1);
+    for (auto [x, y] : hist)
+        std::cout &lt;&lt; std::setw(2) &lt;&lt; x &lt;&lt; ' ' &lt;&lt; std::string(y / 200, '*') &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Randomly-chosen mean: 4
+Normal distribution around 4:
+-4
+-3
+-2
+-1
+ 0 *
+ 1 ***
+ 2 ******
+ 3 ********
+ 4 *********
+ 5 ********
+ 6 ******
+ 7 ***
+ 8 *
+ 9
+10
+11
+12
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../c/numeric/random.html">Documentation C</a> pour Génération de nombres pseudo-aléatoires</strong></p>
+
+</main>
+</body>
+</html>

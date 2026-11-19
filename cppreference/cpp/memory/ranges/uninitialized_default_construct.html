@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::uninitialized_default_construct — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-ranges-uninitialized_default_construct"><code>std::ranges::uninitialized_default_construct</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/ranges/uninitialized_default_construct">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; no-throw-forward-iterator I, no-throw-sentinel-for&lt;I&gt; S &gt;
+    requires std::default_initializable&lt;std::iter_value_t&lt;I&gt;&gt;
+I uninitialized_default_construct( I first, S last );  // (1) (depuis C++20) (constexpr depuis C++26)
+
+template&lt; no-throw-forward-range R &gt;
+    requires std::default_initializable&lt;ranges::range_value_t&lt;R&gt;&gt;
+ranges::borrowed_iterator_t&lt;R&gt;
+    uninitialized_default_construct( R&amp;&amp; r );  // (2) (depuis C++20) (constexpr depuis C++26)
+</code></pre>
+<ol>
+<li>Construit des objets de type <code>std::iter_value_t&lt;I&gt;</code> dans la zone mémoire non initialisée <code>[first,last)</code> par <a href="../../language/default_initialization.html">initialisation par défaut</a>, comme par</li>
+</ol>
+<p><code>for (; first != last; ++first) ::new (voidify(*first)) std::remove_reference_t&lt;std::iter_reference_t&lt;I&gt;&gt;; return first;</code></p>
+<p>Si une exception est levée pendant l'initialisation, les objets déjà construits sont détruits dans un ordre non spécifié.</p>
+<ol start="2">
+<li>Équivalent à <code>ranges::uninitialized_default_construct(ranges::begin(r), ranges::end(r))</code>.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../../algorithm/ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — paire itérateur-sentinelle désignant l'intervalle des éléments à initialiser</li>
+<li><code>r</code> — l'intervalle des éléments à initialiser</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Comme décrit ci-dessus.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire en la distance entre <code>first</code> et <code>last</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute exception levée lors de la construction des éléments de l'intervalle de destination.</p>
+<h2 id="Notes">Notes</h2>
+<p>Une implémentation peut omettre la construction des objets (sans modifier l'effet observable) si aucun constructeur par défaut non trivial n'est appelé lors de l'initialisation par défaut d'un objet <code>std::iter_value_t&lt;I&gt;</code>, ce qui peut être détecté par <a href="../../types/is_default_constructible.html"><code>std::is_trivially_default_constructible</code></a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_raw_memory_algorithms"><code>__cpp_lib_raw_memory_algorithms</code></a></td>
+<td><a href="../../compiler_support/26.html#cpp_lib_raw_memory_algorithms_202411L"><code>202411L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>constexpr</code> pour les <a href="../../memory.html#Uninitialized_memory_algorithms">algorithmes spécialisés de gestion de la mémoire</a>, <code>(1,2)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct uninitialized_default_construct_fn
+{
+    template&lt;no-throw-forward-iterator I, no-throw-sentinel-for&lt;I&gt; S&gt;
+        requires std::default_initializable&lt;std::iter_value_t&lt;I&gt;&gt;
+    constexpr I operator()(I first, S last) const
+    {
+        using ValueType = std::remove_reference_t&lt;std::iter_reference_t&lt;I&gt;&gt;;
+        if constexpr (std::is_trivially_default_constructible_v&lt;ValueType&gt;)
+            return ranges::next(first, last); // ignorer l'initialisation
+        I rollback{first};
+        try
+        {
+            for (; !(first == last); ++first)
+                ::new (static_cast&lt;void*&gt;(std::addressof(*first))) ValueType;
+            return first;
+        }
+        catch (...) // retour arrière : détruire les éléments construits
+        {
+            for (; rollback != first; ++rollback)
+                ranges::destroy_at(std::addressof(*rollback));
+            throw;
+        }
+    }
+
+    template&lt;no-throw-forward-range R&gt;
+        requires std::default_initializable&lt;ranges::range_value_t&lt;R&gt;&gt;
+    constexpr ranges::borrowed_iterator_t&lt;R&gt; operator()(R&amp;&amp; r) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r));
+    }
+};
+
+inline constexpr uninitialized_default_construct_fn uninitialized_default_construct{};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstring&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    struct S { std::string m{&quot;▄▀▄▀▄▀▄▀&quot;}; };
+
+    constexpr int n{4};
+    alignas(alignof(S)) char out[n * sizeof(S)];
+
+    try
+    {
+        auto first{reinterpret_cast&lt;S*&gt;(out)};
+        auto last{first + n};
+
+        std::ranges::uninitialized_default_construct(first, last);
+
+        auto count{1};
+        for (auto it{first}; it != last; ++it)
+            std::cout &lt;&lt; count++ &lt;&lt; ' ' &lt;&lt; it-&gt;m &lt;&lt; '\n';
+
+        std::ranges::destroy(first, last);
+    }
+    catch (...) { std::cout &lt;&lt; &quot;Exception!\n&quot;; }
+
+    // Notez que pour les « types triviaux », uninitialized_default_construct
+    // ne remplit généralement pas de zéros la zone mémoire non initialisée donnée.
+    constexpr char sample[]{'A', 'B', 'C', 'D', '\n'};
+    char v[]{'A', 'B', 'C', 'D', '\n'};
+    std::ranges::uninitialized_default_construct(std::begin(v), std::end(v));
+    if (std::memcmp(v, sample, sizeof(v)) == 0)
+    {
+        std::cout &lt;&lt; &quot;  &quot;;
+        // Peut-être un comportement indéfini, en attendant la résolution de CWG 1997 :
+        // for (const char c : v) { std::cout &lt;&lt; c &lt;&lt; ' '; }
+        for (const char c : sample)
+            std::cout &lt;&lt; c &lt;&lt; ' ';
+    }
+    else
+        std::cout &lt;&lt; &quot;Unspecified\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1 ▄▀▄▀▄▀▄▀
+2 ▄▀▄▀▄▀▄▀
+3 ▄▀▄▀▄▀▄▀
+4 ▄▀▄▀▄▀▄▀
+  A B C D
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3870">LWG 3870</a></td>
+<td>C++20</td>
+<td>cet algorithme peut créer des objets sur un stockage <code>const</code></td>
+<td>maintenu interdit</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="uninitialized_default_construct_n.html">ranges::uninitialized_default_construct_n</a> (C++20)</strong> — construit des objets par <a href="../../language/default_initialization.html">initialisation par défaut</a> dans une zone mémoire non initialisée, définie par un début et un nombre <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="uninitialized_value_construct.html">ranges::uninitialized_value_construct</a> (C++20)</strong> — construit des objets par <a href="../../language/value_initialization.html">initialisation par valeur</a> dans une zone mémoire non initialisée, définie par un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="uninitialized_value_construct_n.html">ranges::uninitialized_value_construct_n</a> (C++20)</strong> — construit des objets par <a href="../../language/value_initialization.html">initialisation par valeur</a> dans une zone mémoire non initialisée, définie par un début et un nombre <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../uninitialized_default_construct.html">uninitialized_default_construct</a> (C++17)</strong> — construit des objets par <a href="../../language/default_initialization.html">initialisation par défaut</a> dans une zone de mémoire non initialisée, définie par un intervalle <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

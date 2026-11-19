@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::to_chars_result — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/utility.html">Bibliothèque utilitaire</a></nav>
+<h1 id="std-to_chars_result"><code>std::to_chars_result</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/to_chars_result">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;charconv&gt;</strong></p>
+<pre><code class="language-cpp">struct to_chars_result;  // (depuis C++17)
+</code></pre>
+<p><code>std::to_chars_result</code> est le type de retour de <a href="to_chars.html"><code>std::to_chars</code></a>. Il n'a aucune classe de base et ne possède que les membres suivants.</p>
+<h2 id="Data_members">Membres de données</h2>
+<p><strong>Nom du membre Définition</strong></p>
+<ul>
+<li><strong>ptr</strong> — un pointeur de type <code>char*</code> <em>(objet membre public)</em></li>
+<li><strong>ec</strong> — un code d'erreur de type <a href="../error/errc.html"><code>std::errc</code></a> <em>(objet membre public)</em></li>
+</ul>
+<h2 id="Member_and_friend_functions">Fonctions membres et amies</h2>
+<h2 id="operator.3D.3D.28std::to_chars_result.29">operator==(std::to_chars_result)</h2>
+<pre><code class="language-cpp">friend bool operator==( const to_chars_result&amp;,
+                        const to_chars_result&amp; ) = default;  // (depuis C++20)
+</code></pre>
+<p>Compare les deux arguments à l'aide des <a href="../language/default_comparisons.html">comparaisons par défaut</a> (qui utilisent <code>operator==</code> pour comparer respectivement <code>ptr</code> et <code>ec</code>).</p>
+<p>Cette fonction n'est pas visible par la recherche <a href="../language/unqualified_lookup.html">non qualifiée</a> ou <a href="../language/qualified_lookup.html">qualifiée</a> ordinaire, et ne peut être trouvée que par <a href="../language/adl.html">recherche dépendante des arguments</a> lorsque std::to_chars_result est une classe associée des arguments.</p>
+<p>L'opérateur <code>!=</code> est <a href="../language/default_comparisons.html#Other_defaulted_comparison_operators">synthétisé</a> à partir de <code>operator==</code>.</p>
+<h2 id="operator_bool">operator bool</h2>
+<pre><code class="language-cpp">constexpr explicit operator bool() const noexcept;  // (depuis C++26)
+</code></pre>
+<p>Vérifie si la conversion a réussi. Renvoie <code>ec == std::errc{}</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p><strong>Macro de <a href="feature_test.html">test de fonctionnalité</a></strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_lib_to_chars"><code>__cpp_lib_to_chars</code></a> | <a href="../compiler_support/17.html#cpp_lib_to_chars_201611L"><code>201611L</code></a> | <em>(C++17)</em> | Conversions élémentaires de chaînes (<a href="to_chars.html"><code>std::to_chars</code></a>, <a href="from_chars.html"><code>std::from_chars</code></a>)</p>
+<p><a href="../compiler_support/26.html#cpp_lib_to_chars_202306L"><code>202306L</code></a> | <em>(C++26)</em> | Test de réussite ou d'échec des fonctions <a href="../header/charconv.html"><code>&lt;charconv&gt;</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;charconv&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+#include &lt;system_error&gt;
+
+void show_to_chars(auto... format_args)
+{
+    std::array&lt;char, 10&gt; str;
+
+#if __cpp_lib_to_chars &gt;= 202306L and __cpp_structured_bindings &gt;= 202406L
+    // utiliser la déclaration de liaisons structurées de C++26 comme condition (P0963)
+    // et to_chars_result::operator bool() de C++26 pour la vérification d'erreur (P2497)
+    if (auto [ptr, ec] =
+            std::to_chars(str.data(), str.data() + str.size(), format_args...))
+        std::cout &lt;&lt; std::string_view(str.data(), ptr) &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; std::make_error_code(ec).message() &lt;&lt; '\n';
+#elif __cpp_lib_to_chars &gt;= 202306L
+    // utiliser to_chars_result::operator bool() de C++26 pour la vérification d'erreur (P2497)
+    if (auto result =
+            std::to_chars(str.data(), str.data() + str.size(), format_args...))
+        std::cout &lt;&lt; std::string_view(str.data(), result.ptr) &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; std::make_error_code(result.ec).message() &lt;&lt; '\n';
+#else
+    // repli sur if-avec-initialiseur et liaisons structurées de C++17
+    if (auto [ptr, ec] =
+            std::to_chars(str.data(), str.data() + str.size(), format_args...);
+        ec == std::errc())
+        std::cout &lt;&lt; std::string_view(str.data(), ptr - str.data()) &lt;&lt; '\n';
+    else
+        std::cout &lt;&lt; std::make_error_code(ec).message() &lt;&lt; '\n';
+#endif
+}
+
+int main()
+{
+    show_to_chars(42);
+    show_to_chars(+3.14159F);
+    show_to_chars(-3.14159, std::chars_format::fixed);
+    show_to_chars(-3.14159, std::chars_format::scientific, 3);
+    show_to_chars(3.1415926535, std::chars_format::fixed, 10);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">42
+3.14159
+-3.14159
+-3.142e+00
+Value too large for defined data type
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="to_chars.html">to_chars</a> (C++17)</strong> — convertit une valeur entière ou à virgule flottante en séquence de caractères <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>getline, getwline, getdelim, getwdelim — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/experimental.html">Fonctionnalités expérimentales du C</a> › <a href="../../../c/experimental/dynamic.html">Extensions de mémoire dynamique</a></nav>
+<h1 id="getline-getwline-getdelim-getwdelim">getline, getwline, getdelim, getwdelim</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/experimental/dynamic/getline">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdio.h&gt;</strong></p>
+<pre><code class="language-c">ssize_t getline(char **lineptr, size_t *n, FILE *stream);  // (1) (TR sur la mémoire dynamique)
+
+ssize_t getwline(wchar_t **lineptr, size_t *n, FILE *stream);  // (2) (TR sur la mémoire dynamique)
+
+ssize_t getdelim(char ** restrict lineptr, size_t * restrict n,
+                 int delimiter, FILE *stream);  // (3) (TR sur la mémoire dynamique)
+
+ssize_t getwdelim(wchar_t ** restrict lineptr, size_t * restrict n,
+                 wint_t delimiter, FILE * stream);  // (4) (TR sur la mémoire dynamique)
+</code></pre>
+<ol>
+<li>
+<p>Se comporte comme <code>getdelim(lineptr, n, '\n', stream)</code></p>
+</li>
+<li>
+<p>Se comporte comme <code>getwdelim(lineptr, n, L'\n', stream)</code></p>
+</li>
+<li>
+<p>Lit depuis le flux <code>stream</code> comme avec <a href="../../io/fgetc.html"><code>fgetc</code></a>, jusqu'à ce que <code>delimiter</code> soit rencontré, en stockant les caractères dans le tampon de taille <code>*n</code> pointé par <code>*lineptr</code>, en augmentant automatiquement sa taille comme avec <a href="../../memory/realloc.html"><code>realloc</code></a> pour contenir la totalité de l'entrée, y compris le délimiteur, et en ajoutant un terminateur nul. <code>*lineptr</code> peut être nul, auquel cas <code>*n</code> est ignoré et <code>getline</code> alloue un nouveau tampon comme avec <a href="../../memory/malloc.html"><code>malloc</code></a>. Le comportement est indéfini si <code>delimiter</code> a une valeur hors de l'intervalle de <code>unsigned char</code> ou <a href="../../io.html"><code>EOF</code></a>.</p>
+</li>
+<li>
+<p>Identique à <code>(3)</code>, sauf que les caractères sont lus comme avec <a href="../../io/fgetwc.html"><code>fgetwc</code></a> et que <code>delimiter</code> doit être un <code>wchar_t</code> ou <code>WEOF</code> valide.</p>
+</li>
+</ol>
+<p>Si <code>*lineptr</code> n'est pas nul, le comportement est indéfini si <code>*lineptr</code> n'est pas un pointeur pouvant être passé à <a href="../../memory/free.html"><code>free</code></a>, ou si <code>*n</code> est inférieur à la taille de la mémoire allouée pointée par <code>*lineptr</code></p>
+<p>Comme toutes les fonctions du TR sur la mémoire dynamique, <code>getline</code> n'est garantie disponible que si <code>__STDC_ALLOC_LIB__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT2__</code> comme la constante entière <code>1</code> avant d'inclure <code>stdio.h</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>lineptr</code> — pointeur vers un pointeur vers le tampon initial ou vers un pointeur nul</li>
+<li><code>n</code> — pointeur vers la taille du tampon initial</li>
+<li><code>delimiter</code> — le caractère délimiteur</li>
+<li><code>stream</code> — flux d'entrée valide, ouvert par <a href="../../io/fopen.html"><code>fopen</code></a></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le nombre de caractères stockés dans le tampon, y compris le délimiteur, mais à l'exclusion du terminateur nul.</p>
+<p>En cas d'erreur, renvoie <code>-1</code> et met <a href="../../io/feof.html"><code>feof</code></a> ou <a href="../../io/ferror.html"><code>ferror</code></a> à <code>stream</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Ces fonctions sont identiques à leurs <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/getdelim.html">versions POSIX</a>, sauf qu'il est permis, mais non obligatoire, de définir <a href="../../error/errno.html"><code>errno</code></a> en cas d'erreur.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#ifdef __STDC_ALLOC_LIB__
+#define __STDC_WANT_LIB_EXT2__ 1
+#else
+#define _POSIX_C_SOURCE 200809L
+#endif
+
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+void get_y_or_n(void)
+{
+    char *response = NULL;
+    size_t len;
+    printf(&quot;Continue? [y] n: &quot;);
+    if((getline(&amp;response, &amp;len, stdin) &lt; 0) || (len &amp;&amp; response[0] == 'n')) {
+        free(response);
+        exit(0);
+    }
+    free(response);
+    return;
+}
+int main(void)
+{
+    get_y_or_n();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Continue? [y] n:
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../io/fgets.html">fgets</a></strong> — lit une chaîne de caractères depuis un flux de fichier <em>(fonction)</em></li>
+<li><strong><a href="../../io/gets.html">getsgets_s</a> (removed in C11) (C11)</strong> — lit une chaîne de caractères depuis <a href="../../io/std_streams.html"><code>stdin</code></a> <em>(fonction)</em></li>
+<li><strong><a href="../../io/fgetws.html">fgetws</a> (C95)</strong> — lit une chaîne de caractères larges depuis un flux de fichier <em>(fonction)</em></li>
+<li><strong><a href="../../memory/malloc.html">malloc</a></strong> — alloue de la mémoire <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

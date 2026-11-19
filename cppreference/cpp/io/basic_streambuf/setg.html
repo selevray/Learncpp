@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_streambuf&lt;CharT,Traits&gt;::setg — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_streambuf.html">std::basic_streambuf</a></nav>
+<h1 id="std-basic_streambuf-chart-traits-setg"><code>std::basic_streambuf&lt;CharT,Traits&gt;::setg</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_streambuf/setg">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">protected:
+void setg( char_type* gbeg, char_type* gcurr, char_type* gend );
+</code></pre>
+<p>Définit les valeurs des pointeurs délimitant la zone de lecture.</p>
+<p>Après l'appel, <code>eback() == gbeg</code>, <code>gptr() == gcurr</code> et <code>egptr() == gend</code> valent tous <code>true</code>.</p>
+<p>Si l'un de <code>[gbeg,gend)</code>, <code>[gbeg,gcurr)</code> et <code>[gcurr,gend)</code> n'est pas un <a href="../../iterator.html#Ranges">intervalle valide</a>, le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>gbeg</code> — pointeur vers le nouveau début de la zone de lecture</li>
+<li><code>gcurr</code> — pointeur vers le nouveau caractère courant (<em>pointeur de lecture</em>) dans la zone de lecture</li>
+<li><code>gend</code> — pointeur vers la nouvelle fin de la zone de lecture</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;sstream&gt;
+
+class null_filter_buf : public std::streambuf
+{
+    std::streambuf* src;
+    char ch; // tampon d'un seul octet
+protected:
+    int underflow()
+    {
+        traits_type::int_type i;
+        while ((i = src-&gt;sbumpc()) == '\0')
+            ; // ignorer les zéros
+        if (!traits_type::eq_int_type(i, traits_type::eof()))
+        {
+            ch = traits_type::to_char_type(i);
+            setg(&amp;ch, &amp;ch, &amp;ch+1); // rendre une position de lecture disponible
+        }
+        return i;
+    }
+public:
+    null_filter_buf(std::streambuf* buf) : src(buf)
+    {
+        setg(&amp;ch, &amp;ch + 1, &amp;ch + 1); // le tampon est initialement plein
+    }
+};
+
+void filtered_read(std::istream&amp; in)
+{
+    std::streambuf* orig = in.rdbuf();
+    null_filter_buf buf(orig);
+    in.rdbuf(&amp;buf);
+    for (char c; in.get(c);)
+        std::cout &lt;&lt; c;
+    in.rdbuf(orig);
+}
+
+int main()
+{
+    char a[] = &quot;This i\0s \0an e\0\0\0xample&quot;;
+    std::istringstream in(std::string(std::begin(a), std::end(a)));
+    filtered_read(in);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">This is an example
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue4023">LWG 4023</a></td>
+<td>C++98</td>
+<td><code>setg</code> n'exigeait pas que la séquence d'entrée soit un intervalle valide</td>
+<td>requires</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="setp.html">setp</a></strong> — repositionne les pointeurs de début, next et de fin de la séquence de sortie <em>(fonction membre protégée)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

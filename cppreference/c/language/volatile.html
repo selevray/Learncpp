@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>qualificateur de type volatile — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="qualificateur-de-type-volatile">qualificateur de type volatile</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/volatile">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Chaque type individuel du <a href="compatible_type.html">système de types</a> C possède plusieurs versions <em>qualifiées</em> de ce type, correspondant à un, deux, ou les trois qualificateurs <a href="const.html"><code>const</code></a>, <code>volatile</code>, et, pour les pointeurs vers des types objets, <a href="restrict.html"><code>restrict</code></a>. Cette page décrit les effets du qualificateur <code>volatile</code>.</p>
+<p>Chaque accès (lecture comme écriture) effectué via une expression lvalue de type qualifié volatile est considéré comme un effet de bord observable aux fins de l'optimisation et est évalué strictement selon les règles de la machine abstraite (c'est-à-dire que toutes les écritures sont achevées à un moment donné avant le prochain <a href="eval_order.html">point de séquence</a>). Cela signifie qu'au sein d'un même fil d'exécution, un accès volatile ne peut être ni optimisé ni réordonné par rapport à un autre effet de bord visible séparé de cet accès par un point de séquence.</p>
+<p>Un transtypage d'une valeur non volatile vers un type volatile n'a aucun effet. Pour accéder à un objet non volatile avec la sémantique volatile, son adresse doit être convertie en pointeur vers volatile, puis l'accès doit être effectué par l'intermédiaire de ce pointeur.</p>
+<p>Toute tentative de lecture ou d'écriture d'un objet dont le type est qualifié volatile à travers une lvalue non volatile entraîne un comportement indéfini :</p>
+<pre><code class="language-c">volatile int n = 1; // objet de type qualifié volatile
+int* p = (int*)&amp;n;
+int val = *p; // comportement indéfini
+</code></pre>
+<p>Un membre d'une structure ou d'une union de type qualifié volatile acquiert le qualificateur du type auquel il appartient (que l'accès se fasse via l'opérateur <code>.</code> ou l'opérateur <code>-&gt;</code>) :</p>
+<pre><code class="language-c">struct s { int i; const int ci; } s;
+// le type de s.i est int, le type de s.ci est const int
+volatile struct s vs;
+// les types de vs.i et vs.ci sont volatile int et const volatile int
+</code></pre>
+<blockquote>
+<p>Si un type tableau est déclaré avec le qualificateur de type volatile (par l'utilisation de <a href="typedef.html"><code>typedef</code></a>), le type tableau n'est pas qualifié volatile, mais son type d'élément l'est.</p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>Un type tableau et son type d'élément sont toujours considérés comme ayant le même qualificatif volatile.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<pre><code class="language-c">typedef int A[2][3];
+volatile A a = {{4, 5, 6}, {7, 8, 9}}; // tableau de tableaux de volatile int
+int* pi = a[0]; // Erreur : a[0] a le type volatile int*
+void *unqual_ptr = a; // OK jusqu'à C23 ; erreur depuis C23
+// Notes : clang applique la règle en C++/C23 même en modes C89-C17
+</code></pre>
+<p>Si un type fonction est déclaré avec le qualificateur volatile (par l'utilisation de <a href="typedef.html"><code>typedef</code></a>), le comportement est indéfini.</p>
+<blockquote>
+<p>Dans une déclaration de fonction, le mot-clé <code>volatile</code> peut apparaître à l'intérieur des crochets utilisés pour déclarer un type tableau d'un paramètre de fonction. Il qualifie le type pointeur vers lequel le type tableau est transformé.</p>
+<p>Les deux déclarations suivantes déclarent la même fonction :</p>
+<pre><code class="language-c">void f(double x[volatile], const double y[volatile]);
+void f(double * volatile x, const double * volatile y);
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<p>Un pointeur vers un type non volatile peut être implicitement converti en pointeur vers la version qualifiée volatile du même type ou d'un type <a href="compatible_type.html">compatible</a>. La conversion inverse nécessite une expression de transtypage.</p>
+<pre><code class="language-c">int* p = 0;
+volatile int* vp = p; // OK : ajoute des qualificateurs (int vers volatile int)
+p = vp; // Erreur : supprime des qualificateurs (volatile int vers int)
+p = (int*)vp; // OK : transtypage
+</code></pre>
+<p>Notez qu'un pointeur vers pointeur vers <code>T</code> n'est pas convertible en pointeur vers pointeur vers <code>volatile T</code> ; pour que deux types soient compatibles, leurs qualificateurs doivent être identiques :</p>
+<pre><code class="language-c">char *p = 0;
+volatile char **vpp = &amp;p; // Erreur : char* et volatile char* ne sont pas des types compatibles
+char * volatile *pvp = &amp;p; // OK, ajoute des qualificateurs (char* vers char*volatile)
+</code></pre>
+<h2 id="Uses_of_volatile">Utilisations de volatile</h2>
+<p>Les objets 1) <a href="static_storage_duration.html"><code>static</code></a> <code>volatile</code> modélisent des ports d'E/S mappés en mémoire, et les objets <code>static</code> <code>const</code> <code>volatile</code> modélisent des ports d'entrée mappés en mémoire, comme une horloge temps réel :</p>
+<pre><code class="language-c">volatile short *ttyport = (volatile short*)TTYPORT_ADDR;
+for(int i = 0; i &lt; N; ++i)
+    *ttyport = a[i]; // *ttyport est une lvalue de type volatile short
+</code></pre>
+<p>Les objets 2) <code>static</code> <code>volatile</code> de type <a href="../program/sig_atomic_t.html"><code>sig_atomic_t</code></a> servent à communiquer avec les gestionnaires <a href="../program/signal.html"><code>signal</code></a>.</p>
+<p>Les variables 3) <code>volatile</code> locales à une fonction contenant un appel de la macro <a href="../program/setjmp.html"><code>setjmp</code></a> sont les seules variables locales garanties de conserver leur valeur après le retour de <a href="../program/longjmp.html"><code>longjmp</code></a>.</p>
+<ol start="4">
+<li>De plus, les variables volatile peuvent servir à désactiver certaines formes d'optimisation, par exemple pour désactiver l'élimination des écritures mortes ou le pliage de constantes dans des micro-benchmarks.</li>
+</ol>
+<p>Notez que les variables volatile ne conviennent pas à la communication entre threads ; elles n'offrent ni atomicité, ni synchronisation, ni ordre mémoire. La lecture d'une variable volatile modifiée par un autre thread sans synchronisation, ou une modification concurrente depuis deux threads non synchronisés, est un comportement indéfini dû à une course aux données.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../../cpp/keyword/volatile.html"><code>volatile</code></a></p>
+<h2 id="Example">Exemple</h2>
+<p>montre l'utilisation de volatile pour désactiver les optimisations</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;time.h&gt;
+
+int main(void)
+{
+    clock_t t = clock();
+    double d = 0.0;
+    for (int n = 0; n &lt; 10000; ++n)
+        for (int m = 0; m &lt; 10000; ++m)
+            d += d * n * m; // lit et écrit dans une variable non volatile
+    printf(&quot;Modified a non-volatile variable 100m times. &quot;
+           &quot;Time used: %.2f seconds\n&quot;,
+           (double)(clock() - t)/CLOCKS_PER_SEC);
+
+    t = clock();
+    volatile double vd = 0.0;
+    for (int n = 0; n &lt; 10000; ++n)
+        for (int m = 0; m &lt; 10000; ++m) {
+            double prod = vd * n * m; // lit une variable volatile
+            vd += prod; // lit et écrit dans une variable volatile
+        }
+    printf(&quot;Modified a volatile variable 100m times. &quot;
+           &quot;Time used: %.2f seconds\n&quot;,
+           (double)(clock() - t)/CLOCKS_PER_SEC);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Modified a non-volatile variable 100m times. Time used: 0.00 seconds
+Modified a volatile variable 100m times. Time used: 0.79 seconds
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.3 Qualificateurs de type (p : 87-90)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.3 Qualificateurs de type (p : 121-123)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.3 Qualificateurs de type (p : 108-110)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>6.5.3 Qualificateurs de type</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/cv.html">Documentation C++</a> pour qualificateurs de type cv (<code>const</code> et <code>volatile</code>)</strong></p>
+
+</main>
+</body>
+</html>

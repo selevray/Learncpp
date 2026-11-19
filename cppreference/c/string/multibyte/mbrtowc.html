@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mbrtowc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/multibyte.html">Chaînes multioctets terminées par un caractère nul</a></nav>
+<h1 id="mbrtowc"><code>mbrtowc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/multibyte/mbrtowc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;wchar.h&gt;</strong></p>
+<pre><code class="language-c">size_t mbrtowc( wchar_t* pwc, const char* s, size_t n, mbstate_t* ps );  // (depuis C95)
+
+size_t mbrtowc( wchar_t *restrict pwc, const char *restrict s, size_t n,
+                mbstate_t *restrict ps );  // (depuis C99)
+</code></pre>
+<p>Convertit un caractère multioctet étroit en sa représentation de caractère large.</p>
+<p>Si <code>s</code> n'est pas un pointeur nul, examine au plus <code>n</code> octets de la chaîne de caractères multioctets, en commençant par l'octet pointé par <code>s</code>, pour déterminer le nombre d'octets nécessaires à compléter le caractère multioctet suivant (y compris les éventuelles séquences de décalage, et en tenant compte de l'état de conversion multioctet actuel <code>*ps</code>). Si la fonction détermine que le caractère multioctet suivant dans <code>s</code> est complet et valide, elle le convertit en le caractère large correspondant et le stocke dans <code>*pwc</code> (si <code>pwc</code> n'est pas nul).</p>
+<p>Si <code>s</code> est un pointeur nul, les valeurs de <code>n</code> et <code>pwc</code> sont ignorées et l'appel est équivalent à <code>mbrtowc(NULL, &quot;&quot;, 1, ps)</code>.</p>
+<p>Si le caractère large produit est le caractère nul, l'état de conversion stocké dans <code>*ps</code> est l'état de décalage initial.</p>
+<p>Si la macro d'environnement <code>__STDC_ISO_10646__</code> est définie, les valeurs de type <code>wchar_t</code> sont les mêmes que les identifiants courts des caractères de l'ensemble requis Unicode (généralement encodage UTF-32) ; sinon, elles sont définies par l'implémentation. Dans tous les cas, l'encodage de caractères multioctets utilisé par cette fonction est spécifié par la locale C actuellement active.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>pwc</code> — pointeur vers l'emplacement où le caractère large résultant sera écrit</li>
+<li><code>s</code> — pointeur vers la chaîne de caractères multioctets utilisée en entrée</li>
+<li><code>n</code> — limite du nombre d'octets de s pouvant être examinés</li>
+<li><code>ps</code> — pointeur vers l'état de conversion utilisé lors de l'interprétation de la chaîne de caractères multioctets</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le premier des cas suivants qui s'applique :</p>
+<ul>
+<li><code>0</code> si le caractère converti depuis <code>s</code> (et stocké dans <code>pwc</code> s'il n'est pas nul) était le caractère nul</li>
+<li>le nombre d'octets <code>[1...n]</code> du caractère multioctet converti avec succès depuis <code>s</code></li>
+<li><code>(size_t)-2</code> si les <code>n</code> octets suivants constituent un caractère multioctet incomplet, mais jusqu'ici valide. Rien n'est écrit dans <code>*pwc</code>.</li>
+<li><code>(size_t)-1</code> si une erreur d'encodage se produit. Rien n'est écrit dans <code>*pwc</code>, la valeur <a href="../../error/errno_macros.html"><code>EILSEQ</code></a> est stockée dans <a href="../../error/errno.html"><code>errno</code></a> et la valeur de <code>*ps</code> est laissée non spécifiée.</li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;locale.h&gt;
+#include &lt;string.h&gt;
+#include &lt;wchar.h&gt;
+
+int main(void)
+{
+    setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    mbstate_t state;
+    memset(&amp;state, 0, sizeof state);
+    char in[] = u8&quot;z\u00df\u6c34\U0001F34C&quot;; // ou u8&quot;zß水🍌&quot;
+    size_t in_sz = sizeof in / sizeof *in;
+
+    printf(&quot;Processing %zu UTF-8 code units: [ &quot;, in_sz);
+    for(size_t n = 0; n &lt; in_sz; ++n) printf(&quot;%#x &quot;, (unsigned char)in[n]);
+    puts(&quot;]&quot;);
+
+    wchar_t out[in_sz];
+    char *p_in = in, *end = in + in_sz;
+    wchar_t *p_out = out;
+    int rc;
+    while((rc = mbrtowc(p_out, p_in, end - p_in, &amp;state)) &gt; 0)
+    {
+        p_in += rc;
+        p_out += 1;
+    }
+
+    size_t out_sz = p_out - out + 1;
+    printf(&quot;into %zu wchar_t units: [ &quot;, out_sz);
+    for(size_t x = 0; x &lt; out_sz; ++x) printf(&quot;%#x &quot;, out[x]);
+    puts(&quot;]&quot;);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Processing 11 UTF-8 code units: [ 0x7a 0xc3 0x9f 0xe6 0xb0 0xb4 0xf0 0x9f 0x8d 0x8c 0 ]
+into 5 wchar_t units: [ 0x7a 0xdf 0x6c34 0x1f34c 0 ]
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.29.6.3.2 La fonction mbrtowc (p : 443)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.24.6.3.2 La fonction mbrtowc (p : 389)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mbtowc.html">mbtowc</a></strong> — convertit le prochain caractère multioctet en caractère large <em>(fonction)</em></li>
+<li><strong><a href="wcrtomb.html">wcrtombwcrtomb_s</a> (C95) (C11)</strong> — convertit un caractère large en sa représentation multioctet, étant donné l'état <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/multibyte/mbrtowc.html">Documentation C++</a> de mbrtowc</strong></p>
+
+</main>
+</body>
+</html>

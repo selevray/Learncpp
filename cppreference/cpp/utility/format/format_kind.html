@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::format_kind — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/format.html">Bibliothèque de formatage (depuis C++20)</a></nav>
+<h1 id="std-format_kind"><code>std::format_kind</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/format/format_kind">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;format&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class R &gt;
+constexpr /* unspecified */ format_kind = /* unspecified */;  // (1) (depuis C++23)
+
+template&lt; ranges::input_range R &gt;
+    requires std::same_as&lt;R, std::remove_cvref_t&lt;R&gt;&gt;
+constexpr range_format format_kind&lt;R&gt; = /* voir la description */;  // (2) (depuis C++23)
+</code></pre>
+<p>Le modèle de variable <code>format_kind</code> sélectionne un <code>std::range_format</code> approprié pour un intervalle <code>R</code>.</p>
+<p><code>std::format_kind&lt;R&gt;</code> est défini comme suit :</p>
+<ul>
+<li>
+<p>Si <code>std::same_as&lt;std::remove_cvref_t&lt;ranges::range_reference_t&lt;R&gt;&gt;, R&gt;</code> vaut <code>true</code>, <code>std::format_kind&lt;R&gt;</code> vaut <code>std::range_format::disabled</code>.</p>
+</li>
+<li>
+<p>Sinon, si <code>R::key_type</code> est valide et désigne un type :</p>
+<ul>
+<li>Si <code>R::mapped_type</code> est valide et désigne un type, soit <code>U</code> égal à <code>std::remove_cvref_t&lt;ranges::range_reference_t&lt;R&gt;&gt;</code>. Si <code>U</code> est une spécialisation de <a href="../pair.html"><code>std::pair</code></a> ou <code>U</code> est une spécialisation de <a href="../tuple.html"><code>std::tuple</code></a> et <code>std::tuple_size_v&lt;U&gt; == 2</code>, <code>std::format_kind&lt;R&gt;</code> est <code>std::range_format::map</code>.</li>
+<li>Sinon, <code>std::format_kind&lt;R&gt;</code> vaut <code>std::range_format::set</code>.</li>
+</ul>
+</li>
+<li>
+<p>Sinon, <code>std::format_kind&lt;R&gt;</code> vaut <code>std::range_format::sequence</code>.</p>
+</li>
+</ul>
+<p>Un programme qui instancie un modèle primaire de la variable <code>format_kind</code> est mal formé.</p>
+<p>Étant donné un <a href="../../language/type-id.html#Program-defined_type">type défini par le programme</a> sans qualificateur cv <code>T</code> qui modélise <a href="../../ranges/input_range.html"><code>input_range</code></a>, un programme peut spécialiser <code>format_kind</code> pour <code>T</code>. Ces spécialisations sont utilisables dans des expressions constantes et ont le type <code>const std::range_format</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace detail
+{
+    template&lt; typename &gt;
+    constexpr bool is_pair_or_tuple_2 = false;
+
+    template&lt; typename T, typename U &gt;
+    constexpr bool is_pair_or_tuple_2&lt;std::pair&lt;T, U&gt;&gt; = true;
+
+    template&lt; typename T, typename U &gt;
+    constexpr bool is_pair_or_tuple_2&lt;std::tuple&lt;T, U&gt;&gt; = true;
+
+    template &lt; typename T &gt;
+        requires std::is_reference_v&lt;T&gt; || std::is_const_v&lt;T&gt;
+    constexpr bool is_pair_or_tuple_2&lt;T&gt; =
+        is_pair_or_tuple_2&lt;std::remove_cvref_t&lt;T&gt;&gt;;
+}
+
+template&lt; class R &gt;
+constexpr range_format format_kind = []
+{
+    static_assert(false, &quot;instantiating a primary template is not allowed&quot;);
+    return range_format::disabled;
+}();
+
+template&lt; ranges::input_range R &gt;
+    requires std::same_as&lt;R, std::remove_cvref_t&lt;R&gt;&gt;
+constexpr range_format format_kind&lt;R&gt; = []
+{
+    if constexpr (std::same_as&lt;std::remove_cvref_t&lt;std::ranges::range_reference_t&lt;R&gt;&gt;, R&gt;)
+        return range_format::disabled;
+    else if constexpr (requires { typename R::key_type; })
+    {
+        if constexpr (requires { typename R::mapped_type; } &amp;&amp;
+                      detail::is_pair_or_tuple_2&lt;std::ranges::range_reference_t&lt;R&gt;&gt;)
+            return range_format::map;
+        else
+            return range_format::set;
+    }
+    else
+        return range_format::sequence;
+}();
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;filesystem&gt;
+#include &lt;format&gt;
+#include &lt;map&gt;
+#include &lt;set&gt;
+#include &lt;vector&gt;
+
+struct A {};
+
+static_assert(std::format_kind&lt;std::vector&lt;int&gt;&gt; == std::range_format::sequence);
+static_assert(std::format_kind&lt;std::map&lt;int&gt;&gt; == std::range_format::map);
+static_assert(std::format_kind&lt;std::set&lt;int&gt;&gt; == std::range_format::set);
+static_assert(std::format_kind&lt;std::filesystem::path&gt; == std::range_format::disabled);
+// mal formé :
+// static_assert(std::format_kind&lt;A&gt; == std::range_format::disabled);
+
+int main() {}
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="range_format.html">range_format</a> (C++23)</strong> — spécifie comment un intervalle doit être formaté <em>(enum)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

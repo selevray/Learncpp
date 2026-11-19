@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::allocator&lt;T&gt;::deallocate — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/allocator.html">std::allocator</a></nav>
+<h1 id="std-allocator-t-deallocate"><code>std::allocator&lt;T&gt;::deallocate</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/allocator/deallocate">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void deallocate( T* p, std::size_t n );  // (constexpr depuis C++20)
+</code></pre>
+<p>Désalloue le stockage référencé par le pointeur <code>p</code>, qui doit être un pointeur obtenu par un appel antérieur à <a href="allocate.html"><code>allocate()</code></a>ou <a href="allocate_at_least.html"><code>allocate_at_least()</code></a> <em>(depuis C++23)</em>.</p>
+<p>L'argument <code>n</code> doit être égal au premier argument de l'appel à <a href="allocate.html"><code>allocate()</code></a> qui a initialement produit <code>p</code>, ou se trouver dans l'intervalle <code>[m,count]</code> si <code>p</code> est obtenu d'un appel à <code>allocate_at_least(m)</code> qui a renvoyé <code>{p, count}</code> <em>(depuis C++23)</em> ; sinon, le comportement est indéfini.</p>
+<p>Appelle <code>::operator delete(void*)</code> ou <code>::operator delete(void*, std::align_val_t)</code> <em>(depuis C++17)</em>, mais le moment et la manière de l'appel sont non spécifiés.</p>
+<blockquote>
+<p>Lors de l'évaluation d'une expression constante, cette fonction doit désallouer le stockage alloué pendant l'évaluation de la même expression.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur obtenu de <a href="allocate.html"><code>allocate()</code></a>ou <a href="allocate_at_least.html"><code>allocate_at_least()</code></a> <em>(depuis C++23)</em></li>
+<li><code>n</code> — nombre d'objets précédemment passés à <a href="allocate.html"><code>allocate()</code></a>, ou nombre compris entre le nombre demandé et le nombre réellement alloué via <a href="allocate_at_least.html"><code>allocate_at_least()</code></a> (peut être égal à l'une ou l'autre borne) <em>(depuis C++23)</em></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;memory&gt;
+#include &lt;string&gt;
+
+class S
+{
+    inline static int n{1};
+    int m{};
+    void pre() const { std::cout &lt;&lt; &quot;#&quot; &lt;&lt; m &lt;&lt; std::string(m, ' '); }
+public:
+    S(int x) : m{n++} { pre(); std::cout &lt;&lt; &quot;S::S(&quot; &lt;&lt; x &lt;&lt; &quot;);\n&quot;; }
+    ~S() { pre(); std::cout &lt;&lt; &quot;S::~S();\n&quot;; }
+    void id() const { pre(); std::cout &lt;&lt; &quot;S::id();\n&quot;; }
+};
+
+int main()
+{
+    constexpr std::size_t n{4};
+    std::allocator&lt;S&gt; allocator;
+    try
+    {
+        S* s = allocator.allocate(n); // peut lever une exception
+        for (std::size_t i{}; i != n; ++i)
+        {
+        //  allocator.construct(&amp;s[i], i + 42); // supprimé en C++20
+            std::construct_at(&amp;s[i], i + 42);   // depuis C++20
+        }
+        std::for_each_n(s, n, [](const auto&amp; e) { e.id(); });
+        std::destroy_n(s, n);
+        allocator.deallocate(s, n);
+    }
+    catch (std::bad_array_new_length const&amp; ex) { std::cout &lt;&lt; ex.what() &lt;&lt; '\n'; }
+    catch (std::bad_alloc const&amp; ex) { std::cout &lt;&lt; ex.what() &lt;&lt; '\n'; }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#1 S::S(42);
+#2  S::S(43);
+#3   S::S(44);
+#4    S::S(45);
+#1 S::id();
+#2  S::id();
+#3   S::id();
+#4    S::id();
+#1 S::~S();
+#2  S::~S();
+#3   S::~S();
+#4    S::~S();
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="allocate.html">allocate</a></strong> — alloue un stockage non initialisé <em>(fonction membre publique)</em></li>
+<li><strong><a href="allocate_at_least.html">allocate_at_least</a> (C++23)</strong> — alloue un stockage non initialisé d'au moins la taille demandée <em>(fonction membre publique)</em></li>
+<li><strong><a href="../allocator_traits/deallocate.html">deallocate</a> [statique]</strong> — désalloue le stockage à l'aide de l'allocateur <em>(fonction membre statique publique de <code>std::allocator_traits&lt;Alloc&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

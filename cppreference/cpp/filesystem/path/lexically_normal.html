@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::path::lexically_normal, std::filesystem::path::lexically_relative, std::filesystem::path::lexically_proximate — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a> › <a href="../../../cpp/filesystem/path.html">std::filesystem::path</a></nav>
+<h1 id="std-filesystem-path-lexically_normal-std-filesystem-path-lexically_relative-std-filesystem-path-lexically_proximate"><code>std::filesystem::path::lexically_normal, std::filesystem::path::lexically_relative, std::filesystem::path::lexically_proximate</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/path/lexically_normal">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">path lexically_normal() const;  // (1) (depuis C++17)
+
+path lexically_relative( const path&amp; base ) const;  // (2) (depuis C++17)
+
+path lexically_proximate( const path&amp; base ) const;  // (3) (depuis C++17)
+</code></pre>
+<ol>
+<li>
+<p>Renvoie <code>*this</code> converti en <a href="../path.html">forme normale</a> dans son format générique.</p>
+</li>
+<li>
+<p>Renvoie <code>*this</code> rendu relatif à <code>base</code>.</p>
+</li>
+</ol>
+<ul>
+<li>Premièrement, si <code>root_name() != base.root_name()</code> est <code>true</code>, ou si <code>is_absolute() != base.is_absolute()</code> est <code>true</code>, ou si <code>(!has_root_directory() &amp;&amp; base.has_root_directory())</code> est <code>true</code>, ou si un nom de fichier de <code>relative_path()</code> ou de <code>base.relative_path()</code> peut être interprété comme un <code>root-name</code>, renvoie un chemin construit par défaut.</li>
+<li>Sinon, détermine d'abord le premier élément non concordant de <code>*this</code> et <code>base</code> comme si par <code>auto [a, b] = mismatch(begin(), end(), base.begin(), base.end())</code>, puis
+<ul>
+<li>si <code>a == end()</code> et <code>b == base.end()</code>, renvoie <code>path(&quot;.&quot;)</code>,</li>
+<li>sinon, définit N comme le nombre d'éléments de nom de fichier non vides qui ne sont ni <code>dot</code> ni <code>dot-dot</code> dans <code>[b, base.end())</code>, moins le nombre d'éléments de nom de fichier <code>dot-dot</code>. Si N &lt; 0, renvoie un chemin construit par défaut,</li>
+<li>sinon, si N = 0 et <code>a == end() || a-&gt;empty()</code>, renvoie <code>path(&quot;.&quot;)</code>,</li>
+<li>sinon renvoie un objet composé de
+<ul>
+<li>un <code>path()</code> construit par défaut suivi de</li>
+<li>N applications de <code>operator/=(path(&quot;..&quot;))</code>, suivies de</li>
+<li>une application de <code>operator/=</code> pour chaque élément de l'intervalle semi-ouvert <code>[a,end())</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ol start="3">
+<li>Si la valeur de <code>lexically_relative(base)</code> n'est pas un chemin vide, la renvoie. Sinon renvoie <code>*this</code>.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>La forme normale du chemin.</p>
+</li>
+<li>
+<p>La forme relative du chemin.</p>
+</li>
+<li>
+<p>La forme proximale du chemin.</p>
+</li>
+</ol>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever des exceptions définies par l'implémentation.</p>
+<h2 id="Notes">Notes</h2>
+<p>Ces conversions sont purement lexicales. Elles ne vérifient pas que les chemins existent, ne suivent pas les liens symboliques et n'accèdent pas du tout au système de fichiers. Pour les équivalents de <code>lexically_relative</code> et <code>lexically_proximate</code> qui suivent les liens symboliques, voir <a href="../relative.html"><code>relative</code></a> et <a href="../relative.html"><code>proximate</code></a>.</p>
+<p>Sous Windows, le <code>path</code> renvoyé contient des antislashs (les séparateurs préférés).</p>
+<p>Sous POSIX, aucun nom de fichier d'un chemin relatif n'est acceptable comme <code>root-name</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;filesystem&gt;
+#include &lt;iostream&gt;
+namespace fs = std::filesystem;
+
+int main()
+{
+    assert(fs::path(&quot;a/./b/..&quot;).lexically_normal() == &quot;a/&quot;);
+    assert(fs::path(&quot;a/.///b/../&quot;).lexically_normal() == &quot;a/&quot;);
+    assert(fs::path(&quot;/a/d&quot;).lexically_relative(&quot;/a/b/c&quot;) == &quot;../../d&quot;);
+    assert(fs::path(&quot;/a/b/c&quot;).lexically_relative(&quot;/a/d&quot;) == &quot;../b/c&quot;);
+    assert(fs::path(&quot;a/b/c&quot;).lexically_relative(&quot;a&quot;) == &quot;b/c&quot;);
+    assert(fs::path(&quot;a/b/c&quot;).lexically_relative(&quot;a/b/c/x/y&quot;) == &quot;../..&quot;);
+    assert(fs::path(&quot;a/b/c&quot;).lexically_relative(&quot;a/b/c&quot;) == &quot;.&quot;);
+    assert(fs::path(&quot;a/b&quot;).lexically_relative(&quot;c/d&quot;) == &quot;../../a/b&quot;);
+    assert(fs::path(&quot;a/b&quot;).lexically_relative(&quot;/a/b&quot;) == &quot;&quot;);
+    assert(fs::path(&quot;a/b&quot;).lexically_proximate(&quot;/a/b&quot;) == &quot;a/b&quot;);
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3070">LWG 3070</a></td>
+<td>C++17</td>
+<td>un nom de fichier pouvant aussi être un nom de racine peut produire un résultat surprenant</td>
+<td>traité comme un cas d'erreur</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3096">LWG 3096</a></td>
+<td>C++17</td>
+<td>les &quot;/&quot; finaux et &quot;/.&quot; sont mal gérés</td>
+<td>corrected</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../relative.html">relativeproximate</a> (C++17)</strong> — compose un chemin relatif <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

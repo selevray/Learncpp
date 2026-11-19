@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::pmr::polymorphic_allocator&lt;T&gt;::construct — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../cpp/experimental/polymorphic_allocator.html">std::experimental::pmr::polymorphic_allocator</a></nav>
+<h1 id="std-experimental-pmr-polymorphic_allocator-t-construct"><code>std::experimental::pmr::polymorphic_allocator&lt;T&gt;::construct</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/polymorphic_allocator/construct">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class U, class... Args &gt;
+void construct( U* p, Args&amp;&amp;... args );  // (1) (TS des fondamentaux de la bibliothèque)
+
+template&lt; class T1, class T2, class... Args1, class... Args2 &gt;
+void construct( std::pair&lt;T1, T2&gt;* p,
+                std::piecewise_construct_t,
+                std::tuple&lt;Args1...&gt; x,
+                std::tuple&lt;Args2...&gt; y );  // (2) (TS des fondamentaux de la bibliothèque)
+
+template&lt; class T1, class T2 &gt;
+void construct( std::pair&lt;T1, T2&gt;* p );  // (3) (TS des fondamentaux de la bibliothèque)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, U&amp;&amp; x, V&amp;&amp; y );  // (4) (TS des fondamentaux de la bibliothèque)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, const std::pair&lt;U, V&gt;&amp; xy );  // (5) (TS des fondamentaux de la bibliothèque)
+
+template&lt; class T1, class T2, class U, class V &gt;
+void construct( std::pair&lt;T1, T2&gt;* p, std::pair&lt;U, V&gt;&amp;&amp; xy );  // (6) (TS des fondamentaux de la bibliothèque)
+</code></pre>
+<p>Construit un objet dans un stockage alloué mais non initialisé pointé par <code>p</code> avec les arguments du constructeur fournis. Si l'objet est d'un type qui utilise lui-même des allocateurs, ou s'il s'agit de std::pair, transmet <code>this-&gt;resource()</code> à l'objet construit.</p>
+<ol>
+<li>Si <code>std::uses_allocator&lt;U, memory_resource*&gt;::value == false</code> (le type <code>U</code> n'utilise pas d'allocateurs) et <code>std::is_constructible&lt;U, Args...&gt;::value == true</code>, alors construit l'objet comme par <code>::new((void *) p) U(std::forward&lt;Args&gt;(args)...);</code>.</li>
+</ol>
+<p>Sinon, si <code>std::uses_allocator&lt;U, memory_resource*&gt;::value == true</code> (le type <code>U</code> utilise des allocateurs, par ex. c'est un conteneur) et <code>std::is_constructible&lt;U, std::allocator_arg_t, memory_resource*, Args...&gt;::value == true</code>, alors construit l'objet comme par <code>::new((void *) p) U(std::allocator_arg, this-&gt;resource(), std::forward&lt;Args&gt;(args)...);</code>.</p>
+<p>Sinon, si <code>std::uses_allocator&lt;U, memory_resource*&gt;::value == true</code> (le type <code>U</code> utilise des allocateurs, par ex. c'est un conteneur) et <code>std::is_constructible&lt;U, Args..., memory_resource*&gt;::value == true</code>, alors construit l'objet comme par <code>::new((void *) p) U(std::forward&lt;Args&gt;(args)..., this-&gt;resource());</code>.</p>
+<p>Sinon, le programme est mal formé.</p>
+<ol start="2">
+<li>D'abord, si l'un de <code>T1</code> ou <code>T2</code> est conscient des allocateurs, modifie les tuples <code>x</code> et <code>y</code> pour inclure <code>this-&gt;resource()</code>, ce qui donne les deux nouveaux tuples <code>xprime</code> et <code>yprime</code>, selon les trois règles suivantes :</li>
+</ol>
+<p>2a) si <code>T1</code> n'est pas conscient des allocateurs (<code>std::uses_allocator&lt;T1, memory_resource*&gt;::value == false</code>) et <code>std::is_constructible&lt;T1, Args1...&gt;::value == true</code>, alors <code>xprime</code> est <code>x</code>, inchangé.</p>
+<p>2b) si <code>T1</code> est conscient des allocateurs (<code>std::uses_allocator&lt;T1, memory_resource*&gt;::value == true</code>), et que son constructeur prend une étiquette d'allocateur (<code>std::is_constructible&lt;T1, std::allocator_arg_t, memory_resource*, Args1...&gt;::value == true</code>, alors <code>xprime</code> est <code>std::tuple_cat(std::make_tuple(std::allocator_arg, this-&gt;resource()), std::move(x))</code>.</p>
+<p>2c) si <code>T1</code> est sensible à l'allocateur (<code>std::uses_allocator&lt;T1, memory_resource*&gt;::value == true</code>), et que son constructeur prend l'allocateur comme dernier argument (<code>std::is_constructible&lt;T1, Args1..., memory_resource*&gt;::value == true</code>), alors <code>xprime</code> est <code>std::tuple_cat(std::move(x), std::make_tuple(this-&gt;resource()))</code>.</p>
+<p>2d) Sinon, le programme est mal formé.</p>
+<p>Les mêmes règles s'appliquent à <code>T2</code> et au remplacement de <code>y</code> par <code>yprime</code>.</p>
+<p>Une fois <code>xprime</code> et <code>yprime</code> construits, construit la paire <code>p</code> dans un espace alloué comme si par <code>::new((void *) p) pair&lt;T1, T2&gt;(std::piecewise_construct, std::move(xprime), std::move(yprime));</code>.</p>
+<ol start="3">
+<li>
+<p>Équivalent à <code>construct(p, std::piecewise_construct, std::tuple&lt;&gt;(), std::tuple&lt;&gt;())</code>, c'est-à-dire transmet la ressource mémoire aux types membres de la paire s'ils l'acceptent.</p>
+</li>
+<li>
+<p>Équivalent à</p>
+</li>
+</ol>
+<p><code>construct(p, std::piecewise_construct, std::forward_as_tuple(std::forward&lt;U&gt;(x)), std::forward_as_tuple(std::forward&lt;V&gt;(y)))</code></p>
+<ol start="5">
+<li>Équivalent à</li>
+</ol>
+<p><code>construct(p, std::piecewise_construct, std::forward_as_tuple(xy.first), std::forward_as_tuple(xy.second))</code></p>
+<ol start="6">
+<li>Équivalent à</li>
+</ol>
+<p><code>construct(p, std::piecewise_construct, std::forward_as_tuple(std::forward&lt;U&gt;(xy.first)), std::forward_as_tuple(std::forward&lt;V&gt;(xy.second)))</code></p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>p</code> — pointeur vers un stockage alloué mais non initialisé</li>
+<li><code>args...</code> — les arguments du constructeur à transmettre au constructeur de <code>T</code></li>
+<li><code>x</code> — les arguments du constructeur à transmettre au constructeur de <code>T1</code></li>
+<li><code>y</code> — les arguments du constructeur à transmettre au constructeur de <code>T2</code></li>
+<li><code>xy</code> — la paire dont les deux membres sont les arguments du constructeur pour <code>T1</code> et <code>T2</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction est appelée (par l'intermédiaire de <a href="../../memory/allocator_traits.html"><code>std::allocator_traits</code></a>) par tout objet sensible à l'allocateur, tel que <a href="../../container/vector.html"><code>std::vector</code></a>, auquel a été donné un <a href="../../memory/polymorphic_allocator.html"><code>std::polymorphic_allocator</code></a> comme allocateur à utiliser. Comme <code>memory_resource*</code> se convertit implicitement en <code>polymorphic_allocator</code>, le pointeur vers la ressource mémoire se propage à tous les sous-objets sensibles à l'allocateur utilisant des allocateurs polymorphes.</p>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../memory/allocator_traits/construct.html">construct</a> [statique]</strong> — construit un objet dans le stockage alloué <em>(modèle de fonction)</em></li>
+<li><strong><a href="../../memory/allocator/construct.html">construct</a> (until C++20)</strong> — construit un objet dans le stockage alloué <em>(fonction membre publique de <code>std::allocator&lt;T&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::shared_mutex::lock_shared — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/shared_mutex.html">std::shared_mutex</a></nav>
+<h1 id="std-shared_mutex-lock_shared"><code>std::shared_mutex::lock_shared</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/shared_mutex/lock_shared">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void lock_shared();  // (depuis C++17)
+</code></pre>
+<p>Acquiert la propriété partagée du mutex. Si un autre thread détient le mutex en propriété exclusive, un appel à <code>lock_shared</code> bloquera l'exécution jusqu'à ce que la propriété partagée puisse être acquise.</p>
+<p>Si <code>lock_shared</code> est appelé par un thread qui possède déjà le <code>mutex</code> dans n'importe quel mode (exclusif ou partagé), le comportement est indéfini.</p>
+<p>Si plus que le nombre maximal défini par l'implémentation de propriétaires partagés ont déjà verrouillé le mutex en mode partagé, <code>lock_shared</code> bloque l'exécution jusqu'à ce que le nombre de propriétaires partagés soit réduit. Le nombre maximal de propriétaires est garanti d'être au moins égal à 10000.</p>
+<p>Une opération <a href="unlock.html"><code>unlock()</code></a> antérieure sur le même mutex <em>synchronise-with</em> (tel que défini dans <a href="../../atomic/memory_order.html"><code>std::memory_order</code></a>) cette opération.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Lève <a href="../../error/system_error.html"><code>std::system_error</code></a> lorsque des erreurs surviennent, y compris les erreurs provenant du système d'exploitation sous-jacent qui empêcheraient <code>lock</code> de respecter ses spécifications. Le mutex n'est pas verrouillé si une exception est levée.</p>
+<h2 id="Notes">Notes</h2>
+<p><code>lock_shared()</code> n'est généralement pas appelé directement : <a href="../shared_lock.html"><code>std::shared_lock</code></a> est utilisé pour gérer le verrouillage partagé.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;iostream&gt;
+#include &lt;mutex&gt;
+#include &lt;shared_mutex&gt;
+#include &lt;syncstream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+std::mutex stream_mutx;
+void print(auto v)
+{
+    std::unique_lock&lt;std::mutex&gt; lock(stream_mutx);
+    std::cout &lt;&lt; std::this_thread::get_id() &lt;&lt; &quot; saw: &quot;;
+    for (auto e : v)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    using namespace std::chrono_literals;
+    constexpr int N_READERS = 5;
+    constexpr int LAST = -999;
+
+    std::shared_mutex smtx;
+    int product = 0;
+
+    auto writer = [&amp;smtx, &amp;product](int start, int end)
+    {
+        for (int i = start; i &lt; end; ++i)
+        {
+            auto data = i;
+            {
+                std::unique_lock&lt;std::shared_mutex&gt; lock(smtx);
+                product = data;
+            }
+            std::this_thread::sleep_for(3ms);
+        }
+
+        smtx.lock(); // verrouiller manuellement
+        product = LAST;
+        smtx.unlock();
+    };
+
+    auto reader = [&amp;smtx, &amp;product]()
+    {
+        int data = 0;
+        std::vector&lt;int&gt; seen;
+        do
+        {
+            {
+                smtx.lock_shared(); // préférable d'utiliser : std::shared_lock lock(smtx);
+                data = product;
+                smtx.unlock_shared();
+            }
+
+            seen.push_back(data);
+            std::this_thread::sleep_for(2ms);
+        }
+        while (data != LAST);
+
+        print(seen);
+    };
+
+    std::vector&lt;std::thread&gt; threads;
+    threads.emplace_back(writer, 1, 13);
+    threads.emplace_back(writer, 42, 52);
+
+    for (int i = 0; i &lt; N_READERS; ++i)
+        threads.emplace_back(reader);
+
+    for (auto&amp;&amp; t : threads)
+        t.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">127755840 saw: 43 3 3 4 46 5 6 7 7 8 9 51 10 11 11 12 -999
+144541248 saw: 2 44 3 4 46 5 6 7 7 8 9 51 10 11 11 12 -999
+110970432 saw: 42 2 3 45 4 5 47 6 7 8 8 9 10 11 11 12 -999
+119363136 saw: 42 2 3 4 46 5 6 7 7 8 9 9 10 11 11 12 12 -999
+136148544 saw: 2 44 3 4 46 5 6 48 7 8 9 51 10 11 11 12 12 -999
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="lock.html">lock</a></strong> — verrouille le mutex, bloque si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="try_lock_shared.html">try_lock_shared</a></strong> — tente de verrouiller le mutex en propriété partagée, renvoie si le mutex n'est pas disponible <em>(fonction membre publique)</em></li>
+<li><strong><a href="unlock_shared.html">unlock_shared</a></strong> — déverrouille le mutex (propriété partagée) <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

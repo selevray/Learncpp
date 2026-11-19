@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::basic_stringbuf&lt;CharT,Traits,Allocator&gt;::overflow — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/basic_stringbuf.html">std::basic_stringbuf</a></nav>
+<h1 id="std-basic_stringbuf-chart-traits-allocator-overflow"><code>std::basic_stringbuf&lt;CharT,Traits,Allocator&gt;::overflow</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/basic_stringbuf/overflow">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">protected:
+virtual int_type overflow( int_type c = Traits::eof() );
+</code></pre>
+<p>Ajoute le caractère <code>c</code> à la séquence de caractères de sortie.</p>
+<p>Si <code>c</code> est l'indicateur de fin de fichier (<code>traits::eq_int_type(c, traits::eof()) == true</code>), alors il n'y a aucun caractère à ajouter. La fonction ne fait rien et renvoie une valeur non spécifiée autre que <code>traits::eof()</code>.</p>
+<p>Sinon, si la séquence de sortie dispose d'une position d'écriture disponible ou si cette fonction peut en rendre une disponible avec succès, alors elle appelle <code>sputc(c)</code> et renvoie <code>c</code>.</p>
+<p>Cette fonction peut rendre une position d'écriture disponible si <a href="../basic_stringbuf.html"><code>std::stringbuf</code></a> est ouvert en sortie (<code>(mode &amp; ios_base::out) != 0</code>) : dans ce cas, elle réalloue (ou alloue initialement) le tampon assez grand pour contenir la totalité du tampon courant plus au moins un caractère supplémentaire. Si <a href="../basic_stringbuf.html"><code>std::stringbuf</code></a> est aussi ouvert en entrée (<code>(mode &amp; ios_base::in) != 0</code>), alors <code>overflow</code> augmente également la taille de la zone de lecture en déplaçant <a href="../basic_streambuf/gptr.html"><code>egptr()</code></a> pour pointer juste après la nouvelle position d'écriture.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>c</code> — le caractère à stocker dans la zone d'écriture</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>Traits::eof()</code> pour indiquer un échec, <code>c</code> si le caractère <code>c</code> a été ajouté avec succès, ou une valeur autre que <code>Traits::eof()</code> lorsqu'appelée avec <code>Traits::eof()</code> comme argument.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction diffère d'un <code>overflow()</code> typique qui déplace le contenu du tampon vers la séquence de caractères associée, car pour un <a href="../basic_stringbuf.html"><code>std::basic_stringbuf</code></a>, le tampon et la séquence associée ne font qu'un.</p>
+<h2 id="Example">Exemple</h2>
+<p>Dans l'implémentation utilisée pour exécuter cet exemple (par exemple GCC-4.9), <code>overflow()</code> suralloue la zone de placement à 512 octets : un appel à <a href="str.html"><code>str()</code></a> ne renverrait que les quatre octets initialisés, mais les 508 appels suivants à <a href="../basic_streambuf/sputc.html"><code>sputc()</code></a> ne nécessiteraient pas de nouveaux appels à <code>overflow()</code>.</p>
+<pre><code class="language-cpp">#include &lt;sstream&gt;
+#include &lt;iostream&gt;
+
+struct mybuf : std::stringbuf
+{
+    mybuf(const std::string&amp; new_str,
+          std::ios_base::openmode which = std::ios_base::in | std::ios_base::out)
+        : std::stringbuf(new_str, which) {}
+
+    int_type overflow(int_type c = EOF) override
+    {
+        std::cout &lt;&lt; &quot;stringbuf::overflow('&quot; &lt;&lt; char(c) &lt;&lt; &quot;') called\n&quot;
+                  &lt;&lt; &quot;Before: size of get area: &quot; &lt;&lt; egptr() - eback() &lt;&lt; '\n'
+                  &lt;&lt; &quot;        size of put area: &quot; &lt;&lt; epptr() - pbase() &lt;&lt; '\n';
+
+        int_type ret = std::stringbuf::overflow(c);
+
+        std::cout &lt;&lt; &quot;After : size of get area: &quot; &lt;&lt; egptr() - eback() &lt;&lt; '\n'
+                  &lt;&lt; &quot;        size of put area: &quot; &lt;&lt; epptr() - pbase() &lt;&lt; '\n';
+
+        return ret;
+    }
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;read-write stream:\n&quot;;
+    mybuf sbuf(&quot;   &quot;); // flux en lecture-écriture
+    std::iostream stream(&amp;sbuf);
+    stream &lt;&lt; 1234;
+    std::cout &lt;&lt; sbuf.str() &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;\nread-only stream:\n&quot;;
+    mybuf ro_buf(&quot;   &quot;, std::ios_base::in); // flux en lecture seule
+    std::iostream ro_stream(&amp;ro_buf);
+    ro_stream &lt;&lt; 1234;
+
+    std::cout &lt;&lt; &quot;\nwrite-only stream:\n&quot;;
+    mybuf wr_buf(&quot;   &quot;, std::ios_base::out); // flux en écriture seule
+    std::iostream wr_stream(&amp;wr_buf);
+    wr_stream &lt;&lt; 1234;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">read-write stream:
+stringbuf::overflow('4') called
+Before: size of get area: 3
+        size of put area: 3
+After : size of get area: 4
+        size of put area: 512
+1234
+
+read-only stream:
+stringbuf::overflow('1') called
+Before: size of get area: 3
+        size of put area: 0
+After : size of get area: 3
+        size of put area: 0
+
+write-only stream:
+stringbuf::overflow('4') called
+Before: size of get area: 0
+        size of put area: 3
+After : size of get area: 0
+        size of put area: 512
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue169">LWG 169</a></td>
+<td>C++98</td>
+<td>le tampon (ré)alloué ne pouvait contenir qu'un caractère supplémentaire</td>
+<td>permet davantage de caractères supplémentaires</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue432">LWG 432</a></td>
+<td>C++98</td>
+<td><code>overflow</code> déplace <a href="../basic_streambuf/pptr.html"><code>epptr()</code></a> pour pointer juste après la nouvelle position d'écriture si <code>std::stringbuf</code> est ouvert en entrée</td>
+<td>il n'est pas déplacé</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../basic_streambuf/overflow.html">overflow</a> [virtuelle]</strong> — écrit des caractères dans la séquence de sortie associée depuis la zone d'écriture <em>(fonction membre virtuelle protégée de <code>std::basic_streambuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="underflow.html">underflow</a> [virtuelle]</strong> — renvoie le caractère suivant disponible dans la séquence d'entrée <em>(fonction membre virtuelle protégée)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

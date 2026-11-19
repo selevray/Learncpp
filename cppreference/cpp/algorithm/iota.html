@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::iota — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-iota"><code>std::iota</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/iota">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;numeric&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class ForwardIt, class T &gt;
+void iota( ForwardIt first, ForwardIt last, T value );  // (depuis C++11) (constexpr depuis C++20)
+</code></pre>
+<p>Remplit l'intervalle <code>[first,last)</code> de valeurs croissant séquentiellement, en commençant par <code>value</code> et en évaluant de façon répétée <code>++value</code>.</p>
+<p>Opération équivalente (en supposant que <code>++value</code> renvoie la valeur incrémentée) :</p>
+<pre><code class="language-cpp">*first   = value;
+*++first = ++value;
+*++first = ++value;
+*++first = ++value;
+// répète jusqu'à ce que « last » soit atteint
+</code></pre>
+<p>Si l'une des conditions suivantes est satisfaite, le programme est mal formé :</p>
+<ul>
+<li><code>T</code> n'est pas convertible en <a href="../iterator.html#Types_and_writability">type de valeur</a> de <code>ForwardIt</code>.</li>
+<li>L'expression <code>++val</code> est mal formée, où <code>val</code> est une variable de type <code>T</code>.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle des éléments à remplir avec des valeurs croissant séquentiellement à partir de <code>value</code></li>
+<li><code>value</code> — valeur initiale à stocker</li>
+</ul>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>std::distance(first, last)</code> incréments et affectations.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class ForwardIt, class T&gt;
+constexpr // depuis C++20
+void iota(ForwardIt first, ForwardIt last, T value)
+{
+    for (; first != last; ++first, ++value)
+        *first = value;
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>La fonction tire son nom de la fonction entière ⍳ du langage de programmation <a href="https://en.wikipedia.org/wiki/APL_(programming_language)">APL</a>. C'était l'un des <a href="https://web.archive.org/web/20220816102741/http://www.martinbroadhurst.com/stl/iota.html">composants de la STL</a> qui n'étaient pas inclus dans C++98, mais qui ont intégré la bibliothèque standard en C++11.</p>
+<h2 id="Example">Exemple</h2>
+<p>L'exemple suivant applique <a href="random_shuffle.html"><code>std::shuffle</code></a> à un <a href="../container/vector.html"><code>vector</code></a> d'itérateurs sur des <a href="../container/list.html"><code>std::list</code></a>. <code>std::iota</code> est utilisé pour remplir des conteneurs.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;list&gt;
+#include &lt;numeric&gt;
+#include &lt;random&gt;
+#include &lt;vector&gt;
+
+class BigData // inefficace à copier
+{
+    int data[1024]; /* des données brutes */
+public:
+    explicit BigData(int i = 0) { data[0] = i; /* ... */ }
+    operator int() const { return data[0]; }
+    BigData&amp; operator=(int i) { data[0] = i; return *this; }
+    /* ... */
+};
+
+int main()
+{
+    std::list&lt;BigData&gt; l(10);
+    std::iota(l.begin(), l.end(), -4);
+
+    std::vector&lt;std::list&lt;BigData&gt;::iterator&gt; v(l.size());
+    std::iota(v.begin(), v.end(), l.begin());
+    // Un vecteur d'itérateurs (vers les données d'origine) est utilisé pour éviter une copie coûteuse,
+    // et parce que std::shuffle (ci-dessous) ne peut pas être appliqué directement à un std::list.
+
+    std::shuffle(v.begin(), v.end(), std::mt19937{std::random_device{}()});
+
+    std::cout &lt;&lt; &quot;Original contents of the list l:\t&quot;;
+    for (const auto&amp; n : l)
+        std::cout &lt;&lt; std::setw(2) &lt;&lt; n &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;Contents of l, viewed via shuffled v:\t&quot;;
+    for (const auto i : v)
+        std::cout &lt;&lt; std::setw(2) &lt;&lt; *i &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Original contents of the list l:	-4 -3 -2 -1  0  1  2  3  4  5
+Contents of l, viewed via shuffled v:	-1  5 -4  0  2  1  4 -2  3 -3
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../ranges/iota_view.html">ranges::iota_viewviews::iota</a> (C++20)</strong> — un <a href="../ranges/view.html"><code>view</code></a> constitué d'une séquence générée en incrémentant de façon répétée une valeur initiale <em>(modèle de classe)</em> <em>(objet point de personnalisation)</em></li>
+<li><strong><a href="fill.html">fill</a></strong> — affecte par copie la valeur donnée à chaque élément d'une plage <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/fill.html">ranges::fill</a> (C++20)</strong> — affecte une certaine valeur à un intervalle d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="generate.html">generate</a></strong> — affecte les résultats d'appels successifs de fonction à chaque élément d'un intervalle <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/generate.html">ranges::generate</a> (C++20)</strong> — enregistre le résultat d'une fonction dans un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="ranges/iota.html">ranges::iota</a> (C++23)</strong> — remplit un intervalle avec des incréments successifs de la valeur de départ <em>(objet fonction algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

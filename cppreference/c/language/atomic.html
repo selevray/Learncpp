@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Types atomiques — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="types-atomiques">Types atomiques</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/atomic">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>_Atomic</code> <code>(</code> <code>type-name</code> <code>)</code> | (1) | (depuis C11) |
+|
+| <code>_Atomic</code> <code>type-name</code> | (2) | (depuis C11) |
+|</p>
+<ol>
+<li>
+<p>Utilisé comme spécificateur de type ; il désigne un nouveau type atomique</p>
+</li>
+<li>
+<p>Utilisé comme qualificateur de type ; il désigne la version atomique de <code>type-name</code>. Dans ce rôle, il peut être combiné avec <a href="const.html"><code>const</code></a>, <a href="volatile.html"><code>volatile</code></a> et <a href="restrict.html"><code>restrict</code></a>, bien que, contrairement aux autres qualificateurs, la version atomique de <code>type-name</code> puisse avoir une taille, un alignement et une représentation d'objet différents.</p>
+</li>
+</ol>
+<ul>
+<li><code>type-name</code> — tout type autre qu'un tableau ou une fonction. Pour <code>(1)</code>, <code>type-name</code> ne peut pas non plus être atomique ou qualifié cvr</li>
+</ul>
+<p>L'en-tête <a href="../thread.html#Atomic_operations"><code>&lt;stdatomic.h&gt;</code></a> définit <a href="../thread.html#Atomic_operations">de nombreux alias de types pratiques</a>, de <a href="../thread.html#Atomic_operations"><code>atomic_bool</code></a> à <a href="../thread.html#Atomic_operations"><code>atomic_uintmax_t</code></a>, qui simplifient l'utilisation de ce mot-clé avec les types intégrés et les types de la bibliothèque.</p>
+<pre><code class="language-c">_Atomic const int* p1;  // p est un pointeur vers un int const atomique
+const atomic_int* p2;   // same
+const _Atomic(int)* p3; // same
+</code></pre>
+<p>Si la constante macro <code>__STDC_NO_ATOMICS__</code> est définie par le compilateur, le mot-clé <code>_Atomic</code> n'est pas fourni.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les objets de types atomiques sont les seuls objets exempts de <a href="memory_model.html">courses de données</a> ; c'est-à-dire qu'ils peuvent être modifiés par deux threads simultanément ou modifiés par l'un et lus par un autre.</p>
+<p>Chaque objet atomique possède sa propre <em>modification order</em>, qui est un ordre total des modifications effectuées sur cet objet. Si, du point de vue d'un thread, la modification <code>A</code> d'un atomique <code>M</code> <a href="../atomic/memory_order.html">happens-before</a> la modification <code>B</code> du même atomique <code>M</code>, alors dans l'ordre de modification de <code>M</code>, <code>A</code> se produit avant <code>B</code>.</p>
+<p>Notez que, bien que chaque objet atomique possède son propre ordre de modification, il n'existe pas d'ordre total unique ; différents threads peuvent observer les modifications de différents objets atomiques dans des ordres différents.</p>
+<p>Quatre types de cohérence sont garantis pour toutes les opérations atomiques :</p>
+<ul>
+<li><strong>cohérence écriture-écriture</strong> : si une opération <code>A</code> qui modifie un objet atomique <code>M</code> <em>happens-before</em> une opération <code>B</code> qui modifie <code>M</code>, alors <code>A</code> apparaît plus tôt que <code>B</code> dans l'ordre de modification de <code>M</code>.</li>
+<li><strong>cohérence lecture-lecture</strong> : si un calcul de valeur <code>A</code> d'un objet atomique <code>M</code> se produit avant un calcul de valeur <code>B</code> de <code>M</code>, et que <code>A</code> prend sa valeur d'un effet de bord <code>X</code> sur <code>M</code>, alors la valeur calculée par <code>B</code> est soit la valeur stockée par <code>X</code>, soit la valeur stockée par un effet de bord <code>Y</code> sur <code>M</code>, où <code>Y</code> apparaît plus tard que <code>X</code> dans l'ordre de modification de <code>M</code>.</li>
+<li><strong>cohérence lecture-écriture</strong> : si un calcul de valeur <code>A</code> d'un objet atomique <code>M</code> <em>happens-before</em> une opération <code>B</code> sur <code>M</code>, alors <code>A</code> prend sa valeur d'un effet de bord <code>X</code> sur <code>M</code>, où <code>X</code> apparaît avant <code>B</code> dans l'ordre de modification de <code>M</code>.</li>
+<li><strong>cohérence écriture-lecture</strong> : si un effet de bord <code>X</code> sur un objet atomique <code>M</code> <em>happens-before</em> un calcul de valeur <code>B</code> de <code>M</code>, alors l'évaluation <code>B</code> prend sa valeur de <code>X</code> ou d'un effet de bord <code>Y</code> qui apparaît après <code>X</code> dans l'ordre de modification de <code>M</code>.</li>
+</ul>
+<p>Certaines opérations atomiques sont également des opérations de synchronisation ; elles peuvent avoir une sémantique de libération (release), d'acquisition (acquire) ou séquentiellement cohérente. Voir <a href="../atomic/memory_order.html"><code>memory_order</code></a>.</p>
+<p>Les <a href="operator_incdec.html">opérateurs d'incrémentation et de décrémentation</a> intégrés et l'<a href="operator_assignment.html">affectation composée</a> sont des opérations atomiques de lecture-modification-écriture avec un ordre total séquentiellement cohérent (comme si l'on utilisait <a href="../atomic/memory_order.html"><code>memory_order_seq_cst</code></a>). Si une sémantique de synchronisation moins stricte est souhaitée, les <a href="../thread.html#Atomic_operations">fonctions de la bibliothèque standard</a> peuvent être utilisées à la place.</p>
+<p>Les propriétés atomiques n'ont de sens que pour les <a href="value_category.html">expressions lvalue</a>. La conversion lvalue-vers-rvalue (qui modélise une lecture mémoire depuis un emplacement atomique vers un registre du processeur) supprime l'atomicité avec les autres qualificateurs.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : à compléter, revoir l'interaction avec les pages memory_order et atomic de la bibliothèque</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Notes">Notes</h2>
+<p>Accéder à un membre d'une struct/union atomique est un comportement indéfini.</p>
+<p>Le type de bibliothèque <code>sig_atomic_t</code> ne fournit ni synchronisation inter-threads ni ordonnancement mémoire, seulement l'atomicité.</p>
+<p>Les types <a href="volatile.html"><code>volatile</code></a> ne fournissent ni synchronisation inter-threads, ni ordonnancement mémoire, ni atomicité.</p>
+<p>Il est recommandé aux implémentations de garantir que la représentation de <code>_Atomic(T)</code> en C est identique à celle de <code>std::atomic&lt;T&gt;</code> en C++ pour tout type possible <code>T</code>. Les mécanismes utilisés pour garantir l'atomicité et l'ordonnancement mémoire doivent être compatibles.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/_Atomic.html"><code>_Atomic</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdatomic.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;threads.h&gt;
+
+atomic_int acnt;
+int cnt;
+
+int f(void* thr_data)
+{
+    for (int n = 0; n &lt; 1000; ++n)
+    {
+        ++cnt;
+        ++acnt;
+        // pour cet exemple, l'ordre mémoire relaxed suffit, par exemple
+        // atomic_fetch_add_explicit(&amp;acnt, 1, memory_order_relaxed);
+    }
+    return 0;
+}
+
+int main(void)
+{
+    thrd_t thr[10];
+    for (int n = 0; n &lt; 10; ++n)
+        thrd_create(&amp;thr[n], f, NULL);
+    for (int n = 0; n &lt; 10; ++n)
+        thrd_join(thr[n], NULL);
+
+    printf(&quot;The atomic counter is %u\n&quot;, acnt);
+    printf(&quot;The non-atomic counter is %u\n&quot;, cnt);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">The atomic counter is 10000
+The non-atomic counter is 8644
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.2.4 Spécificateurs de type atomique (p : TBD)</li>
+<li>7.17 Atomiques &lt;stdatomic.h&gt; (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.2.4 Spécificateurs de type atomique (p : 87)</li>
+<li>7.17 Atomics &lt;stdatomic.h&gt; (p : 200-209)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.2.4 Spécificateurs de type atomique (p : 121)</li>
+<li>7.17 Atomiques &lt;stdatomic.h&gt; (p : 273-286)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><strong><a href="../thread.html">Bibliothèque de support de la concurrence</a></strong></strong></p>
+<p><strong><a href="../../cpp/atomic/atomic.html">Documentation C++</a> pour atomic</strong></p>
+
+</main>
+</body>
+</html>

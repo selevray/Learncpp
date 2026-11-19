@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::condition_variable_any::notify_one — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/condition_variable_any.html">std::condition_variable_any</a></nav>
+<h1 id="std-condition_variable_any-notify_one"><code>std::condition_variable_any::notify_one</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/condition_variable_any/notify_one">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void notify_one() noexcept;  // (depuis C++11)
+</code></pre>
+<p>Si des threads attendent sur <code>*this</code>, l'appel à <code>notify_one</code> débloque l'un des threads en attente.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p>Les effets de <code>notify_one()</code>/<code>notify_all()</code> et de chacune des trois parties atomiques de <code>wait()</code>/<code>wait_for()</code>/<code>wait_until()</code> (déverrouillage+attente, réveil et verrouillage) ont lieu selon un ordre total unique qui peut être vu comme l'<a href="../../atomic/memory_order.html#Modification_order">ordre de modification</a> d'une variable atomique : cet ordre est propre à cette variable de condition. Il est ainsi impossible à <code>notify_one()</code> de, par exemple, être retardé et de débloquer un thread qui a commencé à attendre juste après l'appel à <code>notify_one()</code>.</p>
+<p>Le thread qui notifie n'a pas besoin de détenir le verrou du même mutex que celui détenu par le ou les threads en attente ; en fait, le faire est une pessimisation, puisque le thread notifié se bloquerait immédiatement à nouveau, en attendant que le thread notifiant libère le verrou. Cependant, certaines implémentations (en particulier de nombreuses implémentations de pthreads) reconnaissent cette situation et évitent ce scénario « dépêche-toi d'attendre » en transférant le thread en attente de la file de la variable de condition directement vers la file du mutex lors de l'appel de notification, sans le réveiller.</p>
+<p>Notifier en étant sous verrou peut néanmoins être nécessaire lorsqu'un ordonnancement précis des événements est requis, par exemple si le thread en attente quitte le programme lorsque la condition est satisfaite, entraînant la destruction de la variable de condition du thread notifiant. Un réveil fallacieux après le déverrouillage du mutex mais avant la notification entraînerait un appel de notify sur un objet détruit.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;condition_variable&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+using namespace std::chrono_literals;
+
+std::condition_variable_any cv;
+std::mutex cv_m;
+int i = 0;
+bool done = false;
+
+void waits()
+{
+    std::unique_lock&lt;std::mutex&gt; lk(cv_m);
+    std::cout &lt;&lt; &quot;Waiting... \n&quot;;
+    cv.wait(lk, []{ return i == 1; });
+    std::cout &lt;&lt; &quot;...finished waiting; i == &quot; &lt;&lt; i &lt;&lt; '\n';
+    done = true;
+}
+
+void signals()
+{
+    std::this_thread::sleep_for(200ms);
+    std::cout &lt;&lt; &quot;Notifying falsely...\n&quot;;
+    cv.notify_one(); // le thread en attente est notifié avec i == 0.
+                     // cv.wait se réveille, vérifie i, et retourne en attente
+
+    std::unique_lock&lt;std::mutex&gt; lk(cv_m);
+    i = 1;
+    while (!done)
+    {
+        std::cout &lt;&lt; &quot;Notifying true change...\n&quot;;
+        lk.unlock();
+        cv.notify_one(); // le thread en attente est notifié avec i == 1, cv.wait retourne
+        std::this_thread::sleep_for(300ms);
+        lk.lock();
+    }
+}
+
+int main()
+{
+    std::thread t1(waits), t2(signals);
+    t1.join();
+    t2.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Waiting...
+Notifying falsely...
+Notifying true change...
+...finished waiting; i == 1
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="notify_all.html">notify_all</a></strong> — notifie tous les threads en attente <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong><a href="../../../c/thread/cnd_signal.html">Documentation C</a> pour cnd_signal</strong></p>
+
+</main>
+</body>
+</html>

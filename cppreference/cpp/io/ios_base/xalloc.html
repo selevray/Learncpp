@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ios_base::xalloc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/ios_base.html">std::ios_base</a></nav>
+<h1 id="std-ios_base-xalloc"><code>std::ios_base::xalloc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/ios_base/xalloc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">static int xalloc();
+</code></pre>
+<p>Renvoie une valeur d'index unique (à l'échelle du programme) pouvant servir à accéder à un élément <code>long</code> et à un élément <code>void*</code> du stockage privé de <code>std::ios_base</code> en appelant <a href="iword.html"><code>iword()</code></a> et <a href="pword.html"><code>pword()</code></a>. L'appel à <code>xalloc</code> n'alloue pas de mémoire.</p>
+<blockquote>
+<p>Cette fonction est thread-safe : l'accès concurrent par plusieurs threads ne provoque pas de course de données.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Incrémente effectivement le prochain index unique disponible.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Entier unique à utiliser comme index de pword/iword.</p>
+<h2 id="Example">Exemple</h2>
+<p>Utilise le stockage pword de la classe de base pour l'identification de type à l'exécution des objets de flux dérivés.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template&lt;class CharT, class Traits = std::char_traits&lt;CharT&gt;&gt;
+class mystream : public std::basic_ostream&lt;CharT, Traits&gt;
+{
+public:
+    static const int xindex;
+
+    mystream(std::basic_ostream&lt;CharT, Traits&gt;&amp; ostr) :
+        std::basic_ostream&lt;CharT, Traits&gt;(ostr.rdbuf())
+    {
+        this-&gt;pword(xindex) = this;
+    }
+
+    void myfn()
+    {
+        *this &lt;&lt; &quot;[special handling for mystream]&quot;;
+    }
+};
+
+// Chaque spécialisation de mystream obtient un index unique depuis xalloc()
+template&lt;class CharT, class Traits&gt;
+const int mystream&lt;CharT, Traits&gt;::xindex = std::ios_base::xalloc();
+
+// Ce manipulateur d'E/S pourra reconnaître les ostream qui sont des mystream
+// en recherchant le pointeur stocké dans pword
+template&lt;class CharT, class Traits&gt;
+std::basic_ostream&lt;CharT, Traits&gt;&amp; mymanip(std::basic_ostream&lt;CharT, Traits&gt;&amp; os)
+{
+    if (os.pword(mystream&lt;CharT, Traits&gt;::xindex) == &amp;os)
+        static_cast&lt;mystream&lt;CharT, Traits&gt;&amp;&gt;(os).myfn();
+    return os;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;cout, narrow-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+
+    mystream&lt;char&gt; myout(std::cout);
+    myout &lt;&lt; &quot;myout, narrow-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+
+    std::wcout &lt;&lt; &quot;wcout, wide-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+
+    mystream&lt;wchar_t&gt; mywout(std::wcout);
+    mywout &lt;&lt; &quot;mywout, wide-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">cout, narrow-character test
+myout, narrow-character test [special handling for mystream]
+wcout, wide-character test
+mywout, wide-character test [special handling for mystream]
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2143">LWG 2143</a></td>
+<td>C++11</td>
+<td><code>xalloc</code> n'était pas thread-safe</td>
+<td>rendu thread-safe</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="pword.html">pword</a></strong> — redimensionne le stockage privé si nécessaire et donne accès à l'élément <code>void*</code> à l'indice donné <em>(fonction membre publique)</em></li>
+<li><strong><a href="iword.html">iword</a></strong> — redimensionne le stockage privé si nécessaire et donne accès à l'élément <code>long</code> à l'indice donné <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

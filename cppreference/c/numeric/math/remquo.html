@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>remquo, remquof, remquol — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/numeric.html">Numerics</a> › <a href="../../../c/numeric/math.html">Fonctions mathématiques courantes</a></nav>
+<h1 id="remquo-remquof-remquol">remquo, remquof, remquol</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/numeric/math/remquo">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;math.h&gt;</strong></p>
+<pre><code class="language-c">float       remquof( float x, float y, int *quo );  // (1) (depuis C99)
+
+double      remquo( double x, double y, int *quo );  // (2) (depuis C99)
+
+long double remquol( long double x, long double y, int *quo );  // (3) (depuis C99)
+</code></pre>
+<p><strong>Défini dans l'en-tête &lt;tgmath.h&gt;</strong></p>
+<pre><code class="language-c">#define remquo( x, y, quo )  // (4) (depuis C99)
+</code></pre>
+<p>1-3) Calcule le reste en virgule flottante de l'opération de division <code>x/y</code>, comme le fait la fonction <a href="remainder.html"><code>remainder()</code></a>. De plus, le signe et au moins les trois derniers bits de <code>x/y</code> sont stockés dans <code>quo</code>, suffisants pour déterminer l'octant du résultat dans une période.</p>
+<ol start="4">
+<li>Macro générique par type : si un argument non pointeur a le type <code>long double</code>, <code>remquol</code> est appelée. Sinon, si un argument non pointeur a un type entier ou le type <code>double</code>, <code>remquo</code> est appelée. Sinon, <code>remquof</code> est appelée.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>x, y</code> — valeurs à virgule flottante</li>
+<li><code>quo</code> — pointeur vers une valeur entière destinée à stocker le signe et quelques bits de <code>x/y</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, retourne le reste en virgule flottante de la division <code>x/y</code> tel que défini dans <a href="remainder.html"><code>remainder</code></a>, et stocke, dans <code>*quo</code>, le signe et au moins trois des bits de poids faible de <code>x/y</code> (formellement, stocke une valeur dont le signe est celui de <code>x/y</code> et dont la magnitude est congrue modulo 2n<br />
+à la magnitude du quotient entier de <code>x/y</code>, où n est un entier défini par l'implémentation supérieur ou égal à 3).</p>
+<p>Si <code>y</code> est nul, la valeur stockée dans <code>*quo</code> est non spécifiée.</p>
+<p>Si une erreur de domaine se produit, une valeur définie par l'implémentation est renvoyée (NaN lorsque pris en charge).</p>
+<p>Si une erreur de portée se produit par sous-dépassement, le résultat correct est retourné si les subnormaux sont supportés.</p>
+<p>Si <code>y</code> est nul, mais que l'erreur de domaine ne se produit pas, zéro est retourné.</p>
+<h2 id="Error_handling">Gestion des erreurs</h2>
+<p>Les erreurs sont signalées comme spécifié dans <a href="math_errhandling.html"><code>math_errhandling</code></a>.</p>
+<p>Une erreur de domaine peut se produire si <code>y</code> vaut zéro.</p>
+<p>Si l'implémentation prend en charge l'arithmétique à virgule flottante IEEE (CEI 60559),</p>
+<ul>
+<li>Le <a href="../fenv/FE_round.html">mode d'arrondi</a> courant n'a aucun effet.</li>
+<li><a href="../fenv/FE_exceptions.html"><code>FE_INEXACT</code></a> n'est jamais levée</li>
+<li>Si <code>x</code> vaut ±∞ et que <code>y</code> n'est pas NaN, NaN est retourné et <a href="../fenv/FE_exceptions.html"><code>FE_INVALID</code></a> est levé</li>
+<li>Si <code>y</code> vaut ±0 et que <code>x</code> n'est pas NaN, NaN est retourné et <a href="../fenv/FE_exceptions.html"><code>FE_INVALID</code></a> est levé</li>
+<li>Si <code>x</code> ou <code>y</code> est NaN, NaN est retourné</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p><a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/remquo.html">POSIX exige</a> qu'une erreur de domaine se produise si <code>x</code> est infini ou si <code>y</code> vaut zéro.</p>
+<p>Cette fonction est utile pour implémenter des fonctions périodiques lorsque la période est exactement représentable en virgule flottante : lors du calcul de sin(πx) pour un <code>x</code> très grand, appeler <a href="sin.html"><code>sin</code></a> directement peut entraîner une grande erreur, mais si l'argument de la fonction est d'abord réduit avec <code>remquo</code>, les bits de poids faible du quotient peuvent servir à déterminer le signe et l'octant du résultat au sein de la période, tandis que le reste peut servir à calculer la valeur avec une grande précision.</p>
+<p>Sur certaines plateformes, cette opération est prise en charge par le matériel (et, par exemple, sur les processeurs Intel, <code>FPREM1</code> ne laisse que 3 bits de précision dans le quotient).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;fenv.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+
+#ifndef __GNUC__
+#pragma STDC FENV_ACCESS ON
+#endif
+
+double cos_pi_x_naive(double x)
+{
+    const double pi = acos(-1);
+    return cos(pi * x);
+}
+
+// la période est 2, les valeurs sont (0;0.5) positives, (0.5;1.5) négatives, (1.5,2) positives
+double cos_pi_x_smart(double x)
+{
+    const double pi = acos(-1);
+    int extremum;
+    double rem = remquo(x, 1, &amp;extremum);
+    extremum = (unsigned)extremum % 2; // conserver 1 bit pour déterminer l'extremum le plus proche
+    return extremum ? -cos(pi * rem) : cos(pi * rem);
+}
+
+int main(void)
+{
+    printf(&quot;cos(pi * 0.25) = %f\n&quot;, cos_pi_x_naive(0.25));
+    printf(&quot;cos(pi * 1.25) = %f\n&quot;, cos_pi_x_naive(1.25));
+    printf(&quot;cos(pi * 1000000000000.25) = %f\n&quot;, cos_pi_x_naive(1000000000000.25));
+    printf(&quot;cos(pi * 1000000000001.25) = %f\n&quot;, cos_pi_x_naive(1000000000001.25));
+    printf(&quot;cos(pi * 1000000000000.25) = %f\n&quot;, cos_pi_x_smart(1000000000000.25));
+    printf(&quot;cos(pi * 1000000000001.25) = %f\n&quot;, cos_pi_x_smart(1000000000001.25));
+
+    // gestion des erreurs
+    feclearexcept(FE_ALL_EXCEPT);
+    int quo;
+    printf(&quot;remquo(+Inf, 1) = %.1f\n&quot;, remquo(INFINITY, 1, &amp;quo));
+    if (fetestexcept(FE_INVALID))
+        puts(&quot;    FE_INVALID raised&quot;);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">cos(pi * 0.25) = 0.707107
+cos(pi * 1.25) = -0.707107
+cos(pi * 1000000000000.25) = 0.707123
+cos(pi * 1000000000001.25) = -0.707117
+cos(pi * 1000000000000.25) = 0.707107
+cos(pi * 1000000000001.25) = -0.707107
+remquo(+Inf, 1) = -nan
+    FE_INVALID raised
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.12.10.3 Les fonctions remquo (p : TBD)</li>
+<li>7.25 Macros génériques par type &lt;tgmath.h&gt; (p: TBD)</li>
+<li>F.10.7.3 Les fonctions remquo (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.12.10.3 Les fonctions remquo (p : 186)</li>
+<li>7.25 Macros génériques par type &lt;tgmath.h&gt; (p: 272-273)</li>
+<li>F.10.7.3 Les fonctions remquo (p : 385)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.12.10.3 Les fonctions remquo (p : 255)</li>
+<li>7.25 Mathématiques génériques par type &lt;tgmath.h&gt; (p : 373-375)</li>
+<li>F.10.7.3 Les fonctions remquo (p : 529)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.12.10.3 Les fonctions remquo (p : 236)</li>
+<li>7.22 Mathématiques génériques par type &lt;tgmath.h&gt; (p : 335-337)</li>
+<li>F.9.7.3 Les fonctions remquo (p : 465)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="div.html">divldivlldiv</a> (C99)</strong> — calcule le quotient et le reste de la division entière <em>(fonction)</em></li>
+<li><strong><a href="fmod.html">fmodfmodffmodl</a> (C99) (C99)</strong> — calcule le reste de l'opération de division à virgule flottante <em>(fonction)</em></li>
+<li><strong><a href="remainder.html">remainderremainderfremainderl</a> (C99) (C99) (C99)</strong> — calcule le reste signé de l'opération de division à virgule flottante <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/numeric/math/remquo.html">Documentation C++</a> pour remquo</strong></p>
+
+</main>
+</body>
+</html>

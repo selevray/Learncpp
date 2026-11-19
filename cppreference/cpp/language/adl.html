@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recherche dépendante des arguments — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="recherche-dépendante-des-arguments">Recherche dépendante des arguments</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/adl">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>La recherche dépendante des arguments (ADL), aussi appelée recherche de Koenig<a href="adl.html#cite_note-1">[1]</a>, est l'ensemble des règles de recherche des noms de fonctions non qualifiés dans les <a href="operator_other.html">expressions d'appel de fonction</a>, y compris les appels implicites aux <a href="operators.html">opérateurs surchargés</a>. Ces noms de fonctions sont recherchés dans les espaces de noms de leurs arguments, en plus des portées et espaces de noms considérés par la <a href="lookup.html">recherche de nom non qualifiée</a> habituelle.</p>
+<p>La recherche dépendante des arguments permet d'utiliser des opérateurs définis dans un autre espace de noms. Exemple :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Test\n&quot;; // Il n'existe pas d'operator&lt;&lt; dans l'espace de noms global, mais ADL
+                           // examine l'espace de noms std car l'argument de gauche est dans
+                           // std et trouve std::operator&lt;&lt;(std::ostream&amp;, const char*)
+    operator&lt;&lt;(std::cout, &quot;Test\n&quot;); // Idem, en utilisant la notation d'appel de fonction
+
+    // Cependant,
+    std::cout &lt;&lt; endl; // Erreur : « endl » n'est pas déclaré dans cet espace de noms.
+                       // Ce n'est pas un appel de fonction à endl(), donc ADL ne s'applique pas
+
+    endl(std::cout); // OK : c'est un appel de fonction : ADL examine l'espace de noms std
+                     // car l'argument de endl est dans std, et trouve std::endl
+
+    (endl)(std::cout); // Erreur : « endl » n'est pas déclaré dans cet espace de noms.
+                       // La sous-expression (endl) n'est pas un unqualified-id
+}
+</code></pre>
+<h2 id="Details">Détails</h2>
+<p>Tout d'abord, la recherche dépendante des arguments n'est pas prise en compte si l'ensemble de recherche produit par la <a href="lookup.html">recherche non qualifiée</a> habituelle contient l'un des éléments suivants :</p>
+<ol>
+<li>
+<p>une déclaration de membre de classe.</p>
+</li>
+<li>
+<p>une déclaration de fonction à portée de bloc (qui n'est pas une <a href="namespace.html#Using-declarations"><code>using</code> déclaration</a>).</p>
+</li>
+<li>
+<p>toute déclaration qui n'est ni une fonction ni un modèle de fonction (par ex. un objet fonction ou une autre variable dont le nom entre en conflit avec celui de la fonction recherchée).</p>
+</li>
+</ol>
+<p>Sinon, pour chaque argument d'une expression d'appel de fonction, son type est examiné afin de déterminer l'<em>ensemble associé d'espaces de noms et de classes</em> qu'il ajoutera à la recherche.</p>
+<ol>
+<li>
+<p>Pour les arguments de type fondamental, l'ensemble associé d'espaces de noms et de classes est vide.</p>
+</li>
+<li>
+<p>Pour les arguments de type classe (y compris union), l'ensemble se compose de :</p>
+</li>
+</ol>
+<p>a) La classe elle-même.</p>
+<p>b) Si la classe est <a href="type-id.html#Incomplete_type">complète</a>, toutes ses classes de base directes et indirectes.</p>
+<p>c) Si la classe est un <a href="nested_classes.html">membre d'une autre classe</a>, la classe dont elle est membre.</p>
+<p>d) Les espaces de noms englobants les plus internes des classes ajoutées à l'ensemble.</p>
+<ol start="3">
+<li>Pour les arguments dont le type est une <a href="class_template.html">spécialisation de modèle de classe</a>, en plus des règles des classes, les classes et espaces de noms associés suivants sont ajoutés à l'ensemble.</li>
+</ol>
+<p>a) Les types de tous les arguments de modèle fournis pour les paramètres de modèle de type (en ignorant les paramètres de modèle non typés et les paramètres de modèle template).</p>
+<p>b) Les espaces de noms dont sont membres les éventuels arguments de modèle template.</p>
+<p>c) Les classes dont sont membres les éventuels arguments de modèle template (s'il s'agit de modèles membres de classe).</p>
+<ol start="4">
+<li>
+<p>Pour les arguments de type énumération, l'espace de noms englobant le plus interne de la déclaration du type énumération est ajouté à l'ensemble. Si le type énumération est membre d'une classe, cette classe est ajoutée à l'ensemble.</p>
+</li>
+<li>
+<p>Pour les arguments de type pointeur vers <code>T</code> ou pointeur vers un tableau de <code>T</code>, le type <code>T</code> est examiné et son ensemble associé de classes et d'espaces de noms est ajouté à l'ensemble.</p>
+</li>
+<li>
+<p>Pour les arguments de type fonction, les types des paramètres de la fonction et le type de retour de la fonction sont examinés, et leur ensemble associé de classes et d'espaces de noms est ajouté à l'ensemble.</p>
+</li>
+<li>
+<p>Pour les arguments de type pointeur vers fonction membre <code>F</code> de la classe <code>X</code>, les types des paramètres de la fonction, le type de retour de la fonction et la classe <code>X</code> sont examinés, et leurs ensembles associés de classes et d'espaces de noms sont ajoutés à l'ensemble.</p>
+</li>
+<li>
+<p>Pour les arguments de type pointeur vers membre de donnée <code>T</code> de la classe <code>X</code>, le type du membre et le type <code>X</code> sont tous deux examinés, et leurs ensembles associés de classes et d'espaces de noms sont ajoutés à l'ensemble.</p>
+</li>
+<li>
+<p>Si l'argument est le nom ou l'expression d'adresse d'un <a href="overloaded_address.html">ensemble de fonctions surchargées</a> (ou de modèles de fonctions), chaque fonction de l'ensemble de surcharges est examinée et son ensemble associé de classes et d'espaces de noms est ajouté à l'ensemble.</p>
+</li>
+</ol>
+<ul>
+<li>De plus, si l'ensemble de surcharges est désigné par un <a href="templates.html#Template_identifiers">identifiant de modèle</a>, tous ses arguments de modèle de type et arguments de modèle template (mais pas les arguments de modèle non typés) sont examinés, et leurs ensembles associés de classes et d'espaces de noms sont ajoutés à l'ensemble.</li>
+</ul>
+<blockquote>
+<p>Si un espace de noms de l'ensemble associé de classes et d'espaces de noms est un <a href="namespace.html">espace de noms en ligne</a>, son espace de noms englobant est également ajouté à l'ensemble.</p>
+<p>Si un espace de noms de l'ensemble associé de classes et d'espaces de noms contient directement un espace de noms en ligne, cet espace de noms en ligne est ajouté à l'ensemble.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Une fois l'ensemble associé de classes et d'espaces de noms déterminé, toutes les déclarations trouvées dans les classes de cet ensemble sont écartées pour la suite du traitement ADL, à l'exception des fonctions amies et des modèles de fonctions amis de portée d'espace de noms, comme indiqué au point 2 ci-dessous.</p>
+<p>L'ensemble des déclarations trouvées par la <a href="lookup.html">recherche non qualifiée</a> ordinaire et l'ensemble des déclarations trouvées dans tous les éléments de l'ensemble associé produit par ADL sont fusionnés, avec les règles particulières suivantes :</p>
+<p>Les 1) <a href="namespace.html#Using-directives">directives <code>using</code></a> dans les espaces de noms associés sont ignorées.</p>
+<p>Les fonctions amies (et modèles de fonctions) de portée d'espace de noms qui sont déclarées dans une classe associée sont visibles par ADL même si elles ne le sont pas par la recherche ordinaire. 2)</p>
+<ol start="3">
+<li>tous les noms, à l'exception des fonctions et des modèles de fonctions, sont ignorés (pas de collision avec les variables).</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p>En raison de la recherche dépendante des arguments, les fonctions non membres et les opérateurs non membres définis dans le même espace de noms qu'une classe sont considérés comme faisant partie de l'interface publique de cette classe (s'ils sont trouvés par ADL) <a href="adl.html#cite_note-2">[2]</a>.</p>
+<p>ADL est à l'origine de l'idiome établi pour échanger deux objets dans du code générique : <code>using std::swap; swap(obj1, obj2);</code> car appeler <code>std::swap(obj1, obj2)</code> directement ne prendrait pas en compte les fonctions <code>swap()</code> définies par l'utilisateur qui pourraient se trouver dans le même espace de noms que les types de <code>obj1</code> ou <code>obj2</code>, et appeler simplement <code>swap(obj1, obj2)</code> sans qualification n'appellerait rien si aucune surcharge définie par l'utilisateur n'était fournie. En particulier, <a href="../algorithm/iter_swap.html"><code>std::iter_swap</code></a> ainsi que tous les autres algorithmes de la bibliothèque standard utilisent cette approche pour les types <a href="../named_req/Swappable.html"><em>Swappable</em></a>.</p>
+<p>Les règles de recherche de noms rendent peu pratique la déclaration d'opérateurs dans l'espace de noms global ou dans un espace de noms défini par l'utilisateur, opérant sur des types de l'espace de noms <code>std</code>, par exemple un <code>operator&gt;&gt;</code> ou un <code>operator+</code> personnalisé pour <a href="../container/vector.html"><code>std::vector</code></a> ou pour <a href="../utility/pair.html"><code>std::pair</code></a> (sauf si les types d'éléments du vector/pair sont des types définis par l'utilisateur, ce qui ajouterait leur espace de noms à ADL). De tels opérateurs ne seraient pas recherchés depuis les instanciations de modèles, comme les algorithmes de la bibliothèque standard. Voir <a href="dependent_name.html">noms dépendants</a> pour plus de détails.</p>
+<p>ADL peut trouver une <a href="friend.html">fonction amie</a> (généralement un opérateur surchargé) entièrement définie dans une classe ou un modèle de classe, même si elle n'a jamais été déclarée au niveau de l'espace de noms.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct number
+{
+    number(int);
+    friend number gcd(number x, number y) { return 0; }; // Définition dans
+                                                         // un modèle de classe
+};
+
+// Sauf si une déclaration correspondante est fournie, gcd est
+// un membre invisible (sauf par ADL) de cet espace de noms
+void g()
+{
+    number&lt;double&gt; a(3), b(4);
+    a = gcd(a, b); // Trouve gcd car number&lt;double&gt; est une classe associée,
+                   // rendant gcd visible dans son espace de noms (portée globale)
+//  b = gcd(3, 4); // Erreur ; gcd n'est pas visible
+}
+</code></pre>
+<blockquote>
+<p>Bien qu'un appel de fonction puisse être résolu par ADL même si la recherche ordinaire ne trouve rien, un appel à un <a href="function_template.html">modèle de fonction</a> avec des arguments de modèle explicitement spécifiés exige qu'une déclaration du modèle soit trouvée par la recherche ordinaire (sinon, c'est une erreur de syntaxe de rencontrer un nom inconnu suivi d'un caractère inférieur à).</p>
+<pre><code class="language-cpp">namespace N1
+{
+    struct S {};
+
+    template&lt;int X&gt;
+    void f(S);
+}
+
+namespace N2
+{
+    template&lt;class T&gt;
+    void f(T t);
+}
+
+void g(N1::S s)
+{
+    f&lt;3&gt;(s);     // Erreur de syntaxe jusqu'à C++20 (la recherche non qualifiée ne trouve aucun f)
+    N1::f&lt;3&gt;(s); // OK, la recherche qualifiée trouve le modèle « f »
+    N2::f&lt;3&gt;(s); // Erreur : N2::f ne prend pas de paramètre non-type
+                 //        N1::f n'est pas recherché car ADL ne fonctionne qu'
+                 //              avec les noms non qualifiés
+
+    using N2::f;
+    f&lt;3&gt;(s); // OK : la recherche non qualifiée trouve désormais N2::f
+             //     puis ADL entre en jeu car ce nom est non qualifié
+             //     et trouve N1::f
+}
+</code></pre>
+<p><em>(jusqu'à C++20)</em></p>
+</blockquote>
+<p>Dans les contextes suivants, seule une recherche ADL (c'est-à-dire une recherche uniquement dans les espaces de noms associés) a lieu :</p>
+<blockquote>
+<ul>
+<li>la recherche des fonctions non membres <code>begin</code> et <code>end</code> effectuée par la boucle <a href="range-for.html">range-for</a> si la recherche de membres échoue.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>la <a href="dependent_name.html#Lookup_rules">recherche de noms dépendants</a> à partir du point d'instanciation du modèle.</li>
+</ul>
+<blockquote>
+<ul>
+<li>la recherche de la fonction non membre <code>get</code> effectuée par la <a href="structured_binding.html">déclaration de liaison structurée</a> pour les types semblables à des tuples.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Examples">Exemples</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : davantage d'exemples</td>
+</tr>
+</tbody>
+</table>
+<p>Exemple tiré de &lt;http://www.gotw.ca/gotw/030.htm&gt;</p>
+<pre><code class="language-cpp">namespace A
+{
+    struct X;
+    struct Y;
+
+    void f(int);
+    void g(X);
+}
+
+namespace B
+{
+    void f(int i)
+    {
+        f(i); // Appelle B::f (récursion infinie)
+    }
+
+    void g(A::X x)
+    {
+        g(x); // Erreur : ambiguïté entre B::g (recherche ordinaire)
+              //        et A::g (recherche dépendante des arguments)
+    }
+
+    void h(A::Y y)
+    {
+        h(y); // Appelle B::h (récursion infinie) : ADL examine l'espace de noms A
+              // mais ne trouve pas de A::h, donc seul B::h de la recherche ordinaire est utilisé
+    }
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/33.html">CWG 33</a></td>
+<td>C++98</td>
+<td>les espaces de noms ou classes associés ne sont pas spécifiés si un argument utilisé pour la recherche est l'adresse d'un groupe de fonctions surchargées ou d'un modèle de fonction</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/90.html">CWG 90</a></td>
+<td>C++98</td>
+<td>les classes associées d'une classe imbriquée non union n'incluaient pas sa classe englobante, mais une union imbriquée était associée à sa classe englobante</td>
+<td>les non-unions sont aussi associées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/239.html">CWG 239</a></td>
+<td>C++98</td>
+<td>une déclaration de fonction de portée de bloc trouvée lors de la recherche non qualifiée ordinaire n'empêchait pas ADL de s'appliquer</td>
+<td>ADL n'était pas pris en compte, sauf pour les déclarations <code>using</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/997.html">CWG 997</a></td>
+<td>C++98</td>
+<td>les types de paramètres et les types de retour dépendants étaient exclus de la détermination des classes et espaces de noms associés d'un modèle de fonction</td>
+<td>included</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1690.html">CWG 1690</a></td>
+<td>C++98 C++11</td>
+<td>ADL ne pouvait pas trouver les lambdas (C++11) ni les objets de types de classes locales (C++98) qui sont renvoyés</td>
+<td>ils peuvent être trouvés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1691.html">CWG 1691</a></td>
+<td>C++11</td>
+<td>ADL avait des comportements surprenants pour les déclarations d'énumérations opaques</td>
+<td>fixed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1692.html">CWG 1692</a></td>
+<td>C++98</td>
+<td>les classes doublement imbriquées n'avaient pas d'espaces de noms associés (leurs classes englobantes ne sont membres d'aucun espace de noms)</td>
+<td>les espaces de noms associés sont étendus aux espaces de noms englobants les plus internes</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2857.html">CWG 2857</a></td>
+<td>C++98</td>
+<td>les classes associées d'un type de classe incomplet incluaient ses classes de base</td>
+<td>non incluses</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="lookup.html">Recherche de noms</a></li>
+<li><a href="function_template.html">Déduction d'arguments de modèle</a></li>
+<li><a href="overload_resolution.html">Résolution de surcharge</a></li>
+</ul>
+<h2 id="External_links">Liens externes</h2>
+<ol>
+<li><a href="adl.html#cite_ref-1">↑</a> Andrew Koenig : <a href="https://www.drdobbs.com/cpp/a-personal-note-about-argument-dependent/232901443">« A Personal Note About Argument-Dependent Lookup »</a></li>
+<li><a href="adl.html#cite_ref-2">↑</a> H. Sutter (1998) <a href="http://www.gotw.ca/publications/mill02.htm">« What's In a Class? - The Interface Principle »</a> dans C++ Report, 10(3)</li>
+</ol>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::condition_variable::notify_all — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/condition_variable.html">std::condition_variable</a></nav>
+<h1 id="std-condition_variable-notify_all"><code>std::condition_variable::notify_all</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/condition_variable/notify_all">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void notify_all() noexcept;  // (depuis C++11)
+</code></pre>
+<p>Débloque tous les threads actuellement en attente sur <code>*this</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Notes">Notes</h2>
+<p>Les effets de <code>notify_one()</code>/<code>notify_all()</code> et de chacune des trois parties atomiques de <code>wait()</code>/<code>wait_for()</code>/<code>wait_until()</code> (déverrouillage+attente, réveil et verrouillage) ont lieu selon un ordre total unique qui peut être vu comme l'<a href="../../atomic/memory_order.html#Modification_order">ordre de modification</a> d'une variable atomique : cet ordre est propre à cette variable de condition. Il est ainsi impossible à <code>notify_one()</code> de, par exemple, être retardé et de débloquer un thread qui a commencé à attendre juste après l'appel à <code>notify_one()</code>.</p>
+<p>Le thread qui notifie n'a pas besoin de détenir le verrou du même mutex que celui détenu par le ou les threads en attente. Le faire peut être une pessimisation, puisque le thread notifié se bloquerait immédiatement à nouveau, en attendant que le thread notifiant libère le verrou, bien que certaines implémentations reconnaissent ce schéma et ne tentent pas de réveiller le thread notifié qui est sous verrou.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;chrono&gt;
+#include &lt;condition_variable&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+std::condition_variable cv;
+std::mutex cv_m; // Ce mutex sert à trois choses :
+                 // 1) synchroniser les accès à i
+                 // 2) synchroniser les accès à std::cerr
+                 // 3) pour la variable de condition cv
+int i = 0;
+
+void waits()
+{
+    std::unique_lock&lt;std::mutex&gt; lk(cv_m);
+    std::cerr &lt;&lt; &quot;Waiting... \n&quot;;
+    cv.wait(lk, []{ return i == 1; });
+    std::cerr &lt;&lt; &quot;...finished waiting. i == 1\n&quot;;
+}
+
+void signals()
+{
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(cv_m);
+        std::cerr &lt;&lt; &quot;Notifying...\n&quot;;
+    }
+    cv.notify_all();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(cv_m);
+        i = 1;
+        std::cerr &lt;&lt; &quot;Notifying again...\n&quot;;
+    }
+    cv.notify_all();
+}
+
+int main()
+{
+    std::thread t1(waits), t2(waits), t3(waits), t4(signals);
+    t1.join();
+    t2.join();
+    t3.join();
+    t4.join();
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Waiting...
+Waiting...
+Waiting...
+Notifying...
+Notifying again...
+...finished waiting. i == 1
+...finished waiting. i == 1
+...finished waiting. i == 1
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="notify_one.html">notify_one</a></strong> — notifie un thread en attente <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong><a href="../../../c/thread/cnd_broadcast.html">Documentation C</a> pour cnd_broadcast</strong></p>
+
+</main>
+</body>
+</html>

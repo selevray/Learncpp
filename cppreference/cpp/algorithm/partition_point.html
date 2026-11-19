@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::partition_point — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-partition_point"><code>std::partition_point</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/partition_point">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class ForwardIt, class UnaryPred &gt;
+ForwardIt partition_point( ForwardIt first, ForwardIt last, UnaryPred p );  // (depuis C++11) (constexpr depuis C++20)
+</code></pre>
+<p>Examine l'intervalle partitionné <code>[first,last)</code> et localise la fin de la première partition, c'est-à-dire le premier élément qui ne satisfait pas <code>p</code> ou <code>last</code> si tous les éléments satisfont <code>p</code>.</p>
+<p>Si les éléments <code>elem</code> de <code>[first,last)</code> ne sont pas <a href="../algorithm.html#Requirements">partitionnés</a> par rapport à l'expression <code>bool(p(elem))</code>, le comportement est indéfini.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li>
+<p><code>first, last</code> — l'intervalle partitionné d'éléments à examiner</p>
+</li>
+<li>
+<p><code>p</code> — prédicat unaire qui renvoie <code>true</code> pour les éléments trouvés au début de l'intervalle.</p>
+<p>L'expression <code>p(v)</code> doit être convertible en <code>bool</code> pour chaque argument <code>v</code> de type (éventuellement const) <code>VT</code>, où <code>VT</code> est le type de valeur de <code>ForwardIt</code>, quelle que soit la <a href="../language/value_category.html">catégorie de valeur</a>, et ne doit pas modifier <code>v</code>. Ainsi, un type de paramètre de <code>VT&amp;</code> n'est pas autorisé, ni <code>VT</code> sauf si pour <code>VT</code> un déplacement est équivalent à une copie <em>(depuis C++11)</em>.</p>
+</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>ForwardIt</code> doit satisfaire aux exigences de <a href="../named_req/ForwardIterator.html"><em>LegacyForwardIterator</em></a>.</li>
+<li><code>UnaryPred</code> doit satisfaire aux exigences de <a href="../named_req/Predicate.html"><em>Predicate</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>L'itérateur passé la fin de la première partition dans <code>[first,last)</code> ou <code>last</code> si tous les éléments satisfont <code>p</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Étant donné (\scriptsize N)N sous forme de <code>std::distance(first, last)</code>, effectue (\scriptsize O(log(N)))O(log(N)) applications du prédicat <code>p</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Cet algorithme est une forme plus générale de <a href="lower_bound.html"><code>std::lower_bound</code></a>, qui peut être exprimé en termes de <code>std::partition_point</code> avec le prédicat <code>[&amp;](const auto&amp; e) { return e &lt; value; });</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class ForwardIt, class UnaryPred&gt;
+constexpr //&lt; depuis C++20
+ForwardIt partition_point(ForwardIt first, ForwardIt last, UnaryPred p)
+{
+    for (auto length = std::distance(first, last); 0 &lt; length; )
+    {
+        auto half = length / 2;
+        auto middle = std::next(first, half);
+        if (p(*middle))
+        {
+            first = std::next(middle);
+            length -= (half + 1);
+        }
+        else
+            length = half;
+    }
+
+    return first;
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+
+auto print_seq = [](auto rem, auto first, auto last)
+{
+    for (std::cout &lt;&lt; rem; first != last; std::cout &lt;&lt; *first++ &lt;&lt; ' ') {}
+    std::cout &lt;&lt; '\n';
+};
+
+int main()
+{
+    std::array v{1, 2, 3, 4, 5, 6, 7, 8, 9};
+
+    auto is_even = [](int i) { return i % 2 == 0; };
+
+    std::partition(v.begin(), v.end(), is_even);
+    print_seq(&quot;After partitioning, v: &quot;, v.cbegin(), v.cend());
+
+    const auto pp = std::partition_point(v.cbegin(), v.cend(), is_even);
+    const auto i = std::distance(v.cbegin(), pp);
+    std::cout &lt;&lt; &quot;Partition point is at &quot; &lt;&lt; i &lt;&lt; &quot;; v[&quot; &lt;&lt; i &lt;&lt; &quot;] = &quot; &lt;&lt; *pp &lt;&lt; '\n';
+
+    print_seq(&quot;First partition (all even elements): &quot;, v.cbegin(), pp);
+    print_seq(&quot;Second partition (all odd elements): &quot;, pp, v.cend());
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">After partitioning, v: 8 2 6 4 5 3 7 1 9
+Partition point is at 4; v[4] = 5
+First partition (all even elements): 8 2 6 4
+Second partition (all odd elements): 5 3 7 1 9
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="find.html">findfind_iffind_if_not</a> (C++11)</strong> — trouve le premier élément satisfaisant des critères spécifiques <em>(modèle de fonction)</em></li>
+<li><strong><a href="is_sorted.html">is_sorted</a> (C++11)</strong> — vérifie si un intervalle est trié par ordre croissant <em>(modèle de fonction)</em></li>
+<li><strong><a href="lower_bound.html">lower_bound</a></strong> — renvoie un itérateur vers le premier élément <em>non inférieur</em> à la valeur donnée <em>(modèle de fonction)</em></li>
+<li><strong><a href="ranges/partition_point.html">ranges::partition_point</a> (C++20)</strong> — localise le point de partition d'un intervalle partitionné <em>(objet fonction algorithmique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

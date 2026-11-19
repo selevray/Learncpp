@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::numeric_limits&lt;T&gt;::epsilon — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/types.html">Support des types (types de base, RTTI)</a> › <a href="../../../cpp/types/numeric_limits.html">std::numeric_limits</a></nav>
+<h1 id="std-numeric_limits-t-epsilon"><code>std::numeric_limits&lt;T&gt;::epsilon</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/types/numeric_limits/epsilon">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">static T epsilon() throw();  // (jusqu'à C++11)
+
+static constexpr T epsilon() noexcept;  // (depuis C++11)
+</code></pre>
+<p>Renvoie l'epsilon machine, c'est-à-dire la différence entre <code>1.0</code> et la valeur suivante représentable par le type à virgule flottante <code>T</code>. N'a de sens que si <code>std::numeric_limits&lt;T&gt;::is_integer == false</code>.</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><strong><code>T</code>
+<code>std::numeric_limits&lt;T&gt;::epsilon()</code></strong></p>
+<ul>
+<li><strong><code>/* non spécialisé */</code></strong> — <code>T()</code></li>
+<li><strong><code>bool</code></strong> — <code>false</code></li>
+<li><strong><code>char</code></strong> — <code>0</code></li>
+<li><strong><code>signed char</code></strong> — <code>0</code></li>
+<li><strong><code>unsigned char</code></strong> — <code>0</code></li>
+<li><strong><code>wchar_t</code></strong> — <code>0</code></li>
+<li><strong><code>char8_t</code> (depuis C++20)</strong> — <code>0</code></li>
+<li><strong><code>char16_t</code> (depuis C++11)</strong> — <code>0</code></li>
+<li><strong><code>char32_t</code> (depuis C++11)</strong> — <code>0</code></li>
+<li><strong><code>short</code></strong> — <code>0</code></li>
+<li><strong><code>unsigned short</code></strong> — <code>0</code></li>
+<li><strong><code>int</code></strong> — <code>0</code></li>
+<li><strong><code>unsigned int</code></strong> — <code>0</code></li>
+<li><strong><code>long</code></strong> — <code>0</code></li>
+<li><strong><code>unsigned long</code></strong> — <code>0</code></li>
+<li><strong><code>long long</code> (depuis C++11)</strong> — <code>0</code></li>
+<li><strong><code>unsigned long long</code> (depuis C++11)</strong> — <code>0</code></li>
+<li><strong><code>float</code></strong> — <a href="../climits.html"><code>FLT_EPSILON</code></a></li>
+<li><strong><code>double</code></strong> — <a href="../climits.html"><code>DBL_EPSILON</code></a></li>
+<li><strong><code>long double</code></strong> — <a href="../climits.html"><code>LDBL_EPSILON</code></a></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<p>Démontre l'utilisation de l'epsilon machine pour comparer des valeurs à virgule flottante pour l'égalité :</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cmath&gt;
+#include &lt;cstddef&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;limits&gt;
+#include &lt;type_traits&gt;
+
+template &lt;class T&gt;
+std::enable_if_t&lt;not std::numeric_limits&lt;T&gt;::is_integer, bool&gt;
+equal_within_ulps(T x, T y, std::size_t n)
+{
+    // Puisque `epsilon()` est la taille de l'écart (ULP, unité de la dernière place)
+    // des nombres à virgule flottante dans l'intervalle [1, 2), on peut la mettre à l'échelle pour obtenir
+    // la taille de l'écart dans l'intervalle [2^e, 2^{e+1}), où `e` est l'exposant
+    // de `x` et `y`.
+
+    // Si `x` et `y` ont des tailles d'écart différentes (ce qui signifie qu'ils ont
+    // des exposants différents), on prend la plus petite. Prendre la plus grande
+    // est également raisonnable, je suppose.
+    const T m = std::min(std::fabs(x), std::fabs(y));
+
+    // Les nombres subnormaux ont un exposant fixe, qui vaut `min_exponent - 1`.
+    const int exp = m &lt; std::numeric_limits&lt;T&gt;::min()
+                  ? std::numeric_limits&lt;T&gt;::min_exponent - 1
+                  : std::ilogb(m);
+
+    // Nous considérons `x` et `y` égaux si la différence entre eux est
+    // inférieure à `n` ULP.
+    return std::fabs(x - y) &lt;= n * std::ldexp(std::numeric_limits&lt;T&gt;::epsilon(), exp);
+}
+
+int main()
+{
+    double x = 0.3;
+    double y = 0.1 + 0.2;
+    std::cout &lt;&lt; std::hexfloat;
+    std::cout &lt;&lt; &quot;x = &quot; &lt;&lt; x &lt;&lt; '\n';
+    std::cout &lt;&lt; &quot;y = &quot; &lt;&lt; y &lt;&lt; '\n';
+    std::cout &lt;&lt; (x == y ? &quot;x == y&quot; : &quot;x != y&quot;) &lt;&lt; '\n';
+    for (std::size_t n = 0; n &lt;= 10; ++n)
+        if (equal_within_ulps(x, y, n))
+        {
+            std::cout &lt;&lt; &quot;x equals y within &quot; &lt;&lt; n &lt;&lt; &quot; ulps&quot; &lt;&lt; '\n';
+            break;
+        }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">x = 0x1.3333333333333p-2
+y = 0x1.3333333333334p-2
+x != y
+x equals y within 1 ulps
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../numeric/math/nextafter.html">nextafternextafterfnextafterlnexttowardnexttowardfnexttowardl</a> (C++11) (C++11) (C++11) (C++11) (C++11) (C++11)</strong> — valeur en virgule flottante représentable suivante en direction de la valeur donnée <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

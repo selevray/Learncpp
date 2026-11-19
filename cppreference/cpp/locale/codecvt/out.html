@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::codecvt&lt;InternT,ExternT,StateT&gt;::out, do_out — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/locale.html">Bibliothèque de localisation</a> › <a href="../../../cpp/locale/codecvt.html">std::codecvt</a></nav>
+<h1 id="std-codecvt-internt-externt-statet-out-do_out"><code>std::codecvt&lt;InternT,ExternT,StateT&gt;::out, do_out</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/locale/codecvt/out">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;locale&gt;</strong></p>
+<pre><code class="language-cpp">public:
+result out( StateT&amp; state,
+            const InternT* from,
+            const InternT* from_end,
+            const InternT*&amp; from_next,
+            ExternT* to,
+            ExternT* to_end,
+            ExternT*&amp; to_next ) const;  // (1)
+
+protected:
+virtual result do_out( StateT&amp; state,
+                       const InternT* from,
+                       const InternT* from_end,
+                       const InternT*&amp; from_next,
+                       ExternT* to,
+                       ExternT* to_end,
+                       ExternT*&amp; to_next ) const;  // (2)
+</code></pre>
+<ol>
+<li>
+<p>Fonction membre publique, appelle la fonction membre <code>do_out</code> de la classe la plus dérivée.</p>
+</li>
+<li>
+<p>Si cette facette <code>codecvt</code> définit une conversion, traduit les caractères internes de l'intervalle source <code>[from,from_end)</code> en caractères externes, en plaçant les résultats dans les positions suivantes à partir de <code>to</code>. Ne convertit pas plus de <code>from_end - from</code> caractères internes et n'écrit pas plus de <code>to_end - to</code> caractères externes. Laisse <code>from_next</code> et <code>to_next</code> pointant un élément après le dernier élément converti avec succès.</p>
+</li>
+</ol>
+<p>Si cette facette <code>codecvt</code> ne définit pas de conversion, aucun caractère n'est converti. <code>to_next</code> prend la valeur de <code>to</code>, <code>state</code> est inchangé et <a href="../codecvt_base.html"><code>std::codecvt_base::noconv</code></a> est renvoyé.</p>
+<p><code>do_out(state, from, from + 1, from_next, to, to_end, to_next)</code> doit renvoyer <code>ok</code> si</p>
+<ul>
+<li>cette facette <code>codecvt</code> est utilisée par <a href="../../io/basic_filebuf.html"><code>basic_filebuf</code></a>, et</li>
+<li><code>do_out(state, from, from_end, from_next, to, to_end, to_next)</code> renverrait <code>ok</code> alors que <code>from != from_end</code>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une valeur de type <a href="../codecvt_base.html"><code>std::codecvt_base::result</code></a>, indiquant le statut de réussite comme suit :</p>
+<ul>
+<li><strong><code>ok</code></strong> — conversion terminée</li>
+<li><strong><code>partial</code></strong> — espace insuffisant dans le tampon de sortie ou fin inattendue du tampon source</li>
+<li><strong><code>error</code></strong> — rencontre d'un caractère qui ne peut pas être converti</li>
+<li><strong><code>noconv</code></strong> — cette facette est sans conversion, aucune sortie écrite</li>
+</ul>
+<p>La spécialisation sans conversion <code>std::codecvt&lt;char, char, std::mbstate_t&gt;</code> renvoie toujours <a href="../codecvt_base.html"><code>std::codecvt_base::noconv</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Exige que <code>from &lt;= from_end &amp;&amp; to &lt;= to_end</code> et que <code>state</code> représentent soit l'état de décalage initial, soit l'état obtenu en convertissant les caractères précédents de la séquence.</p>
+<p>Alors que <code>codecvt</code> prend en charge les conversions N:M (par exemple UTF-16 vers UTF-8, où deux caractères internes peuvent être nécessaires pour déterminer les caractères externes à produire), <a href="../../io/basic_filebuf.html"><code>std::basic_filebuf</code></a> ne peut utiliser que des facettes <code>codecvt</code> qui définissent une conversion 1:N, c'est-à-dire qu'elle doit pouvoir traiter un caractère interne à la fois lors de l'écriture dans un fichier.</p>
+<p>Lors de conversions N:M, cette fonction peut renvoyer <a href="../codecvt_base.html"><code>std::codecvt_base::partial</code></a> après avoir consommé tous les caractères source (<code>from_next == from_end</code>). Cela signifie qu'un autre caractère interne est nécessaire pour terminer la conversion (par exemple lors de la conversion d'UTF-16 vers UTF-8, si le dernier caractère du tampon source est un substitut haut).</p>
+<p>L'effet sur <code>state</code> est volontairement non spécifié. Dans les facettes standard, il sert à maintenir l'état de décalage, comme lors d'un appel à <code>std::wcsrtombs</code>, et est donc mis à jour pour refléter l'état de décalage après le dernier caractère converti avec succès, mais une facette définie par l'utilisateur est libre de l'utiliser pour maintenir tout autre état, par exemple pour compter le nombre de caractères spéciaux rencontrés.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;locale&gt;
+#include &lt;string&gt;
+
+int main()
+{
+    std::locale::global(std::locale(&quot;en_US.utf8&quot;));
+    auto&amp; f = std::use_facet&lt;std::codecvt&lt;wchar_t, char, std::mbstate_t&gt;&gt;(std::locale());
+    std::wstring internal = L&quot;z\u00df\u6c34\U0001f34c&quot;; // L&quot;zß水🍌&quot;
+
+    // notez que ce qui suit peut être fait avec wstring_convert
+    std::mbstate_t mb{}; // état de décalage initial
+    std::string external(internal.size() * f.max_length(), '\0');
+    const wchar_t* from_next;
+    char* to_next;
+    f.out(mb, &amp;internal[0], &amp;internal[internal.size()], from_next,
+              &amp;external[0], &amp;external[external.size()], to_next);
+    // vérification des erreurs omise par souci de concision
+    external.resize(to_next - &amp;external[0]);
+
+    std::cout &lt;&lt; &quot;The string in narrow multibyte encoding: &quot; &lt;&lt; external &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">The string in narrow multibyte encoding: zß水🍌
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue76">LWG 76</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si la conversion est tenue de prendre en charge le traitement d'un caractère interne à la fois</td>
+<td>requis uniquement si utilisé par <a href="../../io/basic_filebuf.html"><code>basic_filebuf</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../io/basic_filebuf/overflow.html">overflow</a> [virtuelle]</strong> — écrit des caractères dans le fichier associé depuis la zone d'écriture <em>(fonction membre virtuelle protégée de <code>std::basic_filebuf&lt;CharT,Traits&gt;</code>)</em></li>
+<li><strong><a href="../wstring_convert/to_bytes.html">to_bytes</a></strong> — convertit une chaîne de caractères larges en chaîne d'octets <em>(fonction membre publique de <code>std::wstring_convert&lt;Codecvt,Elem,Wide_alloc,Byte_alloc&gt;</code>)</em></li>
+<li><strong><a href="../../string/multibyte/wcsrtombs.html">wcsrtombs</a></strong> — convertit une chaîne de caractères larges en chaîne de caractères multioctets étroits, étant donné l'état <em>(fonction)</em></li>
+<li><strong><a href="in.html">do_in</a> [virtuelle]</strong> — convertit une chaîne de <code>ExternT</code> vers <code>InternT</code>, par exemple lors de la lecture depuis le fichier <em>(fonction membre virtuelle protégée)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

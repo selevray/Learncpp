@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::make_array — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a></nav>
+<h1 id="std-experimental-make_array"><code>std::experimental::make_array</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/make_array">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/array&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class D = void, class... Types &gt;
+constexpr std::array&lt;VT /* voir ci-dessous */, sizeof...(Types)&gt; make_array( Types&amp;&amp;... t );  // (spécification technique library fundamentals v2)
+</code></pre>
+<p>Crée un <a href="../container/array.html"><code>std::array</code></a> dont la taille est égale au nombre d'arguments et dont les éléments sont initialisés à partir des arguments correspondants. Renvoie <code>std::array&lt;VT, sizeof...(Types)&gt;{std::forward&lt;Types&gt;(t)...</code>}.</p>
+<p>Si <code>D</code> est <code>void</code>, alors le type déduit <code>VT</code> est <code>std::common_type_t&lt;Types...&gt;</code>. Sinon, il est <code>D</code>.</p>
+<p>Si <code>D</code> est <code>void</code> et que l'un de <code>std::decay_t&lt;Types&gt;...</code> est une spécialisation de <a href="../utility/functional/reference_wrapper.html"><code>std::reference_wrapper</code></a>, le programme est mal formé.</p>
+<h2 id="Notes">Notes</h2>
+<p><code>make_array</code> est supprimé dans Library Fundamentals TS v3 car le <a href="../container/array/deduction_guides.html">guide de déduction</a> pour <code>std::array</code> et <a href="../container/array/to_array.html"><code>std::to_array</code></a> est déjà présent en C++20.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">namespace details
+{
+    template&lt;class&gt; struct is_ref_wrapper : std::false_type{};
+    template&lt;class T&gt; struct is_ref_wrapper&lt;std::reference_wrapper&lt;T&gt;&gt; : std::true_type{};
+
+    template&lt;class T&gt;
+    using not_ref_wrapper = std::negation&lt;is_ref_wrapper&lt;std::decay_t&lt;T&gt;&gt;&gt;;
+
+    template&lt;class D, class...&gt; struct return_type_helper { using type = D; };
+    template&lt;class... Types&gt;
+    struct return_type_helper&lt;void, Types...&gt; : std::common_type&lt;Types...&gt;
+    {
+        static_assert(std::conjunction_v&lt;not_ref_wrapper&lt;Types&gt;...&gt;,
+                      &quot;Types cannot contain reference_wrappers when D is void&quot;);
+    };
+
+    template&lt;class D, class... Types&gt;
+    using return_type = std::array&lt;typename return_type_helper&lt;D, Types...&gt;::type,
+                                   sizeof...(Types)&gt;;
+}
+
+template&lt;class D = void, class... Types&gt;
+constexpr details::return_type&lt;D, Types...&gt; make_array(Types&amp;&amp;... t)
+{
+    return {std::forward&lt;Types&gt;(t)...};
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;experimental/array&gt;
+#include &lt;iostream&gt;
+#include &lt;type_traits&gt;
+
+int main()
+{
+    auto arr = std::experimental::make_array(1, 2, 3, 4, 5);
+    bool is_array_of_5_ints = std::is_same&lt;decltype(arr), std::array&lt;int, 5&gt;&gt;::value;
+    std::cout &lt;&lt; &quot;Returns an array of five ints? &quot;;
+    std::cout &lt;&lt; std::boolalpha &lt;&lt; is_array_of_5_ints &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Returns an array of five ints? true
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../container/array/deduction_guides.html">Documentation C++</a> pour <code>std::array</code> guides de déduction</strong></p>
+<ul>
+<li><strong><a href="to_array.html">to_array</a></strong> — crée un objet <a href="../container/array.html"><code>std::array</code></a> à partir d'un tableau natif <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

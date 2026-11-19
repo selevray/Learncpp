@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spécificateur de type élaboré — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="spécificateur-de-type-élaboré">Spécificateur de type élaboré</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/elaborated_type_specifier">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les spécificateurs de type élaborés peuvent servir à désigner un nom de classe (class, struct ou union) déjà déclaré ou un nom d'énumération déjà déclaré, même si ce nom a été <a href="lookup.html">masqué par une déclaration de non-type</a>. Ils peuvent aussi servir à déclarer de nouveaux noms de classes.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>class-key</code> <code>class-name</code> | (1) | |
+|
+| <code>enum</code> <code>enum-name</code> | (2) | |
+|
+| <code>class-key</code> <code>attr</code> ﻿*(facultatif)* <code>identifier</code> <code>;</code> | (3) | |
+|</p>
+<ul>
+<li><code>class-key</code> — l'un de <a href="../keyword/class.html">class</a>, <a href="../keyword/struct.html">struct</a>, <a href="../keyword/union.html">union</a></li>
+<li><code>class-name</code> — le nom d'un type classe déjà déclaré, éventuellement <a href="name.html#Qualified_identifiers">qualifié</a>, ou un identifiant non précédemment déclaré comme nom de type</li>
+<li><code>enum-name</code> — le nom d'un type énumération déjà déclaré, éventuellement <a href="name.html#Qualified_identifiers">qualifié</a></li>
+<li><code>attr</code> — (depuis C++11) un nombre quelconque d'<a href="attributes.html">attributs</a></li>
+</ul>
+<ol>
+<li>
+<p>Spécificateur de type élaboré pour un type classe.</p>
+</li>
+<li>
+<p>Spécificateur de type élaboré pour un type énumération.</p>
+</li>
+<li>
+<p>Une déclaration constituée uniquement d'un spécificateur de type élaboré déclare toujours un type classe nommé par <code>identifier</code> dans la <a href="scope.html">portée</a> qui contient la déclaration.</p>
+</li>
+</ol>
+<p><a href="enum.html">Déclaration d'énumération opaque</a> ressemble à la forme <code>(3)</code>, mais le type énumération est un type complet après une déclaration d'énumération opaque.</p>
+<h2 id="Explanation">Explication</h2>
+<p>La forme <code>(3)</code> est un cas particulier de spécificateur de type élaboré, généralement appelé <em>déclaration anticipée</em> de classes ; pour la description de la forme <code>(3)</code>, voir <a href="class.html#Forward_declaration">Déclaration anticipée</a>. Ce qui suit ne s'applique qu'aux formes <code>(1)</code> et <code>(2)</code>.</p>
+<p>Le <code>class-name</code> ou <code>enum-name</code> dans le spécificateur de type élaboré peut être soit un simple identifiant, soit un <a href="name.html#Qualified_identifiers">qualified-id</a>. Le nom est recherché à l'aide de la <a href="unqualified_lookup.html">recherche de nom non qualifiée</a> ou de la <a href="qualified_lookup.html">recherche de nom qualifiée</a>, selon sa position. Mais dans les deux cas, les noms de non-type ne sont pas pris en compte.</p>
+<pre><code class="language-cpp">class T
+{
+public:
+    class U;
+private:
+    int U;
+};
+
+int main()
+{
+    int T;
+    T t; // error: la variable locale T est trouvée
+    class T t; // OK : trouve ::T, la variable locale T est ignorée
+    T::U* u; // error: la recherche de T::U trouve le membre de données privé
+    class T::U* u; // OK : le membre de données est ignoré
+}
+</code></pre>
+<p>Si la recherche de nom ne trouve pas de nom de type déclaré précédemment, le spécificateur de type élaboré est introduit par <code>class</code>, <code>struct</code> ou <code>union</code> (c'est-à-dire pas par <code>enum</code>), et <code>class-name</code> est un identifiant non qualifié, alors le spécificateur de type élaboré est une déclaration de classe du nom de classe.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+struct Node
+{
+    struct Node* Next; // OK : la recherche de Node trouve le nom de classe injecté
+    struct Data* Data; // OK : déclare le type Data dans la portée globale
+                       // et déclare aussi le membre de données Data
+    friend class ::List; // error : impossible d'introduire un nom qualifié
+    enum Kind* kind; // error : impossible d'introduire une énumération
+};
+
+Data* p; // OK : la structure Data a été déclarée
+</code></pre>
+<p>Si le nom désigne un <a href="typedef.html">nom de typedef</a>, un <a href="type_alias.html">alias de type</a>, un <a href="template_parameters.html#Type_template_parameter">paramètre de type de modèle</a>, ou une <a href="type_alias.html">spécialisation d'alias de modèle</a>, le programme est mal formé ; sinon le spécificateur de type élaboré introduit le nom dans la déclaration de la même manière qu'un <a href="declarations.html#Specifiers">spécificateur de type simple</a> introduit son nom de type.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+class Node
+{
+    friend class T; // error : un paramètre de type ne peut pas apparaître dans un spécificateur de type élaboré ;
+                    // notez que la déclaration similaire `friend T;` est OK.
+};
+
+class A {};
+enum b { f, t };
+
+int main()
+{
+    class A a; // OK : équivalent à 'A a;'
+    enum b flag; // OK : équivalent à 'b flag;'
+}
+</code></pre>
+<p>Le mot-clé <code>class-key</code> ou <code>enum</code> présent dans le spécificateur de type élaboré doit correspondre à la nature de la déclaration à laquelle le nom du spécificateur fait référence.</p>
+<ul>
+<li>le mot-clé <code>enum</code> doit être utilisé pour désigner un <a href="enum.html">type énumération</a> (à portée ou non)</li>
+<li>le mot-clé <code>union</code> <code>class-key</code> doit être utilisé pour désigner une <a href="union.html">union</a></li>
+<li>soit le mot-clé <code>class</code> soit <code>struct</code> <code>class-key</code> doit être utilisé pour désigner un type classe qui n'est pas une union (les mots-clés <code>class</code> et <code>struct</code> sont interchangeables ici).</li>
+</ul>
+<pre><code class="language-cpp">enum class E { a, b };
+enum E x = E::a; // OK
+enum class E y = E::b; // error : 'enum class' ne peut pas introduire un spécificateur de type élaboré
+
+struct A {};
+class A a; // OK
+</code></pre>
+<p>Utilisé comme <a href="template_parameters.html#Template_arguments">argument de modèle</a>, <code>class T</code> est un paramètre de modèle de type nommé <code>T</code>, et non un paramètre non-type sans nom dont le type <code>T</code> est introduit par un spécificateur de type élaboré.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/class.html"><code>class</code></a>,
+<a href="../keyword/struct.html"><code>struct</code></a>,
+<a href="../keyword/union.html"><code>union</code></a>,
+<a href="../keyword/enum.html"><code>enum</code></a></p>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>6.5.6 Spécificateurs de type élaborés [basic.lookup.elab]</li>
+<li>9.2.9.4 Spécificateurs de type élaborés [dcl.type.elab]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>6.5.4 Spécificateurs de type élaborés [basic.lookup.elab]</li>
+<li>9.2.8.3 Spécificateurs de type élaborés [dcl.type.elab]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>6.4.4 Spécificateurs de type élaborés [basic.lookup.elab]</li>
+<li>10.1.7.3 Spécificateurs de type élaborés [dcl.type.elab]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>3.4.4 Spécificateurs de type élaborés [basic.lookup.elab]</li>
+<li>7.1.6.3 Spécificateurs de type élaborés [dcl.type.elab]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>3.4.4 Spécificateurs de type élaborés [basic.lookup.elab]</li>
+<li>7.1.6.3 Spécificateurs de type élaborés [dcl.type.elab]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>3.4.4 Spécificateurs de type élaborés [basic.lookup.elab]</li>
+<li>7.1.5.3 Spécificateurs de type élaborés [dcl.type.elab]</li>
+</ul>
+</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : probablement à extraire la majeure partie de 9.1[class.name]/2-3 de cpp/language/class</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

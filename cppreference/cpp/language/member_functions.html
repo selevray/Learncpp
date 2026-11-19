@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fonctions membres non statiques — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="fonctions-membres-non-statiques">Fonctions membres non statiques</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/member_functions">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Une fonction membre non statique est une fonction déclarée dans une <a href="class.html">spécification de membres</a> d'une classe sans spécificateur <a href="static.html"><code>static</code></a> ou <a href="friend.html"><code>friend</code></a> (voir <a href="static.html#Static_member_functions">fonctions membres statiques</a> et <a href="friend.html">déclaration d'amitié</a> pour l'effet de ces mots-clés).</p>
+<pre><code class="language-cpp">class S
+{
+    int mf1(); // déclaration de fonction membre non statique
+    void mf2() volatile, mf3() &amp;&amp;; // peut avoir des qualificateurs cv et/ou un qualificateur de référence
+        // la déclaration ci-dessus est équivalente à deux déclarations distinctes :
+        // void mf2() volatile;
+        // void mf3() &amp;&amp;;
+
+    int mf4() const { return data; } // peut être définie en ligne
+    virtual void mf5() final; // peut être virtuelle, peut utiliser final/override
+    S() : data(12) {} // les constructeurs sont également des fonctions membres
+    int data;
+};
+
+int S::mf1() { return 7; } // si elle n'est pas définie en ligne, doit être définie dans l'espace de noms
+</code></pre>
+<p>Les <a href="initializer_list.html">constructeurs</a>, <a href="destructor.html">destructeurs</a> et <a href="cast_operator.html">fonctions de conversion</a> utilisent des syntaxes particulières pour leurs déclarations. Les règles décrites sur cette page peuvent ne pas s'appliquer à ces fonctions. Voir leurs pages respectives pour plus de détails.</p>
+<blockquote>
+<p>Une <em>fonction membre à objet explicite</em> est une fonction membre non statique ayant un <a href="function.html#Parameter_list">paramètre d'objet explicite</a>.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Une <em>fonction membre à objet implicite</em> est une fonction membre non statique sans paramètre d'objet explicite (avant C++23, c'était le seul type de fonction membre non statique, et elle était donc désignée par « fonction membre non statique » dans la littérature).</p>
+<h2 id="Explanation">Explication</h2>
+<p>Toutes les <a href="function.html">déclarations de fonctions</a> sont autorisées, avec des éléments de syntaxe supplémentaires qui ne sont disponibles que pour les fonctions membres non statiques : <a href="abstract_class.html">pure-spécificateurs</a>, qualificateurs cv, qualificateurs de référence, spécificateurs <a href="final.html"><code>final</code></a> et <a href="override.html"><code>override</code></a> <em>(depuis C++11)</em>, et <a href="initializer_list.html">listes d'initialisation des membres</a>.</p>
+<p>Une fonction membre non statique de la classe <code>X</code> peut être appelée</p>
+<ol>
+<li>
+<p>Pour un objet de type <code>X</code> en utilisant l'opérateur d'accès membre de classe</p>
+</li>
+<li>
+<p>Pour un objet d'une classe <a href="derived_class.html">dérivée</a> de <code>X</code></p>
+</li>
+<li>
+<p>Directement depuis le corps d'une fonction membre de <code>X</code></p>
+</li>
+<li>
+<p>Directement depuis le corps d'une fonction membre d'une classe dérivée de <code>X</code></p>
+</li>
+</ol>
+<p>Appeler une fonction membre non statique de la classe <code>X</code> sur un objet qui n'est pas de type <code>X</code>, ou d'un type dérivé de <code>X</code>, provoque un comportement indéfini.</p>
+<p>Dans le corps d'une fonction membre non statique de <code>X</code>, toute <a href="expressions.html">id-expression</a> <code>e</code> (par exemple un identifiant) qui désigne un membre non statique non typé de <code>X</code> ou d'une classe de base de <code>X</code> est transformée en une expression d'accès membre <code>(*this).e</code> (sauf si elle fait déjà partie d'une expression d'accès membre). Cela ne se produit pas dans un contexte de définition de modèle, de sorte qu'un nom peut devoir être préfixé explicitement par <code>this-&gt;</code> pour devenir <a href="dependent_name.html">dépendant</a>.</p>
+<pre><code class="language-cpp">struct S
+{
+    int n;
+    void f();
+};
+
+void S::f()
+{
+    n = 1; // transformée en (*this).n = 1;
+}
+
+int main()
+{
+    S s1, s2;
+    s1.f(); // modifie s1.n
+}
+</code></pre>
+<p>Dans le corps d'une fonction membre non statique de <code>X</code>, tout unqualified-id qui désigne un membre statique, un énumérateur ou un type imbriqué de <code>X</code> ou d'une classe de base de <code>X</code> est transformé en l'id qualifié correspondant :</p>
+<pre><code class="language-cpp">struct S
+{
+    static int n;
+    void f();
+};
+
+void S::f()
+{
+    n = 1; // transformée en S::n = 1;
+}
+
+int main()
+{
+    S s1, s2;
+    s1.f(); // modifie S::n
+}
+</code></pre>
+<h3 id="Member_functions_with_cv-qualifiers">Fonctions membres avec qualificateurs cv</h3>
+<p>Une fonction membre à objet implicite peut être déclarée avec une séquence de <a href="cv.html">qualificateur cv</a> (<code>const</code>, <code>volatile</code>, ou une combinaison de <code>const</code> et <code>volatile</code>) ; cette séquence apparaît après la liste des paramètres dans la <a href="function.html">déclaration de fonction</a>. Les fonctions ayant des séquences de qualificateurs cv différentes (ou aucune) ont des types différents et peuvent donc se surcharger mutuellement.</p>
+<p>Dans le corps d'une fonction ayant une séquence de qualificateurs cv, <code>*this</code> est qualifié cv ; par exemple, dans une fonction membre avec qualificateur <code>const</code>, seules d'autres fonctions membres avec qualificateur <code>const</code> peuvent être appelées normalement. Une fonction membre sans qualificateur <code>const</code> peut tout de même être appelée si <a href="const_cast.html"><code>const_cast</code></a> est appliqué ou via un chemin d'accès qui n'implique pas <a href="this.html"><code>this</code></a>.</p>
+<pre><code class="language-cpp">#include &lt;vector&gt;
+
+struct Array
+{
+    std::vector&lt;int&gt; data;
+    Array(int sz) : data(sz) {}
+
+    // fonction membre const
+    int operator[](int idx) const
+    {                     // le pointeur this a le type const Array*
+        return data[idx]; // transformée en (*this).data[idx];
+    }
+
+    // fonction membre non const
+    int&amp; operator[](int idx)
+    {                     // le pointeur this a le type Array*
+        return data[idx]; // transformée en (*this).data[idx]
+    }
+};
+
+int main()
+{
+    Array a(10);
+    a[1] = 1;  // OK : le type de a[1] est int&amp;
+    const Array ca(10);
+    ca[1] = 2; // Error : le type de ca[1] est int
+}
+</code></pre>
+<blockquote>
+<h4 id="Member_functions_with_ref-qualifier">Fonctions membres avec qualificateur de référence</h4>
+<p>Une fonction membre à objet implicite peut être déclarée sans qualificateur de référence, avec un qualificateur de référence lvalue (le jeton <code>&amp;</code> après la liste des paramètres) ou un qualificateur de référence rvalue (le jeton <code>&amp;&amp;</code> après la liste des paramètres). Lors de la <a href="overload_resolution.html">résolution de surcharge</a>, une fonction membre à objet implicite ayant une séquence de qualificateurs cv de la classe X est traitée comme suit :</p>
+<ul>
+<li>aucun qualificateur de référence : le paramètre d'objet implicite a pour type référence lvalue vers X qualifié cv, et il est en outre autorisé à lier un argument d'objet implicite rvalue</li>
+<li>qualificateur de référence lvalue : le paramètre d'objet implicite a pour type référence lvalue vers X qualifié cv</li>
+<li>qualificateur de référence rvalue : le paramètre d'objet implicite a pour type référence rvalue vers X qualifié cv</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct S
+{
+    void f() &amp;  { std::cout &lt;&lt; &quot;lvalue\n&quot;; }
+    void f() &amp;&amp; { std::cout &lt;&lt; &quot;rvalue\n&quot;; }
+};
+
+int main()
+{
+    S s;
+    s.f();            // affiche &quot;lvalue&quot;
+    std::move(s).f(); // affiche &quot;rvalue&quot;
+    S().f();          // affiche &quot;rvalue&quot;
+}
+</code></pre>
+<p>Remarque : contrairement à la qualification cv, la qualification de référence ne modifie pas les propriétés du pointeur <a href="this.html"><code>this</code></a> : dans une fonction à qualificateur de référence rvalue, <code>*this</code> reste une expression lvalue.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="Virtual_and_pure_virtual_functions">Fonctions virtuelles et fonctions virtuelles pures</h3>
+<p>Une fonction membre non statique peut être déclarée <em>virtuelle</em> ou <em>virtuelle pure</em>. Voir <a href="virtual.html">fonctions virtuelles</a> et <a href="abstract_class.html">classes abstraites</a> pour plus de détails.</p>
+<blockquote>
+<h4 id="Explicit_object_member_functions">Fonctions membres à objet explicite</h4>
+<p>Pour une fonction membre non statique non virtuelle, non déclarée avec un qualificateur cv ou de référence, son premier paramètre, s'il ne s'agit pas d'un <a href="parameter_pack.html">pack de paramètres de fonction</a>, peut être un <a href="function.html#Explicit_object_parameter">paramètre d'objet explicite</a> (désigné par le mot-clé préfixé <code>this</code>) :</p>
+<pre><code class="language-cpp">struct X
+{
+    void foo(this X const&amp; self, int i); // équivalent à void foo(int i) const &amp;;
+//  void foo(int i) const &amp;; // Error : déjà déclarée
+
+    void bar(this X self, int i); // passage de l'objet par valeur : crée une copie de “*this”
+};
+</code></pre>
+<p>Pour les modèles de fonctions membres, le paramètre d'objet explicite permet la déduction du type et de la catégorie de valeur ; cette fonctionnalité du langage est appelée « déduction de <code>this</code> » :</p>
+<pre><code class="language-cpp">struct X
+{
+    template&lt;typename Self&gt;
+    void foo(this Self&amp;&amp;, int);
+};
+
+struct D : X {};
+
+void ex(X&amp; x, D&amp; d)
+{
+    x.foo(1);       // Self = X&amp;
+    move(x).foo(2); // Self = X
+    d.foo(3);       // Self = D&amp;
+}
+</code></pre>
+<p>Cela permet de dédupliquer les fonctions membres const et non const, voir <a href="operators.html#Array_subscript_operator">opérateur d'indexation de tableau</a> pour un exemple.</p>
+<p>De plus, le paramètre d'objet explicite se déduit vers le type dérivé, ce qui simplifie le <a href="crtp.html">CRTP</a> :</p>
+<pre><code class="language-cpp">// un trait CRTP
+struct add_postfix_increment
+{
+    template&lt;typename Self&gt;
+    auto operator++(this Self&amp;&amp; self, int)
+    {
+        auto tmp = self; // Self se déduit en « some_type »
+        ++self;
+        return tmp;
+    }
+};
+
+struct some_type : add_postfix_increment
+{
+    some_type&amp; operator++() { ... }
+};
+</code></pre>
+<p>Dans le corps d'une fonction membre à objet explicite, le pointeur <code>this</code> ne peut pas être utilisé : tout accès membre doit passer par le premier paramètre, comme dans les fonctions membres statiques :</p>
+<pre><code class="language-cpp">struct C
+{
+    void bar();
+
+    void foo(this C c)
+    {
+        auto x = this; // erreur : pas de this
+        bar();         // erreur : pas de this-&gt; implicite
+        c.bar();       // ok
+    }
+};
+</code></pre>
+<p>Un pointeur vers une fonction membre à objet explicite est un pointeur de fonction ordinaire, et non un pointeur vers membre :</p>
+<pre><code class="language-cpp">struct Y
+{
+    int f(int, int) const&amp;;
+    int g(this Y const&amp;, int, int);
+};
+
+auto pf = &amp;Y::f;
+pf(y, 1, 2);              // erreur : les pointeurs vers fonctions membres ne sont pas appelables
+(y.*pf)(1, 2);            // ok
+std::invoke(pf, y, 1, 2); // ok
+
+auto pg = &amp;Y::g;
+pg(y, 3, 4);              // ok
+(y.*pg)(3, 4);            // erreur : « pg » n'est pas un pointeur vers fonction membre
+std::invoke(pg, y, 3, 4); // ok
+</code></pre>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<h3 id="Special_member_functions">Fonctions membres spéciales</h3>
+<p>Certaines fonctions membres sont <em>spéciales</em> : dans certaines circonstances, elles sont définies par le compilateur même si l'utilisateur ne les a pas définies. Ce sont :</p>
+<ul>
+<li><a href="default_constructor.html">Constructeur par défaut</a></li>
+<li><a href="copy_constructor.html">Constructeur de copie</a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="move_constructor.html">Constructeur de déplacement</a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li><a href="as_operator.html">Opérateur d'affectation par copie</a></li>
+</ul>
+<blockquote>
+<ul>
+<li><a href="move_operator.html">Opérateur d'affectation par déplacement</a></li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>[<a href="destructor.html">Destructeur</a> <em>(jusqu'à C++20)</em> | <a href="destructor.html#Prospective_destructor">Destructeur prospectif</a> <em>(depuis C++20)</em>]</li>
+</ul>
+<p>Les fonctions membres spéciales ainsi que les <a href="default_comparisons.html">opérateurs de comparaison</a> <em>(depuis C++20)</em> sont les seules fonctions pouvant être <em>mises par défaut</em>, c'est-à-dire définies à l'aide de <code>= default</code> au lieu du corps de la fonction (voir leurs pages pour plus de détails).</p>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_ref_qualifiers"><code>__cpp_ref_qualifiers</code></a></td>
+<td><a href="../compiler_support/11.html#cpp_ref_qualifiers_200710L"><code>200710L</code></a></td>
+<td><em>(C++11)</em></td>
+<td><a href="function.html#Function_declaration">Qualificateurs de référence</a></td>
+</tr>
+<tr>
+<td><a href="../feature_test.html#cpp_explicit_this_parameter"><code>__cpp_explicit_this_parameter</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_explicit_this_parameter_202110L"><code>202110L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><a href="function.html#explicit_object_parameter">paramètre d'objet explicite</a> (<a href="member_functions.html#Explicit_object_member_functions">déduction de <code>this</code></a>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;exception&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;utility&gt;
+
+struct S
+{
+    int data;
+
+    // constructeur convertisseur simple (déclaration)
+    S(int val);
+
+    // constructeur explicite simple (déclaration)
+    explicit S(std::string str);
+
+    // fonction membre const (définition)
+    virtual int getData() const { return data; }
+};
+
+// définition du constructeur
+S::S(int val) : data(val)
+{
+    std::cout &lt;&lt; &quot;ctor1 called, data = &quot; &lt;&lt; data &lt;&lt; '\n';
+}
+
+// ce constructeur a une clause catch
+S::S(std::string str) try : data(std::stoi(str))
+{
+    std::cout &lt;&lt; &quot;ctor2 called, data = &quot; &lt;&lt; data &lt;&lt; '\n';
+}
+catch(const std::exception&amp;)
+{
+    std::cout &lt;&lt; &quot;ctor2 failed, string was '&quot; &lt;&lt; str &lt;&lt; &quot;'\n&quot;;
+    throw; // la clause catch du constructeur devrait toujours relancer l'exception
+}
+
+struct D : S
+{
+    int data2;
+    // constructeur avec un argument par défaut
+    D(int v1, int v2 = 11) : S(v1), data2(v2) {}
+
+    // fonction membre virtuelle
+    int getData() const override { return data * data2; }
+
+    // opérateur d'affectation réservé aux lvalues
+    D&amp; operator=(D other) &amp;
+    {
+        std::swap(other.data, data);
+        std::swap(other.data2, data2);
+        return *this;
+    }
+};
+
+int main()
+{
+    D d1 = 1;
+    S s2(&quot;2&quot;);
+
+    try
+    {
+        S s3(&quot;not a number&quot;);
+    }
+    catch(const std::exception&amp;) {}
+
+    std::cout &lt;&lt; s2.getData() &lt;&lt; '\n';
+
+    D d2(3, 4);
+    d2 = d1;   // OK : affectation vers une lvalue
+//  D(5) = d1; // ERROR : aucune surcharge appropriée de operator=
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">ctor1 called, data = 1
+ctor2 called, data = 2
+ctor2 failed, string was 'not a number'
+2
+ctor1 called, data = 3
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/194.html">CWG 194</a></td>
+<td>C++98</td>
+<td>il est ambigu de savoir si une fonction membre non statique pourrait avoir le même nom que le nom de la classe englobante</td>
+<td>restriction explicite sur les noms ajoutée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="classes.html">classes</a></li>
+<li><a href="data_members.html">membres de données non statiques</a></li>
+<li><a href="static.html">membres de données statiques</a></li>
+</ul>
+
+</main>
+</body>
+</html>

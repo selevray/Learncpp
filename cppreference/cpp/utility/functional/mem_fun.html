@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::mem_fun — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/functional.html">Objets fonctions</a></nav>
+<h1 id="std-mem_fun"><code>std::mem_fun</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/functional/mem_fun">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;functional&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Res, class T &gt;
+std::mem_fun_t&lt;Res,T&gt; mem_fun( Res (T::*f)() );  // (1) (obsolète en C++11) (supprimé en C++17)
+
+template&lt; class Res, class T &gt;
+std::const_mem_fun_t&lt;Res,T&gt; mem_fun( Res (T::*f)() const );  // (1) (obsolète en C++11) (supprimé en C++17)
+
+template&lt; class Res, class T, class Arg &gt;
+std::mem_fun1_t&lt;Res,T,Arg&gt; mem_fun( Res (T::*f)(Arg) );  // (2) (obsolète en C++11) (supprimé en C++17)
+
+template&lt; class Res, class T, class Arg &gt;
+std::const_mem_fun1_t&lt;Res,T,Arg&gt; mem_fun( Res (T::*f)(Arg) const );  // (2) (obsolète en C++11) (supprimé en C++17)
+</code></pre>
+<p>Crée un objet enveloppe de fonction membre, en déduisant le type cible à partir des arguments de modèle. L'objet enveloppe attend un pointeur vers un objet de type <code>T</code> comme premier paramètre de son <code>operator()</code>.</p>
+<ol>
+<li>
+<p>Appelle effectivement <code>std::mem_fun_t&lt;Res,T&gt;(f)</code> ou <code>std::const_mem_fun_t&lt;Res,T&gt;(f)</code>.</p>
+</li>
+<li>
+<p>Appelle effectivement <code>std::mem_fun1_t&lt;Res,T,Arg&gt;(f)</code> ou <code>std::const_mem_fun1_t&lt;Res,T,Arg&gt;(f)</code>.</p>
+</li>
+</ol>
+<p>Cette fonction et les types associés ont été rendus obsolètes en C++11 et supprimés en C++17 au profit des plus généraux <a href="mem_fn.html"><code>std::mem_fn</code></a> et <a href="bind.html"><code>std::bind</code></a>, qui créent tous deux des objets fonctions adaptables à partir de fonctions membres.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>f</code> — pointeur vers fonction membre pour lequel créer un enveloppe</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un objet fonction enveloppant <code>f</code>.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever des exceptions définies par l'implémentation.</p>
+<h2 id="Notes">Notes</h2>
+<p>La différence entre <code>std::mem_fun</code> et <code>std::mem_fun_ref</code> est que le premier produit un enveloppe de fonction qui attend un pointeur vers un objet, alors que le second attend une référence.</p>
+<h2 id="Example">Exemple</h2>
+<p>Démontre l'utilisation de <code>std::mem_fun</code> et la compare avec <a href="mem_fn.html"><code>std::mem_fn</code></a>. Un mode de compilation compatible C++11/14 peut être nécessaire : g++/clang++ avec -std=c++11, cl avec /std:c++11, etc. Sur les compilateurs récents, par exemple gcc-12, des avertissements « deprecated declaration » peuvent apparaître si le code n'est pas compilé en mode C++98.</p>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+
+struct S
+{
+    int get_data() const { return data; }
+    void no_args() const { std::cout &lt;&lt; &quot;void S::no_args() const\n&quot;; }
+    void one_arg(int) { std::cout &lt;&lt; &quot;void S::one_arg()\n&quot;; }
+    void two_args(int, int) { std::cout &lt;&lt; &quot;void S::two_args(int, int)\n&quot;; }
+#if __cplusplus &gt; 201100
+    int data{42};
+#else
+    int data;
+    S() : data(42) {}
+#endif
+};
+
+int main()
+{
+    S s;
+
+    std::const_mem_fun_t&lt;int, S&gt; p = std::mem_fun(&amp;S::get_data);
+    std::cout &lt;&lt; &quot;s.get_data(): &quot; &lt;&lt; p(&amp;s) &lt;&lt; '\n';
+
+    std::const_mem_fun_t&lt;void, S&gt; p0 = std::mem_fun(&amp;S::no_args);
+    p0(&amp;s);
+
+    std::mem_fun1_t&lt;void, S, int&gt; p1 = std::mem_fun(&amp;S::one_arg);
+    p1(&amp;s, 1);
+
+#if __cplusplus &gt; 201100
+//  auto p2 = std::mem_fun(&amp;S::two_args); // Erreur : mem_fun ne prend en charge que les fonctions membres
+                                          // sans paramètre ou avec un seul paramètre.
+                                          // Ainsi, std::mem_fn est une meilleure alternative :
+    auto p2 = std::mem_fn(&amp;S::two_args);
+    p2(s, 1, 2);
+
+//  auto pd = std::mem_fun(&amp;S::data); // Erreur : les pointeurs vers membres de données ne sont pas pris en charge.
+                                      // Utilisez plutôt std::mem_fn :
+    auto pd = std::mem_fn(&amp;S::data);
+    std::cout &lt;&lt; &quot;s.data = &quot; &lt;&lt; pd(s) &lt;&lt; '\n';
+#endif
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">s.get_data(): 42
+void S::no_args() const
+void S::one_arg(int)
+void S::two_args(int, int)
+s.data = 42
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="mem_fn.html">mem_fn</a> (C++11)</strong> — crée un objet fonction à partir d'un pointeur vers membre <em>(modèle de fonction)</em></li>
+<li><strong><a href="mem_fun_ref.html">mem_fun_ref</a> (deprecated in C++11) (removed in C++17)</strong> — crée une enveloppe à partir d'un pointeur vers fonction membre, appelable avec une référence vers objet <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

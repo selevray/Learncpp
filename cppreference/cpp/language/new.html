@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>expression new — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="expression-new">expression new</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/new">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Crée et initialise des objets à <a href="storage_duration.html">durée de stockage</a> dynamique, c'est-à-dire des objets dont la durée de vie n'est pas nécessairement limitée à la portée dans laquelle ils ont été créés.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>::</code><em>(facultatif)</em> <code>new</code> <code>(type</code> ﻿<code>)</code> <code>new-initializer</code> ﻿*(facultatif)* | (1) | |
+|
+| <code>::</code><em>(facultatif)</em> <code>new</code> <code>type</code> <code>new-initializer</code> ﻿*(facultatif)* | (2) | |
+|
+| <code>::</code><em>(facultatif)</em> <code>new</code> <code>(placement-args</code> ﻿<code>)</code> <code>(type</code> ﻿<code>)</code> <code>new-initializer</code> ﻿*(facultatif)* | (3) | |
+|
+| <code>::</code><em>(facultatif)</em> <code>new</code> <code>(placement-args</code> ﻿<code>)</code> <code>type</code> <code>new-initializer</code> ﻿*(facultatif)* | (4) | |
+|</p>
+<p>1,2) Tente de créer un objet du type désigné par le <a href="type-id.html#Type_naming">type-id</a> <code>type</code>, qui peut être un type tableau[, et peut inclure un <a href="auto.html">spécificateur de type substitut</a> <em>(depuis C++11)</em> | , ou inclure un nom de modèle de classe dont l'argument doit être déduit par la <a href="ctad.html">déduction des arguments de modèle de classe</a> <em>(depuis C++17)</em>].</p>
+<p>3,4) Identique à <code>(1,2)</code>, mais fournit des arguments supplémentaires à la fonction d'allocation, voir <a href="new.html#Placement_new">placement <code>new</code></a>.</p>
+<h2 id="Explanation">Explication</h2>
+<ul>
+<li><code>type</code> — le type-id cible</li>
+<li><code>new-initializer</code> — une liste d'expressions entre parenthèsesou une <a href="initialization.html">liste d'initialisation entre accolades</a> <em>(depuis C++11)</em></li>
+<li><code>placement-args</code> — arguments de placement supplémentaires</li>
+</ul>
+<p>L'expression <code>new</code> tente d'allouer du stockage, puis tente de construire et d'initialiser soit un unique objet anonyme, soit un tableau anonyme d'objets dans le stockage alloué. L'expression <code>new</code> renvoie un pointeur de type prvalue vers l'objet construit ou, si un tableau d'objets a été construit, un pointeur vers le premier élément du tableau.</p>
+<p>La syntaxe <code>(1)</code> ou <code>(3)</code> est requise si <code>type</code> contient des parenthèses :</p>
+<pre><code class="language-cpp">new int(*[10])();    // erreur : analysée comme (new int) (*[10]) ()
+new (int (*[10])()); // correct : alloue un tableau de 10 pointeurs vers des fonctions
+</code></pre>
+<p>De plus, <code>type</code> est analysé de manière gourmande : il inclura chaque jeton pouvant faire partie d'un déclarateur :</p>
+<pre><code class="language-cpp">new int + 1; // correct : analysée comme (new int) + 1, incrémente un pointeur renvoyé par new int
+new int * 1; // erreur : analysée comme (new int*) (1)
+</code></pre>
+<p><code>new-initializer</code> n'est pas facultatif si</p>
+<ul>
+<li><code>type</code> est un <a href="array.html#Arrays_of_unknown_bound">tableau de borne inconnue</a>,</li>
+</ul>
+<blockquote>
+<ul>
+<li>un <a href="auto.html">placeholder</a> est utilisé dans <code>type</code>, c'est-à-dire <code>auto</code> [ou <code>decltype(auto)</code> <em>(depuis C++14)</em> | , éventuellement combiné avec une <a href="constraints.html#Concepts">contrainte de type</a> <em>(depuis C++20)</em>],</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>un modèle de classe est utilisé dans <code>type</code> dont les arguments doivent être <a href="ctad.html">déduits</a>.</li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<pre><code class="language-cpp">double* p = new double[]{1, 2, 3}; // crée un tableau de type double[3]
+auto p = new auto('c');            // crée un objet unique de type char. p est un char*
+
+auto q = new std::integral auto(1);         // OK : q est un int*
+auto q = new std::floating_point auto(true) // ERREUR : contrainte de type non satisfaite
+
+auto r = new std::pair(1, true); // OK : r est un std::pair&lt;int, bool&gt;*
+auto r = new std::vector;        // ERREUR : le type de l'élément ne peut pas être déduit
+</code></pre>
+<h2 id="Dynamic_arrays">Tableaux dynamiques</h2>
+<p>Si <code>type</code> est un type tableau, toutes les dimensions autres que la première doivent être spécifiées comme [<a href="constant_expression.html">expressions constantes intégrales</a> <em>(jusqu'à C++14)</em> | <a href="constant_expression.html">expression constante convertie</a> de type <a href="../types/size_t.html"><code>std::size_t</code></a> <em>(depuis C++14)</em>] positives, mais (uniquement lors de l'utilisation des syntaxes sans parenthèses <code>(2)</code> et <code>(4)</code>) la première dimension peut être [une expression de type entier, de type énumération, ou de type classe avec une unique fonction de conversion non explicite vers un type entier ou énumération <em>(jusqu'à C++14)</em> | toute expression convertible en <a href="../types/size_t.html"><code>std::size_t</code></a> <em>(depuis C++14)</em>]. C'est le seul moyen de créer directement un tableau dont la taille est définie à l'exécution ; de tels tableaux sont souvent appelés <em>tableaux dynamiques</em> :</p>
+<pre><code class="language-cpp">int n = 42;
+double a[n][5]; // error
+auto p1 = new  double[n][5];  // OK
+auto p2 = new  double[5][n];  // erreur : seule la première dimension peut être non constante
+auto p3 = new (double[n][5]); // erreur : la syntaxe (1) ne peut pas être utilisée pour les tableaux dynamiques
+</code></pre>
+<blockquote>
+<p>Le comportement est indéfini si la valeur de la première dimension (convertie en type entier ou énumération si nécessaire) est négative.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Dans les cas suivants, la valeur de l'expression spécifiant la première dimension est invalide :</p>
+<ul>
+<li>l'expression est de type non classe et sa valeur avant conversion en <a href="../types/size_t.html"><code>std::size_t</code></a> est négative ;</li>
+<li>l'expression est de type classe et sa valeur après la fonction de conversion définie par l'utilisateur et avant la <a href="implicit_cast.html">seconde conversion standard</a> est négative ;</li>
+<li>la valeur de l'expression est supérieure à une limite définie par l'implémentation ;</li>
+<li>la valeur est inférieure au nombre d'éléments de tableau fournis dans la liste d'initialisation entre accolades (y compris le <code>'\0'</code> terminal d'un <a href="string_literal.html">littéral de chaîne</a>).</li>
+</ul>
+<p>Si la valeur de la première dimension est invalide pour l'une de ces raisons,</p>
+<ul>
+<li>si, après conversion en <a href="../types/size_t.html"><code>std::size_t</code></a>, la première dimension est une <a href="constant_expression.html#Core_constant_expressions">expression constante du noyau</a> et qu'elle est <a href="expressions.html#Potentially-evaluated_expressions">potentiellement évaluée</a>, le programme est mal formé,</li>
+<li>sinon, si la fonction d'allocation qui aurait été appelée ne lève pas d'exception (y compris les surcharges <a href="../memory/new/nothrow.html"><code>std::nothrow</code></a> non déclarées <code>noexcept</code>), l'expression <code>new</code> renvoie le pointeur nul du type de résultat requis,</li>
+<li>sinon, l'expression <code>new</code> n'appelle pas la fonction d'allocation et lève à la place une exception d'un type correspondant à un <a href="catch.html">gestionnaire</a> de type <a href="../memory/new/bad_array_new_length.html"><code>std::bad_array_new_length</code></a>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Une dimension nulle est acceptable, et la fonction d'allocation est appelée.</p>
+<blockquote>
+<p>Si <code>new-initializer</code> est une liste d'initialisation entre accolades, et que la première dimension est <a href="expressions.html#Potentially-evaluated_expressions">potentiellement évaluée</a> et n'est pas une <a href="constant_expression.html#Core_constant_expressions">expression constante du noyau</a>, les contraintes sémantiques de <a href="copy_initialization.html">l'initialisation par copie</a> d'un élément hypothétique du tableau à partir d'une liste d'initialisation vide sont vérifiées.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Allocation">Allocation</h2>
+<p>L'expression <code>new</code> alloue du stockage en appelant la <a href="../memory/new/operator_new.html">fonction d'allocation</a> appropriée. Si <code>type</code> est un type non tableau, le nom de la fonction est <code>operator new</code>. Si <code>type</code> est un type tableau, le nom de la fonction est <code>operator new[]</code>.</p>
+<p>Comme décrit dans <a href="../memory/new/operator_new.html">fonction d'allocation</a>, le programme C++ peut fournir des remplacements globaux et spécifiques à la classe pour ces fonctions. Si l'expression <code>new</code> commence par l'opérateur optionnel <code>::</code>, comme dans <code>::new T</code> ou <code>::new T[n]</code>, les remplacements spécifiques à la classe sont ignorés (la fonction est <a href="lookup.html">recherchée</a> dans la <a href="scope.html">portée</a> globale). Sinon, si <code>T</code> est un type classe, la recherche commence dans la portée de classe de <code>T</code>.</p>
+<p>Lors de l'appel de la fonction d'allocation, l'expression <code>new</code> passe le nombre d'octets demandé comme premier argument, de type <a href="../types/size_t.html"><code>std::size_t</code></a>, qui vaut exactement <code>sizeof(T)</code> pour <code>T</code> non tableau.</p>
+<p>L'allocation de tableau peut ajouter un surcoût non spécifié, qui peut varier d'un appel de <code>new</code> à l'autre, sauf si la fonction d'allocation choisie est la forme standard non allocatrice. Le pointeur renvoyé par l'expression <code>new</code> sera décalé de cette valeur par rapport au pointeur renvoyé par la fonction d'allocation. De nombreuses implémentations utilisent ce surcoût pour stocker le nombre d'objets du tableau, utilisé par l'expression <a href="delete.html"><code>delete[]</code></a> pour appeler le bon nombre de destructeurs. De plus, si l'expression <code>new</code> est utilisée pour allouer un tableau de <code>char</code>, <code>unsigned char</code>, ou <a href="../types/byte.html"><code>std::byte</code></a> <em>(depuis C++17)</em>, elle peut demander de la mémoire supplémentaire à la fonction d'allocation si nécessaire pour garantir un alignement correct des objets de tous les types non plus grands que la taille demandée du tableau, si l'un d'eux est ensuite placé dans le tableau alloué.</p>
+<blockquote>
+<p>Les expressions <code>new</code> peuvent omettre ou combiner des allocations effectuées via des fonctions d'allocation remplaçables. En cas d'omission, le stockage peut être fourni par le compilateur sans appeler de fonction d'allocation (cela permet aussi d'optimiser une expression <code>new</code> inutilisée). En cas de combinaison, l'allocation effectuée par une expression <code>new</code> <code>E1</code> peut être étendue pour fournir un stockage supplémentaire à une autre expression <code>new</code> <code>E2</code> si toutes les conditions suivantes sont vraies :</p>
+<ol>
+<li>
+<p>La durée de vie de l'objet alloué par <code>E1</code> contient strictement la durée de vie de l'objet alloué par <code>E2</code>.</p>
+</li>
+<li>
+<p><code>E1</code> et <code>E2</code> appelleraient la même fonction d'allocation globale remplaçable.</p>
+</li>
+<li>
+<p>Pour une fonction d'allocation pouvant lever une exception, les exceptions émises dans <code>E1</code> et <code>E2</code> seraient d'abord interceptées par le même gestionnaire.</p>
+</li>
+</ol>
+<p>Notez que cette optimisation n'est autorisée que lorsque des expressions <code>new</code> sont utilisées, et non d'autres méthodes d'appel d'une fonction d'allocation remplaçable : <code>delete[] new int[10];</code> peut être optimisée, mais <code>operator delete(operator new(10));</code> ne peut pas l'être.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<blockquote>
+<p>Lors de l'évaluation d'une <a href="constant_expression.html">expression constante</a>, un appel à une fonction d'allocation est toujours omis. Seules les expressions <code>new</code> qui entraîneraient autrement un appel à une fonction d'allocation globale remplaçable peuvent être évaluées dans des expressions constantes.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Placement_new">Placement <code>new</code></h3>
+<p>Si <code>placement-args</code> sont fournis, ils sont transmis à la fonction d'allocation comme arguments supplémentaires. De telles fonctions d'allocation sont appelées « <code>new</code> de placement », d'après la fonction d'allocation standard <code>void* operator new(std::size_t, void*)</code>, qui renvoie simplement son second argument sans modification. Ceci est utilisé pour construire des objets dans un espace de stockage alloué :</p>
+<pre><code class="language-cpp">// à l'intérieur de n'importe quelle portée de bloc...
+{
+    // Allouer statiquement le stockage avec une durée de stockage automatique
+    // qui est suffisamment grand pour n'importe quel objet de type « T ».
+    alignas(T) unsigned char buf[sizeof(T)];
+
+    T* tptr = new(buf) T; // Construire un objet « T », en le plaçant directement dans votre
+                          // stockage pré-alloué à l'adresse mémoire « buf ».
+
+    tptr-&gt;~T();           // Vous devez appeler **manuellement** le destructeur de l'objet
+                          // si ses effets de bord sont utilisés par le programme.
+}                         // Quitter cette portée de bloc désalloue automatiquement « buf ».
+</code></pre>
+<p>Remarque : cette fonctionnalité est encapsulée par les fonctions membres des classes <a href="../named_req/Allocator.html"><em>Allocator</em></a>.</p>
+<blockquote>
+<p>Lors de l'allocation d'un objet dont l'exigence d'alignement dépasse <a href="../preprocessor/replace.html#Predefined_macros"><code>__STDCPP_DEFAULT_NEW_ALIGNMENT__</code></a>, ou d'un tableau de tels objets, l'expression <code>new</code> transmet l'exigence d'alignement (enveloppée dans <a href="../memory/new/align_val_t.html"><code>std::align_val_t</code></a>) comme second argument de la fonction d'allocation (pour les formes de placement, <code>placement-arg</code> apparaissent après l'alignement, comme troisième, quatrième, etc. arguments). Si la résolution de surcharge échoue (ce qui se produit lorsqu'une fonction d'allocation spécifique à la classe est définie avec une signature différente, car elle masque les globales), la résolution de surcharge est tentée une seconde fois, sans l'alignement dans la liste d'arguments. Cela permet aux fonctions d'allocation spécifiques à la classe, ignorantes de l'alignement, de prendre le pas sur les fonctions d'allocation globales tenant compte de l'alignement.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<pre><code class="language-cpp">new T;      // appelle operator new(sizeof(T))
+            // (C++17) ou operator new(sizeof(T), std::align_val_t(alignof(T))))
+new T[5];   // appelle operator new[](sizeof(T)*5 + overhead)
+            // (C++17) ou operator new(sizeof(T)*5+overhead, std::align_val_t(alignof(T))))
+new(2,f) T; // appelle operator new(sizeof(T), 2, f)
+            // (C++17) ou operator new(sizeof(T), std::align_val_t(alignof(T)), 2, f)
+</code></pre>
+<p>Si une fonction d'allocation ne levant pas d'exception (par exemple celle sélectionnée par <code>new(std::nothrow) T</code>) renvoie un pointeur nul à cause d'un échec d'allocation, alors l'expression <code>new</code> retourne immédiatement : elle ne tente ni d'initialiser un objet ni d'appeler une fonction de désallocation. Si un pointeur nul est passé comme argument à une expression <code>new</code> de placement sans allocation, ce qui fait renvoyer un pointeur nul à la fonction d'allocation de placement standard sans allocation sélectionnée, le comportement est indéfini.</p>
+<h2 id="Initialization">Initialisation</h2>
+<p>L'objet créé par une expression <code>new</code> est initialisé selon les règles suivantes.</p>
+<p>Si <code>type</code> n'est pas un type tableau, l'objet unique est construit dans la zone mémoire acquise :</p>
+<ul>
+<li>Si <code>new-initializer</code> est absent, l'objet est <a href="default_initialization.html">initialisé par défaut</a>.</li>
+<li>Si <code>new-initializer</code> est une liste d'expressions entre parenthèses, l'objet est <a href="direct_initialization.html">initialisé directement</a>.</li>
+</ul>
+<blockquote>
+<ul>
+<li>Si <code>new-initializer</code> est une liste d'initialisation entre accolades, l'objet est <a href="list_initialization.html">initialisé par liste</a>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si <code>type</code> est un type tableau, un tableau d'objets est initialisé :</p>
+<ul>
+<li>
+<p>Si <code>new-initializer</code> est absent, chaque élément est <a href="default_initialization.html">initialisé par défaut</a>.</p>
+<ul>
+<li>Même si la première dimension est nulle, les contraintes sémantiques d'initialisation par défaut d'un élément hypothétique doivent toujours être respectées.</li>
+</ul>
+</li>
+<li>
+<p>Si <code>new-initializer</code> est une paire de parenthèses, chaque élément est <a href="value_initialization.html">initialisé par valeur</a>.</p>
+<ul>
+<li>Même si la première dimension est nulle, les contraintes sémantiques d'initialisation par valeur d'un élément hypothétique doivent toujours être respectées.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>Si <code>new-initializer</code> est une liste d'initialisation entre accolades, le tableau est <a href="aggregate_initialization.html">initialisé en agrégat</a>.</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>Si <code>new-initializer</code> est une liste d'expressions non vide entre parenthèses, le tableau est <a href="aggregate_initialization.html">initialisé en agrégat</a>.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h3 id="Initialization_failure">Échec de l'initialisation</h3>
+<p>Si l'initialisation se termine par le lancement d'une exception (par exemple depuis le constructeur), le programme recherche une fonction de désallocation correspondante, puis :</p>
+<ul>
+<li>Si une fonction de désallocation appropriée est trouvée, celle-ci est appelée pour libérer la mémoire dans laquelle l'objet était en cours de construction. Ensuite, l'exception continue de se propager dans le contexte de l'expression <code>new</code>.</li>
+<li>Si aucune fonction de désallocation correspondante et non ambiguë n'est trouvée, la propagation de l'exception n'entraîne pas la libération de la mémoire de l'objet. Cela n'est approprié que si la fonction d'allocation appelée n'alloue pas de mémoire ; dans le cas contraire, cela risque de provoquer une fuite mémoire.</li>
+</ul>
+<p>La portée de la <a href="lookup.html">recherche</a> de la fonction de désallocation correspondante est déterminée comme suit :</p>
+<ul>
+<li>Si l'expression <code>new</code> ne commence pas par <code>::</code>, et que le type alloué est soit un type classe <code>T</code>, soit un tableau de type classe <code>T</code>, une recherche du nom de la fonction de désallocation est effectuée dans la portée de classe de <code>T</code>.</li>
+<li>Sinon, ou si rien n'est trouvé dans la portée de classe de <code>T</code>, le nom de la fonction de désallocation est recherché dans la <a href="scope.html">portée globale</a>.</li>
+</ul>
+<p>Pour une fonction d'allocation sans placement, la recherche normale de fonction de désallocation est utilisée pour trouver la fonction de désallocation correspondante (voir <a href="delete.html">expression delete</a>).</p>
+<p>Pour une fonction d'allocation de placement, la fonction de désallocation correspondante doit avoir le même nombre de paramètres, et chaque type de paramètre, à l'exception du premier, doit être identique au type de paramètre correspondant de la fonction d'allocation (après <a href="function.html#Function_type">transformations des paramètres</a>).</p>
+<ul>
+<li>Si la recherche trouve une seule fonction de désallocation correspondante, cette fonction sera appelée ; sinon, aucune fonction de désallocation ne sera appelée.</li>
+<li>Si la recherche trouve une fonction de désallocation sans placement et que cette fonction, considérée comme une fonction de désallocation de placement, aurait été retenue comme correspondance pour la fonction d'allocation, le programme est mal formé.</li>
+</ul>
+<p>Dans tous les cas, la fonction de désallocation correspondante (s'il y en a une) doit être non supprimée et <em>(depuis C++11)</em> accessible depuis le point où apparaît l'expression <code>new</code>.</p>
+<pre><code class="language-cpp">struct S
+{
+    // Fonction d'allocation de placement :
+    static void* operator new(std::size_t, std::size_t);
+
+    // Fonction de désallocation sans placement :
+    static void operator delete(void*, std::size_t);
+};
+
+S* p = new (0) S; // erreur : une fonction de désallocation sans placement correspond
+                  //        fonction d'allocation de placement
+</code></pre>
+<p>Si une fonction de désallocation est appelée dans une expression <code>new</code> (suite à un échec d'initialisation), les arguments passés à cette fonction sont déterminés comme suit :</p>
+<ul>
+<li>Le premier argument est la valeur (de type <code>void*</code>) renvoyée par l'appel à la fonction d'allocation.</li>
+<li>Les autres arguments (uniquement pour les fonctions de désallocation de placement) sont les <code>placement-args</code> passés à la fonction d'allocation de placement.</li>
+</ul>
+<p>Si l'implémentation est autorisée à introduire un objet temporaire ou à faire une copie de l'un des arguments lors de l'appel à la fonction d'allocation, il n'est pas spécifié si le même objet est utilisé dans l'appel aux fonctions d'allocation et de désallocation.</p>
+<h2 id="Memory_leaks">Fuites mémoire</h2>
+<p>Les objets créés par les expressions <code>new</code> (objets à durée de stockage dynamique) persistent jusqu'à ce que le pointeur renvoyé par l'expression <code>new</code> soit utilisé dans une <a href="delete.html">expression delete</a> correspondante. Si la valeur d'origine du pointeur est perdue, l'objet devient inaccessible et ne peut plus être désalloué : une <em>fuite mémoire</em> se produit.</p>
+<p>Cela peut se produire si le pointeur est affecté à :</p>
+<pre><code class="language-cpp">int* p = new int(7); // int alloué dynamiquement avec la valeur 7
+p = nullptr; // fuite de mémoire
+</code></pre>
+<p>ou si le pointeur sort de sa portée :</p>
+<pre><code class="language-cpp">void f()
+{
+    int* p = new int(7);
+} // fuite de mémoire
+</code></pre>
+<p>ou à cause d'une exception :</p>
+<pre><code class="language-cpp">void f()
+{
+    int* p = new int(7);
+    g();      // peut lever une exception
+    delete p; // correct si aucune exception
+} // fuite de mémoire si g() lève une exception
+</code></pre>
+<p>Pour simplifier la gestion des objets alloués dynamiquement, le résultat d'une expression <code>new</code> est souvent stocké dans un <a href="../memory.html#Smart_pointers">pointeur intelligent</a> : [<a href="../memory/auto_ptr.html"><code>std::auto_ptr</code></a> <em>(jusqu'à C++17)</em> | <a href="../memory/unique_ptr.html"><code>std::unique_ptr</code></a>, ou <a href="../memory/shared_ptr.html"><code>std::shared_ptr</code></a> <em>(depuis C++11)</em>]. Ces pointeurs garantissent que l'expression delete est exécutée dans les situations présentées ci-dessus.</p>
+<h2 id="Notes">Notes</h2>
+<p><a href="https://itanium-cxx-abi.github.io/cxx-abi/abi.html#array-cookies">L'ABI Itanium C++</a> exige que le surcoût d'allocation d'un tableau soit nul si le type d'élément du tableau créé est trivialement destructible. MSVC le fait aussi.</p>
+<p>Certaines implémentations (par exemple MSVC avant VS 2019 v16.7) exigent un surcoût d'allocation non nul pour une expression <code>new</code> de tableau de placement sans allocation si le type d'élément n'est pas trivialement destructible, ce qui n'est plus conforme depuis <a href="https://cplusplus.github.io/CWG/issues/2382.html">le problème CWG 2382</a>.</p>
+<p>Une expression <code>new</code> de tableau de placement sans allocation qui crée un tableau de <code>unsigned char</code>, ou <a href="../types/byte.html"><code>std::byte</code></a> <em>(depuis C++17)</em> peut être utilisée pour <a href="lifetime.html">créer implicitement des objets</a> dans une zone de stockage donnée : elle termine la durée de vie des objets chevauchant le tableau, puis crée implicitement des objets de types à durée de vie implicite dans le tableau.</p>
+<p><a href="../container/vector.html"><code>std::vector</code></a> offre une fonctionnalité similaire pour les tableaux dynamiques unidimensionnels.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/new.html"><code>new</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/74.html">CWG 74</a></td>
+<td>C++98</td>
+<td>la valeur de la première dimension doit être de type entier</td>
+<td>les types énumération sont autorisés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/299.html">CWG 299</a></td>
+<td>C++98</td>
+<td>la valeur de la première dimension doit être de type entier ou énumération</td>
+<td>types de classes disposant d'une unique fonction de conversion vers un type entier ou énumération autorisés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/624.html">CWG 624</a></td>
+<td>C++98</td>
+<td>le comportement était non spécifié lorsque la taille de l'objet alloué dépasserait la limite définie par l'implémentation</td>
+<td>aucun stockage n'est obtenu et une exception est levée dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1748.html">CWG 1748</a></td>
+<td>C++98</td>
+<td>les expressions <code>new</code> de placement sans allocation doivent vérifier si l'argument est nul</td>
+<td>comportement indéfini pour un argument nul</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1992.html">CWG 1992</a></td>
+<td>C++11</td>
+<td><code>new (std::nothrow) int[N]</code> pourrait lever <a href="../memory/new/bad_array_new_length.html"><code>std::bad_array_new_length</code></a></td>
+<td>modifié pour renvoyer un pointeur nul</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2102.html">CWG 2102</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si l'initialisation par défaut/par valeur est requise pour être bien formée lors de l'initialisation de tableaux vides</td>
+<td>required</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2382.html">CWG 2382</a></td>
+<td>C++98</td>
+<td><code>new</code> de tableau de placement sans allocation pourrait nécessiter un surcoût d'allocation</td>
+<td>un tel surcoût d'allocation est interdit</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2392.html">CWG 2392</a></td>
+<td>C++11</td>
+<td>le programme pouvait être mal formé même si la première dimension n'est pas potentiellement évaluée</td>
+<td>bien formé dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P1009R2">P1009R2</a></td>
+<td>C++11</td>
+<td>la borne du tableau ne pouvait pas être déduite dans une expression <code>new</code></td>
+<td>la déduction est permise</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="initializer_list.html">constructor</a></li>
+<li><a href="copy_elision.html">élision de copie</a></li>
+<li><a href="default_constructor.html">constructeur par défaut</a></li>
+<li><a href="delete.html"><code>delete</code></a></li>
+<li><a href="destructor.html">destructor</a></li>
+<li><a href="initialization.html">initialization</a>
+<ul>
+<li><a href="aggregate_initialization.html">initialisation agrégat</a></li>
+<li><a href="default_initialization.html">initialisation par défaut</a></li>
+<li><a href="direct_initialization.html">initialisation directe</a></li>
+<li><a href="list_initialization.html">initialisation par liste</a></li>
+<li><a href="value_initialization.html">initialisation par valeur</a></li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

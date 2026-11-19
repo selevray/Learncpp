@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic&lt;T&gt;::exchange — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/atomic/atomic.html">std::atomic</a></nav>
+<h1 id="std-atomic-t-exchange"><code>std::atomic&lt;T&gt;::exchange</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic/exchange">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">T exchange( T desired, std::memory_order order =
+                           std::memory_order_seq_cst ) noexcept;  // (1) (depuis C++11)
+
+T exchange( T desired, std::memory_order order =
+                           std::memory_order_seq_cst ) volatile noexcept;  // (2) (depuis C++11)
+</code></pre>
+<p>Remplace atomiquement la valeur sous-jacente par <code>desired</code> (une opération de lecture-modification-écriture). La mémoire est affectée selon la valeur de <code>order</code>.</p>
+<blockquote>
+<p>Elle est obsolète si <code>std::atomic&lt;T&gt;::is_always_lock_free</code> vaut <code>false</code> et que la surcharge <code>(2)</code> participe à la résolution de surcharge.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>desired</code> — valeur à affecter</li>
+<li><code>order</code> — contraintes d'ordre mémoire à appliquer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur de la variable atomique avant l'appel.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;atomic&gt;
+#include &lt;cstddef&gt;
+#include &lt;iostream&gt;
+#include &lt;syncstream&gt;
+#include &lt;thread&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    constexpr int thread_count{5};
+    constexpr int sum{5};
+
+    std::atomic&lt;int&gt; atom{0};
+    std::atomic&lt;int&gt; counter{0};
+
+    auto increment_to_sum = [&amp;](const int id)
+    {
+        for (int next = 0; next &lt; sum;)
+        {
+            // chaque thread écrit une valeur issue de sa propre connaissance
+            const int current = atom.exchange(next);
+            counter++;
+            // synchronise l'écriture pour empêcher une interruption par d'autres threads
+            std::osyncstream(std::cout)
+                &lt;&lt; &quot;Thread #&quot; &lt;&lt; id &lt;&lt; &quot; (id=&quot; &lt;&lt; std::this_thread::get_id()
+                &lt;&lt; &quot;) wrote &quot; &lt;&lt; next &lt;&lt; &quot; replacing the old value &quot;
+                &lt;&lt; current &lt;&lt; &quot;.\n&quot;;
+            next = std::max(current, next) + 1;
+        }
+    };
+
+    std::vector&lt;std::thread&gt; v;
+    for (std::size_t i = 0; i &lt; thread_count; ++i)
+        v.emplace_back(increment_to_sum, i);
+
+    for (auto&amp; tr : v)
+        tr.join();
+
+    std::cout &lt;&lt; thread_count &lt;&lt; &quot; threads take &quot;
+              &lt;&lt; counter &lt;&lt; &quot; times in total to &quot;
+              &lt;&lt; &quot;increment 0 to &quot; &lt;&lt; sum &lt;&lt; &quot;.\n&quot;;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Thread #1 (id=139722332333824) wrote 0 replacing the old value 0.
+Thread #2 (id=139722323941120) wrote 0 replacing the old value 0.
+Thread #1 (id=139722332333824) wrote 1 replacing the old value 0.
+Thread #1 (id=139722332333824) wrote 2 replacing the old value 1.
+Thread #1 (id=139722332333824) wrote 3 replacing the old value 2.
+Thread #1 (id=139722332333824) wrote 4 replacing the old value 3.
+Thread #0 (id=139722340726528) wrote 0 replacing the old value 0.
+Thread #3 (id=139722315548416) wrote 0 replacing the old value 0.
+Thread #3 (id=139722315548416) wrote 1 replacing the old value 4.
+Thread #0 (id=139722340726528) wrote 1 replacing the old value 1.
+Thread #4 (id=139722307155712) wrote 0 replacing the old value 1.
+Thread #4 (id=139722307155712) wrote 2 replacing the old value 2.
+Thread #4 (id=139722307155712) wrote 3 replacing the old value 2.
+Thread #4 (id=139722307155712) wrote 4 replacing the old value 3.
+Thread #2 (id=139722323941120) wrote 1 replacing the old value 0.
+Thread #0 (id=139722340726528) wrote 2 replacing the old value 1.
+Thread #2 (id=139722323941120) wrote 2 replacing the old value 4.
+Thread #0 (id=139722340726528) wrote 3 replacing the old value 2.
+Thread #0 (id=139722340726528) wrote 4 replacing the old value 3.
+5 threads take 19 times in total to increment 0 to 5.
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../atomic_exchange.html">atomic_exchangeatomic_exchange_explicit</a> (C++11) (C++11)</strong> — remplace atomiquement la valeur de l'objet atomique par un argument non atomique et renvoie l'ancienne valeur de l'atomique <em>(modèle de fonction)</em></li>
+<li><strong><a href="../../utility/exchange.html">exchange</a> (C++14)</strong> — remplace l'argument par une nouvelle valeur et renvoie sa valeur précédente <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

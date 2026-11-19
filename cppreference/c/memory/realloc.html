@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>realloc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/memory.html">Gestion de la mémoire dynamique</a></nav>
+<h1 id="realloc"><code>realloc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/memory/realloc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdlib.h&gt;</strong></p>
+<pre><code class="language-c">void *realloc( void *ptr, size_t new_size );
+</code></pre>
+<p>Réalloue la zone mémoire donnée. Si <code>ptr</code> n'est pas NULL, il doit avoir été alloué précédemment par <a href="malloc.html"><code>malloc</code></a>, <a href="calloc.html"><code>calloc</code></a> ou <code>realloc</code> et ne pas encore avoir été libéré par un appel à <a href="free.html"><code>free</code></a> ou <code>realloc</code>. Sinon, les résultats sont indéfinis.</p>
+<p>La réallocation s'effectue soit :</p>
+<p>a) en agrandissant ou en réduisant la zone existante désignée par <code>ptr</code>, si possible. Le contenu de la zone reste inchangé jusqu'à la plus petite des tailles nouvelle et ancienne. Si la zone est agrandie, le contenu de la nouvelle partie du tableau est indéfini.</p>
+<p>b) en allouant un nouveau bloc mémoire de <code>new_size</code> octets, en copiant la zone mémoire d'une taille égale à la plus petite des tailles nouvelle et ancienne, et en libérant l'ancien bloc.</p>
+<p>S'il n'y a pas assez de mémoire, l'ancien bloc mémoire n'est pas libéré et un pointeur nul est renvoyé.</p>
+<p>Si <code>ptr</code> vaut <a href="../types/NULL.html"><code>NULL</code></a>, le comportement est identique à celui d'un appel à <code>malloc(new_size)</code>.</p>
+<p>Sinon,</p>
+<blockquote>
+<p>si <code>new_size</code> vaut zéro, le comportement est défini par l'implémentation (un pointeur nul peut être renvoyé (auquel cas l'ancien bloc mémoire peut ou non être libéré), ou un pointeur non nul peut être renvoyé, qui ne peut pas servir à accéder au stockage). Cet usage est obsolète (via <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/n2396.htm#dr_400">C DR 400</a>). <em>(depuis C17)</em></p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>si <code>new_size</code> vaut zéro, le comportement est indéfini.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<blockquote>
+<p><code>realloc</code> est thread-safe : il se comporte comme s'il n'accédait qu'aux emplacements mémoire visibles à travers son argument, et non à aucun stockage statique.</p>
+<p>Un appel précédent à <a href="free.html"><code>free</code></a> ou <code>realloc</code> qui désalloue une région de mémoire <em>se synchronise avec</em> un appel à toute fonction d'allocation, y compris <code>realloc</code>, qui alloue la même région de mémoire, ou une partie de celle-ci. Cette synchronisation intervient après tout accès à la mémoire par la fonction de désallocation et avant tout accès à la mémoire par <code>realloc</code>. Il existe un ordre total unique de toutes les fonctions d'allocation et de désallocation opérant sur chaque région de mémoire donnée.</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ptr</code> — pointeur vers la zone mémoire à réallouer</li>
+<li><code>new_size</code> — nouvelle taille du tableau en octets</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, renvoie le pointeur vers le début de la mémoire nouvellement allouée. Pour éviter une fuite mémoire, le pointeur renvoyé doit être désalloué avec <a href="free.html"><code>free</code></a> ou <code>realloc</code>. Le pointeur d'origine <code>ptr</code> est invalidé et tout accès à celui-ci est un comportement indéfini (même si la réallocation a été effectuée sur place).</p>
+<p>En cas d'échec, renvoie un pointeur nul. Le pointeur d'origine <code>ptr</code> reste valide et peut devoir être désalloué avec <a href="free.html"><code>free</code></a> ou <code>realloc</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>À l'origine (en C89), la prise en charge de la taille zéro a été ajoutée pour accueillir du code tel que</p>
+<pre><code class="language-c">OBJ *p = calloc(0, sizeof(OBJ)); // placeholder de « longueur nulle »
+/*...*/
+while (1)
+{
+    p = realloc(p, c * sizeof(OBJ)); // réallocations jusqu'à ce que la taille se stabilise
+    /* code qui peut modifier c ou sortir de la boucle */
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;assert.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+void print_storage_info(const int* next, const int* prev, int ints)
+{
+    if (next)
+        printf(&quot;%s location: %p. Size: %d ints (%ld bytes).\n&quot;,
+               (next != prev ? &quot;New&quot; : &quot;Old&quot;), (void*)next, ints, ints * sizeof(int));
+    else
+        printf(&quot;Allocation failed.\n&quot;);
+}
+
+int main(void)
+{
+    const int pattern[] = {1, 2, 3, 4, 5, 6, 7, 8};
+    const int pattern_size = sizeof pattern / sizeof(int);
+    int *next = NULL, *prev = NULL;
+
+    if ((next = (int*)malloc(pattern_size * sizeof *next))) // alloue un tableau
+    {
+        memcpy(next, pattern, sizeof pattern); // remplit le tableau
+        print_storage_info(next, prev, pattern_size);
+    }
+    else
+        return EXIT_FAILURE;
+
+    // Réalloue en boucle en utilisant les valeurs suivantes comme nouvelle taille de stockage.
+    const int realloc_size[] = {10, 12, 512, 32768, 65536, 32768};
+
+    for (int i = 0; i != sizeof realloc_size / sizeof(int); ++i)
+    {
+        if ((next = (int*)realloc(prev = next, realloc_size[i] * sizeof(int))))
+        {
+            print_storage_info(next, prev, realloc_size[i]);
+            assert(!memcmp(next, pattern, sizeof pattern));  // le motif est-il conservé
+        }
+        else // si realloc échoue, le pointeur d'origine doit être libéré
+        {
+            free(prev);
+            return EXIT_FAILURE;
+        }
+    }
+
+    free(next); // enfin, libère le stockage
+    return EXIT_SUCCESS;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">New location: 0x144c010. Size: 8 ints (32 bytes).
+Old location: 0x144c010. Size: 10 ints (40 bytes).
+New location: 0x144c450. Size: 12 ints (48 bytes).
+Old location: 0x144c450. Size: 512 ints (2048 bytes).
+Old location: 0x144c450. Size: 32768 ints (131072 bytes).
+New location: 0x7f490c5bd010. Size: 65536 ints (262144 bytes).
+Old location: 0x7f490c5bd010. Size: 32768 ints (131072 bytes).
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.22.3.5 La fonction realloc (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.22.3.5 La fonction realloc (p : 254)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.22.3.5 La fonction realloc (p : 349)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.20.3.4 La fonction realloc (p : 314)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.10.3.4 La fonction realloc</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/memory/c/realloc.html">Documentation C++</a> de realloc</strong></p>
+
+</main>
+</body>
+</html>

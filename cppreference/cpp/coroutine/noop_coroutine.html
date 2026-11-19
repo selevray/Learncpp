@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::noop_coroutine — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/coroutine.html">Support des coroutines (C++20)</a></nav>
+<h1 id="std-noop_coroutine"><code>std::noop_coroutine</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/coroutine/noop_coroutine">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;coroutine&gt;</strong></p>
+<pre><code class="language-cpp">std::noop_coroutine_handle noop_coroutine() noexcept;  // (depuis C++20)
+</code></pre>
+<p>Renvoie un handle de coroutine faisant référence à une coroutine sans opération.</p>
+<p>Si un état de coroutine de coroutine sans opération existe déjà, il n'est pas spécifié si un appel ultérieur à <code>noop_coroutine</code> renvoie un handle de coroutine obtenu précédemment, ou un handle de coroutine faisant référence à un nouvel état de coroutine sans opération.</p>
+<h2 id="Parameters">Paramètres</h2>
+<p>(aucune)</p>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un <a href="coroutine_handle.html"><code>std::noop_coroutine_handle</code></a> faisant référence à une coroutine sans opération.</p>
+<h2 id="Notes">Notes</h2>
+<p>Les valeurs de retour de différents appels à <code>noop_coroutine</code> peuvent être égales ou non entre elles.</p>
+<p><code>noop_coroutine</code> ne peut renvoyer qu'un <code>noop_coroutine_handle</code> faisant référence à un objet d'état de coroutine sans démarrer de coroutine.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;coroutine&gt;
+#include &lt;iostream&gt;
+#include &lt;utility&gt;
+
+template&lt;class T&gt;
+struct task
+{
+    struct promise_type
+    {
+        auto get_return_object()
+        {
+            return task(std::coroutine_handle&lt;promise_type&gt;::from_promise(*this));
+        }
+        std::suspend_always initial_suspend() { return {}; }
+        struct final_awaiter
+        {
+            bool await_ready() noexcept { return false; }
+            void await_resume() noexcept {}
+            std::coroutine_handle&lt;&gt;
+                await_suspend(std::coroutine_handle&lt;promise_type&gt; h) noexcept
+            {
+                // final_awaiter::await_suspend est appelée lorsque l'exécution de la
+                // coroutine courante (désignée par 'h') est sur le point de se terminer.
+                // Si la coroutine courante a été reprise par une autre coroutine via
+                // co_await get_task(), un handle vers cette coroutine a été stocké
+                // comme h.promise().previous. Dans ce cas, renvoyer le handle pour reprendre
+                // la coroutine précédente.
+                // Sinon, renvoyer noop_coroutine(), dont la reprise ne fait rien.
+
+                if (auto previous = h.promise().previous; previous)
+                    return previous;
+                else
+                    return std::noop_coroutine();
+            }
+        };
+        final_awaiter final_suspend() noexcept { return {}; }
+        void unhandled_exception() { throw; }
+        void return_value(T value) { result = std::move(value); }
+
+        T result;
+        std::coroutine_handle&lt;&gt; previous;
+    };
+
+    task(std::coroutine_handle&lt;promise_type&gt; h) : coro(h) {}
+    task(task&amp;&amp; t) = delete;
+    ~task() { coro.destroy(); }
+
+    struct awaiter
+    {
+        bool await_ready() { return false; }
+        T await_resume() { return std::move(coro.promise().result); }
+        auto await_suspend(std::coroutine_handle&lt;&gt; h)
+        {
+            coro.promise().previous = h;
+            return coro;
+        }
+        std::coroutine_handle&lt;promise_type&gt; coro;
+    };
+    awaiter operator co_await() { return awaiter{coro}; }
+    T operator()()
+    {
+        coro.resume();
+        return std::move(coro.promise().result);
+    }
+
+private:
+    std::coroutine_handle&lt;promise_type&gt; coro;
+};
+
+task&lt;int&gt; get_random()
+{
+    std::cout &lt;&lt; &quot;in get_random()\n&quot;;
+    co_return 4;
+}
+
+task&lt;int&gt; test()
+{
+    task&lt;int&gt; v = get_random();
+    task&lt;int&gt; u = get_random();
+    std::cout &lt;&lt; &quot;in test()\n&quot;;
+    int x = (co_await v + co_await u);
+    co_return x;
+}
+
+int main()
+{
+    task&lt;int&gt; t = test();
+    int result = t();
+    std::cout &lt;&lt; result &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">in test()
+in get_random()
+in get_random()
+8
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="noop_coroutine_promise.html">noop_coroutine_promise</a> (C++20)</strong> — utilisé pour les coroutines sans effet observable <em>(classe)</em></li>
+<li><strong><a href="coroutine_handle.html">noop_coroutine_handle</a> (C++20)</strong> — <code>std::coroutine_handle&lt;std::noop_coroutine_promise&gt;</code>, destiné à faire référence à une coroutine sans opération <em>(typedef)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

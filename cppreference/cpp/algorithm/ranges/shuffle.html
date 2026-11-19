@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::shuffle — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-shuffle"><code>std::ranges::shuffle</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/shuffle">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::random_access_iterator I, std::sentinel_for&lt;I&gt; S, class Gen &gt;
+requires std::permutable&lt;I&gt; &amp;&amp;
+         std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+    I shuffle( I first, S last, Gen&amp;&amp; gen );  // (1) (depuis C++20)
+
+template&lt; ranges::random_access_range R, class Gen &gt;
+requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt; &amp;&amp;
+         std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+ranges::borrowed_iterator_t&lt;R&gt;
+    shuffle( R&amp;&amp; r, Gen&amp;&amp; gen );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>
+<p>Réorganise les éléments de l'intervalle donné <code>[first,last)</code> de sorte que chaque permutation possible de ces éléments ait une probabilité égale d'apparaître.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments à mélanger aléatoirement</li>
+<li><code>r</code> — l'intervalle d'éléments à mélanger aléatoirement</li>
+<li><code>gen</code> — le générateur de nombres aléatoires</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un itérateur égal à <code>last</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Exactement <code>(last - first) - 1</code> échanges.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct shuffle_fn
+{
+    template&lt;std::random_access_iterator I, std::sentinel_for&lt;I&gt; S, class Gen&gt;
+    requires std::permutable&lt;I&gt; &amp;&amp;
+             std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+    I operator()(I first, S last, Gen&amp;&amp; gen) const
+    {
+        using diff_t = std::iter_difference_t&lt;I&gt;;
+        using distr_t = std::uniform_int_distribution&lt;diff_t&gt;;
+        using param_t = typename distr_t::param_type;
+        distr_t D;
+        const auto n {last - first};
+        for (diff_t i {1}; i &lt; n; ++i)
+            ranges::iter_swap(first + i, first + D(gen, param_t(0, i)));
+        return ranges::next(first, last);
+    }
+
+    template&lt;ranges::random_access_range R, class Gen&gt;
+    requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt; &amp;&amp;
+             std::uniform_random_bit_generator&lt;std::remove_reference_t&lt;Gen&gt;&gt;
+    ranges::borrowed_iterator_t&lt;R&gt; operator()(R&amp;&amp; r, Gen&amp;&amp; gen) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::forward&lt;Gen&gt;(gen));
+    }
+};
+
+inline constexpr shuffle_fn shuffle {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;iostream&gt;
+#include &lt;random&gt;
+
+void print(const auto&amp; a)
+{
+    for (const auto e : a)
+        std::cout &lt;&lt; e &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    std::array a {'A', 'B', 'C', 'D', 'E', 'F'};
+    print(a);
+
+    std::random_device rd;
+    std::mt19937 gen {rd()};
+
+    for (int i {}; i != 3; ++i)
+    {
+        std::ranges::shuffle(a, gen);
+        print(a);
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">A B C D E F
+F E A C D B
+E C B F A D
+B A E C F D
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="next_permutation.html">ranges::next_permutation</a> (C++20)</strong> — génère la permutation lexicographique suivante supérieure d'un intervalle d'éléments <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="prev_permutation.html">ranges::prev_permutation</a> (C++20)</strong> — génère la permutation lexicographique immédiatement inférieure d'un intervalle d'éléments <em>(objet fonction algorithmique)</em></li>
+<li><strong><a href="../random_shuffle.html">random_shuffleshuffle</a> (until C++17) (C++11)</strong> — réorganise aléatoirement les éléments d'un intervalle <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

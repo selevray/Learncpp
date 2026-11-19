@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::latch — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a></nav>
+<h1 id="std-latch"><code>std::latch</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/latch">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;latch&gt;</strong></p>
+<pre><code class="language-cpp">class latch;  // (depuis C++20)
+</code></pre>
+<p>La classe <code>latch</code> est un compteur décroissant de type <a href="../types/ptrdiff_t.html"><code>std::ptrdiff_t</code></a> qui peut être utilisé pour synchroniser des threads. La valeur du compteur est initialisée à la création. Des threads peuvent se bloquer sur le loquet jusqu'à ce que le compteur soit décrémenté à zéro. Il n'est pas possible d'augmenter ou de réinitialiser le compteur, ce qui fait du loquet une barrière à usage unique.</p>
+<p>Les invocations concurrentes des fonctions membres de <code>std::latch</code>, à l'exception du destructeur, n'introduisent pas de courses de données.</p>
+<h2 id="Data_Members">Membres de données</h2>
+<p><strong>Nom Définition</strong></p>
+<ul>
+<li><strong><a href="../types/ptrdiff_t.html"><code>std::ptrdiff_t</code></a> <code>counter</code></strong> — le compteur interne <em>(objet membre exclusivement descriptif</em>)*</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="latch/latch.html">(constructeur)</a></strong> — construit un <code>latch</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="latch/~latch.html">(destructeur)</a></strong> — détruit le <code>latch</code> <em>(fonction membre publique)</em></li>
+<li><strong>operator=[deleted]</strong> — <code>latch</code> n'est pas affectable <em>(fonction membre publique)</em></li>
+<li><strong><a href="latch/count_down.html">count_down</a></strong> — décrémente le compteur de manière non bloquante <em>(fonction membre publique)</em></li>
+<li><strong><a href="latch/try_wait.html">try_wait</a></strong> — teste si le compteur interne est égal à zéro <em>(fonction membre publique)</em></li>
+<li><strong><a href="latch/wait.html">wait</a></strong> — bloque jusqu'à ce que le compteur atteigne zéro <em>(fonction membre publique)</em></li>
+<li><strong><a href="latch/arrive_and_wait.html">arrive_and_wait</a></strong> — décrémente le compteur et bloque jusqu'à ce qu'il atteigne zéro <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Constantes {#Constants}</strong></p>
+<ul>
+<li><strong><a href="latch/max.html">max</a> [statique]</strong> — la valeur maximale du compteur prise en charge par l'implémentation <em>(fonction membre statique publique)</em></li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_latch"><code>__cpp_lib_latch</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_latch_201907L"><code>201907L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><code>std::latch</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;latch&gt;
+#include &lt;string&gt;
+#include &lt;thread&gt;
+
+struct Job
+{
+    const std::string name;
+    std::string product{&quot;not worked&quot;};
+    std::thread action{};
+};
+
+int main()
+{
+    Job jobs[]{{&quot;Annika&quot;}, {&quot;Buru&quot;}, {&quot;Chuck&quot;}};
+
+    std::latch work_done{std::size(jobs)};
+    std::latch start_clean_up{1};
+
+    auto work = [&amp;](Job&amp; my_job)
+    {
+        my_job.product = my_job.name + &quot; worked&quot;;
+        work_done.count_down();
+        start_clean_up.wait();
+        my_job.product = my_job.name + &quot; cleaned&quot;;
+    };
+
+    std::cout &lt;&lt; &quot;Work is starting... &quot;;
+    for (auto&amp; job : jobs)
+        job.action = std::thread{work, std::ref(job)};
+
+    work_done.wait();
+    std::cout &lt;&lt; &quot;done:\n&quot;;
+    for (auto const&amp; job : jobs)
+        std::cout &lt;&lt; &quot;  &quot; &lt;&lt; job.product &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;Workers are cleaning up... &quot;;
+    start_clean_up.count_down();
+    for (auto&amp; job : jobs)
+        job.action.join();
+
+    std::cout &lt;&lt; &quot;done:\n&quot;;
+    for (auto const&amp; job : jobs)
+        std::cout &lt;&lt; &quot;  &quot; &lt;&lt; job.product &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Work is starting... done:
+  Annika worked
+  Buru worked
+  Chuck worked
+Workers are cleaning up... done:
+  Annika cleaned
+  Buru cleaned
+  Chuck cleaned
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="barrier.html">barrier</a> (C++20)</strong> — barrière de threads réutilisable <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

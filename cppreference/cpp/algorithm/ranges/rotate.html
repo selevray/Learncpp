@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::rotate — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-rotate"><code>std::ranges::rotate</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/rotate">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::permutable I, std::sentinel_for&lt;I&gt; S &gt;
+constexpr ranges::subrange&lt;I&gt;
+    rotate( I first, I middle, S last );  // (1) (depuis C++20)
+
+template&lt; ranges::forward_range R &gt;
+requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt;
+constexpr ranges::borrowed_subrange_t&lt;R&gt;
+    rotate( R&amp;&amp; r, ranges::iterator_t&lt;R&gt; middle );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Effectue une <em>rotation à gauche</em> sur un intervalle d'éléments. Plus précisément, <code>ranges::rotate</code> échange les éléments de l'intervalle <code>[first,last)</code> de telle sorte que l'élément <code>*middle</code> devienne le premier élément du nouvel intervalle et <code>*(middle - 1)</code> devienne le dernier.</li>
+</ol>
+<p>Le comportement est indéfini si <code>[first,last)</code> n'est pas un intervalle valide ou si <code>middle</code> n'appartient pas à <code>[first,last)</code>.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments à faire tourner</li>
+<li><code>r</code> — l'intervalle d'éléments à faire tourner</li>
+<li><code>middle</code> — l'itérateur vers l'élément qui doit apparaître au début de l'intervalle tourné</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>{new_first, last}</code>, où <code>new_first</code> est égal à <code>ranges::next(first, ranges::distance(middle, last))</code> et désigne un nouvel emplacement de l'élément pointé par <code>first</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p><em>Linéaire</em> au pire : <code>ranges::distance(first, last)</code> échanges.</p>
+<h2 id="Notes">Notes</h2>
+<p><code>ranges::rotate</code> a une meilleure efficacité sur les implémentations courantes si <code>I</code> modélise <a href="../../iterator/bidirectional_iterator.html"><code>bidirectional_iterator</code></a> ou (mieux) <a href="../../iterator/random_access_iterator.html"><code>random_access_iterator</code></a>.</p>
+<p>Les implémentations (par exemple <a href="https://github.com/microsoft/STL/blob/main/stl/src/vector_algorithms.cpp">MSVC STL</a>) peuvent activer la vectorisation lorsque le type d'itérateur modélise <a href="../../iterator/contiguous_iterator.html"><code>contiguous_iterator</code></a> et que l'échange de sa valeur ne fait appel ni à une fonction membre spéciale non triviale, ni à <a href="../../language/adl.html">ADL</a>-trouvé <code>swap</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Voir aussi les implémentations de <a href="https://github.com/gcc-mirror/gcc/blob/14d8a5ae472ca5743016f37da2dd4770d83dea21/libstdc%2B%2B-v3/include/bits/ranges_algo.h#L1361-L1506">libstdc++</a> et <a href="https://github.com/microsoft/STL/blob/472161105d596192194d4715ccad307c6c163b4a/stl/inc/algorithm#L4407-L4434">MSVC STL</a>.</p>
+<pre><code class="language-cpp">struct rotate_fn
+{
+    template&lt;std::permutable I, std::sentinel_for&lt;I&gt; S&gt;
+    constexpr ranges::subrange&lt;I&gt;
+        operator()(I first, I middle, S last) const
+    {
+        if (first == middle)
+        {
+            auto last_it = ranges::next(first, last);
+            return {last_it, last_it};
+        }
+        if (middle == last)
+            return {std::move(first), std::move(middle)};
+
+        if constexpr (std::bidirectional_iterator&lt;I&gt;)
+        {
+            ranges::reverse(first, middle);
+            auto last_it = ranges::next(first, last);
+            ranges::reverse(middle, last_it);
+
+            if constexpr (std::random_access_iterator&lt;I&gt;)
+            {
+                ranges::reverse(first, last_it);
+                return {first + (last_it - middle), std::move(last_it)};
+            }
+            else
+            {
+                auto mid_last = last_it;
+                do
+                {
+                    ranges::iter_swap(first, --mid_last);
+                    ++first;
+                }
+                while (first != middle &amp;&amp; mid_last != middle);
+                ranges::reverse(first, mid_last);
+
+                if (first == middle)
+                    return {std::move(mid_last), std::move(last_it)};
+                else
+                    return {std::move(first), std::move(last_it)};
+            }
+        }
+        else
+        { // I est seulement un forward_iterator
+            auto next_it = middle;
+            do
+            { // fait tourner le premier cycle
+                ranges::iter_swap(first, next_it);
+                ++first;
+                ++next_it;
+                if (first == middle)
+                    middle = next_it;
+            }
+            while (next_it != last);
+
+            auto new_first = first;
+            while (middle != last)
+            { // fait tourner les cycles suivants
+                next_it = middle;
+                do
+                {
+                    ranges::iter_swap(first, next_it);
+                    ++first;
+                    ++next_it;
+                    if (first == middle)
+                        middle = next_it;
+                }
+                while (next_it != last);
+            }
+
+            return {std::move(new_first), std::move(middle)};
+        }
+    }
+
+    template&lt;ranges::forward_range R&gt;
+    requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt;
+    constexpr ranges::borrowed_subrange_t&lt;R&gt;
+        operator()(R&amp;&amp; r, ranges::iterator_t&lt;R&gt; middle) const
+    {
+        return (*this)(ranges::begin(r), std::move(middle), ranges::end(r));
+    }
+};
+
+inline constexpr rotate_fn rotate {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<p><code>ranges::rotate</code> est un bloc de base courant dans de nombreux algorithmes. Cet exemple illustre le <a href="https://en.wikipedia.org/wiki/insertion_sort">tri par insertion</a>.</p>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;iostream&gt;
+#include &lt;numeric&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::string s(16, ' ');
+
+    for (int k {}; k != 5; ++k)
+    {
+        std::iota(s.begin(), s.end(), 'A');
+        std::ranges::rotate(s, s.begin() + k);
+        std::cout &lt;&lt; &quot;Rotate left (&quot; &lt;&lt; k &lt;&lt; &quot;): &quot; &lt;&lt; s &lt;&lt; '\n';
+    }
+    std::cout &lt;&lt; '\n';
+
+    for (int k {}; k != 5; ++k)
+    {
+        std::iota(s.begin(), s.end(), 'A');
+        std::ranges::rotate(s, s.end() - k);
+        std::cout &lt;&lt; &quot;Rotate right (&quot; &lt;&lt; k &lt;&lt; &quot;): &quot; &lt;&lt; s &lt;&lt; '\n';
+    }
+
+    std::cout &lt;&lt; &quot;\nInsertion sort using `rotate`, step-by-step:\n&quot;;
+
+    s = {'2', '4', '2', '0', '5', '9', '7', '3', '7', '1'};
+
+    for (auto i = s.begin(); i != s.end(); ++i)
+    {
+        std::cout &lt;&lt; &quot;i = &quot; &lt;&lt; std::ranges::distance(s.begin(), i) &lt;&lt; &quot;: &quot;;
+        std::ranges::rotate(std::ranges::upper_bound(s.begin(), i, *i), i, i + 1);
+        std::cout &lt;&lt; s &lt;&lt; '\n';
+    }
+    std::cout &lt;&lt; (std::ranges::is_sorted(s) ? &quot;Sorted!&quot; : &quot;Not sorted.&quot;) &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Rotate left (0): ABCDEFGHIJKLMNOP
+Rotate left (1): BCDEFGHIJKLMNOPA
+Rotate left (2): CDEFGHIJKLMNOPAB
+Rotate left (3): DEFGHIJKLMNOPABC
+Rotate left (4): EFGHIJKLMNOPABCD
+
+Rotate right (0): ABCDEFGHIJKLMNOP
+Rotate right (1): PABCDEFGHIJKLMNO
+Rotate right (2): OPABCDEFGHIJKLMN
+Rotate right (3): NOPABCDEFGHIJKLM
+Rotate right (4): MNOPABCDEFGHIJKL
+
+Insertion sort using `rotate`, step-by-step:
+i = 0: 2420597371
+i = 1: 2420597371
+i = 2: 2240597371
+i = 3: 0224597371
+i = 4: 0224597371
+i = 5: 0224597371
+i = 6: 0224579371
+i = 7: 0223457971
+i = 8: 0223457791
+i = 9: 0122345779
+Sorted!
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="rotate_copy.html">ranges::rotate_copy</a> (C++20)</strong> — copie et fait pivoter un intervalle d'éléments <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="reverse.html">ranges::reverse</a> (C++20)</strong> — inverse l'ordre des éléments d'un intervalle <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../rotate.html">rotate</a></strong> — fait tourner l'ordre des éléments d'un intervalle <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

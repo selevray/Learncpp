@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::optional&lt;T&gt;::emplace — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/optional.html">std::optional</a></nav>
+<h1 id="std-optional-t-emplace"><code>std::optional&lt;T&gt;::emplace</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/optional/emplace">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">template&lt; class... Args &gt;
+T&amp; emplace( Args&amp;&amp;... args );  // (1) (depuis C++17) (constexpr depuis C++20)
+
+template&lt; class U, class... Args &gt;
+T&amp; emplace( std::initializer_list&lt;U&gt; ilist, Args&amp;&amp;... args );  // (2) (depuis C++17) (constexpr depuis C++20)
+</code></pre>
+<p>Construit la valeur contenue sur place. Si <code>*this</code> contient déjà une valeur avant l'appel, la valeur contenue est détruite en appelant son destructeur.</p>
+<ol>
+<li>
+<p>Initialise la valeur contenue par <a href="../../language/direct_initialization.html">initialisation directe</a> (mais non par initialisation directe de liste) avec <code>std::forward&lt;Args&gt;(args)...</code> comme paramètres.</p>
+</li>
+<li>
+<p>Initialise la valeur contenue en appelant son constructeur avec <code>ilist, std::forward&lt;Args&gt;(args)...</code> comme paramètres. Cette surcharge ne participe à la résolution de surcharge que si <code>std::is_constructible&lt;T, std::initializer_list&lt;U&gt;&amp;, Args&amp;&amp;...&gt;::value</code> est <code>true</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>args...</code> — les arguments à transmettre au constructeur</li>
+<li><code>ilist</code> — la liste d'initialisation à transmettre au constructeur</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>T</code> doit être constructible à partir de <code>Args...</code> pour la surcharge <code>(1)</code></li>
+<li><code>T</code> doit être constructible à partir de <a href="../initializer_list.html"><code>std::initializer_list</code></a> et <code>Args...</code> pour la surcharge <code>(2)</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une référence vers la nouvelle valeur contenue.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Toute exception levée par le constructeur sélectionné de <code>T</code>. Si une exception est levée, <code>*this</code> ne contient pas de valeur après cet appel (la valeur précédemment contenue, le cas échéant, a été détruite).</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../feature_test.html#cpp_lib_optional"><code>__cpp_lib_optional</code></a></td>
+<td><a href="../../compiler_support/20.html#cpp_lib_optional_202106L"><code>202106L</code></a></td>
+<td><em>(C++20)</em> <em>(DR20)</em></td>
+<td>Entièrement <code>constexpr</code> <code>(1,2)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;optional&gt;
+
+struct A
+{
+    std::string s;
+
+    A(std::string str) : s(std::move(str)), id{n++} { note(&quot;+ constructed&quot;); }
+    ~A() { note(&quot;~ destructed&quot;); }
+    A(const A&amp; o) : s(o.s), id{n++} { note(&quot;+ copy constructed&quot;); }
+    A(A&amp;&amp; o) : s(std::move(o.s)), id{n++} { note(&quot;+ move constructed&quot;); }
+
+    A&amp; operator=(const A&amp; other)
+    {
+        s = other.s;
+        note(&quot;= copy assigned&quot;);
+        return *this;
+    }
+
+    A&amp; operator=(A&amp;&amp; other)
+    {
+        s = std::move(other.s);
+        note(&quot;= move assigned&quot;);
+        return *this;
+    }
+
+    inline static int n{};
+    int id{};
+    void note(auto s) { std::cout &lt;&lt; &quot;  &quot; &lt;&lt; s &lt;&lt; &quot; #&quot; &lt;&lt; id &lt;&lt; '\n'; }
+};
+
+int main()
+{
+    std::optional&lt;A&gt; opt;
+
+    std::cout &lt;&lt; &quot;Assign:\n&quot;;
+    opt = A(&quot;Lorem ipsum dolor sit amet, consectetur adipiscing elit nec.&quot;);
+
+    std::cout &lt;&lt; &quot;Emplace:\n&quot;;
+    // Comme opt contient une valeur, celle-ci sera également détruite
+    opt.emplace(&quot;Lorem ipsum dolor sit amet, consectetur efficitur.&quot;);
+
+    std::cout &lt;&lt; &quot;End example\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Assign:
+  + constructed #0
+  + move constructed #1
+  ~ destructed #0
+Emplace:
+  ~ destructed #1
+  + constructed #2
+End example
+  ~ destructed #2
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P2231R1">P2231R1</a></td>
+<td>C++20</td>
+<td><code>emplace</code> n'était pas <code>constexpr</code> alors que les opérations requises peuvent être <code>constexpr</code> en C++20</td>
+<td>rendu <code>constexpr</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="operator%3D.html">operator=</a></strong> — assigne le contenu <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

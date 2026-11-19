@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::set_terminate — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/error.html">Bibliothèque de diagnostic</a></nav>
+<h1 id="std-set_terminate"><code>std::set_terminate</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/error/set_terminate">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;exception&gt;</strong></p>
+<pre><code class="language-cpp">std::terminate_handler set_terminate( std::terminate_handler f ) throw();  // (jusqu'à C++11)
+
+std::terminate_handler set_terminate( std::terminate_handler f ) noexcept;  // (depuis C++11)
+</code></pre>
+<p>Définit <code>f</code> comme nouvelle fonction de gestion globale de terminaison et renvoie le gestionnaire précédemment installé <a href="terminate_handler.html"><code>std::terminate_handler</code></a>. <code>f</code> doit terminer l'exécution du programme sans retourner à son appelant, sinon le comportement est indéfini.</p>
+<blockquote>
+<p>Cette fonction est thread-safe. Chaque appel à <code>std::set_terminate</code> <em>synchronise-avec</em> (voir <a href="../atomic/memory_order.html"><code>std::memory_order</code></a>) les appels ultérieurs à <code>std::set_terminate</code> et <a href="get_terminate.html"><code>std::get_terminate</code></a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>f</code> — pointeur vers une fonction de type <a href="terminate_handler.html"><code>std::terminate_handler</code></a>, ou pointeur nul</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le gestionnaire de terminaison précédemment installé, ou une valeur de pointeur nul si aucun n'a été installé.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;exception&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    std::set_terminate([]()
+    {
+        std::cout &lt;&lt; &quot;Unhandled exception\n&quot; &lt;&lt; std::flush;
+        std::abort();
+    });
+    throw 1;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Unhandled exception
+bash: line 7:  7743 Aborted                 (core dumped) ./a.out
+</code></pre>
+<p>Le gestionnaire de terminaison fonctionne aussi pour les threads lancés, il peut donc servir d'alternative à l'enveloppement de la fonction du thread dans un bloc <code>try</code>/<code>catch</code>. Dans l'exemple suivant, comme l'exception n'est pas gérée, <a href="terminate.html"><code>std::terminate</code></a> sera appelée.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+void run()
+{
+    throw std::runtime_error(&quot;Thread failure&quot;);
+}
+
+int main()
+{
+    try
+    {
+        std::thread t{run};
+        t.join();
+        return EXIT_SUCCESS;
+    }
+    catch (const std::exception&amp; ex)
+    {
+        std::cerr &lt;&lt; &quot;Exception: &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+    }
+    catch (...)
+    {
+        std::cerr &lt;&lt; &quot;Unknown exception caught\n&quot;;
+    }
+    return EXIT_FAILURE;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">terminate called after throwing an instance of 'std::runtime_error'
+  what():  Thread failure
+Aborted (core dumped)
+</code></pre>
+<p>Avec l'introduction du gestionnaire de terminaison, l'exception levée depuis un thread autre que le thread principal peut être analysée, et la sortie peut se faire proprement.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+class foo
+{
+public:
+    foo() { std::cerr &lt;&lt; &quot;foo::foo()\n&quot;; }
+    ~foo() { std::cerr &lt;&lt; &quot;foo::~foo()\n&quot;; }
+};
+
+// Objet statique, dont le destructeur est appelé à la sortie
+foo f;
+
+void run()
+{
+    throw std::runtime_error(&quot;Thread failure&quot;);
+}
+
+int main()
+{
+    std::set_terminate([]()
+    {
+        try
+        {
+            std::exception_ptr eptr{std::current_exception()};
+            if (eptr)
+            {
+                std::rethrow_exception(eptr);
+            }
+            else
+            {
+                std::cerr &lt;&lt; &quot;Exiting without exception\n&quot;;
+            }
+        }
+        catch (const std::exception&amp; ex)
+        {
+            std::cerr &lt;&lt; &quot;Exception: &quot; &lt;&lt; ex.what() &lt;&lt; '\n';
+        }
+        catch (...)
+        {
+            std::cerr &lt;&lt; &quot;Unknown exception caught\n&quot;;
+        }
+        std::exit(EXIT_FAILURE);
+    });
+
+    std::thread t{run};
+    t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">foo::foo()
+Exception: Thread failure
+foo::~foo()
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="terminate.html">terminate</a></strong> — fonction appelée lorsque la gestion des exceptions échoue <em>(fonction)</em></li>
+<li><strong><a href="get_terminate.html">get_terminate</a> (C++11)</strong> — obtient le terminate_handler courant <em>(fonction)</em></li>
+<li><strong><a href="terminate_handler.html">terminate_handler</a></strong> — le type de la fonction appelée par <a href="terminate.html"><code>std::terminate</code></a> <em>(typedef)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Conversion dynamic_cast — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="conversion-dynamic_cast">Conversion dynamic_cast</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/dynamic_cast">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Convertit en toute sécurité des pointeurs et des références vers des classes vers le haut, vers le bas et latéralement dans la hiérarchie d'héritage.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>dynamic_cast&lt;</code> <code>target-type</code> <code>&gt;(</code> <code>expression</code> <code>)</code> | | |
+|</p>
+<ul>
+<li><code>target-type</code> — pointeur vers un type de classe complet, référence vers un type de classe complet, ou pointeur vers <code>void</code> (éventuellement qualifié cv)</li>
+<li><code>expression</code> — [lvalue <em>(jusqu'à C++11)</em> | glvalue <em>(depuis C++11)</em>] d'un type de classe complet si <code>target-type</code> est une référence, prvalue d'un pointeur vers un type de classe complet si <code>target-type</code> est un pointeur</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Pour la commodité de la description, « <code>expression</code> ou le résultat est une référence vers <code>T</code> » signifie que « c'est une glvalue de type <code>T</code> », ce qui suit la convention de <a href="decltype.html"><code>decltype</code></a> <em>(depuis C++11)</em>.</p>
+<p>Seules les conversions suivantes peuvent être effectuées avec <code>dynamic_cast</code>, sauf lorsque ces conversions <a href="const_cast.html#Casting_away_constness">supprimeraient la constness</a> (ou la volatilité).</p>
+<ol>
+<li>
+<p>Si le type de <code>expression</code> est exactement <code>target-type</code> ou une version moins qualifiée cv de <code>target-type</code>, le résultat est la valeur de <code>expression</code> de type <code>target-type</code>.<a href="dynamic_cast.html#cite_note-1">[1]</a></p>
+</li>
+<li>
+<p>Si <code>target-type</code> est « pointeur vers <code>Base</code> (éventuellement qualifié cv) » et que le type de <code>expression</code> est « pointeur vers <code>Derived</code> (éventuellement qualifié cv) » tel que <code>Base</code> est une classe de base de <code>Derived</code>, le résultat est</p>
+</li>
+</ol>
+<ul>
+<li>une valeur de pointeur nulle si <code>expression</code> est une valeur de pointeur nulle, ou</li>
+<li>sinon, un pointeur vers le <a href="objects.html#Subobjects">sous-objet</a> unique <code>Base</code> de l'objet <code>Derived</code> pointé par <code>expression</code>.<a href="dynamic_cast.html#cite_note-upcast-2">[2]</a></li>
+</ul>
+<ol start="3">
+<li>
+<p>Si <code>target-type</code> est « référence vers <code>Base</code> (éventuellement qualifié cv) » et que le type de <code>expression</code> est « <code>Derived</code> (éventuellement qualifié cv) » tel que <code>Base</code> est une classe de base de <code>Derived</code>, le résultat est le sous-objet <code>Base</code> unique de l'objet <code>Derived</code> référencé par <code>expression</code>.<a href="dynamic_cast.html#cite_note-upcast-2">[2]</a></p>
+</li>
+<li>
+<p>Sinon, <code>expression</code> est un pointeur ou une référence vers un <a href="objects.html#Polymorphic_objects">type polymorphe</a>.</p>
+</li>
+</ol>
+<p>a) Si <code>expression</code> est un pointeur :</p>
+<p>i) Si <code>expression</code> est une valeur de pointeur nulle, le résultat est la valeur de pointeur nulle de type <code>target-type</code>.</p>
+<p>ii) Sinon, si <code>target-type</code> est « pointeur vers <code>void</code> (éventuellement qualifié cv) », le résultat est un pointeur vers l'<a href="objects.html#Subobject">objet le plus dérivé</a> pointé par <code>expression</code>.</p>
+<p>iii) Sinon, si le type de <code>expression</code> est « pointeur vers <code>U</code> (éventuellement qualifié cv) », <code>expression</code> doit pointer vers un objet dont le type est <a href="implicit_cast.html#Similar_types">similaire</a> à <code>U</code> et qui se trouve dans sa <a href="lifetime.html">durée de vie</a> ou dans sa période de construction ou de destruction, sinon le comportement est indéfini.</p>
+<p>b) Si le type de <code>expression</code> est « référence vers <code>U</code> (éventuellement qualifié cv) », <code>expression</code> doit désigner un objet dont le type est similaire à <code>U</code> et qui se trouve dans sa durée de vie ou dans sa période de construction ou de destruction, sinon le comportement est indéfini.</p>
+<p>c) Sinon (<code>expression</code> pointe ou désigne un objet valide), une vérification à l'exécution est effectuée pour déterminer si l'objet pointé ou désigné par <code>expression</code> peut être converti vers le type pointé ou désigné par <code>target-type</code>.</p>
+<p>Soit <code>C</code> le type de classe vers lequel <code>target-type</code> pointe ou qu'il désigne. La vérification à l'exécution s'effectue logiquement comme suit :</p>
+<p>i) Si, dans l'objet le plus dérivé pointé ou désigné par <code>expression</code>, <code>expression</code> pointe ou désigne un sous-objet de classe de base publique d'un objet <code>C</code>, et si un seul objet de type <code>C</code> dérive du sous-objet pointé ou désigné par <code>expression</code>, le résultat pointe ou désigne cet objet <code>C</code>.<a href="dynamic_cast.html#cite_note-3">[3]</a></p>
+<p>ii) Sinon, si <code>expression</code> pointe ou désigne un sous-objet de classe de base publique de l'objet le plus dérivé, et que le type de l'objet le plus dérivé possède une classe de base publique et non ambiguë de type <code>C</code>, le résultat pointe ou désigne le sous-objet <code>C</code> de l'objet le plus dérivé.<a href="dynamic_cast.html#cite_note-4">[4]</a></p>
+<p>iii) Sinon, la vérification à l'exécution échoue.</p>
+<ul>
+<li>Si <code>target-type</code> est un type pointeur, le résultat est la valeur de pointeur nulle de <code>target-type</code>.</li>
+<li>Si <code>target-type</code> est un type référence, une exception d'un type correspondant à un <a href="catch.html">gestionnaire</a> de type <a href="../types/bad_cast.html"><code>std::bad_cast</code></a> est levée.</li>
+</ul>
+<p>Lorsque <code>dynamic_cast</code> est utilisé dans un constructeur ou un destructeur (directement ou indirectement), et que <code>expression</code> désigne l'objet en cours de construction ou de destruction, l'objet est considéré comme l'objet le plus dérivé. Si <code>target-type</code> n'est pas un pointeur ou une référence vers la classe propre du constructeur ou du destructeur, ou vers l'une de ses bases, le comportement est indéfini.</p>
+<ol>
+<li><a href="dynamic_cast.html#cite_ref-1">↑</a> Autrement dit, <code>dynamic_cast</code> permet d'ajouter la qualification const. Une conversion implicite et <code>static_cast</code> peuvent aussi effectuer cette conversion.</li>
+<li>↑ <a href="dynamic_cast.html#cite_ref-upcast_2-0">2.0</a> <a href="dynamic_cast.html#cite_ref-upcast_2-1">2.1</a> Une conversion implicite et <code>static_cast</code> peuvent aussi effectuer cette conversion.</li>
+<li><a href="dynamic_cast.html#cite_ref-3">↑</a> Ceci est appelé « downcast » (conversion descendante).</li>
+<li><a href="dynamic_cast.html#cite_ref-4">↑</a> Ceci est appelé « sidecast » (conversion latérale).</li>
+</ol>
+<p>Comme pour les autres expressions de conversion, le résultat est :</p>
+<blockquote>
+<ul>
+<li>une lvalue si <code>target-type</code> est un type référence</li>
+<li>une rvalue si <code>target-type</code> est un type pointeur</li>
+</ul>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>une lvalue si <code>target-type</code> est un type référence lvalue (<code>expression</code> doit être une lvalue)</li>
+<li>une xvalue si <code>target-type</code> est un type référence rvalue (<code>expression</code> [peut être une lvalue ou une rvalue <em>(jusqu'à C++17)</em> | doit être une glvalue (les prvalues sont <a href="implicit_cast.html#Temporary_materialization">matérialisées</a>) <em>(depuis C++17)</em>] d'un type de classe complet)</li>
+<li>une prvalue si <code>target-type</code> est un type pointeur</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Un downcast peut aussi être effectué avec <code>static_cast</code>, ce qui évite le coût de la vérification à l'exécution, mais il n'est sûr que si le programme peut garantir (par une autre logique) que l'objet pointé par <code>expression</code> est bien <code>Derived</code>.</p>
+<p>Certaines formes de <code>dynamic_cast</code> reposent sur l'<a href="https://en.wikipedia.org/wiki/Run-time_type_information">identification de type à l'exécution</a> (RTTI), c'est-à-dire sur des informations concernant chaque classe polymorphe du programme compilé. Les compilateurs proposent généralement des options pour désactiver l'inclusion de ces informations.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/dynamic_cast.html"><code>dynamic_cast</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct V
+{
+    virtual void f() {} // doit être polymorphe pour utiliser dynamic_cast avec vérification à l'exécution
+};
+
+struct A : virtual V {};
+
+struct B : virtual V
+{
+    B(V* v, A* a)
+    {
+        // conversions pendant la construction (voir l'appel dans le constructeur de D ci-dessous)
+        dynamic_cast&lt;B*&gt;(v); // bien défini : v de type V*, V base de B, donne B*
+        dynamic_cast&lt;B*&gt;(a); // comportement indéfini : a est de type A*, A n'étant pas une base de B
+    }
+};
+
+struct D : A, B
+{
+    D() : B(static_cast&lt;A*&gt;(this), this) {}
+};
+
+struct Base
+{
+    virtual ~Base() {}
+};
+
+struct Derived : Base
+{
+    virtual void name() {}
+};
+
+int main()
+{
+    D d; // l'objet le plus dérivé
+    A&amp; a = d; // conversion ascendante, dynamic_cast peut être utilisé, mais est inutile
+
+    [[maybe_unused]]
+    D&amp; new_d = dynamic_cast&lt;D&amp;&gt;(a); // downcast
+    [[maybe_unused]]
+    B&amp; new_b = dynamic_cast&lt;B&amp;&gt;(a); // sidecast
+
+    Base* b1 = new Base;
+    if (Derived* d = dynamic_cast&lt;Derived*&gt;(b1); d != nullptr)
+    {
+        std::cout &lt;&lt; &quot;downcast from b1 to d successful\n&quot;;
+        d-&gt;name(); // sûr à appeler
+    }
+
+    Base* b2 = new Derived;
+    if (Derived* d = dynamic_cast&lt;Derived*&gt;(b2); d != nullptr)
+    {
+        std::cout &lt;&lt; &quot;downcast from b2 to d successful\n&quot;;
+        d-&gt;name(); // sûr à appeler
+    }
+
+    delete b1;
+    delete b2;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">downcast from b2 to d successful
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1269.html">CWG 1269</a></td>
+<td>C++11</td>
+<td>la vérification à l'exécution n'était pas effectuée pour les xvalue <code>expression</code> ﻿s si <code>target-type</code> est un type référence rvalue</td>
+<td>performed</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2861.html">CWG 2861</a></td>
+<td>C++98</td>
+<td><code>expression</code> pourrait pointer/référencer un objet de type inaccessible</td>
+<td>le comportement est indéfini dans ce cas</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>7.6.1.7 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>7.6.1.6 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>8.2.7 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>5.2.7 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>5.2.7 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>5.2.7 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>5.2.7 Conversion dynamique [expr.dynamic.cast]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="const_cast.html"><code>const_cast</code></a></li>
+<li><a href="static_cast.html"><code>static_cast</code></a></li>
+<li><a href="reinterpret_cast.html"><code>reinterpret_cast</code></a></li>
+<li><a href="explicit_cast.html">transtypage explicite</a></li>
+<li><a href="implicit_cast.html">conversions implicites</a></li>
+</ul>
+
+</main>
+</body>
+</html>

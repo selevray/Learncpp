@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>signal — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/program.html">Utilitaires de support du programme</a></nav>
+<h1 id="signal"><code>signal</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/program/signal">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;signal.h&gt;</strong></p>
+<pre><code class="language-c">void (*signal( int sig, void (*handler) (int))) (int);
+</code></pre>
+<p>Définit le gestionnaire d'erreurs pour le signal <code>sig</code>. Le gestionnaire de signal peut être défini de sorte que le traitement par défaut ait lieu, que le signal soit ignoré, ou qu'une fonction définie par l'utilisateur soit appelée.</p>
+<p>Lorsqu'un gestionnaire de signal est défini comme une fonction et qu'un signal survient, il est défini par l'implémentation que <code>signal(sig, SIG_DFL)</code> soit exécuté immédiatement avant le début du gestionnaire de signal. De plus, l'implémentation peut empêcher certains ensembles de signaux définis par l'implémentation de survenir pendant l'exécution du gestionnaire de signal.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li>
+<p><code>sig</code> — le signal pour lequel définir le gestionnaire de signal. Il peut s'agir d'une valeur définie par l'implémentation ou de l'une des valeurs suivantes :</p>
+<ul>
+<li><strong><a href="SIG_types.html">SIGABRTSIGFPESIGILLSIGINTSIGSEGVSIGTERM</a></strong> — définit les types de signaux <em>(constante macro)</em></li>
+</ul>
+</li>
+<li>
+<p><code>handler</code> — le gestionnaire de signal. Il doit s'agir de l'une des valeurs suivantes :</p>
+<ul>
+<li>macro <a href="SIG_strategies.html"><code>SIG_DFL</code></a>. Le gestionnaire de signal est défini sur le gestionnaire de signal par défaut.</li>
+<li>macro <a href="SIG_strategies.html"><code>SIG_IGN</code></a>. Le signal est ignoré.</li>
+<li>pointeur vers une fonction. La signature de la fonction doit être équivalente à ce qui suit :</li>
+</ul>
+<pre><code class="language-c">void fun(int sig);
+</code></pre>
+</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Gestionnaire de signal précédent en cas de succès, ou <a href="SIG_ERR.html"><code>SIG_ERR</code></a> en cas d'échec (la définition d'un gestionnaire de signal peut être désactivée sur certaines implémentations).</p>
+<h2 id="Signal_handler">Gestionnaire de signal</h2>
+<p>Les limitations suivantes sont imposées à la fonction définie par l'utilisateur installée comme gestionnaire de signal.</p>
+<p>Si la fonction définie par l'utilisateur retourne lors du traitement de <a href="SIG_types.html"><code>SIGFPE</code></a>, <a href="SIG_types.html"><code>SIGILL</code></a> ou <a href="SIG_types.html"><code>SIGSEGV</code></a>, le comportement est indéfini.</p>
+<p>Si le gestionnaire de signal est appelé suite à <a href="abort.html"><code>abort</code></a> ou <a href="raise.html"><code>raise</code></a>, le comportement est indéfini si le gestionnaire de signal appelle <a href="raise.html"><code>raise</code></a>.</p>
+<p>Si le gestionnaire de signal est appelé PAS suite à <a href="abort.html"><code>abort</code></a> ou <a href="raise.html"><code>raise</code></a> (autrement dit, le gestionnaire de signal est <em>asynchrone</em>), le comportement est indéfini si</p>
+<ul>
+<li>
+<p>le gestionnaire de signal appelle une fonction quelconque de la bibliothèque standard, à l'exception de</p>
+<ul>
+<li><a href="abort.html"><code>abort</code></a></li>
+<li><a href="_Exit.html"><code>_Exit</code></a></li>
+<li><a href="quick_exit.html"><code>quick_exit</code></a></li>
+<li><code>signal</code> avec pour premier argument le numéro du signal actuellement traité (le gestionnaire asynchrone peut se réenregistrer lui-même, mais pas d'autres signaux).</li>
+<li>les fonctions atomiques de <a href="../thread.html#Atomic_operations"><code>&lt;stdatomic.h&gt;</code></a> si les arguments atomiques sont sans verrou</li>
+<li><a href="../atomic/atomic_is_lock_free.html"><code>atomic_is_lock_free</code></a> (avec tout type d'arguments atomiques)</li>
+</ul>
+</li>
+<li>
+<p>le gestionnaire de signal fait référence à tout objet à <a href="../language/storage_duration.html">durée de stockage</a> statique [ou thread-local <em>(depuis C11)</em> | qui n'est pas un <a href="../language/atomic.html">atomique</a> sans verrou <em>(depuis C11)</em>] autrement qu'en affectant une valeur à un <code>volatile sig_atomic_t</code> statique.</p>
+</li>
+</ul>
+<p>À l'entrée dans le gestionnaire de signal, l'état de l'environnement en virgule flottante et les valeurs de tous les objets sont non spécifiés, sauf pour</p>
+<ul>
+<li>objets de type <code>volatile sig_atomic_t</code></li>
+<li>les objets de types atomiques sans verrou (depuis C11)</li>
+<li>les effets de bord rendus visibles via <a href="../atomic/atomic_signal_fence.html"><code>atomic_signal_fence</code></a> (depuis C11)</li>
+</ul>
+<p>Au retour d'un gestionnaire de signal, la valeur de tout objet modifié par le gestionnaire de signal qui n'est pas <code>volatile sig_atomic_t</code> ni un atomique sans verrou (depuis C11) est indéfinie.</p>
+<p>Le comportement est indéfini si <code>signal</code> est utilisé dans un programme multithreadé. Il n'est pas requis qu'elle soit sûre pour les threads.</p>
+<h2 id="Notes">Notes</h2>
+<p>POSIX exige que <code>signal</code> soit thread-safe, et <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_04">spécifie une liste de fonctions de bibliothèque async-signal-safe</a> qui peuvent être appelées depuis n'importe quel gestionnaire de signal.</p>
+<p>En plus de <code>abort</code> et <code>raise</code>, POSIX précise que <code>kill</code>, <code>pthread_kill</code> et <code>sigqueue</code> génèrent des signaux synchrones.</p>
+<p>POSIX recommande <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/sigaction.html"><code>sigaction</code></a> plutôt que <code>signal</code>, en raison de son comportement insuffisamment spécifié et des variations importantes entre implémentations concernant la livraison des signaux pendant l'exécution d'un gestionnaire de signal.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;signal.h&gt;
+#include &lt;stdio.h&gt;
+
+volatile sig_atomic_t gSignalStatus;
+
+void signal_handler(int signal)
+{
+  gSignalStatus = signal;
+}
+
+int main(void)
+{
+  signal(SIGINT, signal_handler);
+
+  printf(&quot;SignalValue: %d\n&quot;, gSignalStatus);
+  printf(&quot;Sending signal: %d\n&quot;, SIGINT);
+  raise(SIGINT);
+  printf(&quot;SignalValue: %d\n&quot;, gSignalStatus);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">SignalValue: 0
+Sending signal: 2
+SignalValue: 2
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.14.1.1 La fonction signal (p : 193-194)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.14.1.1 La fonction signal (p : 266-267)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.14.1.1 La fonction signal (p : 247-248)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.7.1.1 La fonction signal</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="raise.html">raise</a></strong> — exécute le gestionnaire de signal pour un signal particulier <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../cpp/utility/program/signal.html">Documentation C++</a> pour signal</strong></p>
+
+</main>
+</body>
+</html>

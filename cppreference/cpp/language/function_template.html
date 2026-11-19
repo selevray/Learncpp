@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modèle de fonction — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="modèle-de-fonction">Modèle de fonction</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/function_template">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un modèle de fonction définit une famille de fonctions.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>function-declaration</code> | (1) | |
+|
+| <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>requires</code> <code>constraint</code> <code>function-declaration</code> | (2) | (depuis C++20) |
+|
+| <code>function-declaration-with-placeholders</code> | (3) | (depuis C++20) |
+|
+| <code>export</code> <code>template</code> <code>&lt;</code> <code>parameter-list</code> <code>&gt;</code> <code>function-declaration</code> | (4) | (supprimé en C++11) |
+|</p>
+<h2 id="Explanation">Explication</h2>
+<ul>
+<li><code>parameter-list</code> — une liste non vide, séparée par des virgules, de <a href="template_parameters.html">paramètres de modèle</a>, chacun étant soit un <a href="template_parameters.html#Non-type_template_parameter">paramètre non type</a>, soit un <a href="template_parameters.html#Type_template_parameter">paramètre de type</a>, soit un <a href="template_parameters.html#Template_template_parameter">paramètre de modèle</a>, ou un <a href="parameter_pack.html">paquet de paramètres</a> de l'un quelconque de ces types <em>(depuis C++11)</em>. Comme pour tout modèle, les paramètres peuvent être <a href="template_parameters.html#Constrained_template_parameter">contraints</a> <em>(depuis C++20)</em></li>
+<li><code>function-declaration</code> — une <a href="function.html">déclaration de fonction</a>. Le nom de fonction déclaré devient un nom de modèle.</li>
+<li><code>constraint</code> — une <a href="constraints.html">expression de contrainte</a> qui restreint les paramètres de modèle acceptés par ce modèle de fonction</li>
+<li><code>function-declaration-with-placeholders</code> — une <a href="function.html">déclaration de fonction</a> dont le type d'au moins un paramètre utilise le marqueur <a href="auto.html">auto</a> ou <a href="constraints.html">Concept auto</a> : la liste de paramètres de modèle comportera un paramètre inventé pour chaque marqueur (voir Modèles de fonctions abrégés ci-dessous)</li>
+</ul>
+<blockquote>
+<p><code>export</code> était un modificateur optionnel qui déclarait le modèle comme <em>exporté</em> (utilisé avec un modèle de classe, il déclarait également tous ses membres exportés). Les fichiers qui instanciaient des modèles exportés n'avaient pas besoin d'inclure leurs définitions : la déclaration suffisait. Les implémentations de <code>export</code> étaient rares et ne s'accordaient pas entre elles sur les détails.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<h3 id="Abbreviated_function_template">Modèle de fonction abrégé</h3>
+<p>Lorsque des types marqueurs (soit <a href="auto.html">auto</a>, soit <a href="constraints.html">Concept auto</a>) apparaissent dans la liste de paramètres d'une déclaration de fonction ou d'une déclaration de modèle de fonction, la déclaration déclare un modèle de fonction, et un paramètre de modèle inventé pour chaque marqueur est ajouté à la liste de paramètres de modèle :</p>
+<pre><code class="language-cpp">void f1(auto); // identique à template&lt;class T&gt; void f1(T)
+void f2(C1 auto); // identique à template&lt;C1 T&gt; void f2(T), si C1 est un concept
+void f3(C2 auto...); // équivalent à template&lt;C2... Ts&gt; void f3(Ts...), si C2 est un concept
+void f4(const C3 auto*, C4 auto&amp;); // équivalent à template&lt;C3 T, C4 U&gt; void f4(const T*, U&amp;);
+
+template&lt;class T, C U&gt;
+void g(T x, U y, C auto z); // équivalent à template&lt;class T, C U, C W&gt; void g(T x, U y, W z);
+</code></pre>
+<p>Les modèles de fonctions abrégés peuvent être spécialisés comme tous les modèles de fonctions.</p>
+<pre><code class="language-cpp">template&lt;&gt;
+void f4&lt;int&gt;(const int*, const double&amp;); // spécialisation de f4&lt;int, const double&gt;
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Function_template_signature">Signature du modèle de fonction</h2>
+<p>Chaque modèle de fonction possède une signature.</p>
+<p>La signature d'un <code>template-head</code> est la <a href="template_parameters.html">liste de paramètres de modèle</a>, à l'exclusion des noms de paramètres de modèle et des <a href="template_parameters.html#Default_template_arguments">arguments par défaut</a>, et de la clause requires (le cas échéant) <em>(depuis C++20)</em>.</p>
+<p>La signature d'un modèle de fonction contient le nom, la liste des types de paramètres, le type de retour, la clause requires finale (le cas échéant) <em>(depuis C++20)</em>, et la signature de la <code>template-head</code>. Sauf dans les cas suivants, sa signature contient également l'espace de noms englobant.</p>
+<p>Si le modèle de fonction est un membre de classe, sa signature contient la classe dont la fonction est membre à la place de l'espace de noms englobant. Sa signature contient également [la clause requires finale (le cas échéant) <em>(depuis C++20)</em> | , le qualificateur de référence (le cas échéant), et <em>(depuis C++11)</em>] les qualificateurs <em>cv</em> (le cas échéant).</p>
+<blockquote>
+<p>Si le modèle de fonction est un <a href="friend.html">friend</a> avec une contrainte impliquant des paramètres de modèle englobants, sa signature contient la classe englobante à la place de l'espace de noms englobant.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Function_template_instantiation">Instanciation de modèle de fonction</h2>
+<p>Un modèle de fonction n'est pas en soi un type, ni une fonction. Aucun code n'est généré à partir d'un fichier source qui ne contient que des définitions de modèles. Pour qu'un code apparaisse, un modèle doit être instancié : les arguments de modèle doivent être déterminés afin que le compilateur puisse générer une fonction réelle (ou une classe, à partir d'un modèle de classe).</p>
+<h3 id="Explicit_instantiation">Instanciation explicite</h3>
+<p>|
+| |
+| <code>template</code> <code>return-type</code> <code>name</code> <code>&lt;</code> <code>argument-list</code> <code>&gt;</code> <code>(</code> <code>parameter-list</code> <code>)</code> <code>;</code> | (1) | |
+|
+| <code>template</code> <code>return-type</code> <code>name</code> <code>(</code> <code>parameter-list</code> <code>)</code> <code>;</code> | (2) | |
+|
+| <code>extern</code> <code>template</code> <code>return-type</code> <code>name</code> <code>&lt;</code> <code>argument-list</code> <code>&gt;</code> <code>(</code> <code>parameter-list</code> <code>)</code> <code>;</code> | (3) | (depuis C++11) |
+|
+| <code>extern</code> <code>template</code> <code>return-type</code> <code>name</code> <code>(</code> <code>parameter-list</code> <code>)</code> <code>;</code> | (4) | (depuis C++11) |
+|</p>
+<ol>
+<li>
+<p>Définition d'instanciation explicite (sans <a href="template_argument_deduction.html">déduction d'argument de modèle</a> si chaque paramètre de modèle non par défaut est spécifié explicitement)</p>
+</li>
+<li>
+<p>Définition d'instanciation explicite avec déduction d'argument de modèle pour tous les paramètres</p>
+</li>
+<li>
+<p>Déclaration d'instanciation explicite (sans déduction d'argument de modèle si chaque paramètre de modèle non par défaut est spécifié explicitement)</p>
+</li>
+<li>
+<p>Déclaration d'instanciation explicite avec déduction d'argument de modèle pour tous les paramètres</p>
+</li>
+</ol>
+<p>Une définition d'instanciation explicite force l'instanciation de la fonction ou de la fonction membre auxquelles elle fait référence. Elle peut apparaître dans le programme n'importe où après la définition du modèle, et pour une liste d'arguments donnée, elle ne peut apparaître qu'une seule fois dans le programme, aucun diagnostic requis.</p>
+<blockquote>
+<p>Une déclaration d'instanciation explicite (un extern template) empêche les instanciations implicites : le code qui provoquerait autrement une instanciation implicite doit utiliser la définition d'instanciation explicite fournie ailleurs dans le programme.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Un argument de modèle final peut ne pas être spécifié dans une instanciation explicite d'une spécialisation de modèle de fonction ou d'une spécialisation de fonction membre de modèle s'il peut être <a href="template_argument_deduction.html">déduit</a> du paramètre de fonction :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(T s)
+{
+    std::cout &lt;&lt; s &lt;&lt; '\n';
+}
+
+template void f&lt;double&gt;(double); // instancie f&lt;double&gt;(double)
+template void f&lt;&gt;(char);         // instancie f&lt;char&gt;(char), argument de modèle déduit
+template void f(int);            // instancie f&lt;int&gt;(int), argument de modèle déduit
+</code></pre>
+<p>L'instanciation explicite d'un modèle de fonction ou d'une fonction membre d'un modèle de classe ne peut pas utiliser <code>inline</code> ni <code>constexpr</code>. Si la déclaration de l'instanciation explicite désigne une fonction membre spéciale déclarée implicitement, le programme est mal formé.</p>
+<p>L'instanciation explicite d'un <a href="initializer_list.html">constructeur</a> ne peut pas utiliser une liste de paramètres de modèle (syntaxe <code>(1)</code>), ce qui n'est d'ailleurs jamais nécessaire car ils peuvent être déduits (syntaxe <code>(2)</code>).</p>
+<blockquote>
+<p>L'instanciation explicite d'un <a href="destructor.html#Prospective_destructor">destructeur prospectif</a> doit nommer le destructeur sélectionné de la classe.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Les déclarations d'instanciation explicite ne suppriment pas l'instanciation implicite des fonctions <a href="inline.html">inline</a>, des déclarations <a href="auto.html">auto</a>, des références et des spécialisations de modèles de classes. (ainsi, lorsque la fonction inline qui fait l'objet d'une déclaration d'instanciation explicite est utilisée par ODR, elle est instanciée implicitement pour l'insertion en ligne, mais sa copie hors ligne n'est pas générée dans cette unité de traduction)</p>
+<p>La définition d'instanciation explicite d'un modèle de fonction avec des <a href="default_arguments.html">arguments par défaut</a> n'est pas une utilisation de ces arguments, et ne tente pas de les initialiser :</p>
+<pre><code class="language-cpp">char* p = 0;
+
+template&lt;class T&gt;
+T g(T x = &amp;p) { return x; }
+
+template int g&lt;int&gt;(int); // OK bien que &amp;p ne soit pas un int.
+</code></pre>
+<h3 id="Implicit_instantiation">Instanciation implicite</h3>
+<p>Lorsque du code fait référence à une fonction dans un contexte qui exige <a href="definition.html#ODR-use">l'existence de la définition de la fonction</a>, ou si l'existence de la définition affecte la sémantique du programme <em>(depuis C++11)</em>, et que cette fonction particulière n'a pas été explicitement instanciée, une instanciation implicite a lieu. La liste des arguments de modèle n'a pas à être fournie si elle peut être <a href="template_argument_deduction.html">déduite</a> du contexte.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template&lt;typename T&gt;
+void f(T s)
+{
+    std::cout &lt;&lt; s &lt;&lt; '\n';
+}
+
+int main()
+{
+    f&lt;double&gt;(1); // instancie et appelle f&lt;double&gt;(double)
+    f&lt;&gt;('a');     // instancie et appelle f&lt;char&gt;(char)
+    f(7);         // instancie et appelle f&lt;int&gt;(int)
+    void (*pf)(std::string) = f; // instancie f&lt;string&gt;(string)
+    pf(&quot;∇&quot;);                     // appelle f&lt;string&gt;(string)
+}
+</code></pre>
+<blockquote>
+<p>On considère que l'existence de la définition d'une fonction affecte la sémantique du programme si la fonction est <a href="constant_expression.html#Functions_and_variables_needed_for_constant_evaluation">nécessaire à l'évaluation constante</a> d'une expression, même si l'évaluation constante de l'expression n'est pas requise ou si l'évaluation de l'expression constante n'utilise pas la définition.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+constexpr int f() { return T::value; }
+
+template&lt;bool B, typename T&gt;
+void g(decltype(B ? f&lt;T&gt;() : 0));
+template&lt;bool B, typename T&gt;
+void g(...);
+
+template&lt;bool B, typename T&gt;
+void h(decltype(int{B ? f&lt;T&gt;() : 0}));
+template&lt;bool B, typename T&gt;
+void h(...);
+
+void x()
+{
+    g&lt;false, int&gt;(0); // OK : B ? f&lt;T&gt;() : 0 n'est pas potentiellement évaluée à la compilation
+    h&lt;false, int&gt;(0); // erreur : instancie f&lt;int&gt; alors que B est évalué à false
+                      // et l'initialisation par liste de int à partir de int ne peut pas être restrictive
+}
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Remarque : omettre entièrement <code>&lt;&gt;</code> permet à la <a href="overload_resolution.html">résolution de surcharge</a> d'examiner à la fois les surcharges de modèles et les surcharges non modèles.</p>
+<h2 id="Template_argument_deduction">Déduction d'arguments de modèle</h2>
+<p>Pour instancier un modèle de fonction, chaque argument de modèle doit être connu, mais chaque argument de modèle n'a pas à être spécifié. Lorsque c'est possible, le compilateur déduit les arguments de modèle manquants à partir des arguments de la fonction. Cela se produit lorsqu'un appel de fonction est tenté et lorsque l'adresse d'un modèle de fonction est prise.</p>
+<pre><code class="language-cpp">template&lt;typename To, typename From&gt;
+To convert(From f);
+
+void g(double d)
+{
+    int i = convert&lt;int&gt;(d);    // appelle convert&lt;int,double&gt;(double)
+    char c = convert&lt;char&gt;(d);  // appelle convert&lt;char,double&gt;(double)
+    int(*ptr)(float) = convert; // instancie convert&lt;int, float&gt;(float)
+}
+</code></pre>
+<p>Ce mécanisme permet d'utiliser des opérateurs modèles, puisqu'il n'existe aucune syntaxe pour spécifier les arguments de modèle d'un opérateur autrement qu'en le réécrivant sous forme d'expression d'appel de fonction.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+int main()
+{
+    std::cout &lt;&lt; &quot;Hello, world&quot; &lt;&lt; std::endl;
+    // operator&lt;&lt; est recherché par ADL comme std::operator&lt;&lt;,
+    // puis déduit comme operator&lt;&lt;&lt;char, std::char_traits&lt;char&gt;&gt; dans les deux cas
+    // std::endl est déduit comme &amp;std::endl&lt;char, std::char_traits&lt;char&gt;&gt;
+}
+</code></pre>
+<p>La déduction d'arguments de modèle a lieu après la <a href="lookup.html">recherche de nom</a> du modèle de fonction (qui peut impliquer une <a href="adl.html">recherche dépendant des arguments</a>) et avant la <a href="overload_resolution.html">résolution de surcharge</a>.</p>
+<p>Voir <a href="template_argument_deduction.html">déduction d'arguments de modèle</a> pour plus de détails.</p>
+<h2 id="Explicit_template_arguments">Arguments de modèle explicites</h2>
+<p>Les arguments de modèle d'un modèle de fonction peuvent être obtenus à partir de</p>
+<ul>
+<li>la déduction d'arguments de modèle</li>
+<li>les arguments de modèle par défaut</li>
+<li>spécifiés explicitement, ce qui peut être fait dans les contextes suivants :
+<ul>
+<li>dans une expression d'appel de fonction</li>
+<li>lorsque l'adresse d'une fonction est prise</li>
+<li>lorsqu'une référence à une fonction est initialisée</li>
+<li>lorsqu'un pointeur vers fonction membre est formé</li>
+<li>dans une spécialisation explicite</li>
+<li>dans une instanciation explicite</li>
+<li>dans une déclaration friend</li>
+</ul>
+</li>
+</ul>
+<p>Il n'existe aucun moyen de spécifier explicitement des arguments de modèle pour les <a href="operators.html">opérateurs surchargés</a>, les <a href="cast_operator.html">fonctions de conversion</a> et les constructeurs, car ils sont appelés sans utiliser de nom de fonction.</p>
+<p>Les arguments de modèle spécifiés doivent correspondre aux paramètres de modèle par nature (c'est-à-dire type pour type, non-type pour non-type, et modèle pour modèle). Il ne peut pas y avoir plus d'arguments que de paramètres(sauf si un paramètre est un paquet de paramètres, auquel cas il faut un argument pour chaque paramètre autre que le paquet) <em>(depuis C++11)</em>.</p>
+<p>Les arguments non-type spécifiés doivent soit correspondre aux types des paramètres de modèle non-type correspondants, soit être <a href="template_parameters.html#Template_non-type_arguments">convertibles vers eux</a>.</p>
+<p>Les paramètres de fonction qui ne participent pas à la déduction d'arguments de modèle (par exemple si les arguments de modèle correspondants sont spécifiés explicitement) sont soumis aux conversions implicites vers le type du paramètre de fonction correspondant (comme dans la <a href="overload_resolution.html">résolution de surcharge</a> habituelle).</p>
+<blockquote>
+<p>Un paquet de paramètres de modèle spécifié explicitement peut être étendu par la déduction d'arguments de modèle s'il existe des arguments supplémentaires :</p>
+<pre><code class="language-cpp">template&lt;class... Types&gt;
+void f(Types... values);
+
+void g()
+{
+    f&lt;int*, float*&gt;(0, 0, 0); // Types = {int*, float*, int}
+}
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Template_argument_substitution">Substitution d'arguments de modèle</h2>
+<p>Lorsque tous les arguments de modèle ont été spécifiés, déduits ou obtenus à partir d'arguments de modèle par défaut, chaque utilisation d'un paramètre de modèle dans la liste de paramètres de la fonction est remplacée par l'argument de modèle correspondant.</p>
+<p>Un échec de substitution (c'est-à-dire l'échec à remplacer les paramètres de modèle par les arguments de modèle déduits ou fournis) d'un modèle de fonction retire le modèle de fonction de l'<a href="overload_resolution.html">ensemble de surcharge</a>. Cela permet de manipuler des ensembles de surcharge de diverses manières à l'aide de la métaprogrammation par modèles : voir <a href="sfinae.html">SFINAE</a> pour plus de détails.</p>
+<p>Après substitution, tous les paramètres de fonction de type tableau ou fonction sont ajustés en pointeurs et tous les qualificateurs cv de premier niveau sont supprimés des paramètres de fonction (comme dans une <a href="function.html#Function_declaration">déclaration de fonction</a> ordinaire).</p>
+<p>La suppression des qualificateurs cv de premier niveau n'affecte pas le type du paramètre tel qu'il apparaît dans la fonction :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T t);
+
+template&lt;class X&gt;
+void g(const X x);
+
+template&lt;class Z&gt;
+void h(Z z, Z* zp);
+
+// deux fonctions différentes ayant le même type, mais
+// dans la fonction, t a des qualifications cv différentes
+f&lt;int&gt;(1);       // le type de fonction est void(int), t est int
+f&lt;const int&gt;(1); // le type de fonction est void(int), t est const int
+
+// deux fonctions différentes ayant le même type et le même x
+// (les pointeurs vers ces deux fonctions ne sont pas égaux,
+//  et les statiques locales à la fonction auraient des adresses différentes)
+g&lt;int&gt;(1);       // le type de fonction est void(int), x est const int
+g&lt;const int&gt;(1); // le type de fonction est void(int), x est const int
+
+// seuls les qualificatifs cv de premier niveau sont supprimés :
+h&lt;const int&gt;(1, NULL); // le type de fonction est void(int, const int*)
+                       // z est const int, zp est const int*
+</code></pre>
+<h2 id="Function_template_overloading">Surcharge de modèles de fonctions</h2>
+<p>Les modèles de fonctions et les fonctions non modèles peuvent être surchargés.</p>
+<p>Une fonction non modèle est toujours distincte d'une spécialisation de modèle ayant le même type. Les spécialisations de modèles de fonctions différents sont toujours distinctes les unes des autres même si elles ont le même type. Deux modèles de fonctions ayant le même type de retour et la même liste de paramètres sont distincts et peuvent être distingués par leur liste explicite d'arguments de modèle.</p>
+<p>Lorsqu'une expression utilisant des paramètres de modèle de type ou non-type apparaît dans la liste de paramètres de la fonction ou dans le type de retour, cette expression reste une partie de la signature du modèle de fonction pour les besoins de la surcharge :</p>
+<pre><code class="language-cpp">template&lt;int I, int J&gt;
+A&lt;I+J&gt; f(A&lt;I&gt;, A&lt;J&gt;); // overload #1
+
+template&lt;int K, int L&gt;
+A&lt;K+L&gt; f(A&lt;K&gt;, A&lt;L&gt;); // identique à #1
+
+template&lt;int I, int J&gt;
+A&lt;I-J&gt; f(A&lt;I&gt;, A&lt;J&gt;); // overload #2
+</code></pre>
+<p>Deux expressions impliquant des paramètres de modèle sont dites <em>équivalentes</em> si deux définitions de fonctions contenant ces expressions seraient identiques au regard de la <a href="definition.html#One_Definition_Rule">ODR</a>, c'est-à-dire si les deux expressions contiennent la même suite de jetons dont les noms sont résolus vers les mêmes entités par recherche de noms, à ceci près que les paramètres de modèle peuvent être nommés différemment. Deux <a href="lambda.html">expressions lambda</a> ne sont jamais équivalentes. <em>(depuis C++20)</em></p>
+<pre><code class="language-cpp">template&lt;int I, int J&gt;
+void f(A&lt;I+J&gt;); // surcharge de modèle #1
+
+template&lt;int K, int L&gt;
+void f(A&lt;K+L&gt;); // équivalent à #1
+</code></pre>
+<p>Lorsqu'on détermine si deux <a href="dependent_name.html">expressions dépendantes</a> sont équivalentes, seuls les noms dépendants impliqués sont pris en compte, et non les résultats de la recherche de nom. Si plusieurs déclarations d'un même modèle diffèrent par le résultat de la recherche de nom, la première de ces déclarations est utilisée :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+decltype(g(T())) h(); // decltype(g(T())) est un type dépendant
+
+int g(int);
+
+template&lt;class T&gt;
+decltype(g(T())) h()
+{                  // la redéclaration de h() utilise une recherche antérieure
+    return g(T()); // bien que la recherche ici trouve bien g(int)
+}
+
+int i = h&lt;int&gt;(); // la substitution de l'argument de modèle échoue ; g(int)
+                  // n'était pas dans la portée à la première déclaration de h()
+</code></pre>
+<p>Deux modèles de fonctions sont considérés comme <em>équivalents</em> si</p>
+<ul>
+<li>elles sont déclarées dans la même portée</li>
+<li>elles ont le même nom</li>
+<li>elles ont des listes de paramètres de modèle <em>équivalentes</em>, c'est-à-dire que les listes ont la même longueur et que, pour chaque couple de paramètres correspondants, toutes les conditions suivantes sont vraies :
+<ul>
+<li>les deux paramètres sont du même genre (tous deux des types, tous deux des non-types, ou tous deux des modèles)</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<ul>
+<li>ce sont soit tous deux des packs de paramètres, soit aucun des deux</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>s'ils sont non-types, leurs types sont équivalents,</li>
+<li>s'ils sont des modèles, leurs paramètres de modèle sont équivalents,</li>
+</ul>
+<blockquote>
+<ul>
+<li>si l'un est déclaré avec un nom de concept, les deux le sont, et les noms de concept sont équivalents.</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<ul>
+<li>les expressions impliquant des paramètres de modèle dans leurs types de retour et leurs listes de paramètres sont <em>équivalentes</em></li>
+</ul>
+<blockquote>
+<ul>
+<li>les expressions dans leurs clauses requires qui suivent les listes de paramètres de modèle, si elles sont présentes, sont équivalentes</li>
+<li>les expressions dans leurs clauses requires qui suivent les déclarateurs de fonction, si elles sont présentes, sont équivalentes</li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Deux expressions <a href="expressions.html#Potentially-evaluated_expressions">potentiellement évaluées</a> <em>(depuis C++20)</em> impliquant des paramètres de modèle sont dites <em>fonctionnellement équivalentes</em> si elles ne sont pas <em>équivalentes</em>, mais que, pour tout ensemble donné d'arguments de modèle, l'évaluation des deux expressions produit la même valeur.</p>
+<p>Deux modèles de fonction sont considérés comme <em>fonctionnellement équivalents</em> s'ils sont <em>équivalents</em>, à ceci près qu'une ou plusieurs expressions impliquant des paramètres de modèle dans leurs types de retour et leurs listes de paramètres sont <em>fonctionnellement équivalentes</em>.</p>
+<blockquote>
+<p>De plus, deux modèles de fonction sont <em>fonctionnellement équivalents</em> mais non <em>équivalents</em> si leurs contraintes sont spécifiées différemment, mais qu'ils acceptent et sont satisfaits par le même ensemble de listes d'arguments de modèle.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Si un programme contient des déclarations de modèles de fonction qui sont <em>fonctionnellement équivalentes</em> mais non <em>équivalentes</em>, le programme est mal formé ; aucun diagnostic n'est requis.</p>
+<pre><code class="language-cpp">// equivalent
+template&lt;int I&gt;
+void f(A&lt;I&gt;, A&lt;I+10&gt;); // overload #1
+template&lt;int I&gt;
+void f(A&lt;I&gt;, A&lt;I+10&gt;); // redéclaration de la surcharge #1
+
+// non équivalents
+template&lt;int I&gt;
+void f(A&lt;I&gt;, A&lt;I+10&gt;); // overload #1
+template&lt;int I&gt;
+void f(A&lt;I&gt;, A&lt;I+11&gt;); // overload #2
+
+// fonctionnellement équivalents mais non équivalents
+// Ce programme est mal formé, aucun diagnostic requis
+template&lt;int I&gt;
+void f(A&lt;I&gt;, A&lt;I+10&gt;);      // overload #1
+template&lt;int I&gt;
+void f(A&lt;I&gt;, A&lt;I+1+2+3+4&gt;); // fonctionnellement équivalents
+</code></pre>
+<p>Lorsque la même spécialisation de modèle de fonction correspond à plusieurs modèles de fonction surchargés (ce qui résulte souvent d'une <a href="template_argument_deduction.html">déduction d'arguments de modèle</a>), un <em>ordonnancement partiel des modèles de fonction surchargés</em> est effectué pour sélectionner la meilleure correspondance.</p>
+<p>Plus précisément, l'ordonnancement partiel a lieu dans les situations suivantes :</p>
+<ol>
+<li><a href="overload_resolution.html">résolution de surcharge</a> pour un appel à une spécialisation de modèle de fonction :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class X&gt;
+void f(X a);
+template&lt;class X&gt;
+void f(X* a);
+
+int* p;
+f(p);
+</code></pre>
+<ol start="2">
+<li>lorsque l'<a href="overloaded_address.html">adresse d'une spécialisation de modèle de fonction</a> est prise :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class X&gt;
+void f(X a);
+template&lt;class X&gt;
+void f(X* a);
+
+void (*p)(int*) = &amp;f;
+</code></pre>
+<ol start="3">
+<li>lorsqu'un <a href="../memory/new/operator_delete.html">operator delete de placement</a> qui est une spécialisation de modèle de fonction est sélectionné pour correspondre à un operator new de placement :</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : mini-exemple</td>
+</tr>
+</tbody>
+</table>
+<ol start="4">
+<li>lorsqu'une <a href="friend.html#Template_friends">déclaration de fonction amie</a>, une <a href="function_template.html#Explicit_instantiation">instanciation explicite</a> ou une <a href="template_specialization.html">spécialisation explicite</a> fait référence à une spécialisation de modèle de fonction :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class X&gt;
+void f(X a);  // premier modèle f
+template&lt;class X&gt;
+void f(X* a); // second modèle f
+template&lt;&gt;
+void f&lt;&gt;(int *a) {} // spécialisation explicite
+
+// la déduction d'argument de modèle donne deux candidats :
+// f&lt;int*&gt;(int*) et f&lt;int&gt;(int*)
+// le classement partiel sélectionne f&lt;int&gt;(int*) comme plus spécialisé
+</code></pre>
+<p>Informellement, « A est plus spécialisé que B » signifie « A accepte moins de types que B ».</p>
+<p>Formellement, pour déterminer lequel de deux modèles de fonction est plus spécialisé, le processus d'ordonnancement partiel transforme d'abord l'un des deux modèles comme suit :</p>
+<ul>
+<li>Pour chaque paramètre de type, de non-type et de modèle, y compris les packs de paramètres, <em>(depuis C++11)</em> un type, une valeur ou un modèle fictif unique est généré et substitué dans le type de fonction du modèle</li>
+<li>Si un seul des deux modèles de fonction comparés est une fonction membre, et que ce modèle de fonction est une fonction membre non statique d'une classe <code>A</code>, un nouveau premier paramètre est inséré dans sa liste de paramètres. En notant <em>cv</em> les qualificateurs cv du modèle de fonctionet <em>ref</em> le qualificateur de référence du modèle de fonction <em>(depuis C++11)</em>, le type du nouveau paramètre est <em>cv</em> <code>A&amp;</code>sauf si <em>ref</em> vaut <code>&amp;&amp;</code>, ou si <em>ref</em> est absent et que le premier paramètre de l'autre modèle a un type de référence rvalue ; dans ce cas, le type est <em>cv</em> <code>A&amp;&amp;</code> <em>(depuis C++11)</em>. Cela facilite l'ordonnancement des opérateurs, qui sont recherchés à la fois comme fonctions membres et non membres :</li>
+</ul>
+<pre><code class="language-cpp">struct A {};
+
+template&lt;class T&gt;
+struct B
+{
+    template&lt;class R&gt;
+    int operator*(R&amp;); // #1
+};
+
+template&lt;class T, class R&gt;
+int operator*(T&amp;, R&amp;); // #2
+
+int main()
+{
+    A a;
+    B&lt;A&gt; b;
+    b * a; // la déduction d'argument de modèle pour int B&lt;A&gt;::operator*(R&amp;) donne R=A
+           //                             pour int operator*(T&amp;, R&amp;), T=B&lt;A&gt;, R=A
+
+    // Pour le classement partiel, le modèle membre B&lt;A&gt;::operator*
+    // est transformé en template&lt;class R&gt; int operator*(B&lt;A&gt;&amp;, R&amp;);
+
+    // classement partiel entre
+    //     int operator*(   T&amp;, R&amp;)  T=B&lt;A&gt;, R=A
+    // et int operator*(B&lt;A&gt;&amp;, R&amp;)  R=A
+    // sélectionne int operator*(B&lt;A&gt;&amp;, A&amp;) comme plus spécialisé
+}
+</code></pre>
+<p>Après qu'un des deux modèles a été transformé comme décrit ci-dessus, la <a href="template_argument_deduction.html">déduction d'arguments de modèle</a> est exécutée en utilisant le modèle transformé comme modèle d'argument et le type de modèle original de l'autre modèle comme modèle de paramètre. Le processus est ensuite répété avec le second modèle (après transformations) comme argument et le premier modèle sous sa forme originale comme paramètre.</p>
+<p>Les types utilisés pour déterminer l'ordre dépendent du contexte :</p>
+<ul>
+<li>dans le contexte d'un appel de fonction, les types sont ceux des types de paramètres de fonction pour lesquels l'appel fournit des arguments (les arguments par défaut, les packs de paramètres, <em>(depuis C++11)</em> et les paramètres ellipsis ne sont pas pris en compte -- voir les exemples ci-dessous)</li>
+<li>dans le contexte d'un appel à une fonction de conversion définie par l'utilisateur, les types de retour des modèles de fonction de conversion sont utilisés</li>
+<li>dans les autres contextes, le type du modèle de fonction est utilisé</li>
+</ul>
+<p>Chaque type de la liste ci-dessus, provenant du modèle de paramètre, est déduit. Avant le début de la déduction, chaque paramètre <code>P</code> du modèle de paramètre et l'argument correspondant <code>A</code> du modèle d'argument sont ajustés comme suit :</p>
+<ul>
+<li>Si <code>P</code> et <code>A</code> sont tous deux des types référence avant cela, déterminer lequel est le plus qualifié cv (dans tous les autres cas, les qualificatifs cv sont ignorés pour l'ordonnancement partiel)</li>
+<li>Si <code>P</code> est un type référence, il est remplacé par le type référencé</li>
+<li>Si <code>A</code> est un type référence, il est remplacé par le type référencé</li>
+<li>Si <code>P</code> est qualifié cv, <code>P</code> est remplacé par sa version non qualifiée cv</li>
+<li>Si <code>A</code> est qualifié cv, <code>A</code> est remplacé par sa version non qualifiée cv</li>
+</ul>
+<p>Après ces ajustements, la déduction de <code>P</code> à partir de <code>A</code> est effectuée selon la <a href="template_argument_deduction.html#Deduction_from_a_type">déduction d'arguments de modèle à partir d'un type</a>.</p>
+<blockquote>
+<p>Si <code>P</code> est un pack de paramètres de fonction, le type <code>A</code> de chaque type de paramètre restant du modèle d'argument est comparé au type <code>P</code> du declarator-id du pack de paramètres de fonction. Chaque comparaison déduit les arguments de modèle pour les positions suivantes dans les packs de paramètres de modèle développés par le pack de paramètres de fonction.</p>
+<p>Si <code>A</code> a été transformé à partir d'un pack de paramètres de fonction, il est comparé à chaque type de paramètre restant du modèle de paramètre.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si l'argument <code>A</code> du modèle transformé 1 peut servir à déduire le paramètre correspondant <code>P</code> du modèle 2, mais pas l'inverse, alors ce <code>A</code> est plus spécialisé que <code>P</code> en ce qui concerne le ou les types déduits par cette paire <code>P/A</code>.</p>
+<p>Si la déduction réussit dans les deux sens, et que les <code>P</code> et <code>A</code> originaux étaient des types référence, alors des tests supplémentaires sont effectués :</p>
+<ul>
+<li>Si <code>A</code> était une référence lvalue et <code>P</code> une référence rvalue, <code>A</code> est considéré comme plus spécialisé que <code>P</code></li>
+<li>Si <code>A</code> était plus qualifié cv que <code>P</code>, <code>A</code> est considéré comme plus spécialisé que <code>P</code></li>
+</ul>
+<p>Dans tous les autres cas, aucun des deux modèles n'est plus spécialisé que l'autre en ce qui concerne le ou les types déduits par cette paire <code>P/A</code>.</p>
+<p>Après avoir considéré chaque <code>P</code> et <code>A</code> dans les deux sens, si, pour chaque type qui a été considéré,</p>
+<ul>
+<li>template-1 est au moins aussi spécialisé que template-2 pour tous les types</li>
+<li>template-1 est plus spécialisé que template-2 pour certains types</li>
+<li>template-2 n'est pas plus spécialisé que template-1 pour aucun type OU n'est pas au moins aussi spécialisé pour certains types</li>
+</ul>
+<p>alors template-1 est plus spécialisé que template-2. Si les conditions ci-dessus sont vraies après inversion de l'ordre des modèles, alors template-2 est plus spécialisé que template-1. Sinon, aucun des deux modèles n'est plus spécialisé que l'autre.</p>
+<blockquote>
+<p>En cas d'égalité, si l'un des modèles de fonction a un pack de paramètres final et l'autre non, celui dont le paramètre est omis est considéré comme plus spécialisé que celui ayant un pack de paramètres vide.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si, après avoir considéré toutes les paires de modèles surchargés, il en existe un qui est sans ambiguïté plus spécialisé que tous les autres, la spécialisation de ce modèle est sélectionnée, sinon la compilation échoue.</p>
+<p>Dans les exemples suivants, les arguments fictifs seront appelés U1, U2 :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T);        // template #1
+template&lt;class T&gt;
+void f(T*);       // template #2
+template&lt;class T&gt;
+void f(const T*); // template #3
+
+void m()
+{
+    const int* p;
+    f(p); // la résolution de surcharge retient : #1 : void f(T ) [T = const int *]
+          //                            #2 : void f(T*) [T = const int]
+          //                            #3 : void f(const T *) [T = int]
+
+    // classement partiel :
+
+    // #1 issu de la forme transformée #2 : void(T) à partir de void(U1*) : P=T A=U1* : déduction réussie : T=U1*
+    // #2 issu de la forme transformée #1 : void(T*) à partir de void(U1) : P=T* A=U1 : déduction échouée
+    // #2 est plus spécialisé que #1 par rapport à T
+
+    // #1 issu de la forme transformée #3 : void(T) à partir de void(const U1*) : P=T, A=const U1* : réussie
+    // #3 issu de la forme transformée #1 : void(const T*) à partir de void(U1) : P=const T*, A=U1 : échec
+    // #3 est plus spécialisé que #1 par rapport à T
+
+    // #2 issu de la forme transformée #3 : void(T*) à partir de void(const U1*) : P=T* A=const U1* : réussie
+    // #3 issu de la forme transformée #2 : void(const T*) à partir de void(U1*) : P=const T* A=U1* : échec
+    // #3 est plus spécialisé que #2 par rapport à T
+
+    // résultat : #3 est sélectionné
+    // en d'autres termes, f(const T*) est plus spécialisé que f(T) ou f(T*)
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T, T*);   // #1
+template&lt;class T&gt;
+void f(T, int*); // #2
+
+void m(int* p)
+{
+    f(0, p); // déduction pour #1 : void f(T, T*) [T = int]
+             // déduction pour #2 : void f(T, int*) [T = int]
+
+    // classement partiel :
+
+    // #1 à partir de #2 : void(T,T*) à partir de void(U1,int*) : P1=T, A1=U1 : T=U1
+    //                                            P2=T*, A2=int* : T=int : échec
+
+    // #2 à partir de #1 : void(T,int*) à partir de void(U1,U2*) : P1=T A1=U1 : T=U1
+    //                                             P2=int* A2=U2* : échec
+
+    // aucun des deux n'est plus spécialisé par rapport à T, l'appel est ambigu
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void g(T);  // template #1
+template&lt;class T&gt;
+void g(T&amp;); // template #2
+
+void m()
+{
+    float x;
+    g(x); // déduction à partir de #1 : void g(T ) [T = float]
+          // déduction à partir de #2 : void g(T&amp;) [T = float]
+
+    // classement partiel :
+
+    // #1 à partir de #2 : void(T) à partir de void(U1&amp;) : P=T, A=U1 (après ajustement), réussie
+
+    // #2 à partir de #1 : void(T&amp;) à partir de void(U1) : P=T (après ajustement), A=U1 : réussie
+
+    // aucun des deux n'est plus spécialisé par rapport à T, l'appel est ambigu
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A { A(); };
+
+template&lt;class T&gt;
+void h(const T&amp;); // #1
+template&lt;class T&gt;
+void h(A&lt;T&gt;&amp;);    // #2
+
+void m()
+{
+    A&lt;int&gt; z;
+    h(z); // déduction à partir de #1 : void h(const T &amp;) [T = A&lt;int&gt;]
+          // déduction à partir de #2 : void h(A&lt;T&gt; &amp;) [T = int]
+
+    // classement partiel :
+
+    // #1 à partir de #2 : void(const T&amp;) à partir de void(A&lt;U1&gt;&amp;) : P=T A=A&lt;U1&gt; : réussie, T=A&lt;U1&gt;
+
+    // #2 à partir de #1 : void(A&lt;T&gt;&amp;) à partir de void(const U1&amp;) : P=A&lt;T&gt; A=const U1 : échec
+
+    // #2 est plus spécialisé que #1 par rapport à T
+
+    const A&lt;int&gt; z2;
+    h(z2); // déduction à partir de #1 : void h(const T&amp;) [T = A&lt;int&gt;]
+           // déduction à partir de #2 : void h(A&lt;T&gt;&amp;) [T = int], mais la substitution échoue
+
+    // une seule surcharge au choix, le classement partiel n'est pas tenté, #1 est appelé
+}
+</code></pre>
+<p>Comme un contexte d'appel ne considère que les paramètres pour lesquels il existe des arguments d'appel explicites, ces packs de paramètres de fonction, <em>(depuis C++11)</em>, paramètres ellipsis et paramètres ayant des arguments par défaut, pour lesquels il n'existe aucun argument d'appel explicite, sont ignorés :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T);         // #1
+template&lt;class T&gt;
+void f(T*, int = 1); // #2
+
+void m(int* ip)
+{
+    int* ip;
+    f(ip); // appelle #2 (T* est plus spécialisé que T)
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void g(T);       // #1
+template&lt;class T&gt;
+void g(T*, ...); // #2
+
+void m(int* ip)
+{
+    g(ip); // appelle #2 (T* est plus spécialisé que T)
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T, class U&gt;
+struct A {};
+
+template&lt;class T, class U&gt;
+void f(U, A&lt;U, T&gt;* p = 0); // #1
+template&lt;class U&gt;
+void f(U, A&lt;U, U&gt;* p = 0); // #2
+
+void h()
+{
+    f&lt;int&gt;(42, (A&lt;int, int&gt;*)0); // calls #2
+    f&lt;int&gt;(42);                  // erreur : ambigu
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void g(T, T = T()); // #1
+template&lt;class T, class... U&gt;
+void g(T, U...);    // #2
+
+void h()
+{
+    g(42); // erreur : ambigu
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T, class... U&gt;
+void f(T, U...); // #1
+template&lt;class T&gt;
+void f(T);       // #2
+
+void h(int i)
+{
+    f(&amp;i); // appelle #2 en raison de l'arbitrage entre pack de paramètres et absence de paramètre
+           // (note : était ambigu entre DR692 et DR1395)
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class T, class... U&gt;
+void g(T*, U...); // #1
+template&lt;class T&gt;
+void g(T);        // #2
+
+void h(int i)
+{
+    g(&amp;i); // OK : appelle #1 (T* est plus spécialisé que T)
+}
+</code></pre>
+<pre><code class="language-cpp">template&lt;class... T&gt;
+int f(T*...);    // #1
+template&lt;class T&gt;
+int f(const T&amp;); // #2
+
+f((int*)0); // OK : sélectionne #2 ; un modèle non variadique est plus spécialisé que
+            // modèle variadique (était ambigu avant DR1395 car la déduction
+            // échouait dans les deux sens)
+</code></pre>
+<pre><code class="language-cpp">template&lt;class... Args&gt;
+void f(Args... args);        // #1
+template&lt;class T1, class... Args&gt;
+void f(T1 a1, Args... args); // #2
+template&lt;class T1, class T2&gt;
+void f(T1 a1, T2 a2);        // #3
+
+f();        // calls #1
+f(1, 2, 3); // calls #2
+f(1, 2);    // appelle #3 ; le modèle non variadique #3 est plus
+            // spécialisé que les modèles variadiques #1 et #2
+</code></pre>
+<p>Pendant la déduction d'arguments de modèle dans le processus d'ordonnancement partiel, les paramètres de modèle n'ont pas besoin d'être associés à des arguments si l'argument n'est utilisé dans aucun des types considérés pour l'ordonnancement partiel</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+T f(int); // #1
+template&lt;class T, class U&gt;
+T f(U);   // #2
+
+void g()
+{
+    f&lt;int&gt;(1); // la spécialisation de #1 est explicite : T f(int) [T = int]
+               // la spécialisation de #2 est déduite : T f(U) [T = int, U = int]
+
+    // classement partiel (en ne considérant que le type de l'argument) :
+
+    // #1 à partir de #2 : T(int) à partir de U1(U2) : échec
+    // #2 à partir de #1 : T(U) à partir de U1(int) : réussie : U=int, T non utilisé
+
+    // calls #1
+}
+</code></pre>
+<blockquote>
+<p>L'ordonnancement partiel des modèles de fonction contenant des packs de paramètres de modèle est indépendant du nombre d'arguments déduits pour ces packs de paramètres de modèle.</p>
+<pre><code class="language-cpp">template&lt;class...&gt;
+struct Tuple {};
+
+template&lt;class... Types&gt;
+void g(Tuple&lt;Types...&gt;);      // #1
+template&lt;class T1, class... Types&gt;
+void g(Tuple&lt;T1, Types...&gt;);  // #2
+template&lt;class T1, class... Types&gt;
+void g(Tuple&lt;T1, Types&amp;...&gt;); // #3
+
+g(Tuple&lt;&gt;());            // calls #1
+g(Tuple&lt;int, float&gt;());  // calls #2
+g(Tuple&lt;int, float&amp;&gt;()); // calls #3
+g(Tuple&lt;int&gt;());         // calls #3
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : 14.8.3[temp.over]</td>
+</tr>
+</tbody>
+</table>
+<p>Pour compiler un appel à un modèle de fonction, le compilateur doit choisir entre les surcharges non modèles, les surcharges modèles et les spécialisations des surcharges modèles.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T);      // #1 : surcharge de modèle
+template&lt;class T&gt;
+void f(T*);     // #2 : surcharge de modèle
+
+void f(double); // #3 : surcharge non template
+template&lt;&gt;
+void f(int);    // #4 : spécialisation de #1
+
+f('a');        // calls #1
+f(new int(1)); // calls #2
+f(1.0);        // calls #3
+f(1);          // calls #4
+</code></pre>
+<h2 id="Function_overloads_vs_function_specializations">Surcharges de fonctions contre spécialisations de fonctions</h2>
+<p>Notez que seules les surcharges non modèles et les surcharges de modèles primaires participent à la résolution de surcharge. Les spécialisations ne sont pas des surcharges et ne sont pas prises en compte. Ce n'est qu'après que la résolution de surcharge a sélectionné le modèle de fonction primaire de meilleure correspondance que ses spécialisations sont examinées pour voir si l'une d'elles correspond mieux.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+void f(T);    // #1 : surcharge pour tous les types
+template&lt;&gt;
+void f(int*); // #2 : spécialisation de #1 pour les pointeurs vers int
+template&lt;class T&gt;
+void f(T*);   // #3 : surcharge pour tous les types de pointeurs
+
+f(new int(1)); // appelle #3, bien que la spécialisation de #1 soit une correspondance parfaite
+</code></pre>
+<p>Il est important de se souvenir de cette règle lors de l'ordonnancement des en-têtes d'une unité de traduction. Pour plus d'exemples de l'interaction entre surcharges de fonctions et spécialisations de fonctions, développez ci-dessous :</p>
+<p><strong>Exemples</strong></p>
+<p>Considérons d'abord quelques scénarios où la recherche dépendant des arguments n'est pas employée. Pour cela, nous utilisons l'appel <code>(f)(t)</code>. Comme décrit dans <a href="adl.html">ADL</a>, placer le nom de la fonction entre parenthèses supprime la recherche dépendant des arguments.</p>
+<ul>
+<li>Plusieurs surcharges de <code>f()</code> déclarées avant le <em>point de référence</em> (POR) dans <code>g()</code>.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)  { std::cout &lt;&lt; &quot;#1\n&quot;; } // surcharge #1 avant f() POR
+template&lt;class T&gt;
+void f(T*) { std::cout &lt;&lt; &quot;#2\n&quot;; } // surcharge #2 avant f() POR
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    (f)(t); // f() POR
+}
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// #1 et #2 sont tous deux ajoutés à la liste des candidats ;
+// #2 est sélectionné car c'est une meilleure correspondance.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#2
+</code></pre>
+<ul>
+<li>Une surcharge de modèle de meilleure correspondance est déclarée après le POR.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)  { std::cout &lt;&lt; &quot;#1\n&quot;; } // #1
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    (f)(t); // f() POR
+}
+
+template&lt;class T&gt;
+void f(T*) { std::cout &lt;&lt; &quot;#2\n&quot;; } // #2
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// Seul #1 est ajouté à la liste des candidats ; #2 est défini après le POR ;
+// il n'est donc pas pris en compte pour la surcharge, même s'il s'agit d'une meilleure correspondance.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#1
+</code></pre>
+<ul>
+<li>Une spécialisation explicite de modèle de meilleure correspondance est déclarée après le POR.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)    { std::cout &lt;&lt; &quot;#1\n&quot;; } // #1
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    (f)(t); // f() POR
+}
+template&lt;&gt;
+void f&lt;&gt;(A*) { std::cout &lt;&lt; &quot;#3\n&quot;; } // #3
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// #1 est ajouté à la liste des candidats ; #3, défini après le POR, est une meilleure correspondance. La
+// liste des candidats se compose de #1, finalement sélectionné. Ensuite, la
+// spécialisation explicite #3 de #1, déclarée après le POI, est sélectionnée car c'est une meilleure correspondance.
+// Ce comportement est régi par 14.7.3/6 [temp.expl.spec] et n'a rien à voir avec l'ADL.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#3
+</code></pre>
+<ul>
+<li>Une surcharge de modèle de meilleure correspondance est déclarée après le POR. La spécialisation explicite de modèle la mieux adaptée est déclarée après la surcharge de meilleure correspondance.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)    { std::cout &lt;&lt; &quot;#1\n&quot;; } // #1
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    (f)(t); // f() POR
+}
+
+template&lt;class T&gt;
+void f(T*)   { std::cout &lt;&lt; &quot;#2\n&quot;; } // #2
+template&lt;&gt;
+void f&lt;&gt;(A*) { std::cout &lt;&lt; &quot;#3\n&quot;; } // #3
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// #1 est le seul membre de la liste des candidats et il est finalement sélectionné.
+// Ensuite, la spécialisation explicite #3 est ignorée car elle spécialise en réalité
+// #2, déclaré après le POR.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#1
+</code></pre>
+<p>Considérons maintenant les cas employant la recherche dépendant des arguments (c'est-à-dire que nous utilisons le format d'appel plus courant <code>f(t)</code>).</p>
+<ul>
+<li>Une surcharge de modèle de meilleure correspondance est déclarée après le POR.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)  { std::cout &lt;&lt; &quot;#1\n&quot;; } // #1
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    f(t); // f() POR
+}
+
+template&lt;class T&gt;
+void f(T*) { std::cout &lt;&lt; &quot;#2\n&quot;; } // #2
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// #1 est ajouté à la liste des candidats suite à la recherche ordinaire ;
+// #2 est défini après le POR, mais il est ajouté à la liste des candidats via la recherche ADL.
+// #2 est sélectionné car c'est la meilleure correspondance.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#2
+</code></pre>
+<ul>
+<li>Une surcharge de modèle de meilleure correspondance est déclarée après le POR. La spécialisation explicite de modèle la mieux adaptée est déclarée avant la surcharge de meilleure correspondance.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)    { std::cout &lt;&lt; &quot;#1\n&quot;; } // #1
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    f(t); // f() POR
+}
+
+template&lt;&gt;
+void f&lt;&gt;(A*) { std::cout &lt;&lt; &quot;#3\n&quot;; } // #3
+template&lt;class T&gt;
+void f(T*)   { std::cout &lt;&lt; &quot;#2\n&quot;; } // #2
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// #1 est ajouté à la liste des candidats suite à la recherche ordinaire ;
+// #2 est défini après le POR, mais il est ajouté à la liste des candidats via la recherche ADL.
+// #2 est sélectionné parmi les modèles primaires, car c'est la meilleure correspondance.
+// Comme #3 est déclaré avant #2, c'est une spécialisation explicite de #1.
+// Par conséquent, la sélection finale est #2.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#2
+</code></pre>
+<ul>
+<li>Une surcharge de modèle de meilleure correspondance est déclarée après le POR. La spécialisation explicite de modèle la mieux adaptée est déclarée en dernier.</li>
+</ul>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct A {};
+
+template&lt;class T&gt;
+void f(T)    { std::cout &lt;&lt; &quot;#1\n&quot;; } // #1
+
+template&lt;class T&gt;
+void g(T* t)
+{
+    f(t); // f() POR
+}
+
+template&lt;class T&gt;
+void f(T*)   { std::cout &lt;&lt; &quot;#2\n&quot;; } // #2
+template&lt;&gt;
+void f&lt;&gt;(A*) { std::cout &lt;&lt; &quot;#3\n&quot;; } // #3
+
+int main()
+{
+    A* p = nullptr;
+    g(p); // POR de g() et f()
+}
+
+// #1 est ajouté à la liste des candidats suite à la recherche ordinaire ;
+// #2 est défini après le POR, mais il est ajouté à la liste des candidats via la recherche ADL.
+// #2 est sélectionné parmi les modèles primaires, car c'est la meilleure correspondance.
+// Comme #3 est déclaré après #2, c'est une spécialisation explicite de #2 ;
+// elle est donc sélectionnée comme fonction à appeler.
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">#3
+</code></pre>
+<p>Lorsque les arguments sont des types de base du C++, il n'existe aucun espace de noms associé à l'ADL. Ces scénarios sont donc identiques aux exemples non ADL ci-dessus.</p>
+<p>Pour les règles détaillées de la résolution de surcharge, voir <a href="overload_resolution.html">résolution de surcharge</a>.</p>
+<h2 id="Function_template_specialization">Spécialisation de modèle de fonction</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : 14.8[temp.fct.spec] (notez que 14.8.1[temp.arg.explicit] figure déjà dans l'article sur la spécialisation complète : soit les particularités des fonctions vont ici : absence de spécialisations partielles, interaction avec les surcharges de fonctions, soit simplement renvoyer à cet article</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/template.html"><code>template</code></a>, <a href="../keyword/extern.html"><code>extern</code></a> <em>(depuis C++11)</em></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/214.html">CWG 214</a></td>
+<td>C++98</td>
+<td>la procédure exacte de l'ordonnancement partiel n'était pas spécifiée</td>
+<td>spécification ajoutée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/532.html">CWG 532</a></td>
+<td>C++98</td>
+<td>l'ordre entre un modèle de fonction membre non statique et un modèle de fonction non membre n'était pas spécifié</td>
+<td>spécification ajoutée</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/581.html">CWG 581</a></td>
+<td>C++98</td>
+<td>une liste d'arguments de modèle dans une spécialisation explicite ou instanciation explicite d'un modèle de constructeur était autorisée</td>
+<td>forbidden</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1321.html">CWG 1321</a></td>
+<td>C++98</td>
+<td>il n'était pas clair si les mêmes noms dépendants dans la première déclaration et une redéclaration sont équivalents</td>
+<td>elles sont équivalentes et la signification est la même que dans la première déclaration</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1395.html">CWG 1395</a></td>
+<td>C++11</td>
+<td>la déduction échouait lorsque A provenait d'un paquet, et qu'il n'existait aucun départageur pour paquet vide</td>
+<td>déduction autorisée, départageur ajouté</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1406.html">CWG 1406</a></td>
+<td>C++11</td>
+<td>le type du nouveau premier paramètre ajouté pour un modèle de fonction membre non statique n'était pas pertinent pour le ref-qualificateur de ce modèle</td>
+<td>le type est un type de référence rvalue si le ref-qualificateur est <code>&amp;&amp;</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1446.html">CWG 1446</a></td>
+<td>C++11</td>
+<td>le type du nouveau premier paramètre ajouté pour un modèle de fonction membre non statique sans ref-qualificateur était un type de référence lvalue , même si ce modèle de fonction membre est comparé à un modèle de fonction dont le premier paramètre a un type de référence rvalue</td>
+<td>le type est un type de référence rvalue dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2373.html">CWG 2373</a></td>
+<td>C++98</td>
+<td>de nouveaux premiers paramètres ont été ajoutés aux listes de paramètres des modèles de fonctions membres statiques lors du classement partiel</td>
+<td>non ajoutés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><a href="class_template.html">modèle de classe</a></li>
+<li><a href="function.html">déclaration de fonction</a></li>
+</ul>
+
+</main>
+</body>
+</html>

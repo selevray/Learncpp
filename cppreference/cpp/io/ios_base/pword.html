@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ios_base::pword — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/ios_base.html">std::ios_base</a></nav>
+<h1 id="std-ios_base-pword"><code>std::ios_base::pword</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/ios_base/pword">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void*&amp; pword( int index );
+</code></pre>
+<p>Alloue d'abord ou redimensionne le stockage privé (tableau dynamique de <code>void*</code> ou autre structure de données indexable) suffisamment pour rendre <code>index</code> un index valide, puis renvoie une référence vers l'élément <code>void*</code> du stockage privé d'indice <code>index</code>.</p>
+<p>La référence peut être invalidée par toute opération sur cet objet <code>ios_base</code>, y compris un autre appel à <code>pword()</code>, mais les valeurs stockées sont conservées, de sorte que la lecture depuis <code>pword(index)</code> avec le même indice plus tard produira la même valeur jusqu'au prochain appel à <a href="../basic_ios/copyfmt.html"><code>std::basic_ios::copyfmt()</code></a>. La valeur peut être utilisée à toute fin. L'indice de l'élément doit être obtenu par <a href="xalloc.html"><code>xalloc()</code></a>, sinon le comportement est indéfini. Les nouveaux éléments sont initialisés à un <a href="../../language/pointer.html#Null_pointers">pointeur nul</a>.</p>
+<p>Si la fonction échoue (éventuellement à cause d'un échec d'allocation) et que <code>*this</code> est un sous-objet de classe de base d'un objet ou sous-objet <code>basic_ios&lt;&gt;</code>, appelle <code>std::basic_ios&lt;&gt;::setstate(badbit)</code> qui peut lever <a href="failure.html"><code>std::ios_base::failure</code></a>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>index</code> — valeur d'indice de l'élément</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Une référence vers l'élément.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever <a href="failure.html"><code>std::ios_base::failure</code></a> lors de la mise à 1 du badbit.</p>
+<h2 id="Notes">Notes</h2>
+<p>Si les pointeurs stockés dans <code>pword</code> nécessitent une gestion, <a href="register_callback.html"><code>register_callback()</code></a> peut être utilisé pour installer des gestionnaires qui effectuent une copie profonde ou une désallocation si nécessaire.</p>
+<h2 id="Example">Exemple</h2>
+<p>Utilise le stockage pword de la classe de base pour l'identification de type à l'exécution des objets de flux dérivés.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+template&lt;class CharT, class Traits = std::char_traits&lt;CharT&gt;&gt;
+class mystream : public std::basic_ostream&lt;CharT, Traits&gt;
+{
+public:
+    static const int xindex;
+
+    mystream(std::basic_ostream&lt;CharT, Traits&gt;&amp; ostr) :
+        std::basic_ostream&lt;CharT, Traits&gt;(ostr.rdbuf())
+    {
+        this-&gt;pword(xindex) = this;
+    }
+
+    void myfn()
+    {
+        *this &lt;&lt; &quot;[special handling for mystream]&quot;;
+    }
+};
+
+// Chaque spécialisation de mystream obtient un index unique depuis xalloc()
+template&lt;class CharT, class Traits&gt;
+const int mystream&lt;CharT, Traits&gt;::xindex = std::ios_base::xalloc();
+
+// Ce manipulateur d'E/S pourra reconnaître les ostream qui sont des mystream
+// en recherchant le pointeur stocké dans pword
+template&lt;class CharT, class Traits&gt;
+std::basic_ostream&lt;CharT, Traits&gt;&amp; mymanip(std::basic_ostream&lt;CharT, Traits&gt;&amp; os)
+{
+    if (os.pword(mystream&lt;CharT, Traits&gt;::xindex) == &amp;os)
+        static_cast&lt;mystream&lt;CharT, Traits&gt;&amp;&gt;(os).myfn();
+    return os;
+}
+
+int main()
+{
+    std::cout &lt;&lt; &quot;cout, narrow-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+
+    mystream&lt;char&gt; myout(std::cout);
+    myout &lt;&lt; &quot;myout, narrow-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+
+    std::wcout &lt;&lt; &quot;wcout, wide-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+
+    mystream&lt;wchar_t&gt; mywout(std::wcout);
+    mywout &lt;&lt; &quot;mywout, wide-character test &quot; &lt;&lt; mymanip &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">cout, narrow-character test
+myout, narrow-character test [special handling for mystream]
+wcout, wide-character test
+mywout, wide-character test [special handling for mystream]
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue36">LWG 36</a></td>
+<td>C++98</td>
+<td>la valeur stockée pourrait ne pas être conservée si la référence est invalidée</td>
+<td>la valeur stockée est conservée jusqu'au prochain appel de <code>copyfmt()</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue41">LWG 41</a></td>
+<td>C++98</td>
+<td>la fonction positionne badbit d'elle-même en cas d'échec, mais <code>ios_base</code> ne fournit pas une telle interface</td>
+<td>badbit est positionné par <code>basic_ios</code> (si <code>*this</code> est un sous-objet de classe de base)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="iword.html">iword</a></strong> — redimensionne le stockage privé si nécessaire et donne accès à l'élément <code>long</code> à l'indice donné <em>(fonction membre publique)</em></li>
+<li><strong><a href="xalloc.html">xalloc</a> [statique]</strong> — renvoie un entier unique à l'échelle du programme, utilisable en toute sécurité comme indice pour <strong><code>pword()</code></strong> et <a href="iword.html"><code>iword()</code></a> <em>(fonction membre statique publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

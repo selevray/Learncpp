@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unreachable — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/program.html">Utilitaires de support du programme</a></nav>
+<h1 id="unreachable"><code>unreachable</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/program/unreachable">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stddef.h&gt;</strong></p>
+<pre><code class="language-c">#define unreachable() /* see below */  // (depuis C23)
+</code></pre>
+<p>La macro de type fonction <code>unreachable</code> se développe en une expression <code>void</code>. L'exécution de <code>unreachable()</code> entraîne un <a href="../language/behavior.html">comportement indéfini</a>.</p>
+<p>Une implémentation peut l'utiliser pour supprimer des branches de code impossibles lors de l'optimisation (généralement dans les builds optimisés) ou pour les piéger afin d'empêcher toute exécution ultérieure (généralement dans les builds de débogage).</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-c">// Utilise des extensions spécifiques au compilateur si possible.
+#ifdef __GNUC__ // GCC, Clang, ICC
+
+#define unreachable() (__builtin_unreachable())
+
+#elifdef _MSC_VER // MSVC
+
+#define unreachable() (__assume(false))
+
+#else
+// Même si aucune extension n'est utilisée, un comportement indéfini est tout de même déclenché par
+// le corps de fonction vide et l'attribut noreturn.
+
+// La définition externe de unreachable_impl doit être émise dans une unité de traduction séparée
+// en raison de la règle concernant les fonctions inline en C.
+
+[[noreturn]] inline void unreachable_impl() {}
+#define unreachable() (unreachable_impl())
+
+#endif
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;assert.h&gt;
+#include &lt;stddef.h&gt;
+#include &lt;stdint.h&gt;
+#include &lt;stdlib.h&gt;
+
+struct Color { uint8_t r, g, b, a; };
+struct ColorSpan { struct Color* data; size_t size; };
+
+// On suppose que seul un ensemble restreint de caps de texture est pris en charge.
+struct ColorSpan allocate_texture(size_t xy)
+{
+    switch (xy)
+    {
+    case 128: [[fallthrough]];
+    case 256: [[fallthrough]];
+    case 512:
+    {
+        /* ... */
+        struct ColorSpan result = {
+            .data = malloc(xy * xy * sizeof(struct Color)),
+            .size = xy * xy
+        };
+
+        if (!result.data)
+            result.size = 0;
+
+        return result;
+    }
+    default:
+        unreachable();
+    }
+}
+
+int main(void)
+{
+    struct ColorSpan tex = allocate_texture(128); // OK
+    assert(tex.size == 128 * 128);
+
+    struct ColorSpan badtex = allocate_texture(32);  // Comportement indéfini
+
+    free(badtex.data);
+    free(tex.data);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Segmentation fault
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/utility/unreachable.html">Documentation C++</a> pour unreachable</strong></p>
+<h2 id="External_Links">Liens externes</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.</td>
+<td><a href="https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html#index-_005f_005fbuiltin_005funreachable">Documentation GCC : <code>__builtin_unreachable</code></a></td>
+</tr>
+<tr>
+<td>2.</td>
+<td><a href="https://clang.llvm.org/docs/LanguageExtensions.html#builtin-unreachable">Documentation Clang : <code>__builtin_unreachable</code></a></td>
+</tr>
+<tr>
+<td>3.</td>
+<td><a href="https://docs.microsoft.com/en-us/cpp/intrinsics/assume">Documentation MSVC : <code>__assume</code></a></td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

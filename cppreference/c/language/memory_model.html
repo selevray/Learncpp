@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modèle mémoire — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="modèle-mémoire">Modèle mémoire</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/memory_model">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Définit la sémantique du stockage mémoire de l'ordinateur pour les besoins de la machine abstraite C.</p>
+<p>Les données (mémoire) disponibles pour un programme C forment une ou plusieurs suites contiguës de <em>octets</em>. Chaque octet en mémoire possède une <em>adresse</em> unique.</p>
+<h2 id="Byte">Octet</h2>
+<p>Un <em>octet</em> est la plus petite unité de mémoire adressable. Il est défini comme une suite contiguë de bits, suffisamment grande pour contenir n'importe quel membre du <em>jeu de caractères d'exécution de base</em> (<a href="translation_phases.html">les 96 caractères</a> qui doivent tenir sur un seul octet). C prend en charge des octets de 8 bits ou plus.</p>
+<p>Les <a href="types.html">types</a> <code>char</code>, <code>unsigned char</code> et <code>signed char</code> utilisent un octet à la fois pour le stockage et pour la <a href="object.html">représentation des valeurs</a>. Le nombre de bits d'un octet est accessible via <a href="../types/limits.html"><code>CHAR_BIT</code></a>.</p>
+<p>Pour l'utilisation des octets afin de représenter les valeurs d'autres types fondamentaux (y compris les dispositions mémoire big-endian et little-endian), voir <a href="object.html#Object_representation">représentation des objets</a></p>
+<h2 id="Memory_location">Emplacement mémoire</h2>
+<p>Un <em>emplacement mémoire</em> est</p>
+<ul>
+<li>un objet de <a href="compatible_type.html#Type_groups">type scalaire</a> (type arithmétique, type pointeur, type énumération)</li>
+<li>ou la plus grande suite contiguë de <a href="bit_field.html">champs de bits</a> de longueur non nulle</li>
+</ul>
+<pre><code class="language-c">struct S
+{
+    char a;     // emplacement mémoire #1
+    int b : 5;  // emplacement mémoire #2
+    int c : 11, // emplacement mémoire #2 (suite)
+          : 0,
+        d : 8;  // emplacement mémoire #3
+    struct
+    {
+        int ee : 8; // emplacement mémoire #4
+    } e;
+} obj; // L'objet 'obj' est constitué de 4 emplacements mémoire distincts
+</code></pre>
+<blockquote>
+<h3 id="Threads_and_data_races">Threads et courses de données</h3>
+<p>Un fil d'exécution est un flot de contrôle au sein d'un programme qui commence par l'invocation d'une fonction de niveau supérieur par <a href="../thread/thrd_create.html"><code>thrd_create</code></a> ou par d'autres moyens.</p>
+<p>Tout thread peut potentiellement accéder à n'importe quel objet du programme (les objets à <a href="storage_duration.html">durée de stockage</a> automatique et local au thread peuvent néanmoins être accédés par un autre thread via un pointeur).</p>
+<p>Différents fils d'exécution sont toujours autorisés à accéder (en lecture et en modification) à des <em>emplacements mémoire</em> différents de façon concurrente, sans interférence ni exigence de synchronisation. (notez qu'il n'est pas sûr de mettre à jour simultanément deux champs de bits non atomiques d'une même structure si tous les membres déclarés entre eux sont aussi des champs de bits (de longueur non nulle), quelles que soient les tailles de ces champs intermédiaires)</p>
+<p>Lorsqu'une <a href="eval_order.html">évaluation</a> d'expression écrit dans un emplacement mémoire et qu'une autre évaluation lit ou modifie ce même emplacement, les expressions sont dites <em>en conflit</em>. Un programme qui comporte deux évaluations en conflit présente une <em>course de données</em>, sauf si l'une des conditions suivantes est remplie :</p>
+<ul>
+<li>les deux évaluations en conflit sont des <a href="atomic.html">opérations atomiques</a></li>
+<li>l'une des évaluations en conflit <em>arrive avant</em> l'autre (voir <a href="../atomic/memory_order.html"><code>memory_order</code></a>)</li>
+</ul>
+<p>Si une course de données se produit, le comportement du programme est indéfini.</p>
+<p>(en particulier, <a href="../thread/mtx_unlock.html"><code>mtx_unlock</code></a> est <em>synchronisé avec</em>, et donc <em>arrive avant</em> <a href="../thread/mtx_lock.html"><code>mtx_lock</code></a> du même mutex par un autre thread, ce qui permet d'utiliser des verrous mutex pour se prémunir contre les courses de données)</p>
+<p>Cette section est incomplète<br />
+Raison : petit exemple ou deux</p>
+<h3 id="Memory_order">Ordre mémoire</h3>
+<p>Lorsqu'un fil lit une valeur depuis un emplacement mémoire, il peut voir la valeur initiale, la valeur écrite dans le même fil, ou la valeur écrite dans un autre fil. Voir <a href="../atomic/memory_order.html"><code>memory_order</code></a> pour les détails sur l'ordre dans lequel les écritures effectuées par les fils deviennent visibles pour les autres fils.</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>3.6 octet (p : à définir)</li>
+<li>3.14 emplacement mémoire (p : à définir)</li>
+<li>5.1.2.4 Exécutions multi-fils et courses de données (p : à définir)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>3.6 octet (p : à définir)</li>
+<li>3.14 emplacement mémoire (p : à définir)</li>
+<li>5.1.2.4 Exécutions multi-fils et courses de données (p : à définir)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>3.6 octet (p : 4)</li>
+<li>3.14 emplacement mémoire (p : 5)</li>
+<li>5.1.2.4 Exécutions multi-fils et courses de données (p : 17-21)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>3.6 octet (p : 4)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>1.6 DÉFINITIONS DES TERMES</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/memory_model.html">Documentation C++</a> pour Modèle mémoire</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>modf, modff, modfl — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/numeric.html">Numerics</a> › <a href="../../../c/numeric/math.html">Fonctions mathématiques courantes</a></nav>
+<h1 id="modf-modff-modfl">modf, modff, modfl</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/numeric/math/modf">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;math.h&gt;</strong></p>
+<pre><code class="language-c">float       modff( float arg, float* iptr );  // (1) (depuis C99)
+
+double      modf( double arg, double* iptr );  // (2)
+
+long double modfl( long double arg, long double* iptr );  // (3) (depuis C99)
+</code></pre>
+<p>1-3) Décompose la valeur à virgule flottante donnée <code>arg</code> en parties entière et fractionnaire, chacune ayant le même type et le même signe que <code>arg</code>. La partie entière (au format à virgule flottante) est stockée dans l'objet pointé par <code>iptr</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>arg</code> — valeur à virgule flottante</li>
+<li><code>iptr</code> — pointeur vers la valeur à virgule flottante où stocker la partie entière</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Si aucune erreur ne se produit, renvoie la partie fractionnaire de <code>arg</code> avec le même signe que <code>arg</code>. La partie entière est placée dans la valeur pointée par <code>iptr</code>.</p>
+<p>La somme de la valeur renvoyée et de la valeur stockée dans <code>*iptr</code> donne <code>arg</code> (à l'arrondi près).</p>
+<h2 id="Error_handling">Gestion des erreurs</h2>
+<p>Cette fonction n'est soumise à aucune des erreurs spécifiées dans <a href="math_errhandling.html"><code>math_errhandling</code></a>.</p>
+<p>Si l'implémentation prend en charge l'arithmétique à virgule flottante IEEE (CEI 60559),</p>
+<ul>
+<li>Si <code>arg</code> vaut ±0, ±0 est renvoyé, et ±0 est stocké dans <code>*iptr</code>.</li>
+<li>Si <code>arg</code> vaut ±∞, ±0 est renvoyé, et ±∞ est stocké dans <code>*iptr</code>.</li>
+<li>Si <code>arg</code> est NaN, NaN est renvoyé, et NaN est stocké dans <code>*iptr</code>.</li>
+<li>La valeur renvoyée est exacte, <a href="../fenv/FE_round.html">le mode d'arrondi courant</a> est ignoré.</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<p>Cette fonction se comporte comme si elle était implémentée ainsi :</p>
+<pre><code class="language-c">double modf(double value, double *iptr)
+{
+#pragma STDC FENV_ACCESS ON
+    int save_round = fegetround();
+    fesetround(FE_TOWARDZERO);
+    *iptr = std::nearbyint(value);
+    fesetround(save_round);
+    return copysign(isinf(value) ? 0.0 : value - (*iptr), value);
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;float.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void)
+{
+    double f = 123.45;
+    printf(&quot;Given the number %.2f or %a in hex,\n&quot;, f, f);
+
+    double f3;
+    double f2 = modf(f, &amp;f3);
+    printf(&quot;modf() makes %.2f + %.2f\n&quot;, f3, f2);
+
+    int i;
+    f2 = frexp(f, &amp;i);
+    printf(&quot;frexp() makes %f * 2^%d\n&quot;, f2, i);
+
+    i = ilogb(f);
+    printf(&quot;logb()/ilogb() make %f * %d^%d\n&quot;, f / scalbn(1.0, i), FLT_RADIX, i);
+
+    // valeurs spéciales
+    f2 = modf(-0.0, &amp;f3);
+    printf(&quot;modf(-0) makes %.2f + %.2f\n&quot;, f3, f2);
+    f2 = modf(-INFINITY, &amp;f3);
+    printf(&quot;modf(-Inf) makes %.2f + %.2f\n&quot;, f3, f2);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Given the number 123.45 or 0x1.edccccccccccdp+6 in hex,
+modf() makes 123.00 + 0.45
+frexp() makes 0.964453 * 2^7
+logb()/ilogb() make 1.92891 * 2^6
+modf(-0) makes -0.00 + -0.00
+modf(-Inf) makes -INF + -0.00
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.12.6.12 Les fonctions modf (p : TBD)</li>
+<li>F.10.3.12 Les fonctions modf (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.12.6.12 Les fonctions modf (p : TBD)</li>
+<li>F.10.3.12 Les fonctions modf (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.12.6.12 Les fonctions modf (p : 246-247)</li>
+<li>F.10.3.12 Les fonctions modf (p : 523)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.12.6.12 Les fonctions modf (p : 227)</li>
+<li>F.9.3.12 Les fonctions modf (p : 460)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.5.4.6 La fonction modf</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="trunc.html">trunctruncftruncl</a> (C99) (C99) (C99)</strong> — arrondit à l'entier le plus proche, non supérieur en valeur absolue à la valeur donnée <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/numeric/math/modf.html">Documentation C++</a> de modf</strong></p>
+
+</main>
+</body>
+</html>

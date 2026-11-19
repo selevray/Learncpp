@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::is_sorted — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-is_sorted"><code>std::ranges::is_sorted</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/is_sorted">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::forward_iterator I, std::sentinel_for&lt;I&gt; S,
+          class Proj = std::identity,
+          std::indirect_strict_weak_order&lt;std::projected&lt;I, Proj&gt;&gt;
+              Comp = ranges::less &gt;
+constexpr bool
+    is_sorted( I first, S last, Comp comp = {}, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; ranges::forward_range R, class Proj = std::identity,
+          std::indirect_strict_weak_order&lt;
+              std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt;
+                  Comp = ranges::less &gt;
+constexpr bool
+    is_sorted( R&amp;&amp; r, Comp comp = {}, Proj proj = {} );  // (2) (depuis C++20)
+</code></pre>
+<p>Vérifie si les éléments de l'intervalle <code>[first,last)</code> sont triés par ordre non décroissant.</p>
+<p>Une séquence est triée par rapport à un comparateur <code>comp</code> si pour tout itérateur <code>it</code> pointant vers la séquence et tout entier non négatif <code>n</code> tel que <code>it + n</code> est un itérateur valide pointant vers un élément de la séquence, <code>std::invoke(comp, std::invoke(proj, *(it + n)), std::invoke(proj, *it))</code> s'évalue à <code>false</code>.</p>
+<ol>
+<li>
+<p>Les éléments sont comparés à l'aide de la fonction de comparaison binaire donnée <code>comp</code>.</p>
+</li>
+<li>
+<p>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle source, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code> et <code>ranges::end(r)</code> comme <code>last</code>.</p>
+</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — paire itérateur-sentinelle définissant l'intervalle à vérifier s'il est trié</li>
+<li><code>r</code> — l'intervalle à vérifier s'il est trié</li>
+<li><code>comp</code> — fonction de comparaison à appliquer aux éléments projetés</li>
+<li><code>proj</code> — projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>true</code> si les éléments de l'intervalle sont triés selon <code>comp</code>.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Linéaire en la distance entre <code>first</code> et <code>last</code>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct is_sorted_fn
+{
+    template&lt;std::forward_iterator I, std::sentinel_for&lt;I&gt; S,
+             class Proj = std::identity,
+             std::indirect_strict_weak_order&lt;std::projected&lt;I, Proj&gt;&gt;
+                 Comp = ranges::less&gt;
+    constexpr bool operator()(I first, S last, Comp comp = {}, Proj proj = {}) const
+    {
+        return ranges::is_sorted_until(first, last, comp, proj) == last;
+    }
+
+    template&lt;ranges::forward_range R, class Proj = std::identity,
+             std::indirect_strict_weak_order&lt;
+                 std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt;
+                     Comp = ranges::less&gt;
+    constexpr bool operator()(R&amp;&amp; r, Comp comp = {}, Proj proj = {}) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r), std::ref(comp), std::ref(proj));
+    }
+};
+
+inline constexpr is_sorted_fn is_sorted;
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><code>ranges::is_sorted</code> renvoie <code>true</code> pour les intervalles vides et les intervalles de longueur un.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;array&gt;
+#include &lt;functional&gt;
+#include &lt;iostream&gt;
+#include &lt;iterator&gt;
+
+int main()
+{
+    namespace ranges = std::ranges;
+
+    std::array digits {3, 1, 4, 1, 5};
+
+    ranges::copy(digits, std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;));
+    ranges::is_sorted(digits)
+        ? std::cout &lt;&lt; &quot;: sorted\n&quot;
+        : std::cout &lt;&lt; &quot;: not sorted\n&quot;;
+
+    ranges::sort(digits);
+
+    ranges::copy(digits, std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;));
+    ranges::is_sorted(ranges::begin(digits), ranges::end(digits))
+        ? std::cout &lt;&lt; &quot;: sorted\n&quot;
+        : std::cout &lt;&lt; &quot;: not sorted\n&quot;;
+
+    ranges::reverse(digits);
+
+    ranges::copy(digits, std::ostream_iterator&lt;int&gt;(std::cout, &quot; &quot;));
+    ranges::is_sorted(digits, ranges::greater {})
+        ? std::cout &lt;&lt; &quot;: sorted (with 'greater')\n&quot;
+        : std::cout &lt;&lt; &quot;: not sorted\n&quot;;
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">3 1 4 1 5 : not sorted
+1 1 3 4 5 : sorted
+5 4 3 1 1 : sorted (with 'greater')
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="is_sorted_until.html">ranges::is_sorted_until</a> (C++20)</strong> — trouve le plus grand sous-intervalle trié <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../is_sorted.html">is_sorted</a> (C++11)</strong> — vérifie si un intervalle est trié par ordre croissant <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::atomic&lt;T&gt;::fetch_add — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/atomic.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/atomic/atomic.html">std::atomic</a></nav>
+<h1 id="std-atomic-t-fetch_add"><code>std::atomic&lt;T&gt;::fetch_add</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/atomic/atomic/fetch_add">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>membre uniquement des spécialisations atomic&lt; Integral ﻿ &gt; et des spécialisations atomic&lt; Floating ﻿ &gt; (depuis C++20)</strong></p>
+<pre><code class="language-cpp">T fetch_add( T arg, std::memory_order order =
+                        std::memory_order_seq_cst ) noexcept;  // (1) (depuis C++11)
+
+T fetch_add( T arg, std::memory_order order =
+                        std::memory_order_seq_cst ) volatile noexcept;  // (2) (depuis C++11)
+</code></pre>
+<p><em><em>membre uniquement de la spécialisation partielle atomic&lt;T</em>&gt;</em>*</p>
+<pre><code class="language-cpp">T* fetch_add( std::ptrdiff_t arg,
+              std::memory_order order =
+                  std::memory_order_seq_cst ) noexcept;  // (3) (depuis C++11)
+
+T* fetch_add( std::ptrdiff_t arg,
+              std::memory_order order =
+                  std::memory_order_seq_cst ) volatile noexcept;  // (4) (depuis C++11)
+</code></pre>
+<p>Remplace atomiquement la valeur courante par le résultat de l'addition arithmétique de la valeur et de <code>arg</code>. Autrement dit, elle effectue un post-incrément atomique. L'opération est une opération de lecture-modification-écriture. La mémoire est affectée selon la valeur de <code>order</code>.</p>
+<p>1,2) Pour les types entiers signés, l'arithmétique est définie avec une représentation en complément à deux. Il n'existe aucun résultat indéfini.</p>
+<blockquote>
+<p>Pour les types à virgule flottante, l'<a href="../../numeric/fenv.html">environnement à virgule flottante</a> en vigueur peut être différent de celui du thread appelant. L'opération n'est pas tenue de se conformer aux traits <a href="../../types/numeric_limits.html"><code>std::numeric_limits</code></a> correspondants, mais y est encouragée. Si le résultat n'est pas une valeur représentable pour son type, le résultat est non spécifié, mais l'opération n'a par ailleurs aucun comportement indéfini.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>3,4) Le résultat peut être une adresse indéfinie, mais l'opération n'a par ailleurs aucun comportement indéfini.</p>
+<p>Si <code>T</code> n'est pas un type objet complet, le programme est mal formé.</p>
+<blockquote>
+<p>Elle est obsolète si <code>std::atomic&lt;T&gt;::is_always_lock_free</code> vaut <code>false</code> et que la surcharge <code>(2)</code> ou <code>(4)</code> participe à la résolution de surcharge.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>arg</code> — l'autre argument de l'addition arithmétique</li>
+<li><code>order</code> — contraintes d'ordre mémoire à appliquer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur immédiatement antérieure aux effets de cette fonction dans l'<a href="../memory_order.html#Modification_order">ordre de modification</a> de <code>*this</code>.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;array&gt;
+#include &lt;atomic&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+std::atomic&lt;long long&gt; data{10};
+std::array&lt;long long, 5&gt; return_values{};
+
+void do_work(int thread_num)
+{
+    long long val = data.fetch_add(1, std::memory_order_relaxed);
+    return_values[thread_num] = val;
+}
+
+int main()
+{
+    {
+        std::jthread th0{do_work, 0};
+        std::jthread th1{do_work, 1};
+        std::jthread th2{do_work, 2};
+        std::jthread th3{do_work, 3};
+        std::jthread th4{do_work, 4};
+    }
+
+    std::cout &lt;&lt; &quot;Result : &quot; &lt;&lt; data &lt;&lt; '\n';
+
+    for (long long val : return_values)
+        std::cout &lt;&lt; &quot;Seen return value : &quot; &lt;&lt; val &lt;&lt; std::endl;
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">Result : 15
+Seen return value : 11
+Seen return value : 10
+Seen return value : 14
+Seen return value : 12
+Seen return value : 13
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://wg21.link/P0558R1">P0558R1</a></td>
+<td>C++11</td>
+<td>arithmétique permise sur les pointeurs vers <code>void</code> (éventuellement qualifié cv) ou sur une fonction</td>
+<td>rendu mal formé</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../atomic_fetch_add.html">atomic_fetch_addatomic_fetch_add_explicit</a> (C++11) (C++11)</strong> — ajoute une valeur non atomique à un objet atomique et obtient la valeur précédente de l'atomique <em>(modèle de fonction)</em></li>
+<li><strong><a href="operator_arith.html">operator++operator++(int)operator--operator--(int)</a></strong> — incrémente ou décrémente la valeur atomique d'une unité <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

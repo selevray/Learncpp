@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::unique — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/algorithm.html">Bibliothèque des algorithmes</a> › <a href="../../../cpp/algorithm/ranges.html">Algorithmes contraints (depuis C++20)</a></nav>
+<h1 id="std-ranges-unique"><code>std::ranges::unique</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/ranges/unique">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; std::permutable I, std::sentinel_for&lt;I&gt; S, class Proj = std::identity,
+          std::indirect_equivalence_relation&lt;std::projected&lt;I, Proj&gt;&gt;
+              C = ranges::equal_to &gt;
+constexpr ranges::subrange&lt;I&gt;
+    unique( I first, S last, C comp = {}, Proj proj = {} );  // (1) (depuis C++20)
+
+template&lt; ranges::forward_range R, class Proj = std::identity,
+          std::indirect_equivalence_relation&lt;std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt;
+              C = ranges::equal_to &gt;
+requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt;
+constexpr ranges::borrowed_subrange_t&lt;R&gt;
+    unique( R&amp;&amp; r, C comp = {}, Proj proj = {} );  // (2) (depuis C++20)
+</code></pre>
+<ol>
+<li>Élimine tous les éléments sauf le premier de chaque groupe consécutif d'éléments équivalents de l'intervalle <code>[first,last)</code> et renvoie un sous-intervalle <code>[ret,last)</code>, où <code>ret</code> est un itérateur passé-la-fin vers la nouvelle fin de l'intervalle.</li>
+</ol>
+<p>Deux éléments consécutifs <code>*(i - 1)</code> et <code>*i</code> sont considérés comme équivalents si <code>std::invoke(comp, std::invoke(proj, *(i - 1)), std::invoke(proj, *i)) == true</code>, où <code>i</code> est un itérateur de l'intervalle <code>[first + 1,last)</code>.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, mais utilise <code>r</code> comme intervalle, comme si l'on utilisait <code>ranges::begin(r)</code> comme <code>first</code>, et <code>ranges::end(r)</code> comme <code>last</code>.</li>
+</ol>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first, last</code> — l'intervalle d'éléments à traiter</li>
+<li><code>r</code> — l'intervalle d'éléments à traiter</li>
+<li><code>comp</code> — le prédicat binaire pour comparer les éléments projetés</li>
+<li><code>proj</code> — la projection à appliquer aux éléments</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Renvoie <code>{ret, last}</code>, où <code>ret</code> est un itérateur passé-la-fin vers la nouvelle fin de l'intervalle.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Pour les intervalles non vides, exactement <code>ranges::distance(first, last) - 1</code> applications du prédicat correspondant <code>comp</code> et au plus deux fois plus d'applications de toute projection <code>proj</code>.</p>
+<h2 id="Notes">Notes</h2>
+<p>La suppression se fait en décalant (au moyen de l'affectation par déplacement) les éléments de l'intervalle de telle sorte que les éléments non supprimés apparaissent au début de l'intervalle. L'ordre relatif des éléments restants est préservé et la taille <em>physique</em> du conteneur est inchangée. Les itérateurs dans <code>[ret,last)</code> (s'il y en a) restent déréférençables, mais les éléments eux-mêmes ont des valeurs non spécifiées (selon la postcondition de <a href="../../named_req/MoveAssignable.html"><em>MoveAssignable</em></a>).</p>
+<p>Un appel à <code>ranges::unique</code> est parfois suivi d'un appel à la fonction membre <code>erase</code> d'un conteneur, qui efface les valeurs non spécifiées et réduit la taille <em>physique</em> du conteneur pour correspondre à sa nouvelle taille <em>logique</em>. Ces deux invocations ensemble modélisent l'idiome <a href="https://en.wikipedia.org/wiki/Erase-remove_idiom"><em>Erase–remove</em> idiom</a>.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">struct unique_fn
+{
+    template&lt;std::permutable I, std::sentinel_for&lt;I&gt; S, class Proj = std::identity,
+             std::indirect_equivalence_relation&lt;std::projected&lt;I, Proj&gt;&gt;
+                 C = ranges::equal_to&gt;
+    constexpr ranges::subrange&lt;I&gt;
+        operator()(I first, S last, C comp = {}, Proj proj = {}) const
+    {
+        first = ranges::adjacent_find(first, last, comp, proj);
+        if (first == last)
+            return {first, first};
+        auto i {first};
+        ++first;
+        while (++first != last)
+            if (!std::invoke(comp, std::invoke(proj, *i), std::invoke(proj, *first)))
+                *++i = ranges::iter_move(first);
+        return {++i, first};
+    }
+
+    template&lt;ranges::forward_range R, class Proj = std::identity,
+             std::indirect_equivalence_relation&lt;std::projected&lt;ranges::iterator_t&lt;R&gt;, Proj&gt;&gt;
+                 C = ranges::equal_to&gt;
+    requires std::permutable&lt;ranges::iterator_t&lt;R&gt;&gt;
+    constexpr ranges::borrowed_subrange_t&lt;R&gt;
+        operator()(R&amp;&amp; r, C comp = {}, Proj proj = {}) const
+    {
+        return (*this)(ranges::begin(r), ranges::end(r),
+                       std::move(comp), std::move(proj));
+    }
+};
+
+inline constexpr unique_fn unique {};
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cmath&gt;
+#include &lt;complex&gt;
+#include &lt;iostream&gt;
+#include &lt;vector&gt;
+
+struct id {
+    int i;
+    explicit id(int i) : i {i} {}
+};
+
+void print(id i, const auto&amp; v)
+{
+    std::cout &lt;&lt; i.i &lt;&lt; &quot;) &quot;;
+    std::ranges::for_each(v, [](auto const&amp; e) { std::cout &lt;&lt; e &lt;&lt; ' '; });
+    std::cout &lt;&lt; '\n';
+}
+
+int main()
+{
+    // un vecteur contenant plusieurs éléments dupliqués
+    std::vector&lt;int&gt; v {1, 2, 1, 1, 3, 3, 3, 4, 5, 4};
+
+    print(id {1}, v);
+
+    // supprime les doublons consécutifs (adjacents)
+    const auto ret = std::ranges::unique(v);
+    // v contient maintenant {1 2 1 3 4 5 4 x x x}, où « x » est indéterminé
+    v.erase(ret.begin(), ret.end());
+    print(id {2}, v);
+
+    // trier puis appliquer unique, pour supprimer tous les doublons
+    std::ranges::sort(v); // {1 1 2 3 4 4 5}
+    print(id {3}, v);
+
+    const auto [first, last] = std::ranges::unique(v.begin(), v.end());
+    // v contient maintenant {1 2 3 4 5 x x}, où « x » est indéterminé
+    v.erase(first, last);
+    print(id {4}, v);
+
+    // unique avec comparaison et projection personnalisées
+    std::vector&lt;std::complex&lt;int&gt;&gt; vc { {1, 1}, {-1, 2}, {-2, 3}, {2, 4}, {-3, 5} };
+    print(id {5}, vc);
+
+    const auto ret2 = std::ranges::unique(vc,
+        // considère deux nombres complexes comme égaux si leurs parties réelles sont égales par module :
+        [](int x, int y) { return std::abs(x) == std::abs(y); }, // comp
+        [](std::complex&lt;int&gt; z) { return z.real(); }             // proj
+    );
+    vc.erase(ret2.begin(), ret2.end());
+    print(id {6}, vc);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">1) 1 2 1 1 3 3 3 4 5 4
+2) 1 2 1 3 4 5 4
+3) 1 1 2 3 4 4 5
+4) 1 2 3 4 5
+5) (1,1) (-1,2) (-2,3) (2,4) (-3,5)
+6) (1,1) (-2,3) (-3,5)
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="unique_copy.html">ranges::unique_copy</a> (C++20)</strong> — crée une copie de certains éléments d'un intervalle ne contenant aucun doublon consécutif <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="adjacent_find.html">ranges::adjacent_find</a> (C++20)</strong> — trouve les deux premiers éléments adjacents qui sont égaux (ou qui satisfont un prédicat donné) <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="remove.html">ranges::removeranges::remove_if</a> (C++20) (C++20)</strong> — supprime les éléments satisfaisant des critères donnés <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../unique.html">unique</a></strong> — supprime les éléments dupliqués consécutifs d'un intervalle <em>(modèle de fonction)</em></li>
+<li><strong><a href="../../container/list/unique.html">unique</a></strong> — supprime les éléments dupliqués consécutifs <em>(fonction membre publique de <code>std::list&lt;T,Allocator&gt;</code>)</em></li>
+<li><strong><a href="../../container/forward_list/unique.html">unique</a></strong> — supprime les éléments dupliqués consécutifs <em>(fonction membre publique de <code>std::forward_list&lt;T,Allocator&gt;</code>)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

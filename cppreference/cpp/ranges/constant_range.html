@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::constant_range — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-constant_range"><code>std::ranges::constant_range</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/constant_range">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+concept constant_range =
+    ranges::input_range&lt;T&gt; &amp;&amp;
+    /*constant-iterator*/&lt;ranges::iterator_t&lt;T&gt;&gt;;  // (1) (depuis C++23)
+</code></pre>
+<p><strong>Concepts auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class T &gt;
+concept /*constant-iterator*/ =
+    std::input_iterator&lt;T&gt; &amp;&amp;
+    std::same_as&lt;std::iter_const_reference_t&lt;T&gt;, std::iter_reference_t&lt;T&gt;&gt;;  // (2) ( exposition uniquement* )
+</code></pre>
+<ol>
+<li>
+<p>Le concept <code>constant_range</code> est un raffinement de <a href="range.html"><code>range</code></a> pour lequel <code>ranges::begin</code> renvoie un <a href="../iterator.html#Iterator_categories">itérateur constant</a>.</p>
+</li>
+<li>
+<p>Le concept <code>/*constant-iterator*/&lt;T&gt;</code> est satisfait lorsque le résultat de l'opération d'indirection de l'itérateur d'entrée est son type de référence const, ce qui implique une lecture seule.</p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;ranges&gt;
+#include &lt;span&gt;
+#include &lt;string_view&gt;
+#include &lt;vector&gt;
+
+// mécanismes permettant de garantir que le paramètre est un intervalle constant
+// 1) un ensemble de surcharges où la version modifiable délègue à la version constante
+template&lt;std::ranges::constant_range R&gt;
+void takes_any_range1(R&amp;&amp; r)
+{
+    // R est définitivement un intervalle constant
+}
+
+template&lt;std::ranges::range R&gt;
+void takes_any_range1(R&amp;&amp; r)
+{
+    takes_any_range1(std::views::as_const(std::forward&lt;R&gt;(r)));
+}
+
+// 2) un modèle de fonction unique qui masque son paramètre
+template&lt;std::ranges::range R&gt;
+void takes_any_range2(R&amp;&amp; _r)
+{
+    auto r = std::views::as_const(std::forward&lt;R&gt;(_r));
+
+    // r est définitivement un intervalle constant
+    // ne plus jamais utiliser _r
+}
+
+// 3) un modèle de fonction unique qui s'invoque récursivement
+template&lt;std::ranges::range R&gt;
+void takes_any_range3(R&amp;&amp; r)
+{
+    if constexpr (std::ranges::constant_range&lt;R&gt;)
+    {
+        // R est définitivement un intervalle constant
+        // placer l'implémentation ici
+    }
+    else
+        takes_any_range3(std::views::as_const(std::forward&lt;R&gt;(r)));
+}
+
+static_assert
+(
+        std::ranges::constant_range&lt;const std::vector&lt;int&gt;&gt; and
+    not std::ranges::constant_range&lt;std::vector&lt;int&gt;&gt; and
+        std::ranges::constant_range&lt;std::string_view&gt; and
+    not std::ranges::constant_range&lt;std::span&lt;int&gt;&gt; and
+        std::ranges::constant_range&lt;std::span&lt;const int&gt;&gt; and
+    not std::ranges::constant_range&lt;const std::span&lt;int&gt;&gt;
+);
+
+int main() {}
+</code></pre>
+
+</main>
+</body>
+</html>

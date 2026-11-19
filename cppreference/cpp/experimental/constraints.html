@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contraintes et concepts — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a></nav>
+<h1 id="contraintes-et-concepts">Contraintes et concepts</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/constraints">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Cette page décrit une fonctionnalité expérimentale du langage de base. Pour les exigences nommées sur les types utilisées dans la spécification de la bibliothèque standard, voir <a href="../named_req.html">exigences nommées</a></p>
+<p>Les <a href="../language/class_template.html">modèles de classe</a>, les <a href="../language/function_template.html">modèles de fonction</a> et les fonctions non template (généralement membres de modèles de classe) peuvent être associés à une <em>contrainte</em>, qui précise les exigences sur les arguments de modèle et peut servir à sélectionner la surcharge de fonction et la spécialisation de modèle les plus appropriées.</p>
+<p>Les contraintes peuvent également servir à limiter la déduction automatique de type dans les déclarations de variables et les types de retour des fonctions aux seuls types satisfaisant les exigences spécifiées.</p>
+<p>Les ensembles nommés de telles exigences sont appelés <em>concepts</em>. Chaque concept est un prédicat, évalué à la compilation, et fait partie de l'interface d'un modèle lorsqu'il est utilisé comme contrainte :</p>
+<pre><code class="language-cpp">#include &lt;string&gt;
+#include &lt;locale&gt;
+using namespace std::literals;
+
+// Déclaration du concept « EqualityComparable », satisfait par
+// tout type T tel que, pour les valeurs a et b de type T,
+// l'expression a==b se compile et son résultat est convertible en bool
+template&lt;typename T&gt;
+concept bool EqualityComparable = requires(T a, T b) {
+    { a == b } -&gt; bool;
+};
+
+void f(EqualityComparable&amp;&amp;); // déclaration d'un modèle de fonction contraint
+// template&lt;typename T&gt;
+// void f(T&amp;&amp;) requires EqualityComparable&lt;T&gt;; // forme longue équivalente
+
+int main() {
+  f(&quot;abc&quot;s); // OK, std::string est EqualityComparable
+  f(std::use_facet&lt;std::ctype&lt;char&gt;&gt;(std::locale{})); // Error: not EqualityComparable
+}
+</code></pre>
+<p>Les violations de contraintes sont détectées à la compilation, tôt dans le processus d'instanciation du modèle, ce qui produit des messages d'erreur faciles à suivre.</p>
+<pre><code class="language-cpp">std::list&lt;int&gt; l = {3,-1,10};
+std::sort(l.begin(), l.end());
+//Diagnostic typique du compilateur sans concepts :
+//  invalid operands to binary expression ('std::_List_iterator&lt;int&gt;' and
+//  'std::_List_iterator&lt;int&gt;')
+//                           std::__lg(__last - __first) * 2);
+//                                     ~~~~~~ ^ ~~~~~~~
+// ... 50 lignes de sortie ...
+//
+//Diagnostic typique du compilateur avec concepts :
+//  error: cannot call std::sort with std::_List_iterator&lt;int&gt;
+//  note:  concept RandomAccessIterator&lt;std::_List_iterator&lt;int&gt;&gt; n'est pas satisfait
+</code></pre>
+<p>Le but des concepts est de modéliser des catégories sémantiques (Number, Range, RegularFunction) plutôt que des restrictions syntaxiques (HasPlus, Array). Selon les <a href="https://github.com/isocpp/CppCoreGuidelines/blob/master/CppCoreGuidelines.html#t20-avoid-concepts-without-meaningful-semantics">directives de base ISO C++ T.20</a>, &quot;La capacité de spécifier une sémantique significative est une caractéristique déterminante d'un véritable concept, par opposition à une contrainte syntaxique.&quot;</p>
+<p>Si la prise en charge des tests de fonctionnalités est disponible, les fonctionnalités décrites ici sont indiquées par la constante macro <code>__cpp_concepts</code> dont la valeur est égale ou supérieure à <code>201507</code>.</p>
+<h2 id="Placeholders">Espaces réservés</h2>
+<p>L'espace réservé sans contrainte <code>auto</code> et les <em>espaces réservés contraints</em>, qui ont la forme <code>concept-name</code> <code>&lt;</code> <code>template-argument-list</code><em>(facultatif)</em><code>&gt;</code>, sont des espaces réservés pour le type à déduire.</p>
+<p>Les espaces réservés peuvent apparaître dans les déclarations de variables (auquel cas ils sont déduits de l'initialisation) ou dans les types de retour des fonctions (auquel cas ils sont déduits des instructions return).</p>
+<pre><code class="language-cpp">std::pair&lt;auto, auto&gt; p2 = std::make_pair(0, 'a'); // le premier auto est int,
+                                                   // le second auto est char
+
+Sortable x = f(y); // le type de x est déduit du type de retour de f,
+                   // ne compile que si le type satisfait la contrainte Sortable
+
+auto f(Container) -&gt; Sortable; // le type de retour est déduit de l'instruction return
+                               // ne compile que si le type satisfait Sortable
+</code></pre>
+<p>Les espaces réservés peuvent aussi apparaître dans les paramètres, auquel cas ils transforment les déclarations de fonctions en déclarations de modèles (contraintes si l'espace réservé est contraint).</p>
+<pre><code class="language-cpp">void f(std::pair&lt;auto, EqualityComparable&gt;); // il s'agit d'un modèle à deux paramètres :
+       // un paramètre de type non contraint et un paramètre non-type contraint
+</code></pre>
+<p>Les espaces réservés contraints peuvent être utilisés partout où <code>auto</code> peut l'être, par exemple dans les déclarations de lambdas génériques.</p>
+<pre><code class="language-cpp">auto gl = [](Assignable&amp; a, auto* b) { a = *b; };
+</code></pre>
+<p>Si un spécificateur de type contraint désigne un élément qui n'est pas de type ou un modèle, mais est utilisé comme espace réservé contraint, le programme est mal formé :</p>
+<pre><code class="language-cpp">template&lt;size_t N&gt; concept bool Even = (N%2 == 0);
+struct S1 { int n; };
+int Even::* p2 = &amp;S1::n; // erreur, utilisation invalide d'un concept non-type
+void f(std::array&lt;auto, Even&gt;); // erreur, utilisation invalide d'un concept non-type
+template&lt;Even N&gt; void f(std::array&lt;auto, N&gt;); // OK
+</code></pre>
+<h2 id="Abbreviated_templates">Modèles abrégés</h2>
+<p>Si un ou plusieurs espaces réservés apparaissent dans une liste de paramètres de fonction, la déclaration de fonction est en fait une déclaration de modèle de fonction, dont la liste de paramètres de modèle comprend un paramètre inventé pour chaque espace réservé unique, dans l'ordre d'apparition.</p>
+<pre><code class="language-cpp">// forme courte
+void g1(const EqualityComparable*, Incrementable&amp;);
+// forme longue :
+// template&lt;EqualityComparable T, Incrementable U&gt; void g1(const T*, U&amp;);
+// forme plus longue :
+// template&lt;typename T, typename U&gt;
+// void g1(const T*, U&amp;) requires EqualityComparable&lt;T&gt; &amp;&amp; Incrementable&lt;U&gt;;
+
+void f2(std::vector&lt;auto*&gt;...);
+// forme longue : template&lt;typename... T&gt; void f2(std::vector&lt;T*&gt;...);
+
+void f4(auto (auto::*)(auto));
+// forme longue : template&lt;typename T, typename U, typename V&gt; void f4(T (U::*)(V));
+</code></pre>
+<p>Tous les espaces réservés introduits par des spécificateurs de type contraints équivalents ont le même paramètre de modèle inventé. En revanche, chaque spécificateur non contraint (<code>auto</code>) introduit toujours un paramètre de modèle différent.</p>
+<pre><code class="language-cpp">void f0(Comparable a, Comparable* b);
+// forme longue : template&lt;Comparable T&gt; void f0(T a, T* b);
+
+void f1(auto a, auto* b);
+// forme longue : template&lt;typename T, typename U&gt; f1(T a, U* b);
+</code></pre>
+<p>Les modèles de fonctions et les modèles de classes peuvent tous deux être déclarés à l'aide d'une <em>introduction de modèle</em>, de syntaxe <code>concept-name</code> <code>{</code> <code>parameter-list</code><em>(facultatif)</em><code>}</code> , auquel cas le mot-clé <code>template</code> n'est pas nécessaire : chaque paramètre de la <code>parameter-list</code> de l'introduction de modèle devient un paramètre de modèle dont la nature (type, non-type, modèle) est déterminée par la nature du paramètre correspondant du concept nommé.</p>
+<p>En plus de déclarer un modèle, l'introduction de modèle associe une <em>contrainte de prédicat</em> (voir ci-dessous) qui nomme (pour les concepts de variables) ou invoque (pour les concepts de fonctions) le concept nommé par l'introduction.</p>
+<pre><code class="language-cpp">EqualityComparable{T} class Foo;
+// forme longue : template&lt;EqualityComparable T&gt; class Foo;
+// forme plus longue : template&lt;typename T&gt; requires EqualityComparable&lt;T&gt; class Foo;
+
+template&lt;typename T, int N, typename... Xs&gt; concept bool Example = ...;
+Example{A, B, ...C} struct S1;
+// forme longue template&lt;class A, int B, class... C&gt; requires Example&lt;A,B,C...&gt; struct S1;
+</code></pre>
+<p>Pour les modèles de fonctions, l'introduction de modèle peut être combinée avec des espaces réservés :</p>
+<pre><code class="language-cpp">Sortable{T} void f(T, auto);
+// forme longue : template&lt;Sortable T, typename U&gt; void f(T, U);
+// variante utilisant uniquement des espaces réservés : void f(Sortable, auto);
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : retoucher les pages sur les déclarations de modèles pour y établir un lien ici</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Concepts">Concepts</h2>
+<p>Un concept est un ensemble nommé d'exigences. La définition d'un concept apparaît dans la portée d'espace de noms et prend la forme d'une définition de <a href="../language/function_template.html">modèle de fonction</a> (auquel cas il est appelé <em>concept de fonction</em>) ou d'une définition de <a href="../language/variable_template.html">modèle de variable</a> (auquel cas il est appelé <em>concept de variable</em>). La seule différence est que le mot-clé <code>concept</code> apparaît dans la <code>decl-specifier-seq</code> :</p>
+<pre><code class="language-cpp">// concept de variable de la bibliothèque standard (Ranges TS)
+template &lt;class T, class U&gt;
+concept bool Derived = std::is_base_of&lt;U, T&gt;::value;
+
+// concept de fonction de la bibliothèque standard (Ranges TS)
+template &lt;class T&gt;
+concept bool EqualityComparable() {
+    return requires(T a, T b) { {a == b} -&gt; Boolean; {a != b} -&gt; Boolean; };
+}
+</code></pre>
+<p>Les restrictions suivantes s'appliquent aux concepts de fonctions :</p>
+<ul>
+<li><code>inline</code> et <code>constexpr</code> ne sont pas autorisés, la fonction est automatiquement <code>inline</code> et <code>constexpr</code></li>
+<li><code>friend</code> et <code>virtual</code> ne sont pas autorisés</li>
+<li>la spécification d'exception n'est pas autorisée, la fonction est automatiquement <code>noexcept(true)</code>.</li>
+<li>ne peut pas être déclarée puis définie plus tard, ne peut pas être redéclarée</li>
+<li>le type de retour doit être <code>bool</code></li>
+<li>la déduction du type de retour n'est pas autorisée</li>
+<li>la liste de paramètres doit être vide</li>
+<li>le corps de la fonction ne doit consister qu'en une instruction <code>return</code>, dont l'argument doit être une <em>constraint-expression</em> (contrainte de prédicat, conjonction/disjonction d'autres contraintes, ou une requires-expression, voir ci-dessous)</li>
+</ul>
+<p>Les restrictions suivantes s'appliquent aux concepts de variables :</p>
+<ul>
+<li>Doit avoir le type <code>bool</code></li>
+<li>ne peut pas être déclarée sans initialisateur</li>
+<li>ne peut pas être déclarée ni être dans la portée de classe.</li>
+<li><code>constexpr</code> n'est pas autorisé, la variable est automatiquement <code>constexpr</code></li>
+<li>l'initialisateur doit être une expression de contrainte (contrainte de prédicat, conjonction/disjonction de contraintes, ou une requires-expression, voir ci-dessous)</li>
+</ul>
+<p>Les concepts ne peuvent pas se référer récursivement à eux-mêmes dans le corps de la fonction ou dans l'initialisateur de la variable :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept bool F() { return F&lt;typename T::type&gt;(); } // error
+template&lt;typename T&gt;
+concept bool V = V&lt;T*&gt;; // error
+</code></pre>
+<p>Les instanciations explicites, les spécialisations explicites ou les spécialisations partielles de concepts ne sont pas autorisées (la signification de la définition originale d'une contrainte ne peut pas être modifiée)</p>
+<h2 id="Constraints">Contraintes</h2>
+<p>Une contrainte est une séquence d'opérations logiques qui précise les exigences sur les arguments de modèle. Elles peuvent apparaître dans des <em>requires-expression</em>s (voir ci-dessous) et directement comme corps de concepts.</p>
+<p>Il existe 9 types de contraintes :</p>
+<p>conjonctions 1)</p>
+<p>disjonctions 2)</p>
+<ol start="3">
+<li>
+<p>contraintes de prédicat</p>
+</li>
+<li>
+<p>contraintes d'expression (uniquement dans une <em>requires-expression</em>)</p>
+</li>
+<li>
+<p>contraintes de type (uniquement dans une <em>requires-expression</em>)</p>
+</li>
+<li>
+<p>contraintes de conversion implicite (uniquement dans une <em>requires-expression</em>)</p>
+</li>
+<li>
+<p>contraintes de déduction d'arguments (uniquement dans une <em>requires-expression</em>)</p>
+</li>
+<li>
+<p>contraintes d'exception (uniquement dans une <em>requires-expression</em>)</p>
+</li>
+<li>
+<p>contraintes paramétrées (uniquement dans une <em>requires-expression</em>)</p>
+</li>
+</ol>
+<p>Les trois premiers types de contraintes peuvent apparaître directement comme corps d'un concept ou comme clause requires ad hoc :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+requires // requires-clause (contrainte ad hoc)
+sizeof(T) &gt; 1 &amp;&amp; get_value&lt;T&gt;() // conjonction de deux contraintes de prédicat
+void f(T);
+</code></pre>
+<p>Lorsque plusieurs contraintes sont attachées à la même déclaration, la contrainte totale est une conjonction dans l'ordre suivant : la contrainte introduite par <em>l'introduction de modèle</em>, les contraintes de chaque paramètre de modèle dans l'ordre d'apparition, la clause <em>requires</em> après la liste de paramètres de modèle, les contraintes de chaque paramètre de fonction dans l'ordre d'apparition, puis la clause <em>requires</em> finale :</p>
+<pre><code class="language-cpp">// les déclarations déclarent le même modèle de fonction contraint
+// avec la contrainte Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt;
+template&lt;Incrementable T&gt; void f(T) requires Decrementable&lt;T&gt;;
+template&lt;typename T&gt; requires Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt; void f(T); // ok
+
+// les deux déclarations suivantes ont des contraintes différentes :
+// la première déclaration a Incrementable&lt;T&gt; &amp;&amp; Decrementable&lt;T&gt;
+// la seconde déclaration a Decrementable&lt;T&gt; &amp;&amp; Incrementable&lt;T&gt;
+// Bien qu'elles soient logiquement équivalentes.
+// La seconde déclaration est mal formée, aucun diagnostic requis
+
+template&lt;Incrementable T&gt; requires Decrementable&lt;T&gt; void g();
+template&lt;Decrementable T&gt; requires Incrementable&lt;T&gt; void g(); // error
+</code></pre>
+<h3 id="Conjunctions">Conjonctions</h3>
+<p>La conjonction de contraintes <code>P</code> et <code>Q</code> est spécifiée comme <code>P &amp;&amp; Q</code>.</p>
+<pre><code class="language-cpp">// exemples de concepts de la bibliothèque standard (Ranges TS)
+template &lt;class T&gt;
+concept bool Integral = std::is_integral&lt;T&gt;::value;
+template &lt;class T&gt;
+concept bool SignedIntegral = Integral&lt;T&gt; &amp;&amp; std::is_signed&lt;T&gt;::value;
+template &lt;class T&gt;
+concept bool UnsignedIntegral = Integral&lt;T&gt; &amp;&amp; !SignedIntegral&lt;T&gt;;
+</code></pre>
+<p>Une conjonction de deux contraintes n'est satisfaite que si les deux contraintes sont satisfaites. Les conjonctions sont évaluées de gauche à droite et court-circuitées (si la contrainte de gauche n'est pas satisfaite, la substitution des arguments de modèle dans la contrainte de droite n'est pas tentée : cela évite les échecs dus à une substitution hors du contexte immédiat). Les surcharges définies par l'utilisateur de <code>operator&amp;&amp;</code> ne sont pas autorisées dans les conjonctions de contraintes.</p>
+<h3 id="Disjunctions">Disjonctions</h3>
+<p>La disjonction de contraintes <code>P</code> et <code>Q</code> est spécifiée comme <code>P || Q</code>.</p>
+<p>Une disjonction de deux contraintes est satisfaite si l'une des deux contraintes est satisfaite. Les disjonctions sont évaluées de gauche à droite et court-circuitées (si la contrainte de gauche est satisfaite, la déduction des arguments de modèle dans la contrainte de droite n'est pas tentée). Les surcharges définies par l'utilisateur de <code>operator||</code> ne sont pas autorisées dans les disjonctions de contraintes.</p>
+<pre><code class="language-cpp">// exemple de contrainte de la bibliothèque standard (Ranges TS)
+template &lt;class T = void&gt;
+requires EqualityComparable&lt;T&gt;() || Same&lt;T, void&gt;
+struct equal_to;
+</code></pre>
+<h3 id="Predicate_constraints">Contraintes de prédicat</h3>
+<p>Une contrainte de prédicat est une expression constante de type <code>bool</code>. Elle n'est satisfaite que si elle s'évalue à <code>true</code></p>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool Size32 = sizeof(T) == 4;
+</code></pre>
+<p>Les contraintes de prédicat peuvent spécifier des exigences sur les paramètres de modèle non typés et sur les arguments de modèle de modèle.</p>
+<p>Les contraintes de prédicat doivent s'évaluer directement à <code>bool</code>, aucune conversion n'est autorisée :</p>
+<pre><code class="language-cpp">template&lt;typename T&gt; struct S {
+    constexpr explicit operator bool() const { return true; }
+};
+template&lt;typename T&gt;
+requires S&lt;T&gt;{} // mauvaise contrainte de prédicat : S&lt;T&gt;{} n'est pas bool
+void f(T);
+f(0); // erreur : contrainte jamais satisfaite
+</code></pre>
+<h2 id="Requirements">Exigences</h2>
+<p>Le mot-clé <code>requires</code> est utilisé de deux manières :</p>
+<ol>
+<li>Pour introduire une <em>requires-clause</em>, qui spécifie des contraintes sur les arguments de modèle ou sur une déclaration de fonction.</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+void f(T&amp;&amp;) requires Eq&lt;T&gt;; // peut apparaître comme dernier élément d'un déclarateur de fonction
+
+template&lt;typename T&gt; requires Addable&lt;T&gt; // ou juste après une liste de paramètres de modèle
+T add(T a, T b) { return a + b; }
+</code></pre>
+<p>Dans ce cas, le mot-clé <em>requires</em> doit être suivi d'une expression constante (il est donc possible d'écrire « requires true; »), mais l'intention est qu'un concept nommé (comme dans l'exemple ci-dessus), une conjonction ou une disjonction de concepts nommés, ou une <em>requires-expression</em> soit utilisé.</p>
+<ol start="2">
+<li>Pour commencer une <em>requires-expression</em>, qui est une expression prvalue de type <code>bool</code> décrivant les contraintes sur certains arguments de modèle. Une telle expression vaut <code>true</code> si le concept correspondant est satisfait, et false sinon :</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept bool Addable = requires (T x) { x + x; }; // requires-expression
+
+template&lt;typename T&gt; requires Addable&lt;T&gt; // requires-clause, et non requires-expression
+T add(T a, T b) { return a + b; }
+
+template&lt;typename T&gt;
+requires requires (T x) { x + x; } // contrainte ad hoc, notez que le mot-clé est utilisé deux fois
+T add(T a, T b) { return a + b; }
+</code></pre>
+<p>La syntaxe de <em>requires-expression</em> est la suivante :</p>
+<p>|
+| |
+| <code>requires</code> <code>(</code> <code>parameter-list</code><em>(optionnel)</em> <code>)</code> <code>{</code> <code>requirement-seq</code> <code>}</code> | | |
+|</p>
+<ul>
+<li><code>parameter-list</code> — une liste de paramètres séparés par des virgules, comme dans une déclaration de fonction, à ceci près que les arguments par défaut ne sont pas autorisés et que le dernier paramètre ne peut pas être une ellipse. Ces paramètres n'ont ni stockage, ni liaison, ni durée de vie. Ces paramètres sont dans la portée jusqu'à la <code>}</code> fermante de la <code>requirement-seq</code>. Si aucun paramètre n'est utilisé, les parenthèses rondes peuvent aussi être omises</li>
+<li><code>requirement-seq</code> — suite d'<em>exigences</em> séparées par des espaces, décrites ci-dessous (chaque exigence se termine par un point-virgule). Chaque exigence ajoute une autre contrainte à la <em>conjonction</em> de contraintes que cette requires-expression définit.</li>
+</ul>
+<p>Chaque exigence dans <code>requirements-seq</code> est l'une des suivantes :</p>
+<ul>
+<li>exigence simple</li>
+<li>exigences de type</li>
+<li>exigences composées</li>
+<li>exigences imbriquées</li>
+</ul>
+<p>Les exigences peuvent faire référence aux paramètres de modèle dans la portée et aux paramètres locaux introduits dans <code>parameter-list</code>. Lorsqu'elle est paramétrée, une requires-expression est dite introduire une <em>contrainte paramétrée</em></p>
+<p>La substitution d'arguments de modèle dans une requires-expression peut entraîner la formation de types ou d'expressions invalides dans ses exigences. Dans de tels cas,</p>
+<ul>
+<li>Si un échec de substitution se produit dans une requires-expression utilisée en dehors de la déclaration d'une <a href="../language/templates.html#Templated_entity">entité templatisée</a>, alors le programme est mal formé.</li>
+<li>Si la requires-expression est utilisée dans la déclaration d'une <a href="../language/templates.html#Templated_entity">entité templatisée</a>, la contrainte correspondante est considérée comme « non satisfaite » et l'<a href="../language/sfinae.html">échec de substitution n'est pas une erreur</a>, cependant</li>
+<li>Si un échec de substitution se produirait dans une requires-expression pour chaque argument de modèle possible, le programme est mal formé, aucun diagnostic requis :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt; concept bool C = requires {
+    new int[-(int)sizeof(T)]; // invalide pour tout T : mal formé, aucun diagnostic requis
+};
+</code></pre>
+<h3 id="Simple_requirements">Exigences simples</h3>
+<p>Une exigence simple est une instruction d'expression arbitraire. L'exigence est que l'expression soit valide (il s'agit d'une <em>contrainte d'expression</em>). Contrairement aux contraintes de prédicat, l'évaluation n'a pas lieu : seule la correction du langage est vérifiée.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept bool Addable =
+requires (T a, T b) {
+    a + b; // &quot;l'expression a+b est une expression valide qui compilera&quot;
+};
+
+// exemple de contrainte de la bibliothèque standard (Ranges TS)
+template &lt;class T, class U = T&gt;
+concept bool Swappable = requires(T&amp;&amp; t, U&amp;&amp; u) {
+    swap(std::forward&lt;T&gt;(t), std::forward&lt;U&gt;(u));
+    swap(std::forward&lt;U&gt;(u), std::forward&lt;T&gt;(t));
+};
+</code></pre>
+<h3 id="Type_requirements">Exigences de type</h3>
+<p>Une exigence de type est le mot-clé <code>typename</code> suivi d'un nom de type, éventuellement qualifié. L'exigence est que le type nommé existe (une <em>contrainte de type</em>) : cela peut servir à vérifier qu'un certain type imbriqué nommé existe, qu'une spécialisation de modèle de classe désigne un type, ou qu'un modèle d'alias désigne un type.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt; using Ref = T&amp;;
+template&lt;typename T&gt; concept bool C =
+requires {
+    typename T::inner; // nom de membre imbriqué requis
+    typename S&lt;T&gt;;     // spécialisation de modèle de classe requise
+    typename Ref&lt;T&gt;;   // substitution de modèle d'alias requise
+};
+
+//Exemple de concept de la bibliothèque standard (Ranges TS)
+template &lt;class T, class U&gt; using CommonType = std::common_type_t&lt;T, U&gt;;
+template &lt;class T, class U&gt; concept bool Common =
+requires (T t, U u) {
+    typename CommonType&lt;T, U&gt;; // CommonType&lt;T, U&gt; est valide et désigne un type
+    { CommonType&lt;T, U&gt;{std::forward&lt;T&gt;(t)} };
+    { CommonType&lt;T, U&gt;{std::forward&lt;U&gt;(u)} };
+};
+</code></pre>
+<h3 id="Compound_Requirements">Exigences composées</h3>
+<p>Une exigence composée a la forme</p>
+<p>|
+| |
+| <code>{</code> <code>expression</code> <code>}</code> <code>noexcept</code><em>(optionnel)</em> <code>trailing-return-type</code><em>(optionnel)</em> <code>;</code> | | |
+|</p>
+<p>et spécifie une conjonction des contraintes suivantes :</p>
+<ol>
+<li>
+<p><code>expression</code> est une expression valide (<em>contrainte d'expression</em>)</p>
+</li>
+<li>
+<p>Si <code>noexcept</code> est utilisé, l'expression doit aussi être noexcept (<em>contrainte d'exception</em>)</p>
+</li>
+<li>
+<p>Si <code>trailing-return-type</code> désigne un type qui utilise des placeholders, le type doit être déductible à partir du type de l'expression (<em>contrainte de déduction d'argument</em>)</p>
+</li>
+<li>
+<p>Si <code>trailing-return-type</code> désigne un type qui n'utilise pas de placeholders, alors deux contraintes supplémentaires sont ajoutées :</p>
+</li>
+</ol>
+<p>4a) le type désigné par <code>trailing-return-type</code> est valide (<em>contrainte de type</em>)</p>
+<p>4b) le résultat de l'expression est <a href="../language/implicit_cast.html">implicitement convertible</a> en ce type (<em>contrainte de conversion implicite</em>)</p>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool C2 =
+requires(T x) {
+    {*x} -&gt; typename T::inner; // l'expression *x doit être valide
+                               // ET le type T::inner doit être valide
+                               // ET le résultat de *x doit être convertible en T::inner
+};
+
+// Exemple de concept de la bibliothèque standard (Ranges TS)
+template &lt;class T, class U&gt; concept bool Same = std::is_same&lt;T,U&gt;::value;
+template &lt;class B&gt; concept bool Boolean =
+requires(B b1, B b2) {
+    { bool(b1) }; // la contrainte d'initialisation directe doit utiliser une expression
+    { !b1 } -&gt; bool; // contrainte composée
+    requires Same&lt;decltype(b1 &amp;&amp; b2), bool&gt;; // contrainte imbriquée, voir ci-dessous
+    requires Same&lt;decltype(b1 || b2), bool&gt;;
+};
+</code></pre>
+<h3 id="Nested_requirements">Exigences imbriquées</h3>
+<p>Une exigence imbriquée est une autre <em>requires-clause</em>, terminée par un point-virgule. Elle sert à introduire des <em>contraintes de prédicat</em> (voir ci-dessus) exprimées en termes d'autres concepts nommés appliqués aux paramètres locaux (en dehors d'une requires-clause, les contraintes de prédicat ne peuvent pas utiliser de paramètres, et placer directement une expression dans une requires-clause en fait une contrainte d'expression, qui n'est donc pas évaluée)</p>
+<pre><code class="language-cpp">// exemple de contrainte des Ranges TS
+template &lt;class T&gt;
+concept bool Semiregular = DefaultConstructible&lt;T&gt; &amp;&amp;
+    CopyConstructible&lt;T&gt; &amp;&amp; Destructible&lt;T&gt; &amp;&amp; CopyAssignable&lt;T&gt; &amp;&amp;
+requires(T a, size_t n) {
+    requires Same&lt;T*, decltype(&amp;a)&gt;;  // imbriquée : &quot;Same&lt;...&gt; s'évalue à true&quot;
+    { a.~T() } noexcept;  // composée : &quot;a.~T()&quot; est une expression valide qui ne lève pas d'exception
+    requires Same&lt;T*, decltype(new T)&gt;; // imbriquée : &quot;Same&lt;...&gt; s'évalue à true&quot;
+    requires Same&lt;T*, decltype(new T[n])&gt;; // nested
+    { delete new T };  // compound
+    { delete new T[n] }; // compound
+};
+</code></pre>
+<h2 id="Concept_resolution">Résolution de concept</h2>
+<p>Comme tout autre modèle de fonction, un concept de fonction (mais pas un concept de variable) peut être surchargé : plusieurs définitions de concept peuvent être fournies, toutes utilisant le même <code>concept-name</code>.</p>
+<p>La résolution de concept est effectuée lorsqu'un <code>concept-name</code> (qui peut être qualifié) apparaît dans</p>
+<ol>
+<li>
+<p>un spécificateur de type contraint <code>void f(Concept); std::vector&lt;Concept&gt; x = ...;</code></p>
+</li>
+<li>
+<p>un paramètre contraint <code>template&lt;Concept T&gt; void f();</code></p>
+</li>
+<li>
+<p>une introduction de modèle <code>Concept{T} struct X;</code></p>
+</li>
+<li>
+<p>une <em>constraint-expression</em> <code>template&lt;typename T&gt; void f() requires Concept&lt;T&gt;;</code></p>
+</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool C() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C() { return true; } // #2
+void f(C); // l'ensemble des concepts auxquels C fait référence inclut à la fois #1 et #2 ;
+           // la résolution de concept (voir ci-dessous) sélectionne #1.
+</code></pre>
+<p>Pour effectuer la résolution de concept, les <em>paramètres de modèle</em> de chaque concept qui correspond au nom (et à la qualification, le cas échéant) sont mis en correspondance avec une suite d'<em>arguments de concept</em>, qui sont des arguments de modèle et des <em>jokers</em>. Un joker peut correspondre à un paramètre de modèle de n'importe quel genre (type, non typé, modèle). L'ensemble d'arguments est construit différemment selon le contexte</p>
+<ol>
+<li>Pour un nom de concept utilisé dans un spécificateur de type contraint ou un paramètre, si le nom de concept est utilisé sans liste de paramètres, la liste d'arguments est un unique joker.</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool C1() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C1() { return true; } // #2
+void f1(const C1*); // &lt;wildcard&gt; correspond à &lt;T&gt;, sélectionne #1
+</code></pre>
+<ol start="2">
+<li>Pour un nom de concept utilisé dans un spécificateur de type contraint ou un paramètre, si le nom de concept est utilisé avec une liste d'arguments de modèle, la liste d'arguments est un unique joker suivi de cette liste d'arguments.</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool C1() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C1() { return true; } // #2
+void f2(C1&lt;char&gt;); // &lt;wildcard, char&gt; correspond à &lt;T, U&gt;, sélectionne #2
+</code></pre>
+<ol start="3">
+<li>Si un concept apparaît dans une introduction de modèle, la liste d'arguments est une suite de placeholders de même longueur que la liste des paramètres de l'introduction de modèle</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename... Ts&gt;
+concept bool C3 = true;
+C3{T} void q2();     // OK : &lt;T&gt; correspond à &lt;...Ts&gt;
+C3{...Ts} void q1(); // OK : &lt;...Ts&gt; correspond à &lt;...Ts&gt;
+</code></pre>
+<ol start="4">
+<li>Si un concept apparaît comme nom d'un template-id, la liste d'arguments de concept est exactement la suite des arguments de ce template-id</li>
+</ol>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool C() { return true; } // #1
+template&lt;typename T, typename U&gt; concept bool C() { return true; } // #2
+
+template &lt;typename T&gt;
+void f(T) requires C&lt;T&gt;(); // matches #1
+</code></pre>
+<p>La résolution de concept est effectuée en mettant en correspondance chaque argument avec le paramètre correspondant de chaque concept visible. Les arguments de modèle par défaut (s'ils sont utilisés) sont instanciés pour chaque paramètre qui ne correspond à aucun argument, puis ajoutés à la liste d'arguments. Un paramètre de modèle ne correspond à un argument que s'il est du même genre (type, non typé, modèle), sauf si l'argument est un joker. Un pack de paramètres correspond à zéro ou plusieurs arguments tant que tous les arguments correspondent au motif par leur genre (sauf s'il s'agit de jokers).</p>
+<p>Si un argument ne correspond pas à son paramètre correspondant, ou s'il y a plus d'arguments que de paramètres et que le dernier paramètre n'est pas un pack, le concept n'est pas viable. S'il y a zéro concept viable, ou plus d'un, le programme est mal formé.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt; concept bool C2() { return true; }
+template&lt;int T&gt; concept bool C2() { return true; }
+
+template&lt;C2&lt;0&gt; T&gt; struct S1; // error: &lt;wildcard, 0&gt; correspond
+                             // ni à &lt;typename T&gt; ni à &lt;int T&gt;
+template&lt;C2 T&gt; struct S2; // #1 et #2 correspondent tous deux : erreur
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : il faut un exemple avec des concepts significatifs, et non ces espaces réservés « return true »</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Partial_ordering_of_constraints">Ordre partiel des contraintes</h2>
+<p>Avant toute analyse supplémentaire, les contraintes sont <em>normalisées</em> en substituant le corps de chaque concept nommé et de chaque requires-expression, jusqu'à ce qu'il ne reste qu'une suite de conjonctions et de disjonctions de contraintes atomiques, qui sont des contraintes de prédicat, contraintes d'expression, contraintes de type, contraintes de conversion implicite, contraintes de déduction d'argument et contraintes d'exception.</p>
+<p>Le concept <code>P</code> est dit <em>subsumer</em> le concept <code>Q</code> s'il peut être prouvé que <code>P</code> <a href="https://en.wikipedia.org/wiki/Logical_consequence">implique</a> <code>Q</code> sans analyser l'équivalence des types et des expressions (donc <code>N &gt;= 0</code> ne subsume pas <code>N &gt; 0</code>)</p>
+<p>Plus précisément, <code>P</code> est d'abord converti en forme normale disjonctive et <code>Q</code> est converti en forme normale conjonctive, puis ils sont comparés comme suit :</p>
+<ul>
+<li>chaque contrainte atomique <code>A</code> subsume la contrainte atomique équivalente <code>A</code></li>
+<li>chaque contrainte atomique <code>A</code> subsume une disjonction <code>A||B</code> et ne subsume pas une conjonction <code>A&amp;&amp;B</code></li>
+<li>chaque conjonction <code>A&amp;&amp;B</code> subsume <code>A</code>, mais une disjonction <code>A||B</code> ne subsume pas <code>A</code></li>
+</ul>
+<p>La relation de subsomption définit un ordre partiel des contraintes, utilisé pour déterminer :</p>
+<ul>
+<li>le meilleur candidat viable pour une fonction non template dans la <a href="../language/overload_resolution.html">résolution de surcharge</a></li>
+<li>l'<a href="../language/overloaded_address.html">adresse d'une fonction non template</a> dans un ensemble de surcharges</li>
+<li>la meilleure correspondance pour un argument de modèle de modèle</li>
+<li>l'ordre partiel des spécialisations de modèles de classe</li>
+<li><a href="../language/function_template.html#Function_template_overloading">ordre partiel</a> des modèles de fonction</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : liens retour depuis ce qui précède vers ici</td>
+</tr>
+</tbody>
+</table>
+<p>Si les déclarations <code>D1</code> et <code>D2</code> sont contraintes et que les contraintes normalisées de D1 subsument les contraintes normalisées de D2 (ou si D1 est contrainte et D2 non contrainte), alors D1 est dite <em>au moins aussi contrainte</em> que D2. Si D1 est au moins aussi contrainte que D2 et que D2 n'est pas au moins aussi contrainte que D1, alors D1 est <em>plus contrainte</em> que D2.</p>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+concept bool Decrementable = requires(T t) { --t; };
+template&lt;typename T&gt;
+concept bool RevIterator = Decrementable&lt;T&gt; &amp;&amp; requires(T t) { *t; };
+
+// RevIterator subsume Decrementable, mais pas l'inverse
+// RevIterator est plus contraint en tant que Decrementable
+
+void f(Decrementable); // #1
+void f(RevIterator);   // #2
+
+f(0);       // int satisfait uniquement Decrementable, sélectionne #1
+f((int*)0); // int* satisfait les deux contraintes, sélectionne #2 comme plus contraint
+
+void g(auto);          // #3 (unconstrained)
+void g(Decrementable); // #4
+
+g(true);  // bool ne satisfait pas Decrementable, sélectionne #3
+g(0);     // int satisfait Decrementable, sélectionne #4 car il est plus contraint
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/concept.html"><code>concept</code></a>,
+<a href="../keyword/requires.html"><code>requires</code></a></p>
+<h2 id="Compiler_support">Prise en charge par le compilateur</h2>
+<p>GCC &gt;= 6.1 prend en charge cette spécification technique (option requise <code>-fconcepts</code>)</p>
+
+</main>
+</body>
+</html>

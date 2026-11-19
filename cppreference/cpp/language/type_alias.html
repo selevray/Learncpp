@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alias de type, modèle d&#x27;alias (depuis C++11) — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="alias-de-type-modèle-d-alias-depuis-c-11">Alias de type, modèle d'alias (depuis C++11)</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/type_alias">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un alias de type est un nom qui désigne un type défini précédemment (similaire à <a href="typedef.html"><code>typedef</code></a>).</p>
+<p>Un modèle d'alias est un nom qui désigne une famille de types.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Les déclarations d'alias sont des <a href="declarations.html">déclarations</a> de la syntaxe suivante :</p>
+<p><code>using</code> <code>identifier</code> <code>attr</code> ﻿*(facultatif)* <code>=</code> <code>type-id</code> <code>;</code> | (1)</p>
+<p><code>template</code> <code>&lt;</code> <code>template-parameter-list</code> <code>&gt;</code></p>
+<p><code>using</code> <code>identifier</code> <code>attr</code> ﻿*(facultatif)* <code>=</code> <code>type-id</code> <code>;</code></p>
+<p>| (2)</p>
+<p><code>template</code> <code>&lt;</code> <code>template-parameter-list</code> <code>&gt;</code> <code>requires</code> <code>constraint</code></p>
+<p><code>using</code> <code>identifier</code> <code>attr</code> ﻿*(facultatif)* <code>=</code> <code>type-id</code> <code>;</code></p>
+<p>| (3)
+| (depuis C++20)</p>
+<ul>
+<li><code>attr</code> — séquence optionnelle d'un nombre quelconque d'<a href="attributes.html">attributs</a></li>
+<li><code>identifier</code> — le nom introduit par cette déclaration, qui devient soit un nom de type <code>(1)</code>, soit un nom de modèle <code>(2)</code></li>
+<li><code>template-parameter-list</code> — <a href="template_parameters.html">liste des paramètres de modèle</a>, comme dans une <a href="templates.html">déclaration de modèle</a></li>
+<li><code>constraint</code> — une <a href="constraints.html">expression de contrainte</a> qui restreint les paramètres de modèle acceptés par ce modèle d'alias</li>
+<li><code>type-id</code> — déclarateur abstrait ou tout autre <code>type-id</code> valide (qui peut introduire un nouveau type, comme indiqué dans <a href="type-id.html#Type_naming">type-id</a>). Le <code>type-id</code> ne peut pas faire référence directement ou indirectement à <code>identifier</code>. Notez que le <a href="scope.html#Point_of_declaration">point de déclaration</a> de l'identifiant se situe au point-virgule suivant <code>type-id</code>.</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<ol>
+<li>
+<p>Une déclaration d'alias de type introduit un nom qui peut être utilisé comme synonyme du type désigné par <code>type-id</code>. Elle n'introduit pas de nouveau type et ne peut pas modifier la signification d'un nom de type existant. Il n'y a aucune différence entre une déclaration d'alias de type et une déclaration <a href="typedef.html">typedef</a>. Cette déclaration peut apparaître en portée de bloc, en portée de classe ou en portée d'espace de noms.</p>
+</li>
+<li>
+<p>Un modèle d'alias est un modèle qui, lorsqu'il est spécialisé, équivaut au résultat de la substitution des arguments de modèle de l'alias aux paramètres de modèle dans <code>type-id</code>.</p>
+</li>
+</ol>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct Alloc {};
+
+template&lt;class T&gt;
+using Vec = vector&lt;T, Alloc&lt;T&gt;&gt;; // le type-id est vector&lt;T, Alloc&lt;T&gt;&gt;
+
+Vec&lt;int&gt; v; // Vec&lt;int&gt; est identique à vector&lt;int, Alloc&lt;int&gt;&gt;
+</code></pre>
+<p>Lorsque le résultat de la spécialisation d'un modèle d'alias est un <a href="templates.html#template-id">template-id</a> dépendant, les substitutions ultérieures s'appliquent à ce template-id :</p>
+<pre><code class="language-cpp">template&lt;typename...&gt;
+using void_t = void;
+
+template&lt;typename T&gt;
+void_t&lt;typename T::foo&gt; f();
+
+f&lt;int&gt;(); // erreur, int n'a pas de type imbriqué foo
+</code></pre>
+<p>Le type produit par la spécialisation d'un modèle d'alias ne doit pas utiliser directement ou indirectement son propre type :</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A;
+
+template&lt;class T&gt;
+using B = typename A&lt;T&gt;::U; // le type-id est A&lt;T&gt;::U
+
+template&lt;class T&gt;
+struct A { typedef B&lt;T&gt; U; };
+
+B&lt;short&gt; b; // erreur : B&lt;short&gt; utilise son propre type via A&lt;short&gt;::U
+</code></pre>
+<p>Les modèles d'alias ne sont jamais déduits par la <a href="function_template.html#Template_argument_deduction">déduction d'arguments de modèle</a> lors de la déduction d'un paramètre de modèle template.</p>
+<p>Il n'est pas possible de <a href="partial_specialization.html">spécialiser partiellement</a> ni de <a href="template_specialization.html">spécialiser explicitement</a> un modèle d'alias.</p>
+<p>Comme toute déclaration de modèle, un modèle d'alias ne peut être déclaré qu'en portée de classe ou en portée d'espace de noms.</p>
+<blockquote>
+<p>Le type d'une <a href="lambda.html">expression lambda</a> apparaissant dans une déclaration de modèle d'alias est différent entre les instanciations de ce modèle, même lorsque l'expression lambda n'est pas dépendante.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+using A = decltype([] {}); // A&lt;int&gt; et A&lt;char&gt; désignent des types de fermeture différents
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de test de fonctionnalité</th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_alias_templates"><code>__cpp_alias_templates</code></a></td>
+<td><a href="../compiler_support/11.html#cpp_alias_templates_200704L"><code>200704L</code></a></td>
+<td><em>(C++11)</em></td>
+<td>Modèles d'alias</td>
+</tr>
+</tbody>
+</table>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/using.html"><code>using</code></a></p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;type_traits&gt;
+#include &lt;typeinfo&gt;
+
+// alias de type, identique à
+// typedef std::ios_base::fmtflags flags;
+using flags = std::ios_base::fmtflags;
+// le nom 'flags' désigne désormais un type :
+flags fl = std::ios_base::dec;
+
+// alias de type, identique à
+// typedef void (*func)(int, int);
+using func = void (*) (int, int);
+
+// le nom 'func' désigne désormais un pointeur vers fonction :
+void example(int, int) {}
+func f = example;
+
+// modèle d'alias
+template&lt;class T&gt;
+using ptr = T*;
+// le nom 'ptr&lt;T&gt;' est désormais un alias de pointeur vers T
+ptr&lt;int&gt; x;
+
+// alias de type utilisé pour masquer un paramètre de modèle
+template&lt;class CharT&gt;
+using mystring = std::basic_string&lt;CharT, std::char_traits&lt;CharT&gt;&gt;;
+
+mystring&lt;char&gt; str;
+
+// un alias de type peut introduire un nom de typedef membre
+template&lt;typename T&gt;
+struct Container { using value_type = T; };
+
+// qui peut être utilisé en programmation générique
+template&lt;typename ContainerT&gt;
+void info(const ContainerT&amp; c)
+{
+    typename ContainerT::value_type T;
+    std::cout &lt;&lt; &quot;ContainerT is `&quot; &lt;&lt; typeid(decltype(c)).name() &lt;&lt; &quot;`\n&quot;
+                 &quot;value_type is `&quot; &lt;&lt; typeid(T).name() &lt;&lt; &quot;`\n&quot;;
+}
+
+// alias de type utilisé pour simplifier la syntaxe de std::enable_if
+template&lt;typename T&gt;
+using Invoke = typename T::type;
+
+template&lt;typename Condition&gt;
+using EnableIf = Invoke&lt;std::enable_if&lt;Condition::value&gt;&gt;;
+
+template&lt;typename T, typename = EnableIf&lt;std::is_polymorphic&lt;T&gt;&gt;&gt;
+int fpoly_only(T) { return 1; }
+
+struct S { virtual ~S() {} };
+
+int main()
+{
+    Container&lt;int&gt; c;
+    info(c); // Container::value_type vaudra int dans cette fonction
+//  fpoly_only(c); // erreur : enable_if l'interdit
+    S s;
+    fpoly_only(s); // OK : enable_if autorise cela
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">ContainerT is `struct Container&lt;int&gt;`
+value_type is `int`
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1558.html">CWG 1558</a></td>
+<td>C++11</td>
+<td>la question de savoir si les arguments inutilisés dans une spécialisation d'alias participent à la substitution n'était pas spécifiée</td>
+<td>la substitution est effectuée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="typedef.html">déclaration <code>typedef</code></a></strong> — crée un synonyme pour un type</li>
+<li><strong><a href="namespace_alias.html">alias d'espace de noms</a></strong> — crée un alias d'un espace de noms existant</li>
+</ul>
+
+</main>
+</body>
+</html>

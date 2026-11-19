@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::scoped_allocator_adaptor — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-scoped_allocator_adaptor"><code>std::scoped_allocator_adaptor</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/scoped_allocator_adaptor">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;scoped_allocator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class OuterAlloc, class... InnerAllocs &gt;
+class scoped_allocator_adaptor
+    : public OuterAlloc;  // (depuis C++11)
+</code></pre>
+<p>Le modèle de classe <code>std::scoped_allocator_adaptor</code> est un allocateur pouvant être utilisé avec des conteneurs multiniveaux (vector de set de list de tuple de map, etc.). Il est instancié avec un type d'allocateur externe <code>OuterAlloc</code> et zéro ou plusieurs types d'allocateurs internes <code>InnerAlloc...</code>. Un conteneur construit directement avec un <code>scoped_allocator_adaptor</code> utilise <code>OuterAlloc</code> pour allouer ses éléments, mais si un élément est lui-même un conteneur, il utilise le premier allocateur interne. Les éléments de ce conteneur, s'ils sont eux-mêmes des conteneurs, utilisent le deuxième allocateur interne, etc. S'il y a plus de niveaux de conteneurs que d'allocateurs internes, le dernier allocateur interne est réutilisé pour tous les conteneurs imbriqués suivants.</p>
+<p>Le but de cet adaptateur est d'initialiser correctement les allocateurs à état dans les conteneurs imbriqués, par exemple lorsque tous les niveaux d'un conteneur imbriqué doivent être placés dans le même segment de mémoire partagée. Le constructeur de l'adaptateur prend les arguments de tous les allocateurs de la liste, et chaque conteneur imbriqué obtient l'état de son allocateur auprès de l'adaptateur selon les besoins.</p>
+<p>Pour les besoins de <code>scoped_allocator_adaptor</code>, si l'allocateur interne suivant est <code>A</code>, toute classe <code>T</code> pour laquelle <code>std::uses_allocator&lt;T,A&gt;::value == true</code> participe à la récursion comme s'il s'agissait d'un conteneur. De plus, <a href="../utility/pair.html"><code>std::pair</code></a> est traité comme un tel conteneur par des surcharges spécifiques de <a href="scoped_allocator_adaptor/construct.html"><code>scoped_allocator_adaptor::construct</code></a>.</p>
+<p>Une implémentation typique détient une instance de <code>std::scoped_allocator_adaptor&lt;InnerAllocs...&gt;</code> en tant qu'objet membre.</p>
+<p>Notez que les <a href="polymorphic_allocator.html"><code>std::pmr::polymorphic_allocator</code>s</a> se propagent aux conteneurs imbriqués à la suite de <a href="uses_allocator.html#Uses-allocator_construction">uses-allocator construction</a> et n'ont pas besoin de (et ne fonctionnent pas avec) <code>std::scoped_allocator_adaptor</code>.</p>
+<h2 id="Nested_types">Types imbriqués</h2>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>outer_allocator_type</code></strong> — <code>OuterAlloc</code></li>
+<li><strong><code>inner_allocator_type</code></strong> —
+<ul>
+<li><code>scoped_allocator_adaptor&lt;OuterAlloc&gt;</code> si <code>sizeof...(InnerAllocs)</code> vaut zéro</li>
+<li><code>scoped_allocator_adaptor&lt;InnerAllocs...&gt;</code> sinon</li>
+</ul>
+</li>
+<li><strong><code>value_type</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::value_type</code></li>
+<li><strong><code>size_type</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::size_type</code></li>
+<li><strong><code>difference_type</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::difference_type</code></li>
+<li><strong><code>pointer</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::pointer</code></li>
+<li><strong><code>const_pointer</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::const_pointer</code></li>
+<li><strong><code>void_pointer</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::void_pointer</code></li>
+<li><strong><code>const_void_pointer</code></strong> — <code>std::allocator_traits&lt;OuterAlloc&gt;::const_void_pointer</code></li>
+</ul>
+<p>Étant donné l'ensemble des <code>OuterAlloc</code> et <code>InnerAlloc...</code> comme <code>Allocs</code> :</p>
+<p><strong>Type Définition</strong></p>
+<ul>
+<li><strong><code>propagate_on_container_copy_assignment</code></strong> —
+<ul>
+<li><a href="../types/integral_constant.html"><code>std::true_type</code></a> s'il existe un type <code>A</code> dans <code>Allocs</code> tel que <code>std::allocator_traits&lt;A&gt;:: propagate_on_container_copy_assignment::value</code> est <code>true</code></li>
+<li><a href="../types/integral_constant.html"><code>std::false_type</code></a> sinon</li>
+</ul>
+</li>
+<li><strong><code>propagate_on_container_move_assignment</code></strong> —
+<ul>
+<li><a href="../types/integral_constant.html"><code>std::true_type</code></a> s'il existe un type <code>A</code> dans <code>Allocs</code> tel que <code>std::allocator_traits&lt;A&gt;:: propagate_on_container_move_assignment::value</code> est <code>true</code></li>
+<li><a href="../types/integral_constant.html"><code>std::false_type</code></a> sinon</li>
+</ul>
+</li>
+<li><strong><code>propagate_on_container_swap</code></strong> —
+<ul>
+<li><a href="../types/integral_constant.html"><code>std::true_type</code></a> s'il existe un type <code>A</code> dans <code>Allocs</code> tel que <code>std::allocator_traits&lt;A&gt;:: propagate_on_container_swap::value</code> est <code>true</code></li>
+<li><a href="../types/integral_constant.html"><code>std::false_type</code></a> sinon</li>
+</ul>
+</li>
+<li><strong><code>is_always_equal</code></strong> —
+<ul>
+<li><a href="../types/integral_constant.html"><code>std::true_type</code></a> s'il existe un type <code>A</code> dans <code>Allocs</code> tel que <code>std::allocator_traits&lt;A&gt;:: is_always_equal::value</code> est <code>true</code></li>
+<li><a href="../types/integral_constant.html"><code>std::false_type</code></a> sinon</li>
+</ul>
+</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="scoped_allocator_adaptor/scoped_allocator_adaptor.html">(constructeur)</a></strong> — crée un nouvel objet <code>scoped_allocator_adaptor</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/~scoped_allocator_adaptor.html">(destructeur)</a></strong> — détruit un objet <code>scoped_allocator_adaptor</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/operator%3D.html">operator=</a></strong> — affecte un <code>scoped_allocator_adaptor</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/inner_allocator.html">inner_allocator</a></strong> — obtient une <code>inner_allocator</code> référence <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/outer_allocator.html">outer_allocator</a></strong> — obtient une <code>outer_allocator</code> référence <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/allocate.html">allocate</a></strong> — alloue un stockage non initialisé à l'aide de l'allocateur externe <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/deallocate.html">deallocate</a></strong> — désalloue le stockage à l'aide de l'allocateur externe <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/max_size.html">max_size</a></strong> — renvoie la plus grande taille d'allocation prise en charge par l'allocateur externe <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/construct.html">construct</a></strong> — construit un objet dans le stockage alloué, en passant l'allocateur interne à son constructeur si approprié <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/destroy.html">destroy</a></strong> — détruit un objet dans le stockage alloué <em>(fonction membre publique)</em></li>
+<li><strong><a href="scoped_allocator_adaptor/select_on_container_copy_construction.html">select_on_container_copy_construction</a></strong> — copie l'état de <code>scoped_allocator_adaptor</code> et de tous ses allocateurs <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Modèles de fonctions réservés à l'exposition {#Exposition-only_function_templates}</strong></p>
+<ul>
+<li><strong><a href="scoped_allocator_adaptor/helpers.html"><strong>outermost</strong></a></strong> — obtient l'allocateur le plus externe <em>(fonction membre réservée à l'exposition</em>)*</li>
+<li><strong><a href="scoped_allocator_adaptor/helpers.html"><strong>outermost-construct</strong></a></strong> — construit un objet à l'aide de l'allocateur le plus externe <em>(fonction membre réservée à l'exposition</em>)*</li>
+<li><strong><a href="scoped_allocator_adaptor/helpers.html"><strong>outermost-destroy</strong></a></strong> — détruit un objet à l'aide de l'allocateur le plus externe <em>(fonction membre réservée à l'exposition</em>)*</li>
+</ul>
+<h2 id="Non-member_functions">Fonctions non membres</h2>
+<ul>
+<li><strong><a href="scoped_allocator_adaptor/operator_cmp.html">operator==operator!=</a> (removed in C++20)</strong> — compare deux objets <code>scoped_allocator_adaptor</code> <em>(modèle de fonction)</em></li>
+</ul>
+<h2 id="Deduction_guides.28since_C.2B.2B17.29"><a href="scoped_allocator_adaptor/deduction_guides.html">Guides de déduction</a> (depuis C++17)</h2>
+<h2 id="Nested_classes">Classes imbriquées</h2>
+<p><strong>Classe Définition</strong></p>
+<ul>
+<li><strong><code>rebind</code></strong> — <code>template&lt; class T &gt; struct rebind { using other = scoped_allocator_adaptor &lt;std::allocator_traits&lt;OuterAlloc&gt;::template rebind_alloc&lt;T&gt;, InnerAllocs...&gt;; };</code></li>
+</ul>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;boost/interprocess/allocators/adaptive_pool.hpp&gt;
+#include &lt;boost/interprocess/managed_shared_memory.hpp&gt;
+#include &lt;scoped_allocator&gt;
+#include &lt;vector&gt;
+
+namespace bi = boost::interprocess;
+
+template&lt;class T&gt;
+using alloc = bi::adaptive_pool&lt;T, bi::managed_shared_memory::segment_manager&gt;;
+
+using ipc_row = std::vector&lt;int, alloc&lt;int&gt;&gt;;
+
+using ipc_matrix = std::vector&lt;ipc_row, std::scoped_allocator_adaptor&lt;alloc&lt;ipc_row&gt;&gt;&gt;;
+
+int main()
+{
+    bi::managed_shared_memory s(bi::create_only, &quot;Demo&quot;, 65536);
+
+    // créer un vector de vectors en mémoire partagée
+    ipc_matrix v(s.get_segment_manager());
+
+    // pour tous ces ajouts, les vectors internes obtiennent leurs arguments d'allocateur
+    // à partir du scoped_allocator_adaptor du vector externe
+    v.resize(1);
+    v[0].push_back(1);
+    v.emplace_back(2);
+    std::vector&lt;int&gt; local_row = {1, 2, 3};
+    v.emplace_back(local_row.begin(), local_row.end());
+
+    bi::shared_memory_object::remove(&quot;Demo&quot;);
+}
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2108">LWG 2108</a></td>
+<td>C++11</td>
+<td>il n'existait aucun moyen de montrer si <code>scoped_allocator_adaptor</code> est sans état</td>
+<td>fourni <code>is_always_equal</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="allocator_traits.html">allocator_traits</a> (C++11)</strong> — fournit des informations sur les types d'allocateurs <em>(modèle de classe)</em></li>
+<li><strong><a href="uses_allocator.html">uses_allocator</a> (C++11)</strong> — vérifie si le type spécifié prend en charge la construction avec uses-allocator <em>(modèle de classe)</em></li>
+<li><strong><a href="allocator.html">allocator</a></strong> — l'allocateur par défaut <em>(modèle de classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

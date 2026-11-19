@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration d&#x27;union — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-d-union">Déclaration d'union</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/union">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Une union est un type de classe particulier qui ne peut contenir qu'un seul de ses <a href="data_members.html">membres de données</a> non statiques à la fois.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Le spécificateur de classe d'une déclaration d'union est similaire à une déclaration <a href="class.html">class ou struct</a> :</p>
+<p>|
+| |
+| <code>union</code> <code>attr</code> <code>class-head-name</code> <code>{</code> <code>member-specification</code> <code>}</code> | | |
+|</p>
+<ul>
+<li><code>attr</code> — (depuis C++11) séquence optionnelle d'un nombre quelconque d'<a href="attributes.html">attributs</a></li>
+<li><code>class-head-name</code> — le nom de l'union définie. Peut être précédé optionnellement de <code>nested-name-specifier</code> (séquence de noms et d'opérateurs de résolution de portée, se terminant par un opérateur de résolution de portée). Le nom peut être omis, auquel cas l'union est <em>sans nom</em></li>
+<li><code>member-specification</code> — liste de spécificateurs d'accès, de déclarations et définitions de membres objets et de fonctions membres.</li>
+</ul>
+<p>Une union peut avoir des fonctions membres (y compris des constructeurs et des destructeurs), mais pas de fonctions virtuelles.</p>
+<p>Une union ne peut pas avoir de classes de base et ne peut pas être utilisée comme classe de base.</p>
+<p>Une union ne peut pas avoir de membres de données non statiques de types référence.</p>
+<blockquote>
+<p>Les unions ne peuvent pas contenir de membre de données non statique dont la fonction membre spéciale n'est pas triviale (<a href="copy_constructor.html">constructeur de copie</a>, opérateur d'<a href="as_operator.html">affectation par copie</a>, ou <a href="destructor.html">destructeur</a>).</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Si une union contient un membre de données non statique dont la fonction membre spéciale n'est pas triviale (<a href="copy_constructor.html">constructeur de copie</a>/<a href="move_constructor.html">de déplacement</a>, <a href="as_operator.html">affectation par copie</a>/<a href="move_operator.html">par déplacement</a>, ou <a href="destructor.html">destructeur</a>), cette fonction est supprimée par défaut dans l'union et doit être définie explicitement par le programmeur.</p>
+<p>Si une union contient un membre de données non statique ayant un <a href="default_constructor.html">constructeur par défaut</a> non trivial, le constructeur par défaut de l'union est supprimé par défaut, sauf si un <a href="union.html#Union-like_classes">membre variant</a> de l'union possède un initialisateur de membre par défaut.</p>
+<p>Au plus un <a href="union.html#Union-like_classes">membre variant</a> peut avoir un <a href="data_members.html#Member_initialization">initialisateur de membre par défaut</a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Comme pour une déclaration <a href="classes.html">struct</a>, l'accès par défaut aux membres d'une union est <a href="access.html">public</a>.</p>
+<h2 id="Explanation">Explication</h2>
+<p>L'union a au moins la taille nécessaire pour contenir son plus grand membre de données, mais elle n'est généralement pas plus grande. Les autres membres de données sont destinés à être alloués dans les mêmes octets que ce plus grand membre. Les détails de cette allocation sont définis par l'implémentation, si ce n'est que tous les membres de données non statiques ont la même adresse. Lire le membre de l'union qui n'a pas été écrit en dernier est un comportement indéfini. De nombreux compilateurs implémentent, comme extension de langage non standard, la possibilité de lire les membres inactifs d'une union.</p>
+<pre><code class="language-cpp">#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+
+union S
+{
+    std::int32_t n;     // occupe 4 octets
+    std::uint16_t s[2]; // occupe 4 octets
+    std::uint8_t c;     // occupe 1 octet
+};                      // l'union entière occupe 4 octets
+
+int main()
+{
+    S s = {0x12345678}; // initialise le premier membre, s.n est maintenant le membre actif
+    // À ce stade, lire s.s ou s.c est un comportement indéfini,
+    // mais la plupart des compilateurs le définissent.
+    std::cout &lt;&lt; std::hex &lt;&lt; &quot;s.n = &quot; &lt;&lt; s.n &lt;&lt; '\n';
+
+    s.s[0] = 0x0011; // s.s est maintenant le membre actif
+    // À ce stade, lire s.n ou s.c est un comportement indéfini,
+    // mais la plupart des compilateurs le définissent.
+    std::cout &lt;&lt; &quot;s.c is now &quot; &lt;&lt; +s.c &lt;&lt; '\n' // 11 ou 00, selon la plateforme
+              &lt;&lt; &quot;s.n is now &quot; &lt;&lt; s.n &lt;&lt; '\n'; // 12340011 or 00115678
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">s.n = 12345678
+s.c is now 0
+s.n is now 115678
+</code></pre>
+<p>Chaque membre est alloué comme s'il était le seul membre de la classe.</p>
+<blockquote>
+<p>Si les membres d'une union sont des classes avec des constructeurs et destructeurs définis par l'utilisateur, pour changer le membre actif, un destructeur explicite et un placement new sont généralement nécessaires :</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+union S
+{
+    std::string str;
+    std::vector&lt;int&gt; vec;
+    ~S() {} // a besoin de savoir quel membre est actif, possible uniquement dans une classe de type union
+};          // l'union entière occupe max(sizeof(string), sizeof(vector&lt;int&gt;))
+
+int main()
+{
+    S s = {&quot;Hello, world&quot;};
+    // à ce stade, lire s.vec est un comportement indéfini
+    std::cout &lt;&lt; &quot;s.str = &quot; &lt;&lt; s.str &lt;&lt; '\n';
+    s.str.~basic_string();
+    new (&amp;s.vec) std::vector&lt;int&gt;;
+    // désormais, s.vec est le membre actif de l'union
+    s.vec.push_back(10);
+    std::cout &lt;&lt; s.vec.size() &lt;&lt; '\n';
+    s.vec.~vector();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">s.str = Hello, world
+1
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<p>Si deux membres d'union sont des types <a href="../named_req/StandardLayoutType.html">standard-layout</a>, il est bien défini d'examiner leur sous-séquence commune sur n'importe quel compilateur.</p>
+<h3 id="Member_lifetime">Durée de vie des membres</h3>
+<p>La <a href="lifetime.html">durée de vie</a> d'un membre d'union commence lorsque ce membre devient actif. Si un autre membre était actif auparavant, sa durée de vie se termine.</p>
+<p>Lorsque le membre actif d'une union est changé par une expression d'affectation de la forme <code>E1 = E2</code> qui utilise soit l'opérateur d'affectation intégré, soit un opérateur d'affectation trivial, pour chaque membre X de l'union qui apparaît dans les sous-expressions d'accès au membre et d'indice de tableau de <code>E1</code> et qui n'est pas une classe avec un constructeur par défaut non trivial ou supprimé, si la modification de X aurait un comportement indéfini selon les règles d'aliasing de types, un objet du type de X est implicitement créé dans le stockage désigné ; aucune initialisation n'est effectuée et le début de sa durée de vie est séquencé après le calcul de valeur des opérandes gauche et droit et avant l'affectation.</p>
+<pre><code class="language-cpp">union A { int x; int y[4]; };
+struct B { A a; };
+union C { B b; int k; };
+
+int f()
+{
+    C c;               // ne démarre la durée de vie d'aucun membre de l'union
+    c.b.a.y[3] = 4;    // OK : &quot;c.b.a.y[3]&quot;, désigne les membres d'union c.b et c.b.a.y ;
+                       // Ceci crée des objets destinés à contenir les membres d'union c.b et c.b.a.y
+    return c.b.a.y[3]; // OK : c.b.a.y désigne l'objet nouvellement créé
+}
+
+struct X { const int a; int b; };
+union Y { X x; int k; };
+
+void g()
+{
+    Y y = {{1, 2}}; // OK, y.x est le membre d'union actif
+    int n = y.x.a;
+    y.k = 4;   // OK : termine la durée de vie de y.x, y.k est le membre actif de l'union
+    y.x.b = n; // comportement indéfini : y.x.b modifié en dehors de sa durée de vie,
+               // &quot;y.x.b&quot; désigne y.x, mais le constructeur par défaut de X est supprimé,
+               // donc la durée de vie du membre d'union y.x ne démarre pas implicitement
+}
+</code></pre>
+<p>Le constructeur de déplacement, l'opérateur d'affectation par déplacement, *(depuis C++11)*constructeur de copie et l'opérateur d'affectation par copie triviaux des types union copient les représentations d'objets. Si la source et la destination ne sont pas le même objet, ces fonctions membres spéciales démarrent la durée de vie de chaque objet (sauf ceux qui ne sont ni sous-objets de la destination ni de <a href="lifetime.html#Implicit-lifetime_types">type à durée de vie implicite</a>) imbriqué dans la destination, correspondant à celui imbriqué dans la source avant la copie. Sinon, elles ne font rien. Deux objets union ont le même membre actif correspondant (le cas échéant) après construction ou affectation via des fonctions spéciales triviales.</p>
+<h3 id="Anonymous_unions">Unions anonymes</h3>
+<p>Une <em>union anonyme</em> est une définition d'union sans nom qui ne définit simultanément aucune variable (y compris des objets du type union, des références ou des pointeurs vers l'union).</p>
+<p>|
+| |
+| <code>union</code> <code>{</code> <code>member-specification</code> <code>}</code> <code>;</code> | | |
+|</p>
+<p>Les unions anonymes ont des restrictions supplémentaires : elles ne peuvent pas avoir de fonctions membres, ne peuvent pas avoir de membres de données statiques, et tous leurs membres de données doivent être publics. Les seules déclarations autorisées sont les membres de données non statiques et des déclarations <a href="static_assert.html"><code>static_assert</code></a> <em>(depuis C++11)</em>.</p>
+<p>Les membres d'une union anonyme sont injectés dans la portée englobante (et ne doivent pas entrer en conflit avec d'autres noms qui y sont déclarés).</p>
+<pre><code class="language-cpp">int main()
+{
+    union
+    {
+        int a;
+        const char* p;
+    };
+    a = 1;
+    p = &quot;Jennifer&quot;;
+}
+</code></pre>
+<p>Les unions anonymes de portée d'espace de noms doivent être déclarées static, sauf si elles apparaissent dans un espace de noms sans nom.</p>
+<h3 id="Union-like_classes">Classes de type union</h3>
+<p>Une <em>classe de type union</em> est soit une union, soit une classe (non union) qui possède au moins une union anonyme comme membre. Une classe de type union a un ensemble de <em>membres variants</em> :</p>
+<ul>
+<li>les membres de données non statiques de ses unions anonymes membres ;</li>
+<li>de plus, si la classe de type union est une union, ses membres de données non statiques qui ne sont pas des unions anonymes.</li>
+</ul>
+<p>Les classes de type union peuvent être utilisées pour implémenter des <a href="https://en.wikipedia.org/wiki/tagged_union">unions étiquetées</a>.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// S possède un membre de données non statique (tag), trois membres énumérateurs (CHAR, INT, DOUBLE),
+// et trois membres variantes (c, i, d)
+struct S
+{
+    enum{CHAR, INT, DOUBLE} tag;
+    union
+    {
+        char c;
+        int i;
+        double d;
+    };
+};
+
+void print_s(const S&amp; s)
+{
+    switch(s.tag)
+    {
+        case S::CHAR: std::cout &lt;&lt; s.c &lt;&lt; '\n'; break;
+        case S::INT: std::cout &lt;&lt; s.i &lt;&lt; '\n'; break;
+        case S::DOUBLE: std::cout &lt;&lt; s.d &lt;&lt; '\n'; break;
+    }
+}
+
+int main()
+{
+    S s = {S::CHAR, 'a'};
+    print_s(s);
+    s.tag = S::INT;
+    s.i = 123;
+    print_s(s);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">a
+123
+</code></pre>
+<blockquote>
+<p>La bibliothèque standard C++ inclut <a href="../utility/variant.html"><code>std::variant</code></a>, qui peut remplacer de nombreux usages des unions et des classes de type union. L'exemple ci-dessus peut être réécrit ainsi</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;variant&gt;
+
+int main()
+{
+    std::variant&lt;char, int, double&gt; s = 'a';
+    std::visit([](auto x){ std::cout &lt;&lt; x &lt;&lt; '\n';}, s);
+    s = 123;
+    std::visit([](auto x){ std::cout &lt;&lt; x &lt;&lt; '\n';}, s);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">a
+123
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/union.html"><code>union</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1940.html">CWG 1940</a></td>
+<td>C++11</td>
+<td>les unions anonymes n'autorisaient que les membres de données non statiques</td>
+<td><code>static_assert</code> également autorisé</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>11.5 Unions [class.union]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>11.5 Unions [class.union]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>12.3 Unions [class.union]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>9.5 Unions [class.union]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>9.5 Unions [class.union]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>9.5 Unions [class.union]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>9.5 Unions [class.union]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../utility/variant.html">variant</a> (C++17)</strong> — une union discriminée sûre au niveau des types <em>(modèle de classe)</em></li>
+</ul>
+<p><strong><a href="../../c/language/union.html">Documentation C</a> pour Déclaration d'union</strong></p>
+
+</main>
+</body>
+</html>

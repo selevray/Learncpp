@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::shared_ptr&lt;T&gt;::reset — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a> › <a href="../../../cpp/memory/shared_ptr.html">std::shared_ptr</a></nav>
+<h1 id="std-shared_ptr-t-reset"><code>std::shared_ptr&lt;T&gt;::reset</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/shared_ptr/reset">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">void reset() noexcept;  // (1) (depuis C++11)
+
+template&lt; class Y &gt;
+void reset( Y* ptr );  // (2) (depuis C++11)
+
+template&lt; class Y, class Deleter &gt;
+void reset( Y* ptr, Deleter d );  // (3) (depuis C++11)
+
+template&lt; class Y, class Deleter, class Alloc &gt;
+void reset( Y* ptr, Deleter d, Alloc alloc );  // (4) (depuis C++11)
+</code></pre>
+<p>Remplace l'objet géré par un objet pointé par <code>ptr</code>. Un deleter optionnel <code>d</code> peut être fourni, il sera ensuite utilisé pour détruire le nouvel objet lorsqu'aucun objet <code>shared_ptr</code> ne le possède. Par défaut, l'expression <a href="../../language/delete.html"><code>delete</code></a> est utilisée comme deleter. L'expression <a href="../../language/delete.html"><code>delete</code></a> appropriée correspondant au type fourni est toujours sélectionnée ; c'est pourquoi la fonction est implémentée comme un modèle utilisant un paramètre distinct <code>Y</code>.</p>
+<p>Si <code>*this</code> possède déjà un objet et qu'il en est le dernier <code>shared_ptr</code> propriétaire, l'objet est détruit via le deleter qu'il possède.</p>
+<p>Si l'objet pointé par <code>ptr</code> est déjà possédé, la fonction entraîne généralement un comportement indéfini.</p>
+<ol>
+<li>Libère la propriété de l'objet géré, le cas échéant. Après l'appel, <code>*this</code> ne gère aucun objet. Équivalent à <code>shared_ptr().swap(*this);</code>.</li>
+</ol>
+<p>2-4) Remplace l'objet géré par un objet pointé par <code>ptr</code>. <code>Y</code> doit être un type complet et implicitement convertible en <code>T</code>. De plus :</p>
+<ol start="2">
+<li>
+<p>Utilise l'expression delete comme deleter. Une expression delete valide doit être disponible, c'est-à-dire que <code>delete ptr</code> doit être bien formée, avoir un comportement bien défini et ne lever aucune exception. Équivalent à <code>shared_ptr&lt;T&gt;(ptr).swap(*this);</code>.</p>
+</li>
+<li>
+<p>Utilise le deleter spécifié <code>d</code> comme deleter. <code>Deleter</code> doit être appelable pour le type <code>T</code>, c'est-à-dire que <code>d(ptr)</code> doit être bien formée, avoir un comportement bien défini et ne lever aucune exception. <code>Deleter</code> doit être <a href="../../named_req/CopyConstructible.html"><em>CopyConstructible</em></a>, et son constructeur de copie et son destructeur ne doivent lever aucune exception. Équivalent à <code>shared_ptr&lt;T&gt;(ptr, d).swap(*this);</code>.</p>
+</li>
+<li>
+<p>Identique à <code>(3)</code>, mais utilise en plus une copie de <code>alloc</code> pour l'allocation des données à usage interne. <code>Alloc</code> doit être un <a href="../../named_req/Allocator.html"><em>Allocator</em></a>. Le constructeur de copie et le destructeur ne doivent lever aucune exception. Équivalent à <code>shared_ptr&lt;T&gt;(ptr, d, alloc).swap(*this);</code>.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ptr</code> — pointeur vers un objet dont il faut acquérir la propriété</li>
+<li><code>d</code> — deleter à stocker pour la suppression de l'objet</li>
+<li><code>alloc</code> — allocateur à utiliser pour les allocations internes</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>(aucune)</p>
+<h2 id="Exceptions">Exceptions</h2>
+<ol start="2">
+<li><a href="../new/bad_alloc.html"><code>std::bad_alloc</code></a> si la mémoire supplémentaire requise n'a pas pu être obtenue. Peut lever une exception définie par l'implémentation pour d'autres erreurs. <code>delete ptr</code> est appelé si une exception survient.</li>
+</ol>
+<p>3,4) <a href="../new/bad_alloc.html"><code>std::bad_alloc</code></a> si la mémoire supplémentaire requise n'a pas pu être obtenue. Peut lever une exception définie par l'implémentation pour d'autres erreurs. <code>d(ptr)</code> est appelé si une exception survient.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+struct Foo
+{
+    Foo(int n = 0) noexcept : bar(n)
+    {
+        std::cout &lt;&lt; &quot;Foo::Foo(), bar = &quot; &lt;&lt; bar &lt;&lt; &quot; @ &quot; &lt;&lt; this &lt;&lt; '\n';
+    }
+    ~Foo()
+    {
+        std::cout &lt;&lt; &quot;Foo::~Foo(), bar = &quot; &lt;&lt; bar &lt;&lt; &quot; @ &quot; &lt;&lt; this &lt;&lt; '\n';
+    }
+    int getBar() const noexcept { return bar; }
+private:
+    int bar;
+};
+
+int main()
+{
+    std::cout &lt;&lt; &quot;1) unique ownership\n&quot;;
+    {
+        std::shared_ptr&lt;Foo&gt; sptr = std::make_shared&lt;Foo&gt;(100);
+
+        std::cout &lt;&lt; &quot;Foo::bar = &quot; &lt;&lt; sptr-&gt;getBar() &lt;&lt; &quot;, use_count() = &quot;
+                  &lt;&lt; sptr.use_count() &lt;&lt; '\n';
+
+        // Réinitialise le shared_ptr sans lui fournir une nouvelle instance de Foo.
+        // L'ancienne instance sera détruite après cet appel.
+        std::cout &lt;&lt; &quot;call sptr.reset()...\n&quot;;
+        sptr.reset(); // appelle ici le destructeur de Foo
+        std::cout &lt;&lt; &quot;After reset(): use_count() = &quot; &lt;&lt; sptr.use_count()
+                  &lt;&lt; &quot;, sptr = &quot; &lt;&lt; sptr &lt;&lt; '\n';
+    }   // Pas d'appel au destructeur de Foo, il a été effectué plus tôt dans reset().
+
+    std::cout &lt;&lt; &quot;\n2) unique ownership\n&quot;;
+    {
+        std::shared_ptr&lt;Foo&gt; sptr = std::make_shared&lt;Foo&gt;(200);
+
+        std::cout &lt;&lt; &quot;Foo::bar = &quot; &lt;&lt; sptr-&gt;getBar() &lt;&lt; &quot;, use_count() = &quot;
+                  &lt;&lt; sptr.use_count() &lt;&lt; '\n';
+
+        // Réinitialise le shared_ptr, en lui fournissant une nouvelle instance de Foo.
+        // L'ancienne instance sera détruite après cet appel.
+        std::cout &lt;&lt; &quot;call sptr.reset()...\n&quot;;
+        sptr.reset(new Foo{222});
+        std::cout &lt;&lt; &quot;After reset(): use_count() = &quot; &lt;&lt; sptr.use_count()
+                  &lt;&lt; &quot;, sptr = &quot; &lt;&lt; sptr &lt;&lt; &quot;\nLeaving the scope...\n&quot;;
+    }   // Appelle le destructeur de Foo.
+
+    std::cout &lt;&lt; &quot;\n3) multiple ownership\n&quot;;
+    {
+        std::shared_ptr&lt;Foo&gt; sptr1 = std::make_shared&lt;Foo&gt;(300);
+        std::shared_ptr&lt;Foo&gt; sptr2 = sptr1;
+        std::shared_ptr&lt;Foo&gt; sptr3 = sptr2;
+
+        std::cout &lt;&lt; &quot;Foo::bar = &quot; &lt;&lt; sptr1-&gt;getBar() &lt;&lt; &quot;, use_count() = &quot;
+                  &lt;&lt; sptr1.use_count() &lt;&lt; '\n';
+
+        // Réinitialise le shared_ptr sptr1, en lui fournissant une nouvelle instance de Foo.
+        // L'ancienne instance restera partagée entre sptr2 et sptr3.
+        std::cout &lt;&lt; &quot;call sptr1.reset()...\n&quot;;
+        sptr1.reset(new Foo{333});
+
+        std::cout &lt;&lt; &quot;After reset():\n&quot;
+                  &lt;&lt; &quot;sptr1.use_count() = &quot; &lt;&lt; sptr1.use_count()
+                  &lt;&lt; &quot;, sptr1 @ &quot; &lt;&lt; sptr1 &lt;&lt; '\n'
+                  &lt;&lt; &quot;sptr2.use_count() = &quot; &lt;&lt; sptr2.use_count()
+                  &lt;&lt; &quot;, sptr2 @ &quot; &lt;&lt; sptr2 &lt;&lt; '\n'
+                  &lt;&lt; &quot;sptr3.use_count() = &quot; &lt;&lt; sptr3.use_count()
+                  &lt;&lt; &quot;, sptr3 @ &quot; &lt;&lt; sptr3 &lt;&lt; '\n'
+                  &lt;&lt; &quot;Leaving the scope...\n&quot;;
+    }   // Appelle deux destructeurs : 1) celui de Foo possédé par sptr1,
+        // 2) celui de Foo partagé entre sptr2/sptr3.
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1) unique ownership
+Foo::Foo(), bar = 100 @ 0x23c5040
+Foo::bar = 100, use_count() = 1
+call sptr.reset()...
+Foo::~Foo(), bar = 100 @ 0x23c5040
+After reset(): use_count() = 0, sptr = 0
+
+2) unique ownership
+Foo::Foo(), bar = 200 @ 0x23c5040
+Foo::bar = 200, use_count() = 1
+call sptr.reset()...
+Foo::Foo(), bar = 222 @ 0x23c5050
+Foo::~Foo(), bar = 200 @ 0x23c5040
+After reset(): use_count() = 1, sptr = 0x23c5050
+Leaving the scope...
+Foo::~Foo(), bar = 222 @ 0x23c5050
+
+3) multiple ownership
+Foo::Foo(), bar = 300 @ 0x23c5080
+Foo::bar = 300, use_count() = 3
+call sptr1.reset()...
+Foo::Foo(), bar = 333 @ 0x23c5050
+After reset():
+sptr1.use_count() = 1, sptr1 @ 0x23c5050
+sptr2.use_count() = 2, sptr2 @ 0x23c5080
+sptr3.use_count() = 2, sptr3 @ 0x23c5080
+Leaving the scope...
+Foo::~Foo(), bar = 300 @ 0x23c5080
+Foo::~Foo(), bar = 333 @ 0x23c5050
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="shared_ptr.html">(constructeur)</a></strong> — construit un nouveau <code>shared_ptr</code> <em>(fonction membre publique)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

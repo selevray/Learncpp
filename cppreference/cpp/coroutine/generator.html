@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::generator — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/coroutine.html">Support des coroutines (C++20)</a></nav>
+<h1 id="std-generator"><code>std::generator</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/coroutine/generator">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;generator&gt;</strong></p>
+<pre><code class="language-cpp">template&lt;
+    class Ref,
+    class V = void,
+    class Allocator = void &gt;
+class generator
+    : public ranges::view_interface&lt;generator&lt;Ref, V, Allocator&gt;&gt;  // (1) (depuis C++23)
+
+namespace pmr {
+    template&lt; class Ref, class V = void &gt;
+    using generator =
+        std::generator&lt;Ref, V, std::pmr::polymorphic_allocator&lt;&gt;&gt;;
+}  // (2) (depuis C++23)
+</code></pre>
+<ol>
+<li>
+<p>Le modèle de classe <code>std::generator</code> présente un <a href="../ranges/view.html"><code>view</code></a> des éléments produits par l'évaluation d'une <a href="../language/coroutines.html">coroutine</a>.</p>
+</li>
+<li>
+<p>Alias de modèle pratique pour <code>generator</code> utilisant l'<a href="../memory/polymorphic_allocator.html">allocateur polymorphe</a>.</p>
+</li>
+</ol>
+<p>Un <code>std::generator</code> génère une séquence d'éléments en reprenant de façon répétée la coroutine dont il a été renvoyé. À chaque fois qu'une instruction <code>co_yield</code> est évaluée, la coroutine produit un élément de la séquence. Lorsque l'instruction <code>co_yield</code> est de la forme <code>co_yield ranges::elements_of(rng)</code>, chaque élément de l'<a href="../ranges/range.html"><code>range</code></a> <code>rng</code> est produit successivement comme élément de la séquence.</p>
+<p><code>std::generator</code> modélise <a href="../ranges/view.html"><code>view</code></a> et <a href="../ranges/input_range.html"><code>input_range</code></a>.</p>
+<p>Le comportement d'un programme qui ajoute une spécialisation pour <code>std::generator</code> est indéfini.</p>
+<h2 id="Template_parameters">Paramètres de modèle</h2>
+<ul>
+<li><code>Ref</code> — le type de référence (<code>ranges::range_reference_t</code>) du générateur. Si <code>V</code> est <code>void</code>, le type de référence et le type de valeur sont déduits de <code>Ref</code></li>
+<li><code>V</code> — le type de valeur (<code>ranges::range_value_t</code>) du générateur, ou <code>void</code></li>
+<li><code>Allocator</code> — un type d'allocateur ou <code>void</code></li>
+</ul>
+<p>Si <code>Allocator</code> n'est pas <code>void</code>, alors le comportement est indéfini si <code>Allocator</code> ne satisfait pas les exigences <a href="../named_req/Allocator.html"><em>Allocator</em></a>.</p>
+<h2 id="Member_types">Types membres</h2>
+<p><strong>Membre Définition</strong></p>
+<ul>
+<li><strong><code>value</code> <em>(privé)</em></strong> — <code>std::conditional_t&lt;std::is_void_v&lt;V&gt;, std::remove_cvref_t&lt;Ref&gt;, V&gt;;</code> <em>(membre de type exposé uniquement</em>)*</li>
+<li><strong><code>reference</code> <em>(privé)</em></strong> — <code>std::conditional_t&lt;std::is_void_v&lt;V&gt;, Ref&amp;&amp;, Ref&gt;;</code> <em>(membre de type exposé uniquement</em>)*</li>
+<li><strong><code>yielded</code></strong> — <code>std::conditional_t&lt;std::is_reference_v&lt;reference</code> ﻿<code>&gt;,reference, constreference</code> ﻿<code>&amp;&gt;</code></li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>std::allocator_traits&lt;Allocator&gt;::pointer</code> est un type pointeur.</li>
+<li><code>value</code> est un type objet non qualifié cv.</li>
+<li><code>reference</code> est soit un type référence, soit un type objet non qualifié cv qui modélise <a href="../concepts/copy_constructible.html"><code>copy_constructible</code></a>.</li>
+<li>Soit <code>RRef</code> désigne <code>std::remove_reference_t&lt;reference</code> ﻿<code>&gt;&amp;&amp;</code>, si <code>reference</code> est un type référence, et <code>reference</code> sinon.
+<ul>
+<li><code>std::common_reference_with&lt;reference</code> ﻿<code>&amp;&amp;,value</code> ﻿<code>&amp;&gt;</code> est modélisé.</li>
+<li><code>std::common_reference_with&lt;reference</code> ﻿<code>&amp;&amp;,RRef</code> ﻿<code>&amp;&amp;&gt;</code> est modélisé.</li>
+<li><code>std::common_reference_with&lt;RRef</code> ﻿<code>&amp;&amp;, constvalue</code> ﻿<code>&amp;&gt;</code> est modélisé.</li>
+</ul>
+</li>
+</ul>
+<p>Le programme est mal formé si l'une de ces exigences de type n'est pas satisfaite.</p>
+<h2 id="Data_members">Membres de données</h2>
+<p><strong>Membre Définition</strong></p>
+<ul>
+<li>
+<p><strong><code>active_</code> <em>(privé)</em></strong> —</p>
+<p>En interne, chaque instance active de <code>std::generator</code> est associée à une pile (gérée comme un objet de type <code>std::unique_ptr&lt;std::stack&lt;std::coroutine_handle&lt;&gt;&gt;&gt;</code>).</p>
+<ul>
+<li>Lorsque <a href="generator/begin.html"><code>begin</code></a> est appelée, une nouvelle pile est créée et le générateur y est ajouté.</li>
+<li>Lorsque <code>co_yield ranges::elements_of(rng)</code> est évalué dans le corps d'un générateur, <code>rng</code> est converti en générateur et ajouté à la pile qui contient le générateur englobant.</li>
+<li>Lorsqu'un itérateur de générateur est <a href="generator/iterator.html#increment">incrémenté</a>, la coroutine au sommet de la pile associée est reprise.</li>
+<li>Lorsqu'un générateur se termine (c.-à-d. lorsque <a href="generator/promise_type/final_suspend.html"><code>promise_type::final_suspend</code></a> est appelée), il est retiré de la pile. <em>(objet membre exposé uniquement</em>)*</li>
+</ul>
+</li>
+<li>
+<p><strong><code>coroutine_</code> <em>(privé)</em></strong> — un handle de type <code>std::coroutine_handle&lt;promise_type&gt;</code> <em>(objet membre exposé uniquement</em>)*</p>
+</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="generator/generator.html">(constructeur)</a></strong> — construit un objet <code>generator</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="generator/~generator.html">(destructeur)</a></strong> — détruit effectivement toute la pile des <code>generator</code>s produits <em>(fonction membre publique)</em></li>
+<li><strong><a href="generator/operator%3D.html">operator=</a></strong> — affecte un objet <code>generator</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="generator/begin.html">begin</a></strong> — reprend la coroutine initialement suspendue et renvoie un itérateur vers son handle <em>(fonction membre publique)</em></li>
+<li><strong><a href="generator/end.html">end</a></strong> — renvoie <a href="../iterator/default_sentinel.html"><code>std::default_sentinel</code></a> <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Hérité de <a href="../ranges/view_interface.html"><code>std::ranges::view_interface</code></a> {#Inherited_from_std::ranges::view_interface}</strong></p>
+<ul>
+<li><strong><a href="../ranges/view_interface/empty.html">empty</a></strong> — renvoie si la vue dérivée est vide. Fourni si elle satisfait <a href="../ranges/sized_range.html"><code>sized_range</code></a> ou <a href="../ranges/forward_range.html"><code>forward_range</code></a>. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="../ranges/view_interface/cbegin.html">cbegin</a> (C++23)</strong> — renvoie un itérateur constant vers le début de l'intervalle. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="../ranges/view_interface/cend.html">cend</a> (C++23)</strong> — renvoie une sentinelle pour l'itérateur constant de l'intervalle. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="../ranges/view_interface/operator_bool.html">operator bool</a></strong> — renvoie si la vue dérivée n'est pas vide. Fourni si <a href="../ranges/empty.html"><code>ranges::empty</code></a> lui est applicable. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+</ul>
+<h2 id="Nested_classes">Classes imbriquées</h2>
+<ul>
+<li><strong><a href="generator/promise_type.html">promise_type</a></strong> — le type de promesse <em>(classe membre publique)</em></li>
+<li><strong><a href="generator/iterator.html"><em>iterator</em></a></strong> — le type d'itérateur <em>(classe membre exposée uniquement</em>)*</li>
+</ul>
+<h2 id="Notes">Notes</h2>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_generator"><code>__cpp_lib_generator</code></a></td>
+<td><a href="../compiler_support/23.html#cpp_lib_generator_202207L"><code>202207L</code></a></td>
+<td><em>(C++23)</em></td>
+<td><a href="generator.html#top"><code>std::generator</code></a> – <a href="../coroutine.html">coroutine</a> génératrice synchrone pour <a href="../ranges.html">intervalles</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;generator&gt;
+#include &lt;iostream&gt;
+
+template&lt;typename T&gt;
+struct Tree
+{
+    T value;
+    Tree *left{}, *right{};
+
+    std::generator&lt;const T&amp;&gt; traverse_inorder() const
+    {
+        if (left)
+            co_yield std::ranges::elements_of(left-&gt;traverse_inorder());
+
+        co_yield value;
+
+        if (right)
+            co_yield std::ranges::elements_of(right-&gt;traverse_inorder());
+    }
+};
+
+int main()
+{
+    Tree&lt;char&gt; tree[]
+    {
+                                    {'D', tree + 1, tree + 2},
+        //                            │
+        //            ┌───────────────┴────────────────┐
+        //            │                                │
+                    {'B', tree + 3, tree + 4},       {'F', tree + 5, tree + 6},
+        //            │                                │
+        //  ┌─────────┴─────────────┐      ┌───────────┴─────────────┐
+        //  │                       │      │                         │
+          {'A'},                  {'C'}, {'E'},                    {'G'}
+    };
+
+    for (char x : tree-&gt;traverse_inorder())
+        std::cout &lt;&lt; x &lt;&lt; ' ';
+    std::cout &lt;&lt; '\n';
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">A B C D E F G
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>Norme C++23 (ISO/IEC 14882:2024) :
+<ul>
+<li>26.8 Générateurs d'intervalles [coro.generator]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="noop_coroutine.html">noop_coroutine</a> (C++20)</strong> — crée un descripteur de coroutine n'ayant aucun effet observable lorsqu'il est repris ou détruit <em>(fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

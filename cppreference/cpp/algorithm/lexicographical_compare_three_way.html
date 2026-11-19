@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::lexicographical_compare_three_way — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/algorithm.html">Bibliothèque des algorithmes</a></nav>
+<h1 id="std-lexicographical_compare_three_way"><code>std::lexicographical_compare_three_way</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/algorithm/lexicographical_compare_three_way">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;algorithm&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class InputIt1, class InputIt2, class Cmp &gt;
+constexpr auto lexicographical_compare_three_way
+    ( InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2,
+      Cmp comp ) -&gt; decltype(comp(*first1, *first2));  // (1) (depuis C++20)
+
+template&lt; class InputIt1, class InputIt2 &gt;
+constexpr auto lexicographical_compare_three_way
+    ( InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2 );  // (2) (depuis C++20)
+</code></pre>
+<p>Compare lexicographiquement deux intervalles <code>[first1,last1)</code> et <code>[first2,last2)</code> à l'aide de la comparaison à trois voies et produit un résultat du type de catégorie de comparaison le plus fort applicable.</p>
+<ol>
+<li>
+<p>Renvoie l'ordre entre la première paire d'éléments non équivalents selon <code>comp</code> dans les deux intervalles s'il en existe une, sinon (si un intervalle est équivalent au préfixe de l'autre selon <code>comp</code>), renvoie l'ordre entre les longueurs des deux intervalles.</p>
+</li>
+<li>
+<p>Équivalent à <code>return std::lexicographical_compare_three_way( first1, last1, first2, last2, std::compare_three_way());</code></p>
+</li>
+</ol>
+<p>Si le type de retour n'est pas l'un des trois types de catégorie de comparaison, le programme est mal formé :</p>
+<ul>
+<li><a href="../utility/compare/strong_ordering.html"><code>std::strong_ordering</code></a></li>
+<li><a href="../utility/compare/weak_ordering.html"><code>std::weak_ordering</code></a></li>
+<li><a href="../utility/compare/partial_ordering.html"><code>std::partial_ordering</code></a></li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>first1, last1</code> — le premier intervalle d'éléments à examiner</li>
+<li><code>first2, last2</code> — le second intervalle d'éléments à examiner</li>
+<li><code>comp</code> — un objet fonction</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt1, InputIt2</code> doit satisfaire aux exigences de <a href="../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>La valeur d'un type de catégorie de comparaison spécifié ci-dessus.</p>
+<h2 id="Complexity">Complexité</h2>
+<p>Étant donné (\scriptsize N_1)N1 comme <code>std::distance(first1, last1)</code> et (\scriptsize N_2)N2 comme <code>std::distance(first2, last2)</code> :</p>
+<ol>
+<li>
+<p>Au plus (\scriptsize \min(N_1,N_2))min(1,N2) applications de <code>comp</code>.</p>
+</li>
+<li>
+<p>Au plus (\scriptsize \min(N_1,N_2))min(N1,N2) applications de <code>std::compare_three_way()</code>.</p>
+</li>
+</ol>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<pre><code class="language-cpp">template&lt;class I1, class I2, class Cmp&gt;
+constexpr auto lexicographical_compare_three_way(I1 f1, I1 l1, I2 f2, I2 l2, Cmp comp)
+    -&gt; decltype(comp(*f1, *f2))
+{
+    using ret_t = decltype(comp(*f1, *f2));
+    static_assert(std::disjunction_v&lt;
+                      std::is_same&lt;ret_t, std::strong_ordering&gt;,
+                      std::is_same&lt;ret_t, std::weak_ordering&gt;,
+                      std::is_same&lt;ret_t, std::partial_ordering&gt;&gt;,
+                  &quot;The return type must be a comparison category type.&quot;);
+
+    bool exhaust1 = (f1 == l1);
+    bool exhaust2 = (f2 == l2);
+    for (; !exhaust1 &amp;&amp; !exhaust2; exhaust1 = (++f1 == l1), exhaust2 = (++f2 == l2))
+        if (auto c = comp(*f1, *f2); c != 0)
+            return c;
+
+    return !exhaust1 ? std::strong_ordering::greater:
+           !exhaust2 ? std::strong_ordering::less:
+                       std::strong_ordering::equal;
+}
+</code></pre>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;algorithm&gt;
+#include &lt;cctype&gt;
+#include &lt;compare&gt;
+#include &lt;iomanip&gt;
+#include &lt;iostream&gt;
+#include &lt;string_view&gt;
+#include &lt;utility&gt;
+
+using namespace std::literals;
+
+void show_result(std::string_view s1, std::string_view s2, std::strong_ordering o)
+{
+    std::cout &lt;&lt; std::quoted(s1) &lt;&lt; &quot; is &quot;;
+    std::is_lt(o) ? std::cout &lt;&lt; &quot;less than &quot;:
+    std::is_gt(o) ? std::cout &lt;&lt; &quot;greater than &quot;:
+                    std::cout &lt;&lt; &quot;equal to &quot;;
+    std::cout &lt;&lt; std::quoted(s2) &lt;&lt; '\n';
+}
+
+std::strong_ordering cmp_icase(unsigned char x, unsigned char y)
+{
+    return std::toupper(x) &lt;=&gt; std::toupper(y);
+};
+
+int main()
+{
+    for (const auto&amp; [s1, s2] :
+    {
+        std::pair{&quot;one&quot;sv, &quot;ONE&quot;sv}, {&quot;two&quot;sv, &quot;four&quot;sv}, {&quot;three&quot;sv, &quot;two&quot;sv}
+    })
+    {
+        const auto res = std::lexicographical_compare_three_way(
+            s1.cbegin(), s1.cend(), s2.cbegin(), s2.cend(), cmp_icase);
+        show_result(s1, s2, res);
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">&quot;one&quot; is equal to &quot;ONE&quot;
+&quot;two&quot; is greater than &quot;four&quot;
+&quot;three&quot; is less than &quot;two&quot;
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3410">LWG 3410</a></td>
+<td>C++20</td>
+<td>des comparaisons superflues entre itérateurs étaient requises</td>
+<td>cette exigence a été supprimée</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="lexicographical_compare.html">lexicographical_compare</a></strong> — renvoie <code>true</code> si un intervalle est lexicographiquement inférieur à un autre <em>(modèle de fonction)</em></li>
+<li><strong><a href="../utility/compare/compare_three_way.html">compare_three_way</a> (C++20)</strong> — objet fonction contraint implémentant <code>x &lt;=&gt; y</code> <em>(classe)</em></li>
+<li><strong><a href="ranges/lexicographical_compare.html">ranges::lexicographical_compare</a> (C++20)</strong> — renvoie <code>true</code> si un intervalle est lexicographiquement inférieur à un autre <em>(objet fonction d'algorithme)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

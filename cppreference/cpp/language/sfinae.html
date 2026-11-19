@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SFINAE — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="sfinae"><code>SFINAE</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/sfinae">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>&quot;Substitution Failure Is Not An Error&quot;</p>
+<p>Cette règle s'applique lors de la résolution de surcharge des modèles de fonctions : lorsque la <a href="function_template.html#Template_argument_substitution">substitution</a> du type explicitement spécifié ou <a href="template_argument_deduction.html">déduit</a> au paramètre de modèle échoue, la spécialisation est écartée de l'<a href="overload_resolution.html">ensemble de surcharges</a> au lieu de provoquer une erreur de compilation.</p>
+<p>Cette fonctionnalité est utilisée dans la métaprogrammation par modèles.</p>
+<h2 id="Explanation">Explication</h2>
+<p>Les paramètres de modèle de fonction sont substitués (remplacés par des arguments de modèle) deux fois :</p>
+<ul>
+<li>les arguments de modèle explicitement spécifiés sont substitués avant la déduction des arguments de modèle</li>
+<li>les arguments déduits et ceux obtenus à partir des valeurs par défaut sont substitués après la déduction des arguments de modèle</li>
+</ul>
+<p>La substitution a lieu dans</p>
+<ul>
+<li>tous les types utilisés dans le type de fonction (qui comprend le type de retour et les types de tous les paramètres)</li>
+<li>tous les types utilisés dans les déclarations des paramètres de modèle</li>
+<li>tous les types utilisés dans la liste d'arguments de modèle d'une spécialisation partielle</li>
+</ul>
+<blockquote>
+<ul>
+<li>toutes les expressions utilisées dans le type de fonction</li>
+<li>toutes les expressions utilisées dans une déclaration de paramètre de modèle</li>
+<li>toutes les expressions utilisées dans la liste d'arguments de modèle d'une spécialisation partielle</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>toutes les expressions utilisées dans le <a href="explicit.html">spécificateur explicit</a></li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>Un <em>échec de substitution</em> est toute situation où le type ou l'expression ci-dessus serait mal formé (avec un diagnostic requis), s'il était écrit avec les arguments substitués.</p>
+<p>Seuls les échecs dans les types et expressions du <em>contexte immédiat</em> du type de fonction ou de ses types de paramètres de modèle ou de son <a href="explicit.html">spécificateur explicit</a> <em>(depuis C++20)</em> sont des erreurs SFINAE. Si l'évaluation d'un type/expression substitué provoque un effet de bord tel que l'instanciation d'une spécialisation de modèle, la génération d'une fonction membre implicitement définie, etc., les erreurs de ces effets de bord sont traitées comme des erreurs fatales. Une <a href="lambda.html">expression lambda</a> n'est pas considérée comme faisant partie du contexte immédiat. <em>(depuis C++20)</em></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td>Cette section est incomplète Raison : exemple minimal où cela est important</td>
+</tr>
+</tbody>
+</table>
+<p>La substitution procède dans l'ordre lexical et s'arrête dès qu'un échec est rencontré.</p>
+<blockquote>
+<p>S'il existe plusieurs déclarations avec des ordres lexicaux différents (par exemple un modèle de fonction déclaré avec un type de retour final, à substituer après un paramètre, et redéclaré avec un type de retour ordinaire qui serait substitué avant le paramètre), et que cela provoquerait des instanciations de modèles dans un ordre différent ou ne les effectuerait pas du tout, alors le programme est mal formé ; aucun diagnostic requis.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<pre><code class="language-cpp">template&lt;typename A&gt;
+struct B { using type = typename A::type; };
+
+template&lt;
+    class T,
+    class U = typename T::type,    // échec SFINAE si T n'a pas de type membre
+    class V = typename B&lt;T&gt;::type&gt; // erreur fatale si B n'a pas de type membre
+                                   // (garanti de ne pas se produire grâce à CWG 1227 car
+                                   // la substitution dans l'argument de modèle par défaut
+                                   // de U échouerait d'abord)
+void foo (int);
+
+template&lt;class T&gt;
+typename T::type h(typename B&lt;T&gt;::type);
+
+template&lt;class T&gt;
+auto h(typename B&lt;T&gt;::type) -&gt; typename T::type; // redeclaration
+
+template&lt;class T&gt;
+void h(...) {}
+
+using R = decltype(h&lt;int&gt;(0));     // mal formé, aucun diagnostic requis
+</code></pre>
+<h3 id="Type_SFINAE">SFINAE de type</h3>
+<p>Les erreurs de type suivantes sont des erreurs SFINAE :</p>
+<blockquote>
+<ul>
+<li>tenter d'instancier une expansion de pack contenant plusieurs packs de longueurs différentes</li>
+</ul>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<ul>
+<li>tenter de créer un tableau de void, un tableau de références, un tableau de fonctions, un tableau de taille négative, un tableau de taille non entière, ou un tableau de taille nulle :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;int I&gt;
+void div(char(*)[I % 2 == 0] = nullptr)
+{
+    // cette surcharge est sélectionnée lorsque I est pair
+}
+
+template&lt;int I&gt;
+void div(char(*)[I % 2 == 1] = nullptr)
+{
+    // cette surcharge est sélectionnée lorsque I est impair
+}
+</code></pre>
+<ul>
+<li>tenter d'utiliser un type à gauche de l'opérateur de résolution de portée <code>::</code> alors que ce n'est ni une classe ni une énumération :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T&gt;
+int f(typename T::B*);
+
+template&lt;class T&gt;
+int f(T);
+
+int i = f&lt;int&gt;(0); // utilise la seconde surcharge
+</code></pre>
+<ul>
+<li>tenter d'utiliser un membre d'un type, où
+<ul>
+<li>le type ne contient pas le membre spécifié</li>
+<li>le membre spécifié n'est pas un type là où un type est requis</li>
+<li>le membre spécifié n'est pas un modèle là où un modèle est requis</li>
+<li>le membre spécifié n'est pas un non-type là où un non-type est requis</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-cpp">template&lt;int I&gt;
+struct X {};
+
+template&lt;template&lt;class T&gt; class&gt;
+struct Z {};
+
+template&lt;class T&gt;
+void f(typename T::Y*) {}
+
+template&lt;class T&gt;
+void g(X&lt;T::N&gt;*) {}
+
+template&lt;class T&gt;
+void h(Z&lt;T::template TT&gt;*) {}
+
+struct A {};
+struct B { int Y; };
+struct C { typedef int N; };
+struct D { typedef int TT; };
+struct B1 { typedef int Y; };
+struct C1 { static const int N = 0; };
+struct D1
+{
+    template&lt;typename T&gt;
+    struct TT {};
+};
+
+int main()
+{
+    // La déduction échoue dans chacun de ces cas :
+    f&lt;A&gt;(0); // A ne contient pas de membre Y
+    f&lt;B&gt;(0); // Le membre Y de B n'est pas un type
+    g&lt;C&gt;(0); // Le membre N de C n'est pas un non-type
+    h&lt;D&gt;(0); // Le membre TT de D n'est pas un modèle
+
+    // La déduction réussit dans chacun de ces cas :
+    f&lt;B1&gt;(0);
+    g&lt;C1&gt;(0);
+    h&lt;D1&gt;(0);
+}
+// todo : il faut démontrer la résolution de surcharge, pas seulement l'échec
+</code></pre>
+<ul>
+<li>tenter de créer un pointeur vers une référence</li>
+<li>tenter de créer une référence vers void</li>
+<li>tenter de créer un pointeur vers membre de T, où T n'est pas un type classe :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;typename T&gt;
+class is_class
+{
+    typedef char yes[1];
+    typedef char no[2];
+
+    template&lt;typename C&gt;
+    static yes&amp; test(int C::*); // sélectionnée si C est un type classe
+
+    template&lt;typename C&gt;
+    static no&amp; test(...);       // sélectionnée sinon
+public:
+    static bool const value = sizeof(test&lt;T&gt;(nullptr)) == sizeof(yes);
+};
+</code></pre>
+<ul>
+<li>tenter de donner un type invalide à un paramètre de modèle non-type :</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T, T&gt;
+struct S {};
+
+template&lt;class T&gt;
+int f(S&lt;T, T()&gt;*);
+
+struct X {};
+int i0 = f&lt;X&gt;(0);
+// todo : il faut démontrer la résolution de surcharge, pas seulement l'échec
+</code></pre>
+<ul>
+<li>tenter d'effectuer une conversion invalide dans
+<ul>
+<li>dans une expression d'argument de modèle</li>
+<li>dans une expression utilisée dans une déclaration de fonction :</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-cpp">template&lt;class T, T*&gt; int f(int);
+int i2 = f&lt;int, 1&gt;(0); // impossible de convertir 1 en int*
+// todo : il faut démontrer la résolution de surcharge, pas seulement l'échec
+</code></pre>
+<ul>
+<li>tenter de créer un type de fonction avec un paramètre de type void</li>
+<li>tenter de créer un type de fonction qui renvoie un type tableau ou un type fonction</li>
+</ul>
+<h3 id="Expression_SFINAE">SFINAE sur les expressions</h3>
+<blockquote>
+<p>Seules les expressions constantes utilisées dans des types (comme les bornes de tableaux) devaient être traitées comme SFINAE (et non comme des erreurs fatales) avant C++11.</p>
+<p><em>(jusqu'à C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Les erreurs d'expression suivantes sont des erreurs SFINAE</p>
+<ul>
+<li>Expression mal formée utilisée dans un type de paramètre de modèle</li>
+<li>Expression mal formée utilisée dans le type de fonction :</li>
+</ul>
+<pre><code class="language-cpp">struct X {};
+struct Y { Y(X){} }; // X est convertible en Y
+
+template&lt;class T&gt;
+auto f(T t1, T t2) -&gt; decltype(t1 + t2); // overload #1
+
+X f(Y, Y);                               // overload #2
+
+X x1, x2;
+X x3 = f(x1, x2); // la déduction échoue sur #1 (l'expression x1 + x2 est mal formée)
+                  // seule #2 fait partie de l'ensemble de surcharge, et est appelée
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h3 id="SFINAE_in_partial_specializations">SFINAE dans les spécialisations partielles</h3>
+<p>La déduction et la substitution ont aussi lieu lors de la détermination de la génération d'une spécialisation d'un modèle de classe ou de variable <em>(depuis C++14)</em> par une <a href="partial_specialization.html">spécialisation partielle</a> ou par le modèle primaire. Un échec de substitution n'est pas traité comme une erreur fatale pendant cette détermination, mais rend la déclaration de spécialisation partielle correspondante ignorée, comme dans la résolution de surcharge impliquant des modèles de fonctions.</p>
+<pre><code class="language-cpp">// le modèle primaire gère les types non référençables :
+template&lt;class T, class = void&gt;
+struct reference_traits
+{
+    using add_lref = T;
+    using add_rref = T;
+};
+
+// la spécialisation reconnaît les types référençables :
+template&lt;class T&gt;
+struct reference_traits&lt;T, std::void_t&lt;T&amp;&gt;&gt;
+{
+    using add_lref = T&amp;;
+    using add_rref = T&amp;&amp;;
+};
+
+template&lt;class T&gt;
+using add_lvalue_reference_t = typename reference_traits&lt;T&gt;::add_lref;
+
+template&lt;class T&gt;
+using add_rvalue_reference_t = typename reference_traits&lt;T&gt;::add_rref;
+</code></pre>
+<h2 id="Library_support">Prise en charge par la bibliothèque</h2>
+<blockquote>
+<p>La composante <a href="../types/enable_if.html"><code>std::enable_if</code></a> de la bibliothèque standard permet de créer un échec de substitution afin d'activer ou de désactiver certaines surcharges selon une condition évaluée à la compilation.</p>
+<p>De plus, de nombreux <a href="../meta.html#Type_traits">traits de type</a> doivent être implémentés avec SFINAE si les extensions appropriées du compilateur ne sont pas disponibles.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>La composante <a href="../types/void_t.html"><code>std::void_t</code></a> de la bibliothèque standard est une autre métafonction utilitaire qui simplifie les applications de SFINAE aux spécialisations partielles.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h2 id="Alternatives">Alternatives</h2>
+<p>Lorsque c'est applicable, la <a href="../iterator/iterator_tags.html#Example">distribution par étiquette</a>[, <a href="if.html#Constexpr_if"><code>if constexpr</code></a> <em>(depuis C++17)</em> | , et les <a href="constraints.html">concepts</a> <em>(depuis C++20)</em>] sont généralement préférés au SFINAE.</p>
+<blockquote>
+<p><a href="static_assert.html"><code>static_assert</code></a> est généralement préféré au SFINAE si l'on souhaite seulement une erreur de compilation conditionnelle.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<h2 id="Examples">Exemples</h2>
+<p>Un idiome courant consiste à utiliser le SFINAE d'expression sur le type de retour, où l'expression utilise l'opérateur virgule, dont la sous-expression de gauche est celle examinée (convertie en void pour garantir que l'opérateur virgule défini par l'utilisateur sur le type renvoyé n'est pas sélectionné), et dont la sous-expression de droite a le type que la fonction est censée renvoyer.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+// Cette surcharge est ajoutée à l'ensemble de surcharges si C est
+// un type classe ou un type référence vers classe et F est un pointeur vers fonction membre de C
+template&lt;class C, class F&gt;
+auto test(C c, F f) -&gt; decltype((void)(c.*f)(), void())
+{
+    std::cout &lt;&lt; &quot;(1) Class/class reference overload called\n&quot;;
+}
+
+// Cette surcharge est ajoutée à l'ensemble de surcharges si C est un
+// type pointeur vers classe et F est un pointeur vers fonction membre de C
+template&lt;class C, class F&gt;
+auto test(C c, F f) -&gt; decltype((void)((c-&gt;*f)()), void())
+{
+    std::cout &lt;&lt; &quot;(2) Pointer overload called\n&quot;;
+}
+
+// Cette surcharge est toujours présente dans l'ensemble de surcharges : ellipse
+// le paramètre a la priorité la plus basse pour la résolution de surcharge
+void test(...)
+{
+    std::cout &lt;&lt; &quot;(3) Catch-all overload called\n&quot;;
+}
+
+int main()
+{
+    struct X { void f() {} };
+    X x;
+    X&amp; rx = x;
+    test(x, &amp;X::f);  // (1)
+    test(rx, &amp;X::f); // (1), crée une copie de x
+    test(&amp;x, &amp;X::f); // (2)
+    test(42, 1337);  // (3)
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">(1) Class/class reference overload called
+(1) Class/class reference overload called
+(2) Pointer overload called
+(3) Catch-all overload called
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/295.html">CWG 295</a></td>
+<td>C++98</td>
+<td>la création d'un type de fonction qualifié cv peut provoquer un échec de substitution</td>
+<td>ne constitue plus un échec, en ignorant la qualification cv</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1227.html">CWG 1227</a></td>
+<td>C++98</td>
+<td>l'ordre de substitution n'était pas spécifié</td>
+<td>identique à l'ordre lexical</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2054.html">CWG 2054</a></td>
+<td>C++98</td>
+<td>la substitution dans les spécialisations partielles n'était pas correctement spécifiée</td>
+<td>specified</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2322.html">CWG 2322</a></td>
+<td>C++11</td>
+<td>des déclarations dans des ordres lexicaux différents feraient que des instanciations de modèles aient lieu dans un ordre différent ou ne soient pas effectuées</td>
+<td>un tel cas est mal formé, aucun diagnostic requis</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

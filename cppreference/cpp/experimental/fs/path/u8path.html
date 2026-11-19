@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::experimental::filesystem::u8path — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../../assets/style.css">
+<script src="../../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../../cpp.html">Référence C++</a> › <a href="../../../../cpp/experimental.html">Fonctionnalités C++ expérimentales</a> › <a href="../../../../cpp/experimental/fs.html">Bibliothèque du système de fichiers</a> › <a href="../../../../cpp/experimental/fs/path.html">std::experimental::filesystem::path</a></nav>
+<h1 id="std-experimental-filesystem-u8path"><code>std::experimental::filesystem::u8path</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/experimental/fs/path/u8path">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;experimental/filesystem&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Source &gt;
+path u8path( const Source&amp; source );  // (1) (TS sur le système de fichiers)
+
+template&lt; class InputIt &gt;
+path u8path( InputIt first, InputIt last );  // (2) (TS sur le système de fichiers)
+</code></pre>
+<p>Construit un chemin <code>p</code> à partir d'une séquence de <code>char</code> encodée en UTF-8, fournie soit sous forme de <a href="../../../string/basic_string.html"><code>std::string</code></a>, soit sous forme de chaîne multioctet terminée par un caractère nul, soit sous forme de paire d'itérateurs [<code>first</code>, <code>last</code>).</p>
+<ul>
+<li>Si <code>path::value_type</code> est <code>char</code> et que l'encodage natif est UTF-8, construit directement un chemin comme par <code>path(source)</code> ou <code>path(first, last)</code>. Remarque : c'est la situation typique d'un système POSIX utilisant Unicode, tel que Linux.</li>
+<li>Sinon, si <code>path::value_type</code> est <code>wchar_t</code> et que l'encodage natif est UTF-16 (c'est la situation sous Windows), ou si <code>path::value_type</code> est <code>char16_t</code> (encodage natif garanti UTF-16) ou <code>char32_t</code> (encodage natif garanti UTF-32), convertit d'abord la séquence de caractères UTF-8 en une chaîne temporaire <code>tmp</code> de type <code>path::string_type</code>, puis le nouveau chemin est construit comme par <code>path(tmp)</code>.</li>
+<li>Sinon (pour les encodages de caractères étroits non UTF-8 et pour wchar_t non UTF-16), convertit d'abord la séquence de caractères UTF-8 en une chaîne temporaire encodée en UTF-32 <code>tmp</code> de type <code>std::u32string</code>, puis le nouveau chemin est construit comme par <code>path(tmp)</code> (ce cas se produit sur un système POSIX avec un système de fichiers à encodage multioctet ou monooctet non Unicode).</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>source</code> — une <a href="../../../string/basic_string.html"><code>std::string</code></a> encodée en UTF-8, un pointeur vers une chaîne multioctet terminée par un caractère nul, ou un itérateur d'entrée dont le type de valeur char pointe vers une chaîne multioctet terminée par un caractère nul</li>
+<li><code>first, last</code> — paire de <a href="../../../named_req/InputIterator.html"><em>LegacyInputIterator</em>s</a> qui spécifient une séquence de caractères encodée en UTF-8</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../../../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+<li>Le type de valeur de <code>InputIt</code> doit être <code>char</code>.</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le chemin construit à partir de la chaîne d'entrée après conversion de UTF-8 vers l'encodage natif de caractères du système de fichiers.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever <a href="../filesystem_error.html"><code>filesystem_error</code></a> en cas d'erreurs de l'API du système d'exploitation sous-jacent, ou <code>std::bad_alloc</code> si l'allocation mémoire échoue.</p>
+<h2 id="Notes">Notes</h2>
+<p>Sur les systèmes dont le format de chemin natif diffère du format de chemin générique (ni Windows ni les systèmes POSIX ne sont des exemples de tels systèmes d'exploitation), si l'argument de cette fonction utilise le format générique, il sera converti en format natif.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;clocale&gt;
+#include &lt;cstdio&gt;
+#include &lt;experimental/filesystem&gt;
+#include &lt;fstream&gt;
+#include &lt;iostream&gt;
+namespace fs = std::experimental::filesystem;
+
+int main()
+{
+    std::setlocale(LC_ALL, &quot;en_US.utf8&quot;);
+    std::locale::global(std::locale(&quot;en_US.utf8&quot;));
+
+    fs::path p = fs::u8path(u8&quot;要らない.txt&quot;);
+
+    // la représentation de chaîne native peut être utilisée avec les API du système d'exploitation
+    std::ofstream(p) &lt;&lt; &quot;File contents&quot;; // ceci utilise operator string()
+    if (std::FILE* f = std::fopen(p.c_str(), &quot;r&quot;))
+    {
+        int ch;
+        while ((ch=fgetc(f))!= EOF) putchar(ch);
+        std::fclose(f);
+    }
+
+    // les représentations multioctets et larges peuvent être utilisées pour la sortie
+    std::cout.imbue(std::locale());
+    std::cout &lt;&lt; &quot;\nFile name in narrow multibyte encoding: &quot;
+              &lt;&lt; p.string() &lt;&lt; '\n';
+
+    std::wcerr.imbue(std::locale());
+    std::wcerr &lt;&lt; &quot;File name in wide encoding: &quot;
+               &lt;&lt; p.wstring() &lt;&lt; '\n';
+
+    fs::remove(p);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">File contents
+File name in narrow multibyte encoding: 要らない.txt
+File name in wide encoding: 要らない.txt
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../path.html">path</a></strong> — représente un chemin <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

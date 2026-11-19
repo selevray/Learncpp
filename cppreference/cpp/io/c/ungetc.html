@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ungetc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/io.html">Bibliothèque d&#x27;entrée/sortie</a> › <a href="../../../cpp/io/c.html">Entrées/sorties de fichiers de style C</a></nav>
+<h1 id="std-ungetc"><code>std::ungetc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/io/c/ungetc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;cstdio&gt;</strong></p>
+<pre><code class="language-cpp">int ungetc( int ch, std::FILE *stream );
+</code></pre>
+<p>Si <code>ch</code> ne vaut pas <a href="../c.html"><code>EOF</code></a>, place le caractère <code>ch</code> (réinterprété comme <code>unsigned char</code>) dans le tampon d'entrée associé au flux <code>stream</code>, de telle sorte que la lecture suivante depuis <code>stream</code> récupère ce caractère. Le périphérique externe associé au flux n'est pas modifié.</p>
+<p>Les opérations de repositionnement de flux <a href="fseek.html"><code>std::fseek</code></a>, <a href="fsetpos.html"><code>std::fsetpos</code></a> et <a href="rewind.html"><code>std::rewind</code></a> annulent les effets de <code>ungetc</code>.</p>
+<p>Si <code>ungetc</code> est appelée plus d'une fois sans lecture ni repositionnement intermédiaire, elle peut échouer (autrement dit, un tampon de retour de taille 1 est garanti, mais tout tampon plus grand est défini par l'implémentation). Si plusieurs <code>ungetc</code> réussis ont été effectués, les opérations de lecture récupèrent les caractères remis dans l'ordre inverse de <code>ungetc</code></p>
+<p>Si <code>ch</code> vaut <a href="../c.html"><code>EOF</code></a>, l'opération échoue et le flux n'est pas modifié.</p>
+<p>Un appel réussi à <code>ungetc</code> efface l'indicateur d'état de fin de fichier <a href="feof.html"><code>std::feof</code></a>.</p>
+<p>Un appel réussi à <code>ungetc</code> sur un flux binaire décrémente de un l'indicateur de position du flux (le comportement est indéterminé si l'indicateur de position du flux valait zéro).</p>
+<p>Un appel réussi à <code>ungetc</code> sur un flux texte modifie l'indicateur de position du flux de manière non spécifiée, mais garantit qu'après la récupération de tous les caractères remis par une opération de lecture, l'indicateur de position du flux est égal à sa valeur avant <code>ungetc</code>.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>ch</code> — caractère à replacer dans le tampon du flux d'entrée</li>
+<li><code>stream</code> — flux de fichier dans lequel replacer le caractère</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, <code>ch</code> est retourné.</p>
+<p>En cas d'échec, <a href="../c.html"><code>EOF</code></a> est retourné et le flux donné reste inchangé.</p>
+<h2 id="Notes">Notes</h2>
+<p>La taille du tampon de retour varie en pratique de 4 ko (Linux, MacOS) à seulement 4 (Solaris), voire au minimum garanti de 1 (HPUX, AIX).</p>
+<p>La taille apparente du tampon de retour peut être plus grande si le caractère replacé est égal au caractère existant à cette position dans la séquence de caractères externe (l'implémentation peut simplement décrémenter l'indicateur de position de lecture du fichier et éviter de maintenir un tampon de retour).</p>
+<h2 id="Example">Exemple</h2>
+<p>montre l'utilisation de <code>std::ungetc</code> dans son objectif initial : implémenter <a href="scanf.html"><code>std::scanf</code></a></p>
+<pre><code class="language-cpp">#include &lt;cctype&gt;
+#include &lt;cstdio&gt;
+
+void demo_scanf(const char* fmt, std::FILE* s)
+{
+    while (*fmt != '\0') {
+        if (*fmt == '%') {
+            switch (*++fmt) {
+                case 'u': {
+                    int c{};
+                    while (std::isspace(c=std::getc(s))) {}
+                    unsigned int num{};
+                    while (std::isdigit(c)) {
+                        num = num*10 + c-'0';
+                        c = std::getc(s);
+                    }
+                    std::printf(&quot;%%u scanned %u\n&quot;, num);
+                    std::ungetc(c, s);
+                    break;
+                }
+                case 'c': {
+                    int c = std::getc(s);
+                    std::printf(&quot;%%c scanned '%c'\n&quot;, c);
+                    break;
+                }
+            }
+        } else {
+            ++fmt;
+        }
+    }
+}
+
+int main()
+{
+    if (std::FILE* f = std::fopen(&quot;input.txt&quot;, &quot;w+&quot;)) {
+        std::fputs(&quot;123x&quot;, f);
+        std::rewind(f);
+        demo_scanf(&quot;%u%c&quot;, f);
+        std::fclose(f);
+    }
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">%u scanned 123
+%c scanned 'x'
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="fgetc.html">fgetcgetc</a></strong> — lit un caractère depuis un flux de fichier <em>(fonction)</em></li>
+</ul>
+<p><strong><a href="../../../c/io/ungetc.html">Documentation C</a> de ungetc</strong></p>
+
+</main>
+</body>
+</html>

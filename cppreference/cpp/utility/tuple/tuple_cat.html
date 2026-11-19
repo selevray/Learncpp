@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::tuple_cat — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/utility.html">Bibliothèque utilitaire</a> › <a href="../../../cpp/utility/tuple.html">std::tuple</a></nav>
+<h1 id="std-tuple_cat"><code>std::tuple_cat</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/utility/tuple/tuple_cat">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;tuple&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class... Tuples &gt;
+std::tuple&lt;/* CTypes */...&gt; tuple_cat( Tuples&amp;&amp;... args );  // (depuis C++11) (jusqu'à C++14)
+
+template&lt; class... Tuples &gt;
+constexpr std::tuple&lt;/* CTypes */...&gt; tuple_cat( Tuples&amp;&amp;... args );  // (depuis C++14) (jusqu'à C++23)
+
+template&lt; tuple-like... Tuples &gt;
+constexpr std::tuple&lt;/* CTypes */...&gt; tuple_cat( Tuples&amp;&amp;... args );  // (depuis C++23)
+</code></pre>
+<p>Construit un tuple qui est la concaténation de tous les tuples de <code>args</code>. Les types d'éléments <code>/* CTypes */</code> du tuple retourné sont formés en concaténant les packs de types d'éléments de tous les types [<a href="../tuple.html"><code>std::tuple</code></a> <em>(jusqu'à C++23)</em> | <a href="tuple-like.html"><code>tuple-like</code></a> <em>(depuis C++23)</em>] de <code>Tuples</code>, dans l'ordre.</p>
+<blockquote>
+<p>Le comportement est indéfini si un type de <code>std::decay_t&lt;Tuples&gt;...</code> n'est pas une spécialisation de <a href="../tuple.html"><code>std::tuple</code></a>. Cependant, une implémentation peut choisir de prendre en charge des types (tels que <a href="../../container/array.html"><code>std::array</code></a> et <a href="../pair.html"><code>std::pair</code></a>) qui suivent le protocole de type tuple-like.</p>
+<p><em>(jusqu'à C++23)</em></p>
+</blockquote>
+<blockquote>
+<p>Les types <code>std::decay_t&lt;Tuples&gt;...</code> sont contraints d'être tuple-like, c'est-à-dire que chaque type qu'ils contiennent doit être une spécialisation de <a href="../tuple.html"><code>std::tuple</code></a> ou un autre type (tel que <a href="../../container/array.html"><code>std::array</code></a> et <a href="../pair.html"><code>std::pair</code></a>) qui modélise <a href="tuple-like.html"><code>tuple-like</code></a>.</p>
+<p><em>(depuis C++23)</em></p>
+</blockquote>
+<p>Si un type de <code>/* CTypes */</code> n'est pas constructible à partir du type de l'élément correspondant dans la séquence d'éléments concaténée à partir de <code>args</code>, [le comportement est indéfini <em>(jusqu'à C++23)</em> | le programme est mal formé <em>(depuis C++23)</em>].</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>args</code> — zéro ou plusieurs tuples à concaténer</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un objet <a href="../tuple.html"><code>std::tuple</code></a> composé de tous les éléments de tous les tuples d'arguments, construit à partir de <code>std::get&lt;j&gt;(std::forward&lt;Ti&gt;(arg))</code> pour chaque élément individuel.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;tuple&gt;
+
+// fonction auxiliaire pour afficher un tuple de taille quelconque
+template&lt;class Tuple, std::size_t N&gt;
+struct TuplePrinter
+{
+    static void print(const Tuple&amp; t)
+    {
+        TuplePrinter&lt;Tuple, N - 1&gt;::print(t);
+        std::cout &lt;&lt; &quot;, &quot; &lt;&lt; std::get&lt;N-1&gt;(t);
+    }
+};
+
+template&lt;class Tuple&gt;
+struct TuplePrinter&lt;Tuple, 1&gt;
+{
+    static void print(const Tuple&amp; t)
+    {
+        std::cout &lt;&lt; std::get&lt;0&gt;(t);
+    }
+};
+
+template&lt;typename... Args, std::enable_if_t&lt;sizeof...(Args) == 0, int&gt; = 0&gt;
+void print(const std::tuple&lt;Args...&gt;&amp; t)
+{
+    std::cout &lt;&lt; &quot;()\n&quot;;
+}
+
+template&lt;typename... Args, std::enable_if_t&lt;sizeof...(Args) != 0, int&gt; = 0&gt;
+void print(const std::tuple&lt;Args...&gt;&amp; t)
+{
+    std::cout &lt;&lt; &quot;(&quot;;
+    TuplePrinter&lt;decltype(t), sizeof...(Args)&gt;::print(t);
+    std::cout &lt;&lt; &quot;)\n&quot;;
+}
+// fin de la fonction auxiliaire
+
+int main()
+{
+    std::tuple&lt;int, std::string, float&gt; t1(10, &quot;Test&quot;, 3.14);
+    int n = 7;
+    auto t2 = std::tuple_cat(t1, std::make_tuple(&quot;Foo&quot;, &quot;bar&quot;), t1, std::tie(n));
+    n = 42;
+    print(t2);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">(10, Test, 3.14, Foo, bar, 10, Test, 3.14, 42)
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="make_tuple.html">make_tuple</a> (C++11)</strong> — crée un objet <code>tuple</code> du type défini par les types d'arguments <em>(modèle de fonction)</em></li>
+<li><strong><a href="tie.html">tie</a> (C++11)</strong> — crée un <a href="../tuple.html"><code>tuple</code></a> de références lvalue ou déconstruit un tuple en objets individuels <em>(modèle de fonction)</em></li>
+<li><strong><a href="forward_as_tuple.html">forward_as_tuple</a> (C++11)</strong> — crée un <code>tuple</code> de <a href="../../language/reference.html#Forwarding_references">références de transfert</a> <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

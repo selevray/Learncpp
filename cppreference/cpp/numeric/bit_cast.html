@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::bit_cast — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/numeric.html">Bibliothèque numérique</a></nav>
+<h1 id="std-bit_cast"><code>std::bit_cast</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/numeric/bit_cast">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;bit&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class To, class From &gt;
+constexpr To bit_cast( const From&amp; from ) noexcept;  // (depuis C++20)
+</code></pre>
+<p>Obtient une valeur de type <code>To</code> en réinterprétant la représentation objet de <code>From</code>. Chaque bit de la <a href="../language/objects.html#Object_representation_and_value_representation">représentation de valeur</a> de l'objet <code>To</code> retourné est égal au bit correspondant de la représentation <a href="../language/objects.html#Object_representation_and_value_representation">objet</a> de <code>from</code>. Les valeurs des bits de remplissage de l'objet <code>To</code> retourné sont non spécifiées.</p>
+<p>S'il n'existe aucune valeur de type <code>To</code> correspondant à la représentation de valeur produite, le comportement est indéfini. S'il existe plusieurs de ces valeurs, la valeur produite est non spécifiée.</p>
+<p>Un bit de la représentation de valeur du résultat est <em>indéterminé</em> s'il</p>
+<ul>
+<li>ne correspond à aucun bit de la représentation de valeur de <code>From</code> (c'est-à-dire qu'il correspond à un bit de remplissage), ou</li>
+<li>correspond à un bit [d'un objet qui <em>(jusqu'à C++26)</em> | pour lequel l'objet englobant le plus petit <em>(depuis C++26)</em>] n'est pas dans sa <a href="../language/lifetime.html">durée de vie</a>, ou</li>
+<li>a une <a href="../language/default_initialization.html#Indeterminate_and_erroneous_values">valeur indéterminée</a>.</li>
+</ul>
+<blockquote>
+<p>Un bit de la représentation de valeur du résultat est <em>erroné</em> s'il correspond à un bit dont l'objet englobant le plus petit a une <a href="../language/default_initialization.html#Indeterminate_and_erroneous_values">valeur erronée</a>.</p>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<blockquote>
+<p>Pour chaque bit de la représentation de valeur du résultat qui est indéterminé, l'objet le plus petit contenant ce bit a une valeur indéterminée ; le comportement est indéfini sauf si cet objet est d'un <a href="../language/default_initialization.html#Special_cases">type compatible avec l'absence d'initialisation</a>.</p>
+<p>Le résultat ne contient par ailleurs aucune valeur indéterminée.</p>
+<p><em>(jusqu'à C++26)</em></p>
+</blockquote>
+<blockquote>
+<p>Pour chaque bit <code>b</code> de la représentation de valeur du résultat qui est indéterminé ou erroné, soit <code>u</code> le plus petit objet englobant <code>b</code> :</p>
+<ul>
+<li>Si <code>u</code> est d'un <a href="../language/default_initialization.html#Special_cases">type compatible avec l'absence d'initialisation</a>, <code>u</code> a une valeur indéterminée si l'un des bits de sa représentation de valeur est indéterminé, ou sinon a une valeur erronée.</li>
+<li>Sinon, si <code>b</code> est indéterminé, le comportement est indéfini.</li>
+<li>Sinon, le comportement est <a href="../language/ub.html">erroné</a>, et le résultat est tel que spécifié ci-dessus.</li>
+</ul>
+<p><em>(depuis C++26)</em></p>
+</blockquote>
+<p>Cette surcharge participe à la résolution de surcharge uniquement si <code>sizeof(To) == sizeof(From)</code> ainsi que <code>To</code> et <code>From</code> sont des types <a href="../named_req/TriviallyCopyable.html"><em>TriviallyCopyable</em></a>.</p>
+<p>Ce modèle de fonction est <code>constexpr</code> si et seulement si chacun de <code>To</code>, <code>From</code> et les types de tous les sous-objets de <code>To</code> et <code>From</code> :</p>
+<ul>
+<li>n'est pas un type union ;</li>
+<li>n'est pas un type pointeur ;</li>
+<li>n'est pas un type pointeur vers membre ;</li>
+<li>n'est pas un type qualifié volatile ; et</li>
+<li>n'a aucun membre de donnée non statique de type référence.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>from</code> — la source des bits pour la valeur de retour</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Un objet de type <code>To</code> dont la représentation de valeur est telle que décrite ci-dessus.</p>
+<h2 id="Possible_implementation">Implémentation possible</h2>
+<p>Pour implémenter <code>std::bit_cast</code>, en ignorant le fait qu'elle est <a href="../language/constexpr.html">constexpr</a>, <a href="../string/byte/memcpy.html"><code>std::memcpy</code></a> peut être utilisé, lorsque nécessaire, pour interpréter la représentation objet comme un autre type :</p>
+<pre><code class="language-cpp">template&lt;class To, class From&gt;
+std::enable_if_t&lt;
+    sizeof(To) == sizeof(From) &amp;&amp;
+    std::is_trivially_copyable_v&lt;From&gt; &amp;&amp;
+    std::is_trivially_copyable_v&lt;To&gt;,
+    To&gt;
+// le support de constexpr nécessite une magie du compilateur
+bit_cast(const From&amp; src) noexcept
+{
+    static_assert(std::is_trivially_constructible_v&lt;To&gt;,
+        &quot;This implementation additionally requires &quot;
+        &quot;destination type to be trivially constructible&quot;);
+
+    To dst;
+    std::memcpy(&amp;dst, &amp;src, sizeof(To));
+    return dst;
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p><a href="../language/reinterpret_cast.html"><code>reinterpret_cast</code></a> (ou <a href="../language/explicit_cast.html">transtypage explicite</a> équivalent) entre types pointeur ou référence ne doit pas être utilisé pour réinterpréter la représentation objet dans la plupart des cas, à cause de la <a href="../language/reinterpret_cast.html#Type_aliasing">règle d'aliasing de types</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_bit_cast"><code>__cpp_lib_bit_cast</code></a></td>
+<td><a href="../compiler_support/20.html#cpp_lib_bit_cast_201806L"><code>201806L</code></a></td>
+<td><em>(C++20)</em></td>
+<td><a href="bit_cast.html#Top"><code>std::bit_cast</code></a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;bit&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+
+constexpr double f64v = 19880124.0;
+constexpr auto u64v = std::bit_cast&lt;std::uint64_t&gt;(f64v);
+static_assert(std::bit_cast&lt;double&gt;(u64v) == f64v); // aller-retour
+
+constexpr std::uint64_t u64v2 = 0x3fe9000000000000ull;
+constexpr auto f64v2 = std::bit_cast&lt;double&gt;(u64v2);
+static_assert(std::bit_cast&lt;std::uint64_t&gt;(f64v2) == u64v2); // aller-retour
+
+int main()
+{
+    std::cout
+        &lt;&lt; &quot;std::bit_cast&lt;std::uint64_t&gt;(&quot; &lt;&lt; std::fixed &lt;&lt; f64v &lt;&lt; &quot;) == 0x&quot;
+        &lt;&lt; std::hex &lt;&lt; u64v &lt;&lt; '\n'
+        &lt;&lt; &quot;std::bit_cast&lt;double&gt;(0x&quot; &lt;&lt; std::hex &lt;&lt; u64v2 &lt;&lt; &quot;) == &quot;
+        &lt;&lt; std::fixed &lt;&lt; f64v2 &lt;&lt; '\n';
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">std::bit_cast&lt;std::uint64_t&gt;(19880124.000000) == 0x4172f58bc0000000
+std::bit_cast&lt;double&gt;(0x3fe9000000000000) == 0.781250
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2482.html">CWG 2482</a> (<a href="https://wg21.link/P1272R4">P1272R4</a>)</td>
+<td>C++20</td>
+<td>il n'était pas spécifié si un comportement indéfini se produisait lorsque des bits indéterminés étaient impliqués</td>
+<td>specified</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../memory/start_lifetime_as.html">start_lifetime_asstart_lifetime_as_array</a> (C++23)</strong> — crée implicitement des objets dans le stockage donné en réutilisant la représentation objet <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

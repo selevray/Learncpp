@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration using — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="déclaration-using">Déclaration using</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/using_declaration">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Introduit un nom défini ailleurs dans la région déclarative où cette déclaration using apparaît. Voir <a href="enum.html#Using-enum-declaration"><code>using enum</code></a> et <em>(depuis C++20)</em><a href="namespace.html#Using-directives"><code>using namespace</code></a> pour d'autres déclarations associées.</p>
+<p>|
+| |
+| <code>using</code> <code>typename</code><em>(facultatif)</em> <code>nested-name-specifier</code> <code>unqualified-id</code> <code>;</code> | | (jusqu'à C++17) |
+|
+| <code>using</code> <code>declarator-list</code> <code>;</code> | | (depuis C++17) |
+|</p>
+<ul>
+<li><code>typename</code> — le mot-clé <code>typename</code> peut être utilisé si nécessaire pour résoudre les <a href="dependent_name.html">noms dépendants</a>, lorsque la déclaration using introduit un type membre d'une classe de base dans un modèle de classe</li>
+<li><code>nested-name-specifier</code> — une suite de noms et d'opérateurs de résolution de portée <code>::</code>, se terminant par un opérateur de résolution de portée. Un <code>::</code> seul désigne l'espace de noms global.</li>
+<li><code>unqualified-id</code> — un <a href="name.html">id-expression</a></li>
+<li><code>declarator-list</code> — liste séparée par des virgules d'un ou plusieurs déclarateurs de <code>typename</code><em>(facultatif)</em> <code>nested-name-specifier</code> <code>unqualified-id</code>. Certains ou tous les déclarateurs peuvent être suivis d'une ellipse <code>...</code> pour indiquer une <a href="parameter_pack.html">expansion de pack</a></li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Les déclarations using peuvent être utilisées pour introduire des membres d'espaces de noms dans d'autres espaces de noms et portées de bloc, ou pour introduire des membres de classe de base dans les définitions de classes dérivées, ou pour introduire des <a href="enum.html">énumérateurs</a> dans les portées d'espaces de noms, de blocs et de classes <em>(depuis C++20)</em>.</p>
+<blockquote>
+<p>Une déclaration using comportant plusieurs déclarateurs using est équivalente à une suite correspondante de déclarations using comportant chacune un seul déclarateur using.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<h3 id="In_namespace_and_block_scope">Dans une portée d'espace de noms et de bloc</h3>
+<p>Les <a href="namespace.html#Using-declarations">déclarations using</a> introduisent un membre d'un autre espace de noms dans la portée courante d'espace de noms ou de bloc.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+using std::string;
+
+int main()
+{
+    string str = &quot;Example&quot;;
+    using std::cout;
+    cout &lt;&lt; str;
+}
+</code></pre>
+<p>Voir <a href="namespace.html">espace de noms</a> pour plus de détails.</p>
+<h3 id="In_class_definition">Dans une définition de classe</h3>
+<p>Une déclaration using introduit un membre d'une classe de base dans la définition de la classe dérivée, par exemple pour exposer un membre protégé de la base comme membre public de la classe dérivée. Dans ce cas, <code>nested-name-specifier</code> doit désigner une classe de base de celle en cours de définition. Si le nom est celui d'une fonction membre surchargée de la classe de base, toutes les fonctions membres de la classe de base portant ce nom sont introduites. Si la classe dérivée possède déjà un membre de même nom, même liste de paramètres et mêmes qualificatifs, le membre de la classe dérivée masque ou redéfinit (il n'y a pas de conflit avec) le membre introduit depuis la classe de base.</p>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+
+struct B
+{
+    virtual void f(int) { std::cout &lt;&lt; &quot;B::f\n&quot;; }
+    void g(char)        { std::cout &lt;&lt; &quot;B::g\n&quot;; }
+    void h(int)         { std::cout &lt;&lt; &quot;B::h\n&quot;; }
+protected:
+    int m; // B::m est protégé
+    typedef int value_type;
+};
+
+struct D : B
+{
+    using B::m;          // D::m est public
+    using B::value_type; // D::value_type est public
+
+    using B::f;
+    void f(int) override { std::cout &lt;&lt; &quot;D::f\n&quot;; } // D::f(int) redéfinit B::f(int)
+
+    using B::g;
+    void g(int) { std::cout &lt;&lt; &quot;D::g\n&quot;; } // g(int) et g(char) sont tous deux visibles
+
+    using B::h;
+    void h(int) { std::cout &lt;&lt; &quot;D::h\n&quot;; } // D::h(int) masque B::h(int)
+};
+
+int main()
+{
+    D d;
+    B&amp; b = d;
+
+//  b.m = 2;  // Erreur : B::m est protégé
+    d.m = 1;  // B::m protégé est accessible comme D::m public
+
+    b.f(1);   // appelle f() dérivée
+    d.f(1);   // appelle f() dérivée
+    std::cout &lt;&lt; &quot;----------\n&quot;;
+
+    d.g(1);   // appelle g(int) dérivée
+    d.g('a'); // appelle g(char) de la base, exposée via using B::g;
+    std::cout &lt;&lt; &quot;----------\n&quot;;
+
+    b.h(1);   // appelle h() de la base
+    d.h(1);   // appelle h() dérivée
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">D::f
+D::f
+----------
+D::g
+B::g
+----------
+B::h
+D::h
+</code></pre>
+<blockquote>
+<h4 id="Inheriting_constructors">Constructeurs hérités</h4>
+<p>Si la <em>déclaration using</em> désigne un constructeur d'une base directe de la classe en cours de définition (par exemple <code>using Base::Base;</code>), tous les constructeurs de cette base (sans tenir compte de l'accès aux membres) deviennent visibles pour la résolution de surcharge lors de l'initialisation de la classe dérivée.</p>
+<p>Si la résolution de surcharge sélectionne un constructeur hérité, celui-ci est accessible s'il l'aurait été lorsqu'il est utilisé pour construire un objet de la classe de base correspondante : l'accessibilité de la déclaration using qui l'a introduit est ignorée.</p>
+<p>Si la résolution de surcharge sélectionne l'un des constructeurs hérités lors de l'initialisation d'un objet d'une telle classe dérivée, alors le sous-objet <code>Base</code> dont le constructeur a été hérité est initialisé à l'aide du constructeur hérité, et toutes les autres bases et tous les autres membres de <code>Derived</code> sont initialisés comme par le constructeur par défaut défini par défaut (les initialiseurs de membres par défaut sont utilisés s'ils sont fournis, sinon une initialisation par défaut a lieu). L'initialisation complète est traitée comme un seul appel de fonction : l'initialisation des paramètres du constructeur hérité est <a href="eval_order.html">séquencée avant</a> l'initialisation de toute base ou de tout membre de l'objet dérivé.</p>
+<pre><code class="language-cpp">struct B1 { B1(int, ...) {} };
+struct B2 { B2(double)   {} };
+
+int get();
+
+struct D1 : B1
+{
+    using B1::B1; // hérite de B1(int, ...)
+    int x;
+    int y = get();
+};
+
+void test()
+{
+    D1 d(2, 3, 4); // OK : B1 est initialisée en appelant B1(2, 3, 4),
+                   // puis d.x est initialisée par défaut (aucune initialisation n'est effectuée),
+                   // puis d.y est initialisée en appelant get()
+
+    D1 e;          // Erreur : D1 n'a pas de constructeur par défaut
+}
+
+struct D2 : B2
+{
+    using B2::B2; // hérite de B2(double)
+    B1 b;
+};
+
+D2 f(1.0); // erreur : B1 n'a pas de constructeur par défaut
+</code></pre>
+<pre><code class="language-cpp">struct W { W(int); };
+
+struct X : virtual W
+{
+    using W::W; // hérite de W(int)
+    X() = delete;
+};
+
+struct Y : X
+{
+    using X::X;
+};
+
+struct Z : Y, virtual W
+{
+    using Y::Y;
+};
+
+Z z(0); // OK : l'initialisation de Y n'appelle pas le constructeur par défaut de X
+</code></pre>
+<p>Si le sous-objet de la classe de base <code>Base</code> ne doit pas être initialisé dans le cadre de l'objet <code>Derived</code> (c'est-à-dire si <code>Base</code> est une <a href="derived_class.html#Virtual_base_classes">classe de base virtuelle</a> de <code>Derived</code>, et que l'objet <code>Derived</code> n'est pas l'<a href="objects.html#Subobjects">objet le plus dérivé</a>), l'appel du constructeur hérité, y compris l'évaluation de ses éventuels arguments, est omis :</p>
+<pre><code class="language-cpp">struct V
+{
+    V() = default;
+    V(int);
+};
+
+struct Q { Q(); };
+
+struct A : virtual V, Q
+{
+    using V::V;
+    A() = delete;
+};
+
+int bar() { return 42; }
+
+struct B : A
+{
+    B() : A(bar()) {} // OK
+};
+
+struct C : B {};
+
+void foo()
+{
+    C c; // « bar » n'est pas appelé, car le sous-objet V
+         // n'est pas initialisé dans le cadre de B
+         // (le sous-objet V est initialisé dans le cadre de C,
+         //  car « c » est l'objet le plus dérivé)
+}
+</code></pre>
+<p>Si le constructeur a été hérité de plusieurs sous-objets de classe de base de type <code>Base</code>, le programme est mal formé, de manière similaire aux fonctions membres non statiques héritées multiplement :</p>
+<pre><code class="language-cpp">struct A { A(int); };
+struct B : A { using A::A; };
+struct C1 : B { using B::B; };
+struct C2 : B { using B::B; };
+
+struct D1 : C1, C2
+{
+    using C1::C1;
+    using C2::C2;
+};
+D1 d1(0); // mal formé : constructeur hérité de différents sous-objets de base B
+
+struct V1 : virtual B { using B::B; };
+struct V2 : virtual B { using B::B; };
+
+struct D2 : V1, V2
+{
+    using V1::V1;
+    using V2::V2;
+};
+D2 d2(0); // OK : il n'existe qu'un seul sous-objet B.
+          // Ceci initialise la classe de base virtuelle B,
+          //   qui initialise la classe de base A
+          // puis initialise les classes de base V1 et V2
+          //   comme par un constructeur par défaut défini par défaut
+</code></pre>
+<p>Comme pour les déclarations using de toutes les autres fonctions membres non statiques, si un constructeur hérité a la même signature qu'un des constructeurs de <code>Derived</code>, il est masqué pour la recherche par la version trouvée dans <code>Derived</code>. Si l'un des constructeurs hérités de <code>Base</code> a par hasard la signature d'un constructeur de copie/déplacement de <code>Derived</code>, cela n'empêche pas la génération implicite de <code>Derived</code> constructeur de copie/déplacement (qui masque alors la version héritée, de manière similaire à <code>using operator=</code>).</p>
+<pre><code class="language-cpp">struct B1 { B1(int); };
+struct B2 { B2(int); };
+
+struct D2 : B1, B2
+{
+    using B1::B1;
+    using B2::B2;
+
+    D2(int); // OK : D2::D2(int) masque à la fois B1::B1(int) et B2::B2(int)
+};
+D2 d2(0);    // appelle D2::D2(int)
+</code></pre>
+<p>Dans une <a href="templates.html">classe modèle</a>, si une déclaration using désigne un <a href="dependent_name.html">nom dépendant</a>, celui-ci est considéré comme désignant un constructeur si le <code>nested-name-specifier</code> a un nom terminal identique à celui de <code>unqualified-id</code>.</p>
+<pre><code class="language-cpp">template&lt;class T&gt;
+struct A : T
+{
+    using T::T; // OK, hérite des constructeurs de T
+};
+
+template&lt;class T, class U&gt;
+struct B : T, A&lt;U&gt;
+{
+    using A&lt;U&gt;::A; // OK, hérite des constructeurs de A&lt;U&gt;
+    using T::A;    // n'hérite pas du constructeur de T
+                   // même si T peut être une spécialisation de A&lt;&gt;
+};
+</code></pre>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<h4 id="Introducing_scoped_enumerators">Introduction d'énumérateurs à portée</h4>
+<p>En plus des membres d'un autre espace de noms et des membres des classes de base, une déclaration using peut aussi introduire les énumérateurs d'<a href="enum.html">énumérations</a> dans les portées d'espace de noms, de bloc et de classe.</p>
+<p>Une déclaration using peut également être utilisée avec des énumérateurs non à portée.</p>
+<pre><code class="language-cpp">enum class button { up, down };
+
+struct S
+{
+    using button::up;
+    button b = up; // OK
+};
+
+using button::down;
+constexpr button non_up = down; // OK
+
+constexpr auto get_button(bool is_up)
+{
+    using button::up, button::down;
+    return is_up ? up : down; // OK
+}
+
+enum unscoped { val };
+using unscoped::val; // OK, bien que superflu
+</code></pre>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Seul le nom explicitement mentionné dans la déclaration using est transféré dans la portée déclarative : en particulier, les énumérateurs ne sont pas transférés lorsque le nom du type d'énumération fait l'objet d'une déclaration using.</p>
+<p>Une déclaration using ne peut pas désigner un espace de noms, un énumérateur à portée <em>(jusqu'à C++20)</em>, un destructeur d'une classe de base, ni une spécialisation d'un modèle de membre pour une fonction de conversion définie par l'utilisateur.</p>
+<p>Une déclaration using ne peut pas désigner une spécialisation de modèle de membre (un <a href="templates.html#template-id">template-id</a> n'est pas autorisé par la grammaire) :</p>
+<pre><code class="language-cpp">struct B
+{
+    template&lt;class T&gt;
+    void f();
+};
+
+struct D : B
+{
+    using B::f;      // OK : désigne un modèle
+//  using B::f&lt;int&gt;; // Erreur : désigne une spécialisation de modèle
+
+    void g() { f&lt;int&gt;(); }
+};
+</code></pre>
+<p>Une déclaration using ne peut pas non plus introduire le nom d'un modèle de membre dépendant comme <em>nom de modèle</em> (le désambiguïsateur <code>template</code> pour les <a href="dependent_name.html">noms dépendants</a> n'est pas autorisé).</p>
+<pre><code class="language-cpp">template&lt;class X&gt;
+struct B
+{
+    template&lt;class T&gt;
+    void f(T);
+};
+
+template&lt;class Y&gt;
+struct D : B&lt;Y&gt;
+{
+//  using B&lt;Y&gt;::template f; // Erreur : désambiguïsation non autorisée
+    using B&lt;Y&gt;::f;          // compile, mais f n'est pas un nom de modèle
+
+    void g()
+    {
+//      f&lt;int&gt;(0);          // Erreur : f n'est pas connu comme nom de modèle,
+                            // donc &lt; ne commence pas une liste d'arguments de modèle
+        f(0);               // OK
+    }
+};
+</code></pre>
+<p>Si une déclaration using introduit dans la classe dérivée l'opérateur d'affectation de la classe de base, dont la signature correspond par hasard à l'opérateur d'affectation par copie ou par déplacement de la classe dérivée, cet opérateur est masqué par l'opérateur d'affectation par copie/déplacement implicitement déclaré de la classe dérivée. Il en va de même pour une déclaration using héritant d'un constructeur de la classe de base qui correspond par hasard au constructeur de copie/déplacement de la classe dérivée <em>(depuis C++11)</em>.</p>
+<blockquote>
+<p>La sémantique des constructeurs hérités a été modifiée rétroactivement par un <a href="using_declaration.html#Defect_reports">rapport de défaut contre C++11</a>. Auparavant, la déclaration d'un constructeur hérité injectait un ensemble de déclarations de constructeurs synthétisées dans la classe dérivée, ce qui entraînait des copies/déplacements d'arguments redondants, posait des problèmes d'interaction avec certaines formes de SFINAE, et pouvait dans certains cas être impossible à implémenter sur les principaux ABI. Les compilateurs anciens peuvent encore implémenter l'ancienne sémantique.</p>
+<p><strong>Ancienne sémantique des constructeurs hérités</strong></p>
+<p>Si la <em>déclaration using</em> désigne un constructeur d'une base directe de la classe en cours de définition (par exemple <code>using Base::Base;</code>), les constructeurs de cette classe de base sont hérités, selon les règles suivantes :</p>
+<ol>
+<li>Un ensemble de <em>constructeurs hérités candidats</em> est composé de</li>
+</ol>
+<p>a) Tous les constructeurs non modèles de la classe de base (après omission des paramètres ellipse, le cas échéant) <em>(depuis C++14)</em></p>
+<p>b) Pour chaque constructeur ayant des arguments par défaut ou un paramètre ellipse, toutes les signatures de constructeurs formées en supprimant l'ellipse et en omettant un à un les arguments par défaut en fin de liste d'arguments</p>
+<p>c) Tous les modèles de constructeurs de la classe de base (après omission des paramètres ellipse, le cas échéant) <em>(depuis C++14)</em></p>
+<p>d) Pour chaque modèle de constructeur avec des arguments par défaut ou l'ellipse, toutes les signatures de constructeur obtenues en supprimant l'ellipse et en omettant un à un les arguments par défaut en fin de listes d'arguments</p>
+<ol start="2">
+<li>Tous les constructeurs hérités candidats qui ne sont ni le constructeur par défaut ni le constructeur de copie/déplacement, et dont les signatures ne correspondent pas à des constructeurs définis par l'utilisateur dans la classe dérivée, sont implicitement déclarés dans la classe dérivée. Les paramètres par défaut ne sont pas hérités :</li>
+</ol>
+<pre><code class="language-cpp">struct B1
+{
+    B1(int);
+};
+
+struct D1 : B1
+{
+    using B1::B1;
+
+    // L'ensemble des constructeurs hérités candidats est
+    // 1. B1(const B1&amp;)
+    // 2. B1(B1&amp;&amp;)
+    // 3. B1(int)
+
+    // D1 possède les constructeurs suivants :
+    // 1. D1() = delete
+    // 2. D1(const D1&amp;)
+    // 3. D1(D1&amp;&amp;)
+    // 4. D1(int) &lt;- hérité
+};
+
+struct B2
+{
+    B2(int = 13, int = 42);
+};
+
+struct D2 : B2
+{
+    using B2::B2;
+
+    // L'ensemble des constructeurs hérités candidats est
+    // 1. B2(const B2&amp;)
+    // 2. B2(B2&amp;&amp;)
+    // 3. B2(int = 13, int = 42)
+    // 4. B2(int = 13)
+    // 5. B2()
+
+    // D2 possède les constructeurs suivants :
+    // 1. D2()
+    // 2. D2(const D2&amp;)
+    // 3. D2(D2&amp;&amp;)
+    // 4. D2(int, int) &lt;- hérité
+    // 5. D2(int) &lt;- hérité
+};
+</code></pre>
+<p>Les constructeurs hérités sont équivalents à des constructeurs définis par l'utilisateur, avec un corps vide et une <a href="initializer_list.html">liste d'initialisation de membres</a> constituée d'un seul <code>nested-name-specifier</code>, qui transmet tous ses arguments au constructeur de la classe de base.</p>
+<p>Il a le même <a href="access.html">accès</a> que le constructeur de base correspondant. Il est <code>constexpr</code> si le constructeur défini par l'utilisateur aurait satisfait les exigences de constructeur <code>constexpr</code>. Il est supprimé si le constructeur de base correspondant est supprimé ou si un constructeur par défaut défini par défaut serait supprimé (sauf que la construction de la base dont le constructeur est hérité ne compte pas). Un constructeur hérité ne peut pas être explicitement instancié ni explicitement spécialisé.</p>
+<p>Si deux using-declarations héritent du constructeur de même signature (de deux classes de base directes), le programme est mal formé.</p>
+<p>Un modèle de constructeur hérité ne doit pas être <a href="function_template.html#Explicit_instantiation">explicitement instancié</a> ni <a href="template_specialization.html">explicitement spécialisé</a>.</p>
+<p><em>(depuis C++11)</em></p>
+</blockquote>
+<blockquote>
+<p>Les <a href="parameter_pack.html">expansions de packs</a> dans les déclarations using permettent de former une classe exposant les membres surchargés de bases variadiques sans récursion :</p>
+<pre><code class="language-cpp">template&lt;typename... Ts&gt;
+struct Overloader : Ts...
+{
+    using Ts::operator()...; // expose operator() de chaque base
+};
+
+template&lt;typename... T&gt;
+Overloader(T...) -&gt; Overloader&lt;T...&gt;; // guide de déduction C++17, non nécessaire en C++20
+
+int main()
+{
+    auto o = Overloader{ [] (auto const&amp; a) {std::cout &lt;&lt; a;},
+                         [] (float f) {std::cout &lt;&lt; std::setprecision(3) &lt;&lt; f;} };
+}
+</code></pre>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p><strong>Macro de test de fonctionnalité</strong> | <strong>Valeur</strong> | <strong>Std</strong> | <strong>Fonctionnalité</strong></p>
+<p><a href="../feature_test.html#cpp_inheriting_constructors"><code>__cpp_inheriting_constructors</code></a> | <a href="../compiler_support/11.html#cpp_inheriting_constructors_200802L"><code>200802L</code></a> | <em>(C++11)</em> | <a href="using_declaration.html#Inheriting_constructors">Constructeurs hérités</a></p>
+<p><a href="../compiler_support/17.html#cpp_inheriting_constructors_201511L"><code>201511L</code></a> | <em>(C++17)</em><br />
+<em>(DR11)</em> | Reformulation des constructeurs hérités</p>
+<p><a href="../feature_test.html#cpp_variadic_using"><code>__cpp_variadic_using</code></a> | <a href="../compiler_support/17.html#cpp_variadic_using_201611L"><code>201611L</code></a> | <em>(C++17)</em> | <a href="parameter_pack.html">Expansions de packs</a> dans les déclarations <code>using</code></p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/using.html"><code>using</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/258.html">CWG 258</a></td>
+<td>C++98</td>
+<td>une fonction membre non const d'une classe dérivée peut redéfinir et/ou masquer une fonction membre const de sa base</td>
+<td>la redéfinition et le masquage exigent également que les qualifications cv soient identiques</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1738.html">CWG 1738</a></td>
+<td>C++11</td>
+<td>on ne savait pas clairement s'il était permis de instancier explicitement ou spécialiser explicitement spécialisations de modèles de constructeurs hérités</td>
+<td>prohibited</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2504.html">CWG 2504</a></td>
+<td>C++11</td>
+<td>le comportement des constructeurs hérités à partir de classes de base virtuelles n'était pas clair</td>
+<td>rendu clair</td>
+</tr>
+<tr>
+<td><a href="https://wg21.link/P0136R1">P0136R1</a></td>
+<td>C++11</td>
+<td>la déclaration de constructeur hérité injecte des constructeurs supplémentaires dans la classe dérivée</td>
+<td>fait que les constructeurs de la classe de base soient trouvés par recherche de nom</td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>Références</li>
+</ol>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>9.9 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>9.9 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>10.3.3 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>7.3.3 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>7.3.3 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>7.3.3 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>7.3.3 La déclaration <code>using</code> [namespace.udecl]</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

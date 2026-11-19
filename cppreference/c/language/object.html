@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Objets et alignement — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="objets-et-alignement">Objets et alignement</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/object">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Les programmes C créent, détruisent, accèdent et manipulent des objets.</p>
+<p>Un objet en C est une zone de <a href="memory_model.html">stockage de données</a> dans l'environnement d'exécution, dont le contenu peut représenter des <em>valeurs</em> (une valeur est la signification du contenu d'un objet, lorsqu'il est interprété comme ayant un <a href="compatible_type.html">type</a> spécifique).</p>
+<p>Chaque objet possède</p>
+<ul>
+<li>une taille (peut être déterminée avec <a href="sizeof.html"><code>sizeof</code></a>)</li>
+<li>une exigence d'alignement(peut être déterminée par [<a href="alignof.html"><code>_Alignof</code></a> <em>(jusqu'à C23)</em> | <a href="alignof.html"><code>alignof</code></a> <em>(depuis C23)</em>]) <em>(depuis C11)</em></li>
+<li><a href="storage_duration.html">durée de stockage</a> (automatique, statique, allouée, thread-local)</li>
+<li><a href="lifetime.html">durée de vie</a> (égale à la durée de stockage ou temporaire)</li>
+<li>type effectif (voir ci-dessous)</li>
+<li>valeur (qui peut être indéterminée)</li>
+<li>optionnellement, un <a href="identifier.html">identifiant</a> qui désigne cet objet.</li>
+</ul>
+<p>Les objets sont créés par des <a href="declarations.html">déclarations</a>, des <a href="../memory.html">fonctions d'allocation</a>, des <a href="string_literal.html">littéraux de chaîne</a>, des <a href="compound_literal.html">littéraux composés</a>, et par des expressions non-lvalue qui renvoient des <a href="lifetime.html">structures ou unions avec des membres tableaux</a>.</p>
+<h2 id="Object_representation">Représentation de l'objet</h2>
+<p>Sauf pour les <a href="bit_field.html">champs de bits</a>, les objets sont composés de séquences contiguës d'un ou plusieurs octets, chacun constitué de <a href="../types/limits.html"><code>CHAR_BIT</code></a> bits, et peuvent être copiés avec <a href="../string/byte/memcpy.html"><code>memcpy</code></a> dans un objet de type <code>unsigned char[n]</code>, où <code>n</code> est la taille de l'objet. Le contenu du tableau résultant est connu sous le nom de <em>représentation de l'objet</em>.</p>
+<p>Si deux objets ont la même représentation d'objet, ils se comparent égaux (sauf s'il s'agit de NaN à virgule flottante). La réciproque n'est pas vraie : deux objets qui se comparent égaux peuvent avoir des représentations d'objet différentes, car tous les bits de la représentation d'objet ne participent pas nécessairement à la valeur. De tels bits peuvent servir de bourrage pour satisfaire l'exigence d'alignement, aux contrôles de parité, pour indiquer des représentations de piège, etc.</p>
+<p>Si une représentation d'objet ne représente aucune valeur du type de l'objet, elle est appelée <em>représentation de piège</em>. Accéder à une représentation de piège de toute autre manière que sa lecture via une expression lvalue de type caractère est un comportement indéfini. La valeur d'une structure ou d'une union n'est jamais une représentation de piège, même si l'un de ses membres en est une.</p>
+<p>Pour les objets de type <code>char</code>, <code>signed char</code> et <code>unsigned char</code>, chaque bit de la représentation d'objet doit participer à la représentation de valeur et chaque motif de bits possible représente une valeur distincte (aucun bourrage, bit de piège ou représentation multiple n'est autorisé).</p>
+<p>Lorsque des objets de <a href="arithmetic_types.html#Integer_types">types entiers</a> (<code>short</code>, <code>int</code>, <code>long</code>, <code>long long</code>) occupent plusieurs octets, l'utilisation de ces octets est définie par l'implémentation, mais les deux implémentations dominantes sont le <em>big-endian</em> (POWER, Sparc, Itanium) et le <em>little-endian</em> (x86, x86_64) : une plateforme big-endian stocke l'octet de poids fort à l'adresse la plus basse de la zone de stockage occupée par l'entier, une plateforme little-endian stocke l'octet de poids faible à l'adresse la plus basse. Voir <a href="https://en.wikipedia.org/wiki/Endianness">Endianness</a> pour plus de détails. Voir aussi l'exemple ci-dessous.</p>
+<p>Bien que la plupart des implémentations n'autorisent ni représentations pièges, ni bits de remplissage, ni représentations multiples pour les types entiers, il existe des exceptions ; par exemple, une valeur d'un type entier sur Itanium <a href="https://web.archive.org/web/20170830125905/https://blogs.msdn.microsoft.com/oldnewthing/20040119-00/?p=41003">peut être une représentation piège</a>.</p>
+<h2 id="Effective_type">Type effectif</h2>
+<p>Chaque objet possède un <em>type effectif</em>, qui détermine quels accès <a href="value_category.html">lvalue</a> sont valides et lesquels violent les règles d'aliasing strict.</p>
+<p>Si l'objet a été créé par une <a href="declarations.html">déclaration</a>, le type déclaré de cet objet est le <em>type effectif</em> de l'objet.</p>
+<p>Si l'objet a été créé par une <a href="../memory.html">fonction d'allocation</a> (y compris <a href="../memory/realloc.html"><code>realloc</code></a>), il n'a pas de type déclaré. Un tel objet acquiert un type effectif comme suit :</p>
+<ul>
+<li>La première écriture dans cet objet via une lvalue ayant un type autre que caractère, moment où le type de cette lvalue devient le <em>type effectif</em> de cet objet pour cette écriture et toutes les lectures suivantes.</li>
+<li><a href="../string/byte/memcpy.html"><code>memcpy</code></a> ou <a href="../string/byte/memmove.html"><code>memmove</code></a> copient un autre objet dans cet objet, ou copient un autre objet dans cet objet sous forme de tableau de type caractère, moment où le type effectif de l'objet source (s'il en avait un) devient le type effectif de cet objet pour cette écriture et toutes les lectures suivantes.</li>
+<li>Tout autre accès à l'objet sans type déclaré : le type effectif est le type de la lvalue utilisée pour l'accès.</li>
+</ul>
+<h2 id="Strict_aliasing">Alias strict</h2>
+<p>Étant donné un objet de <em>type effectif</em> T1, utiliser une expression lvalue (typiquement, le déréférencement d'un pointeur) d'un type différent T2 est un comportement indéfini, sauf si :</p>
+<ul>
+<li>T2 et T1 sont des <a href="compatible_type.html#Compatible_types">types compatibles</a>.</li>
+<li>T2 est une version qualifiée cvr d'un type <a href="compatible_type.html#Compatible_types">compatible</a> avec T1.</li>
+<li>T2 est une version signée ou non signée d'un type <a href="compatible_type.html#Compatible_types">compatible</a> avec T1.</li>
+<li>T2 est un type agrégat ou un type union qui inclut parmi ses membres l'un des types précédents (y compris, récursivement, un membre d'un sous-agrégat ou d'une union contenue).</li>
+<li>T2 est un type caractère (<code>char</code>, <code>signed char</code> ou <code>unsigned char</code>).</li>
+</ul>
+<pre><code class="language-c">int i = 7;
+char* pc = (char*)(&amp;i);
+
+if (pc[0] == '\x7') // l'aliasing via char est OK
+    puts(&quot;This system is little-endian&quot;);
+else
+    puts(&quot;This system is big-endian&quot;);
+
+float* pf = (float*)(&amp;i);
+float d = *pf; // UB : une lvalue float *p ne peut pas être utilisée pour accéder à un int
+</code></pre>
+<p>Ces règles déterminent si, lors de la compilation d'une fonction recevant deux pointeurs, le compilateur doit émettre du code qui relit l'un après avoir écrit via l'autre :</p>
+<pre><code class="language-c">// int* et double* ne peuvent pas être en alias
+void f1(int* pi, double* pd, double d)
+{
+    // la lecture de *pi ne peut être faite qu'une seule fois, avant la boucle
+    for (int i = 0; i &lt; *pi; i++)
+        *pd++ = d;
+}
+</code></pre>
+<pre><code class="language-c">struct S { int a, b; };
+
+// int* et struct S* peuvent être en alias car S est un type agrégat avec un membre de type int
+void f2(int* pi, struct S* ps, struct S s)
+{
+    // la lecture de *pi doit avoir lieu après chaque écriture effectuée via *ps
+    for (int i = 0; i &lt; *pi; i++)
+        *ps++ = s;
+}
+</code></pre>
+<p>Notez que le <a href="restrict.html">qualificateur restrict</a> peut être utilisé pour indiquer que deux pointeurs ne se recouvrent pas (alias), même si les règles ci-dessus le permettraient.</p>
+<p>Notez que le type-punning peut aussi être effectué via le membre inactif d'une <a href="union.html">union</a>.</p>
+<h2 id="Alignment">Alignement</h2>
+<p>Chaque <a href="types.html#Type_groups">type d'objet complet</a> possède une propriété appelée <em>exigence d'alignement</em>, qui est une valeur entière de type <a href="../types/size_t.html"><code>size_t</code></a> représentant le nombre d'octets entre des adresses successives auxquelles des objets de ce type peuvent être alloués. Les valeurs d'alignement valides sont les puissances entières non négatives de deux.</p>
+<blockquote>
+<p>L'exigence d'alignement d'un type peut être interrogée avec [<a href="alignof.html"><code>_Alignof</code></a> <em>(jusqu'à C23)</em> | <a href="alignof.html"><code>alignof</code></a> <em>(depuis C23)</em>].</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<p>Afin de satisfaire les exigences d'alignement de tous les membres d'une struct, un bourrage peut être inséré après certains de ses membres.</p>
+<pre><code class="language-c">#include &lt;stdalign.h&gt;
+#include &lt;stdio.h&gt;
+
+// les objets de la structure S peuvent être alloués à n'importe quelle adresse
+// car S.a et S.b peuvent tous deux être alloués à n'importe quelle adresse
+struct S
+{
+    char a; // size: 1, alignment: 1
+    char b; // size: 1, alignment: 1
+}; // size: 2, alignment: 1
+
+// les objets de la structure X doivent être alloués à des frontières de 4 octets
+// car X.n doit être alloué sur des frontières de 4 octets
+// car l'exigence d'alignement de int est (généralement) 4
+struct X
+{
+    int n;  // size: 4, alignment: 4
+    char c; // size: 1, alignment: 1
+    // trois octets de remplissage
+}; // size: 8, alignment: 4
+
+int main(void)
+{
+    printf(&quot;sizeof(struct S) = %zu\n&quot;, sizeof(struct S));
+    printf(&quot;alignof(struct S) = %zu\n&quot;, alignof(struct S));
+    printf(&quot;sizeof(struct X) = %zu\n&quot;, sizeof(struct X));
+    printf(&quot;alignof(struct X) = %zu\n&quot;, alignof(struct X));
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">sizeof(struct S) = 2
+alignof(struct S) = 1
+sizeof(struct X) = 8
+alignof(struct X) = 4
+</code></pre>
+<p>Chaque type d'objet impose son exigence d'alignement à chaque objet de ce type. L'alignement le plus faible (le plus petit) est celui des types <code>char</code>, <code>signed char</code> et <code>unsigned char</code>, et est égal à <code>1</code>. L'<em>alignement fondamental</em> le plus strict (le plus grand) de tout type est défini par l'implémentationet égal à l'alignement de <a href="../types/max_align_t.html"><code>max_align_t</code></a> <em>(depuis C11)</em>.</p>
+<p>Les alignements fondamentaux sont pris en charge pour les objets de tous les types de durées de stockage.</p>
+<blockquote>
+<p>Si l'alignement d'un objet est rendu plus strict (plus grand) que <a href="../types/max_align_t.html"><code>max_align_t</code></a> à l'aide de [<a href="alignof.html"><code>_Alignof</code></a> <em>(jusqu'à C23)</em> | <a href="alignof.html"><code>alignof</code></a> <em>(depuis C23)</em>], il possède une <em>exigence d'alignement étendue</em>. Un type struct ou union dont un membre possède un alignement étendu est un <em>type sur-aligné</em>. Il est défini par l'implémentation si les types sur-alignés sont pris en charge, et leur prise en charge peut varier selon chaque <a href="storage_duration.html">durée de stockage</a>.</p>
+<p>Si un type struct ou union <code>S</code> ne possède aucun membre d'un type sur-aligné et n'est pas déclaré avec un spécificateur d'alignement qui spécifie un alignement étendu, <code>S</code> possède un alignement fondamental.</p>
+<p>La version <a href="atomic.html">atomique</a> de chaque type <a href="arithmetic_types.html">arithmétique</a> ou <a href="pointer.html">pointeur</a> possède un alignement fondamental.</p>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts modifiant le comportement suivants ont été appliqués rétroactivement aux normes C publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2396.htm#dr_445">DR 445</a></td>
+<td>C11</td>
+<td>un type peut avoir un alignement étendu sans que <code>_Alignas</code> soit impliqué</td>
+<td>il doit avoir un alignement fondamental</td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>3.15 objet (p : 5)</li>
+<li>6.2.6 Représentations des types (p : 33-35)</li>
+<li>6.2.8 Alignement des objets (p : 36-37)</li>
+<li>6.5/6-7 Expressions (p : 55-56)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>3.15 objet (p : 6)</li>
+<li>6.2.6 Représentations des types (p : 44-46)</li>
+<li>6.2.8 Alignement des objets (p : 48-49)</li>
+<li>6.5/6-7 Expressions (p : 77)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>3.2 alignement (p : 3)</li>
+<li>3.14 objet (p : 5)</li>
+<li>6.2.6 Représentations des types (p : 37-39)</li>
+<li>6.5/6-7 Expressions (p : 67-68)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>1.6 Définitions des termes</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/objects.html">Documentation C++</a> pour Objet</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>strerror, strerror_s, strerrorlen_s — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../c.html">Référence C</a> › <a href="../../../c/string.html">Bibliothèque des chaînes</a> › <a href="../../../c/string/byte.html">Chaînes d&#x27;octets terminées par un caractère nul</a></nav>
+<h1 id="strerror-strerror_s-strerrorlen_s">strerror, strerror_s, strerrorlen_s</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/string/byte/strerror">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;string.h&gt;</strong></p>
+<pre><code class="language-c">char* strerror( int errnum );  // (1)
+
+errno_t strerror_s( char *buf, rsize_t bufsz, errno_t errnum );  // (2) (depuis C11)
+
+size_t strerrorlen_s( errno_t errnum );  // (3) (depuis C11)
+</code></pre>
+<ol>
+<li>Renvoie un pointeur vers la description textuelle du code d'erreur système <code>errnum</code>, identique à la description qu'afficherait <a href="../../io/perror.html"><code>perror()</code></a>.</li>
+</ol>
+<p><code>errnum</code> est généralement obtenu à partir de la variable <code>errno</code>, mais la fonction accepte toute valeur de type <code>int</code>. Le contenu de la chaîne dépend des paramètres régionaux.</p>
+<p>La chaîne renvoyée ne doit pas être modifiée par le programme, mais peut être écrasée par un appel ultérieur à la fonction <code>strerror</code>. <code>strerror</code> n'est pas tenue d'être thread-safe. Les implémentations peuvent renvoyer différents pointeurs vers des littéraux de chaînes statiques en lecture seule, ou renvoyer toujours le même pointeur, pointant vers un tampon statique dans lequel strerror place la chaîne.</p>
+<ol start="2">
+<li>Identique à <code>(1)</code>, à ceci près que le message est copié dans le stockage fourni par l'utilisateur <code>buf</code>. Au plus <code>bufsz-1</code> octets sont écrits, le tampon est toujours terminé par un caractère nul. Si le message a dû être tronqué pour tenir dans le tampon et que <code>bufsz</code> est supérieur à 3, alors seuls <code>bufsz-4</code> octets sont écrits, et les caractères <code>&quot;...&quot;</code> sont ajoutés avant le caractère nul de fin. De plus, les erreurs suivantes sont détectées à l'exécution et appellent la fonction <a href="../../error/set_constraint_handler_s.html">gestionnaire de contraintes</a> actuellement installée :</li>
+</ol>
+<ul>
+<li><code>buf</code> est un pointeur nul</li>
+<li><code>bufsz</code> vaut zéro ou est supérieur à <code>RSIZE_MAX</code></li>
+</ul>
+<p>Le comportement est indéfini si l'écriture dans <code>buf</code> dépasse la fin du tableau, ce qui peut se produire lorsque la taille du tampon pointé par <code>buf</code> est inférieure au nombre de caractères du message d'erreur, lui-même inférieur à <code>bufsz</code>.</p>
+<ol start="3">
+<li>Calcule la longueur du message d'erreur spécifique aux paramètres régionaux non tronqué que <code>strerror_s</code> écrirait si elle était appelée avec <code>errnum</code>. La longueur n'inclut pas le caractère nul de fin.Comme pour toutes les fonctions à vérification des bornes, <code>strerror_s</code> et <code>strerrorlen_s</code> ne sont garantis disponibles que si <code>__STDC_LIB_EXT1__</code> est défini par l'implémentation et si l'utilisateur définit <code>__STDC_WANT_LIB_EXT1__</code> comme la constante entière <code>1</code> avant d'inclure <a href="../byte.html"><code>&lt;string.h&gt;</code></a>.</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>errnum</code> — valeur entière désignant un code d'erreur</li>
+<li><code>buf</code> — pointeur vers un tampon fourni par l'utilisateur</li>
+<li><code>bufsz</code> — taille du tampon fourni par l'utilisateur</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<ol>
+<li>
+<p>Pointeur vers une chaîne d'octets terminée par un caractère nul correspondant au code d'erreur <a href="../../error/errno.html"><code>errno</code></a> <code>errnum</code>.</p>
+</li>
+<li>
+<p>Zéro si le message entier a été stocké avec succès dans <code>buf</code>, non nul sinon.</p>
+</li>
+<li>
+<p>Longueur (sans le terminateur nul) du message que <code>strerror_s</code> renverrait</p>
+</li>
+</ol>
+<h2 id="Notes">Notes</h2>
+<p><a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/strerror.html">POSIX</a> autorise les appels ultérieurs à <code>strerror</code> à invalider le pointeur renvoyé par un appel précédent. Il précise également que c'est la facette <a href="../../locale/LC_categories.html"><code>LC_MESSAGES</code></a> de la locale qui contrôle le contenu de ces messages.</p>
+<p><code>strerror_s</code> est la seule fonction à vérification de bornes qui permet la troncature, car fournir le plus d'informations possible sur un échec a été jugé plus souhaitable. POSIX définit également <a href="http://pubs.opengroup.org/onlinepubs/9699919799/functions/strerror.html"><code>strerror_r</code></a> dans des buts similaires.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#define __STDC_WANT_LIB_EXT1__ 1
+#include &lt;stdio.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;string.h&gt;
+#include &lt;locale.h&gt;
+
+int main(void)
+{
+    FILE *fp = fopen(tmpnam((char[L_tmpnam]){0}), &quot;r&quot;);
+    if(fp==NULL) {
+        printf(&quot;File opening error: %s\n&quot;, strerror(errno));
+        setlocale(LC_MESSAGES, &quot;de_DE.utf8&quot;);
+        printf(&quot;Now in German: %s\n&quot;, strerror(errno));
+#ifdef __STDC_LIB_EXT1__
+        setlocale(LC_ALL, &quot;ja_JP.utf8&quot;); // printf a besoin de CTYPE pour la sortie multioctet
+        size_t errmsglen = strerrorlen_s(errno) + 1;
+        char errmsg[errmsglen];
+        strerror_s(errmsg, errmsglen, errno);
+        printf(&quot;Now in Japanese: %s\n&quot;, errmsg);
+#endif
+    }
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">File opening error: No such file or directory
+Now in German: Datei oder Verzeichnis nicht gefunden
+Now in Japanese: そのようなファイル、又はディレクトリはありません
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.24.6.2 La fonction strerror (p : 371)</li>
+<li>K.3.7.4.2 La fonction strerror_s (p : 622)</li>
+<li>K.3.7.4.3 La fonction strerrorlen_s (p : 623)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>7.21.6.2 La fonction strerror (p : 334)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>4.11.6.2 La fonction strerror</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../../io/perror.html">perror</a></strong> — affiche une chaîne de caractères correspondant à l'erreur courante dans <a href="../../io/std_streams.html"><code>stderr</code></a> <em>(fonction)</em></li>
+<li><strong><a href="../../error/errno.html">errno</a></strong> — macro qui se développe en variable de numéro d'erreur locale au thread, compatible POSIX <em>(variable macro)</em></li>
+</ul>
+<p><strong><a href="../../../cpp/string/byte/strerror.html">Documentation C++</a> pour strerror</strong></p>
+
+</main>
+</body>
+</html>

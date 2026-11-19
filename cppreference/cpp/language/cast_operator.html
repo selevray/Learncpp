@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fonction de conversion définie par l&#x27;utilisateur — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="fonction-de-conversion-définie-par-l-utilisateur">Fonction de conversion définie par l'utilisateur</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/cast_operator">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet une <a href="implicit_cast.html">conversion implicite</a> ou une <a href="explicit_cast.html">conversion explicite</a> d'un <a href="class.html">type classe</a> vers un autre type.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>La fonction de conversion est déclarée comme une <a href="member_functions.html">fonction membre non statique</a> ou un <a href="function_template.html">modèle de fonction</a> membre sans paramètres, sans type de retour explicite, et avec un nom de la forme :</p>
+<p>|
+| |
+| <code>operator</code> <code>conversion-type-id</code> | (1) | |
+|
+| <code>explicit</code> <code>operator</code> <code>conversion-type-id</code> | (2) | (depuis C++11) |
+|
+| <code>explicit (</code> <code>expression</code> <code>)</code> <code>operator</code> <code>conversion-type-id</code> | (3) | (depuis C++20) |
+|</p>
+<ol>
+<li>
+<p>Déclare une fonction de conversion définie par l'utilisateur qui participe à toutes les <a href="implicit_cast.html">conversions implicites</a> et <a href="explicit_cast.html">conversions explicites</a>.</p>
+</li>
+<li>
+<p>Déclare une fonction de conversion définie par l'utilisateur qui participe uniquement à l'<a href="direct_initialization.html">initialisation directe</a> et aux <a href="explicit_cast.html">conversions explicites</a>.</p>
+</li>
+<li>
+<p>Déclare une fonction de conversion définie par l'utilisateur qui est <a href="explicit.html">conditionnellement explicite</a>.</p>
+</li>
+</ol>
+<p><code>conversion-type-id</code> est un <a href="type-id.html#Type_naming">type-id</a>, sauf que les opérateurs de fonction et de tableau <code>[]</code> ou <code>()</code> ne sont pas autorisés dans son déclarateur (ainsi, la conversion vers des types tels que pointeur vers tableau nécessite un alias de type/typedef ou un modèle d'identité : voir ci-dessous). Indépendamment du typedef, <code>conversion-type-id</code> ne peut pas représenter un type tableau ou fonction.</p>
+<p>Bien que le type de retour ne soit pas autorisé dans la déclaration d'une fonction de conversion définie par l'utilisateur, le <code>decl-specifier-seq</code> de <a href="declarations.html#Specifiers">la grammaire des déclarations</a> peut être présent et peut inclure tout spécificateur autre que <code>type-specifier</code> ou le mot-clé <code>static</code>. En particulier, outre <a href="explicit.html"><code>explicit</code></a>, les spécificateurs <a href="inline.html"><code>inline</code></a>, <a href="virtual.html"><code>virtual</code></a>[, <a href="constexpr.html"><code>constexpr</code></a> <em>(depuis C++11)</em> | , <a href="consteval.html"><code>consteval</code></a> <em>(depuis C++20)</em>], et <a href="friend.html"><code>friend</code></a> sont également autorisés (notez que <code>friend</code> nécessite un nom qualifié : <code>friend A::operator B();</code>).</p>
+<p>Lorsque cette fonction membre est déclarée dans la classe X, elle effectue la conversion de X vers <code>conversion-type-id</code> :</p>
+<pre><code class="language-cpp">struct X
+{
+    // conversion implicite
+    operator int() const { return 7; }
+
+    // conversion explicite
+    explicit operator int*() const { return nullptr; }
+
+    // Erreur : l'opérateur de tableau n'est pas autorisé dans conversion-type-id
+//  operator int(*)[3]() const { return nullptr; }
+
+    using arr_t = int[3];
+    operator arr_t*() const { return nullptr; } // OK si réalisé via typedef
+//  operator arr_t () const; // Erreur : conversion vers un tableau non autorisée dans tous les cas
+};
+
+int main()
+{
+    X x;
+
+    int n = static_cast&lt;int&gt;(x);   // OK : affecte 7 à n
+    int m = x;                     // OK : affecte 7 à m
+
+    int* p = static_cast&lt;int*&gt;(x); // OK : affecte null à p
+//  int* q = x; // Erreur : pas de conversion implicite
+
+    int (*pa)[3] = x;  // OK
+}
+</code></pre>
+<h2 id="Explanation">Explication</h2>
+<p>La fonction de conversion définie par l'utilisateur est invoquée lors de la seconde étape de la <a href="implicit_cast.html">conversion implicite</a>, qui consiste en zéro ou un <a href="converting_constructor.html">constructeur de conversion</a> ou zéro ou une fonction de conversion définie par l'utilisateur.</p>
+<p>Si les fonctions de conversion et les constructeurs de conversion peuvent tous deux servir à effectuer une conversion définie par l'utilisateur, les fonctions de conversion et les constructeurs sont tous deux pris en compte par la <a href="overload_resolution.html">résolution de surcharge</a> dans les contextes d'<a href="copy_initialization.html">initialisation par copie</a> et d'<a href="reference_initialization.html">initialisation de référence</a>, mais seuls les constructeurs sont pris en compte dans les contextes d'<a href="direct_initialization.html">initialisation directe</a>.</p>
+<pre><code class="language-cpp">struct To
+{
+    To() = default;
+    To(const struct From&amp;) {} // constructeur de conversion
+};
+
+struct From
+{
+    operator To() const {return To();} // fonction de conversion
+};
+
+int main()
+{
+    From f;
+    To t1(f);  // initialisation directe : appelle le constructeur
+    // Remarque : si le constructeur de conversion n'est pas disponible, le constructeur de copie implicite
+    // sera sélectionné, et la fonction de conversion sera appelée pour préparer son argument
+
+//  To t2 = f; // initialisation par copie : ambiguë
+    // Remarque : si la fonction de conversion provient d'un type non const, par exemple
+    // From::operator To();, elle sera sélectionnée à la place du constructeur dans ce cas
+
+    To t3 = static_cast&lt;To&gt;(f); // initialisation directe : appelle le constructeur
+    const To&amp; r = f;            // initialisation par référence : ambiguë
+}
+</code></pre>
+<p>Une fonction de conversion vers sa propre classe (éventuellement qualifiée cv) (ou vers une référence à celle-ci), vers la base de sa propre classe (ou vers une référence à celle-ci), et vers le type <code>void</code> peut être définie, mais ne peut pas être exécutée dans le cadre de la séquence de conversion, sauf, dans certains cas, via un envoi <a href="virtual.html">virtuel</a> :</p>
+<pre><code class="language-cpp">struct D;
+
+struct B
+{
+    virtual operator D() = 0;
+};
+
+struct D : B
+{
+    operator D() override { return D(); }
+};
+
+int main()
+{
+    D obj;
+    D obj2 = obj; // n'appelle pas D::operator D()
+    B&amp; br = obj;
+    D obj3 = br;  // appelle D::operator D() par distribution virtuelle
+}
+</code></pre>
+<p>Elle peut aussi être appelée avec la syntaxe d'appel de fonction membre :</p>
+<pre><code class="language-cpp">struct B {};
+
+struct X : B
+{
+    operator B&amp;() { return *this; };
+};
+
+int main()
+{
+    X x;
+    B&amp; b1 = x;                  // n'appelle pas X::operatorB&amp;()
+    B&amp; b2 = static_cast&lt;B&amp;&gt;(x); // n'appelle pas X::operatorB&amp;
+    B&amp; b3 = x.operator B&amp;();    // appelle X::operatorB&amp;
+}
+</code></pre>
+<p>Lors d'un appel explicite à la fonction de conversion, <code>conversion-type-id</code> est glouton : c'est la plus longue séquence de jetons pouvant former un <code>conversion-type-id</code> (attributs compris, le cas échéant) <em>(depuis C++11)</em> :</p>
+<pre><code class="language-cpp">&amp; x.operator int * a; // erreur : analysé comme &amp; (x.operator int*) a,
+                      //           et non comme &amp; (x.operator int) * a
+
+operator int [[noreturn]] (); // erreur : attribut noreturn appliqué à un type
+</code></pre>
+<blockquote>
+<p>Le marqueur <a href="auto.html">auto</a> peut être utilisé dans <code>conversion-type-id</code>, indiquant un <a href="function.html#Return_type_deduction">type de retour déduit</a> :</p>
+<pre><code class="language-cpp">struct X
+{
+    operator int(); // OK
+    operator auto() -&gt; short; // erreur : type de retour final ne faisant pas partie de la syntaxe
+    operator auto() const { return 10; } // OK : type de retour déduit
+    operator decltype(auto)() const { return 10l; } // OK : type de retour déduit
+};
+</code></pre>
+<p>Remarque : un <a href="member_template.html#Conversion_function_templates">modèle de fonction de conversion</a> ne peut pas avoir un type de retour déduit.</p>
+<p><em>(depuis C++14)</em></p>
+</blockquote>
+<p>Les fonctions de conversion peuvent être héritées et peuvent être <a href="virtual.html">virtuelles</a>, mais ne peuvent pas être <a href="static.html">statiques</a>. Une fonction de conversion de la classe dérivée ne masque pas une fonction de conversion de la classe de base, sauf si elles convertissent vers le même type.</p>
+<p>Une fonction de conversion peut être une fonction membre modèle, par exemple <a href="../memory/auto_ptr/operator_auto_ptr.html"><code>std::auto_ptr&lt;T&gt;::operator auto_ptr&lt;Y&gt;</code></a>. Voir <a href="member_template.html#Conversion_function_templates">membre modèle</a> et <a href="template_argument_deduction.html#Conversion_function_template">déduction d'argument de modèle</a> pour les règles spéciales applicables.</p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/operator.html"><code>operator</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/296.html">CWG 296</a></td>
+<td>C++98</td>
+<td>les fonctions de conversion pouvaient être statiques</td>
+<td>elles ne pouvaient pas être déclarées statiques</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2016.html">CWG 2016</a></td>
+<td>C++98</td>
+<td>les fonctions de conversion ne pouvaient pas spécifier de types de retour, mais les types sont présents dans <code>conversion-type-id</code></td>
+<td>les types de retour ne peuvent pas être spécifiés dans les spécificateurs de déclaration des fonctions de conversion</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2175.html">CWG 2175</a></td>
+<td>C++11</td>
+<td>il n'était pas clair si le <code>[[noreturn]]</code> dans <code>operator int [[noreturn]] ();</code> est analysé comme faisant partie de <code>noptr-declarator</code> (du déclarateur de fonction) ou <code>conversion-type-id</code></td>
+<td>il est analysé comme faisant partie de <code>conversion-type-id</code></td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

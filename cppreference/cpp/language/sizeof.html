@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>opérateur sizeof — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="opérateur-sizeof">opérateur sizeof</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/sizeof">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Interroge la taille de l'objet ou du type.</p>
+<p>Utilisé lorsque la taille réelle de l'objet doit être connue.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>|
+| |
+| <code>sizeof(</code> <code>type</code> <code>)</code> | (1) | |
+|
+| <code>sizeof</code> <code>expression</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Donne la taille en octets de la <a href="objects.html">représentation objet</a> de <code>type</code>.</p>
+</li>
+<li>
+<p>Donne la taille en octets de la représentation objet du type de <code>expression</code>, si cette expression est évaluée.</p>
+</li>
+</ol>
+<ul>
+<li><code>type</code> — un <code>type-id</code> (voir <a href="type-id.html#Type_naming">dénomination des types</a>)</li>
+<li><code>expression</code> — une expression dont la <a href="operator_precedence.html">priorité des opérateurs</a> n'est pas inférieure à celle de <code>sizeof</code> (par exemple <code>sizeof a + b</code> est analysé comme <code>(sizeof a) + b</code> au lieu de <code>sizeof (a + b)</code>)</li>
+</ul>
+<p>Le résultat d'une expression <code>sizeof</code> est une <a href="constant_expression.html">expression constante</a> de type <a href="../types/size_t.html"><code>std::size_t</code></a>.</p>
+<h2 id="Notes">Notes</h2>
+<p>Selon l'architecture de l'ordinateur, un <a href="https://en.wikipedia.org/wiki/byte">octet</a> peut être composé de 8 bits ou plus, le nombre exact étant indiqué dans <a href="../types/climits.html"><code>CHAR_BIT</code></a>.</p>
+<p>Les expressions <code>sizeof</code> suivantes s'évaluent toujours à <code>1</code> :</p>
+<ul>
+<li><code>sizeof(char)</code></li>
+<li><code>sizeof(signed char)</code></li>
+<li><code>sizeof(unsigned char)</code></li>
+</ul>
+<blockquote>
+<ul>
+<li><code>sizeof(std::byte)</code></li>
+</ul>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><code>sizeof(char8_t)</code></li>
+</ul>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p><code>sizeof</code> ne peut pas être utilisé avec des types fonctions, des types incomplets ou des champs de bits [lvalues <em>(jusqu'à C++11)</em> | glvalues <em>(depuis C++11)</em>].</p>
+<p>Lorsqu'il est appliqué à un type référence, le résultat est la taille du type référencé.</p>
+<p>Lorsqu'il est appliqué à un type classe, le résultat est le nombre d'octets occupés par un objet complet de cette classe, y compris le rembourrage supplémentaire nécessaire pour placer cet objet dans un tableau. Le nombre d'octets occupés par un <a href="objects.html#Subobjects">sous-objet potentiellement chevauchant</a> peut être inférieur à la taille de cet objet.</p>
+<p>Le résultat de <code>sizeof</code> est toujours non nul, même lorsqu'il est appliqué à un type classe vide.</p>
+<p>Lorsqu'il est appliqué à une expression, <code>sizeof</code> <a href="expressions.html#Potentially-evaluated_expressions">n'évalue pas l'expression</a>(c'est-à-dire que l'expression est un opérande non évalué) <em>(depuis C++11)</em>, et même si l'expression désigne un objet polymorphe, le résultat est la taille du type statique de l'expression. Les conversions lvalue-vers-rvalue, tableau-vers-pointeur ou fonction-vers-pointeur ne sont pas effectuées.La <a href="implicit_cast.html#Temporary_materialization">matérialisation temporaire</a> est cependant (formellement) effectuée pour les arguments prvalue : le programme est mal formé si l'argument n'est pas destructible. <em>(depuis C++17)</em></p>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/sizeof.html"><code>sizeof</code></a></p>
+<h2 id="Example">Exemple</h2>
+<p>La sortie d'exemple correspond à un système avec des pointeurs 64 bits et des int 32 bits (aussi appelé <a href="types.html#Data_models"><strong>LP64</strong> ou <strong>LLP64</strong></a>).</p>
+<pre><code class="language-cpp">#include &lt;cstdlib&gt;
+#include &lt;iostream&gt;
+
+struct Empty          { };
+struct Base           { int a; };
+struct Derived : Base { int b; };
+struct Bit            { unsigned bit: 1; };
+struct CharChar       { char c; char c2; };
+struct CharCharInt    { char c; char c2; int i; };
+struct IntCharChar    { int i;  char c;  char c2; };
+struct CharIntChar    { char c; int i;   char c2; };
+struct CharShortChar  { char c; short s; char c2; };
+
+int main()
+{
+    Empty e;
+    Derived d;
+    Base&amp; b = d;
+    [[maybe_unused]] Bit bit;
+    int a[10];
+
+    auto f = [&amp;]() { return sizeof(int[10]) == sizeof a ? throw 1 : e; };
+//  f(); // le type de retour est Empty, mais lève toujours une exception 1
+
+    auto println = [](auto rem, std::size_t size) { std::cout &lt;&lt; rem &lt;&lt; size &lt;&lt; '\n'; };
+
+    println( &quot;1) sizeof empty class:              &quot;, sizeof e                     );
+    println( &quot;2) sizeof pointer:                  &quot;, sizeof &amp;e                    );
+    println( &quot;3) sizeof(Bit) class:               &quot;, sizeof(Bit)                  );
+    println( &quot;4) sizeof(int[10]) array of 10 int: &quot;, sizeof(int[10])              );
+    println( &quot;5) sizeof a        array of 10 int: &quot;, sizeof a                     );
+    println( &quot;6) length of array of 10 int:       &quot;, ((sizeof a) / (sizeof *a))   );
+    println( &quot;7) length of array of 10 int (2):   &quot;, ((sizeof a) / (sizeof a[0])) );
+    println( &quot;8) sizeof the Derived class:        &quot;, sizeof d                     );
+    println( &quot;9) sizeof the Derived through Base: &quot;, sizeof b                     );
+    println( &quot;A) sizeof(unsigned):                &quot;, sizeof(unsigned)             );
+    println( &quot;B) sizeof(int):                     &quot;, sizeof(int)                  );
+    println( &quot;C) sizeof(short):                   &quot;, sizeof(short)                );
+    println( &quot;D) sizeof(char):                    &quot;, sizeof(char)                 );
+    println( &quot;E) sizeof(CharChar):                &quot;, sizeof(CharChar)             );
+    println( &quot;F) sizeof(CharCharInt):             &quot;, sizeof(CharCharInt)          );
+    println( &quot;G) sizeof(IntCharChar):             &quot;, sizeof(IntCharChar)          );
+    println( &quot;H) sizeof(CharIntChar):             &quot;, sizeof(CharIntChar)          );
+    println( &quot;I) sizeof(CharShortChar):           &quot;, sizeof(CharShortChar)        );
+    println( &quot;J) sizeof f():                      &quot;, sizeof f()                   );
+    println( &quot;K) sizeof Base::a:                  &quot;, sizeof Base::a               );
+
+//  println( &quot;sizeof function:        &quot;, sizeof(void()) ); // erreur
+//  println( &quot;sizeof incomplete type: &quot;, sizeof(int[])  ); // error
+//  println( &quot;sizeof bit-field:       &quot;, sizeof bit.bit ); // error
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">1) sizeof empty class:              1
+2) sizeof pointer:                  8
+3) sizeof(Bit) class:               4
+4) sizeof(int[10]) array of 10 int: 40
+5) sizeof a        array of 10 int: 40
+6) length of array of 10 int:       10
+7) length of array of 10 int (2):   10
+8) sizeof the Derived class:        8
+9) sizeof the Derived through Base: 4
+A) sizeof(unsigned):                4
+B) sizeof(int):                     4
+C) sizeof(short):                   2
+D) sizeof(char):                    1
+E) sizeof(CharChar):                2
+F) sizeof(CharCharInt):             8
+G) sizeof(IntCharChar):             8
+H) sizeof(CharIntChar):             12
+I) sizeof(CharShortChar):           6
+J) sizeof f():                      1
+K) sizeof Base::a:                  4
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/1553.html">CWG 1553</a></td>
+<td>C++11</td>
+<td><code>sizeof</code> pourrait être utilisé avec des xvalues de champs de bits</td>
+<td>prohibited</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><code>alignof</code> (C++11)</strong> — interroge les exigences d'alignement d'un type <em>(opérateur)</em></li>
+<li><strong><a href="sizeof....html"><code>sizeof...</code> operator</a> (depuis C++11)</strong> — interroge le nombre d'éléments d'un <a href="parameter_pack.html">pack</a></li>
+<li><strong><a href="../types/numeric_limits.html">numeric_limits</a></strong> — fournit une interface pour interroger les propriétés de tous les types numériques fondamentaux <em>(modèle de classe)</em></li>
+</ul>
+<p><strong><a href="../../c/language/sizeof.html">Documentation C</a> pour sizeof</strong></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::packaged_task&lt;R(Args...)&gt;::packaged_task — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/thread.html">Bibliothèque de support de la concurrence (depuis C++11)</a> › <a href="../../../cpp/thread/packaged_task.html">std::packaged_task</a></nav>
+<h1 id="std-packaged_task-r-args-packaged_task"><code>std::packaged_task&lt;R(Args...)&gt;::packaged_task</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/thread/packaged_task/packaged_task">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<pre><code class="language-cpp">packaged_task() noexcept;  // (1) (depuis C++11)
+
+template&lt; class F &gt;
+explicit packaged_task( F&amp;&amp; f );  // (2) (depuis C++11)
+
+template&lt; class F, class Allocator &gt;
+explicit packaged_task( std::allocator_arg_t, const Allocator&amp; a, F&amp;&amp; f );  // (3) (depuis C++11) (jusqu'à C++17)
+
+packaged_task( const packaged_task&amp; ) = delete;  // (4) (depuis C++11)
+
+packaged_task( packaged_task&amp;&amp; rhs ) noexcept;  // (5) (depuis C++11)
+</code></pre>
+<p>Construit un nouvel objet <code>std::packaged_task</code>.</p>
+<ol>
+<li>Construit un objet <code>std::packaged_task</code> sans tâche et sans état partagé.</li>
+</ol>
+<p>2,3) Construit un objet <code>std::packaged_task</code> avec un état partagé et une copie de la tâche, initialisé avec <code>std::forward&lt;F&gt;(f)</code>.L'allocateur <code>a</code> est utilisé pour allouer la mémoire nécessaire au stockage de la tâche. <em>(jusqu'à C++17)</em></p>
+<p>Ces surcharges ne participent à la résolution de surcharge que si <code>std::decay&lt;F&gt;::type</code> n'est pas du même type que <code>std::packaged_task&lt;R(Args...)&gt;</code>.</p>
+<blockquote>
+<p>Soient <code>t1</code>, <code>t2</code>, ..., <code>tN</code> des valeurs des types correspondants dans <code>Args</code> ; si <code>INVOKE&lt;R&gt;(f, t1, t2, ..., tN)</code> n'est pas une expression valide, le programme est mal formé.</p>
+<p><em>(jusqu'à C++17)</em></p>
+</blockquote>
+<blockquote>
+<p>Si <code>std::is_invocable_r_v&lt;R, F&amp;, Args...&gt;</code> est <code>false</code>, le programme est mal formé.</p>
+<p><em>(depuis C++17)</em></p>
+</blockquote>
+<p>Si l'invocation de <code>f</code> elle-même et l'invocation d'une copie de <code>f</code> se comportent différemment, le comportement est indéfini.</p>
+<ol start="4">
+<li>
+<p>Le constructeur de copie est supprimé, <code>std::packaged_task</code> n'est que déplaçable.</p>
+</li>
+<li>
+<p>Construit un <code>std::packaged_task</code> avec l'état partagé et la tâche précédemment détenus par <code>rhs</code>, laissant <code>rhs</code> sans état partagé et avec une tâche déplacée.</p>
+</li>
+</ol>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>f</code> — la cible appelable (fonction, fonction membre, expression lambda, objet fonction) à exécuter</li>
+<li><code>a</code> — l'allocateur à utiliser pour stocker la tâche</li>
+<li><code>rhs</code> — le <code>std::packaged_task</code> à partir duquel déplacer</li>
+</ul>
+<h2 id="Exceptions">Exceptions</h2>
+<ol start="2">
+<li>
+<p>Toute exception levée par le constructeur de copie/déplacement de <code>f</code> et éventuellement <a href="../../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation échoue.</p>
+</li>
+<li>
+<p>Toute exception levée par le constructeur de copie/déplacement de <code>f</code> et par la fonction <code>allocate</code> de l'allocateur si l'allocation de mémoire échoue.</p>
+</li>
+</ol>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;future&gt;
+#include &lt;iostream&gt;
+#include &lt;thread&gt;
+
+int fib(int n)
+{
+    if (n &lt; 3)
+        return 1;
+    else
+        return fib(n - 1) + fib(n - 2);
+}
+
+int main()
+{
+    std::packaged_task&lt;int(int)&gt; fib_task(&amp;fib);
+
+    std::cout &lt;&lt; &quot;Starting task\n&quot;;
+    auto result = fib_task.get_future();
+    std::thread t(std::move(fib_task), 42);
+
+    std::cout &lt;&lt; &quot;Waiting for task to finish...&quot; &lt;&lt; std::endl;
+    std::cout &lt;&lt; result.get() &lt;&lt; '\n';
+
+    std::cout &lt;&lt; &quot;Task complete\n&quot;;
+    t.join();
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">Starting task
+Waiting for task to finish...
+267914296
+Task complete
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2067">LWG 2067</a></td>
+<td>C++11</td>
+<td>le type du paramètre du constructeur de copie était <code>packaged_task&amp;</code></td>
+<td>ajouté <code>const</code></td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue2097">LWG 2097</a></td>
+<td>C++11</td>
+<td>pour les surcharges <code>(2,3)</code>, <code>F</code> pourrait être <code>std::packaged_task&lt;R(Args...)&gt;</code></td>
+<td><code>F</code> est contraint</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</body>
+</html>

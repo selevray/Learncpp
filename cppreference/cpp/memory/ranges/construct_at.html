@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::construct_at — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/memory.html">Bibliothèque de gestion de la mémoire</a></nav>
+<h1 id="std-ranges-construct_at"><code>std::ranges::construct_at</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/memory/ranges/construct_at">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;memory&gt;</strong></p>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; class T, class... Args &gt;
+constexpr T* construct_at( T* location, Args&amp;&amp;... args );  // (depuis C++20)
+</code></pre>
+<p>Crée un objet <code>T</code> initialisé avec les arguments de <code>args</code> à l'adresse donnée <code>location</code>.</p>
+<p>Équivalent à <code>if constexpr (std::is_array_v&lt;T&gt;) return ::new (voidify ﻿(*location)) T[1](); else return ::new (voidify ﻿(*location)) T(std::forward&lt;Args&gt;(args)...);</code>, sauf que <code>construct_at</code> peut être utilisé dans l'évaluation d'<a href="../../language/constant_expression.html">expressions constantes</a> <em>(jusqu'à C++26)</em>.</p>
+<p>Lorsque <code>construct_at</code> est appelé dans l'évaluation d'une expression constante <code>expr</code>, <code>location</code> doit pointer soit vers un stockage obtenu par <code>std::allocator&lt;T&gt;::allocate</code>, soit vers un objet dont la durée de vie a commencé durant l'évaluation de <code>expr</code>.</p>
+<p>Cette surcharge ne participe à la résolution de surcharge que si toutes les conditions suivantes sont satisfaites :</p>
+<ul>
+<li><code>std::is_unbounded_array_v&lt;T&gt;</code> is <code>false</code>.</li>
+<li><code>::new(std::declval&lt;void*&gt;()) T(std::declval&lt;Args&gt;()...)</code> est bien formé lorsqu'il est traité comme une <a href="../../language/expressions.html#Potentially-evaluated_expressions">opérande non évaluée</a>.</li>
+</ul>
+<p>Si <code>std::is_array_v&lt;T&gt;</code> vaut <code>true</code> et que <code>sizeof...(Args)</code> est non nul, le programme est mal formé.</p>
+<p>Les entités de type fonction décrites sur cette page sont des <a href="../../algorithm/ranges.html#Algorithm_function_objects"><em>objets fonctions d'algorithme</em></a> (appelés de manière informelle <em>niebloids</em>), c'est-à-dire :</p>
+<ul>
+<li>Les listes d'arguments de modèle explicites ne peuvent pas être spécifiées lors de l'appel de l'un d'entre eux.</li>
+<li>Aucun d'entre eux n'est visible par la <a href="../../language/adl.html">recherche dépendante des arguments</a>.</li>
+<li>Lorsque l'un d'entre eux est trouvé par <a href="../../language/unqualified_lookup.html">la recherche non qualifiée normale</a> comme nom situé à gauche de l'opérateur d'appel de fonction, la <a href="../../language/adl.html">recherche dépendante des arguments</a> est inhibée.</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>location</code> — pointeur vers le stockage non initialisé sur lequel un objet <code>T</code> sera construit</li>
+<li><code>args...</code> — arguments utilisés pour l'initialisation</li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p><code>location</code></p>
+<h2 id="Notes">Notes</h2>
+<p><code>std::ranges::construct_at</code> se comporte exactement comme <a href="../construct_at.html"><code>std::construct_at</code></a>, sauf qu'il est invisible pour la recherche dépendante des arguments.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;iostream&gt;
+#include &lt;memory&gt;
+
+struct S
+{
+    int x;
+    float y;
+    double z;
+
+    S(int x, float y, double z) : x{x}, y{y}, z{z} { std::cout &lt;&lt; &quot;S::S();\n&quot;; }
+
+    ~S() { std::cout &lt;&lt; &quot;S::~S();\n&quot;; }
+
+    void print() const
+    {
+        std::cout &lt;&lt; &quot;S { x=&quot; &lt;&lt; x &lt;&lt; &quot;; y=&quot; &lt;&lt; y &lt;&lt; &quot;; z=&quot; &lt;&lt; z &lt;&lt; &quot;; };\n&quot;;
+    }
+};
+
+int main()
+{
+    alignas(S) unsigned char buf[sizeof(S)];
+
+    S* ptr = std::ranges::construct_at(reinterpret_cast&lt;S*&gt;(buf), 42, 2.71828f, 3.1415);
+    ptr-&gt;print();
+
+    std::ranges::destroy_at(ptr);
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">S::S();
+S { x=42; y=2.71828; z=3.1415; };
+S::~S();
+</code></pre>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3436">LWG 3436</a></td>
+<td>C++20</td>
+<td><code>construct_at</code> ne pouvait pas créer d'objets de types tableau</td>
+<td>peut initialiser par valeur des tableaux bornés</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/LWG/issue3870">LWG 3870</a></td>
+<td>C++20</td>
+<td><code>construct_at</code> pouvait créer des objets de types qualifiés cv</td>
+<td>seuls les types non qualifiés cv sont autorisés</td>
+</tr>
+</tbody>
+</table>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="destroy_at.html">ranges::destroy_at</a> (C++20)</strong> — détruit un objet à une adresse donnée <em>(objet fonction d'algorithme)</em></li>
+<li><strong><a href="../construct_at.html">construct_at</a> (C++20)</strong> — crée un objet à une adresse donnée <em>(modèle de fonction)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

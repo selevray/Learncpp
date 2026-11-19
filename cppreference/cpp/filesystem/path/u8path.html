@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::filesystem::u8path — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../../assets/style.css">
+<script src="../../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../../cpp.html">Référence C++</a> › <a href="../../../cpp/filesystem.html">Bibliothèque du système de fichiers (depuis C++17)</a> › <a href="../../../cpp/filesystem/path.html">std::filesystem::path</a></nav>
+<h1 id="std-filesystem-u8path"><code>std::filesystem::u8path</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/filesystem/path/u8path">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;filesystem&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; class Source &gt;
+std::filesystem::path u8path( const Source&amp; source );  // (1) (depuis C++17) (obsolète en C++20)
+
+template&lt; class InputIt &gt;
+std::filesystem::path u8path( InputIt first, InputIt last );  // (2) (depuis C++17) (obsolète en C++20)
+</code></pre>
+<p>Construit un chemin <code>p</code> à partir d'une séquence encodée en UTF-8 de <code>char</code>sou <code>char8_t</code>s <em>(depuis C++20)</em>, fournie soit comme un <a href="../../string/basic_string.html"><code>std::string</code></a>, soit comme <a href="../../string/basic_string_view.html"><code>std::string_view</code></a>, soit comme une chaîne multioctets terminée par un caractère nul, soit comme une paire d'itérateurs <code>[first, last)</code>.</p>
+<ul>
+<li>Si <code>path::value_type</code> est <code>char</code> et que l'encodage natif est UTF-8, construit directement un chemin comme par <code>path(source)</code> ou <code>path(first, last)</code>. Remarque : c'est la situation typique d'un système POSIX utilisant Unicode, tel que Linux.</li>
+<li>Sinon, si <code>path::value_type</code> est <code>wchar_t</code> et que l'encodage natif est UTF-16 (c'est la situation sous Windows), ou si <code>path::value_type</code> est <code>char16_t</code> (encodage natif garanti UTF-16) ou <code>char32_t</code> (encodage natif garanti UTF-32), convertit d'abord la séquence de caractères UTF-8 en une chaîne temporaire <code>tmp</code> de type <code>path::string_type</code>, puis le nouveau chemin est construit comme par <code>path(tmp)</code>.</li>
+<li>Sinon (pour les encodages de caractères étroits non UTF-8 et pour les <code>wchar_t</code> non UTF-16), convertit d'abord la séquence de caractères UTF-8 en une chaîne temporaire <code>tmp</code> encodée en UTF-32 de type <code>std::u32string</code>, puis le nouveau chemin est construit comme si par <code>path(tmp)</code> (cette voie est prise sur un système POSIX avec un système de fichiers à encodage multioctets ou monooctet non Unicode).</li>
+</ul>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>source</code> — un <a href="../../string/basic_string.html"><code>std::string</code></a> encodé en UTF-8, <a href="../../string/basic_string_view.html"><code>std::string_view</code></a>, un pointeur vers une chaîne multioctets terminée par un caractère nul, ou un itérateur d'entrée dont le type de valeur char pointe vers une chaîne multioctets terminée par un caractère nul</li>
+<li><code>first, last</code> — paire de <a href="../../named_req/InputIterator.html"><em>LegacyInputIterator</em>s</a> qui spécifient une séquence de caractères encodée en UTF-8</li>
+</ul>
+<p><strong>Exigences sur les types</strong></p>
+<ul>
+<li><code>InputIt</code> doit satisfaire aux exigences de <a href="../../named_req/InputIterator.html"><em>LegacyInputIterator</em></a>.</li>
+<li>Le type de valeur de <code>Source</code> ou <code>InputIt</code> doit être <code>char</code> ou <code>char8_t</code>. <em>(depuis C++20)</em></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>Le chemin construit à partir de la chaîne d'entrée après conversion de UTF-8 vers l'encodage natif de caractères du système de fichiers.</p>
+<h2 id="Exceptions">Exceptions</h2>
+<p>Peut lever <a href="../../memory/new/bad_alloc.html"><code>std::bad_alloc</code></a> si l'allocation mémoire échoue.</p>
+<h2 id="Notes">Notes</h2>
+<p>Sur les systèmes dont le format de chemin natif diffère du format de chemin générique (ni Windows ni les systèmes POSIX ne sont des exemples de tels systèmes d'exploitation), si l'argument de cette fonction utilise le format générique, il sera converti en format natif.</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-cpp">#include &lt;cstdio&gt;
+#ifdef _MSC_VER
+#include &lt;fcntl.h&gt;
+#include &lt;io.h&gt;
+#else
+#include &lt;clocale&gt;
+#include &lt;locale&gt;
+#endif
+#include &lt;filesystem&gt;
+#include &lt;fstream&gt;
+
+int main()
+{
+#ifdef _MSC_VER
+    _setmode(_fileno(stderr), _O_WTEXT);
+#else
+    std::setlocale(LC_ALL, &quot;&quot;);
+    std::locale::global(std::locale(&quot;&quot;));
+#endif
+
+    std::filesystem::path p(u8&quot;要らない.txt&quot;);
+    std::ofstream(p) &lt;&lt; &quot;File contents&quot;; // Avant LWG2676, utilise operator string_type()
+                                         // sur MSVC, où string_type est wstring, uniquement
+                                         // fonctionne grâce à une extension non standard.
+                                         // Après LWG2676, utilise les nouveaux constructeurs de fstream
+
+    // La représentation native de la chaîne peut être utilisée avec des API spécifiques au système d'exploitation
+#ifdef _MSC_VER
+    if (std::FILE* f = _wfopen(p.c_str(), L&quot;r&quot;))
+#else
+    if (std::FILE* f = std::fopen(p.c_str(), &quot;r&quot;))
+#endif
+    {
+        for (int ch; (ch = fgetc(f)) != EOF; std::putchar(ch))
+        {}
+        std::fclose(f);
+    }
+
+    std::filesystem::remove(p);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">File contents
+</code></pre>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="../path.html">path</a> (C++17)</strong> — représente un chemin <em>(classe)</em></li>
+</ul>
+
+</main>
+</body>
+</html>

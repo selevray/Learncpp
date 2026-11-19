@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aligned_alloc — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/memory.html">Gestion de la mémoire dynamique</a></nav>
+<h1 id="aligned_alloc"><code>aligned_alloc</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/memory/aligned_alloc">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;stdlib.h&gt;</strong></p>
+<pre><code class="language-c">void *aligned_alloc( size_t alignment, size_t size );  // (depuis C11)
+</code></pre>
+<p>Alloue <code>size</code> octets de stockage non initialisé dont l'alignement est spécifié par <code>alignment</code>. Le paramètre <code>size</code> doit être un multiple entier de <code>alignment</code>.</p>
+<p><code>aligned_alloc</code> est thread-safe : il se comporte comme s'il n'accédait qu'aux emplacements mémoire visibles à travers son argument, et non à aucun stockage statique.</p>
+<p>Un appel préalable à <a href="free.html"><code>free</code></a>, <code>free_sized</code> et <code>free_aligned_sized</code> <em>(depuis C23)</em> ou à <a href="realloc.html"><code>realloc</code></a> qui libère une région de mémoire <em>se synchronise-avec</em> un appel à <code>aligned_alloc</code> qui alloue la même région de mémoire ou une partie de celle-ci. Cette synchronisation intervient après tout accès à la mémoire par la fonction de libération et avant tout accès à la mémoire par <code>aligned_alloc</code>. Il existe un ordre total unique de toutes les fonctions d'allocation et de libération opérant sur chaque région de mémoire donnée.</p>
+<h2 id="Parameters">Paramètres</h2>
+<ul>
+<li><code>alignment</code> — spécifie l'alignement. Doit être un alignement valide pris en charge par l'implémentation.</li>
+<li><code>size</code> — nombre d'octets à allouer. Un multiple entier de <code>alignment</code></li>
+</ul>
+<h2 id="Return_value">Valeur de retour</h2>
+<p>En cas de succès, retourne le pointeur vers le début de la mémoire nouvellement allouée. Pour éviter une fuite mémoire, le pointeur retourné doit être libéré avec <a href="free.html"><code>free</code></a> ou <a href="realloc.html"><code>realloc</code></a>.</p>
+<p>En cas d'échec, retourne un pointeur nul.</p>
+<h2 id="Notes">Notes</h2>
+<p>Passer un <code>size</code> qui n'est pas un multiple entier de <code>alignment</code> ou un <code>alignment</code> qui n'est pas valide ou non pris en charge par l'implémentation fait échouer la fonction, qui renvoie un pointeur nul (C11, tel que publié, spécifiait un comportement indéfini dans ce cas ; ceci a été corrigé par <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/summary.htm#dr_460">DR460</a>). La suppression des restrictions de taille permettant d'allouer de petits objets sur des frontières d'alignement strictes (à l'image de <a href="../language/alignas.html"><code>alignas</code></a>) a été proposée par <a href="https://open-std.org/JTC1/SC22/WG14/www/docs/n2072.htm">N2072</a>.</p>
+<p>À titre d'exemple de l'exigence « pris en charge par l'implémentation », la fonction POSIX <a href="https://pubs.opengroup.org/onlinepubs/9699919799/functions/posix_memalign.html"><code>posix_memalign</code></a> accepte tout <code>alignment</code> qui est une puissance de deux et un multiple de <code>sizeof(void *)</code>, et les implémentations basées sur POSIX de <code>aligned_alloc</code> héritent de cette exigence.</p>
+<p>Les alignements fondamentaux sont toujours pris en charge. Si <code>alignment</code> est une puissance de deux et n'est pas supérieur à <code>_Alignof(max_align_t)</code>, <code>aligned_alloc</code> peut simplement appeler <a href="malloc.html"><code>malloc</code></a>.</p>
+<p><a href="malloc.html"><code>malloc</code></a> ordinaire aligne la mémoire convenant à tout type d'objet avec un alignement fondamental. <code>aligned_alloc</code> est utile pour les allocations à alignement supérieur, comme pour les frontières <a href="https://en.wikipedia.org/wiki/Streaming_SIMD_Extensions">SSE</a>, de ligne de cache ou de <a href="https://en.wikipedia.org/wiki/Page_(computer_memory)#Multiple_page_sizes">page mémoire virtuelle</a>.</p>
+<p>Cette fonction n'est pas prise en charge dans la bibliothèque Runtime C de Microsoft, car son implémentation de <code>std::free</code> est <a href="https://learn.microsoft.com/en-us/cpp/standard-library/cstdlib#remarks-6">incapable de gérer les allocations alignées</a>, quelles qu'elles soient. À la place, MS CRT fournit <a href="https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-malloc"><code>_aligned_malloc</code></a> (à libérer avec <a href="https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/aligned-free"><code>_aligned_free</code></a>).</p>
+<h2 id="Example">Exemple</h2>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main(void)
+{
+    int *p1 = malloc(10*sizeof *p1);
+    printf(&quot;default-aligned addr:   %p\n&quot;, (void*)p1);
+    free(p1);
+
+    int *p2 = aligned_alloc(1024, 1024*sizeof *p2);
+    printf(&quot;1024-byte aligned addr: %p\n&quot;, (void*)p2);
+    free(p2);
+}
+</code></pre>
+<p>Sortie possible :</p>
+<pre><code class="language-text">default-aligned addr:   0x1e40c20
+1024-byte aligned addr: 0x1e41000
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>7.22.3.1 La fonction aligned_alloc (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>7.22.3.1 La fonction aligned_alloc (p : 253)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>7.22.3.1 La fonction aligned_alloc (p : 347-348)</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/memory/c/aligned_alloc.html">Documentation C++</a> de aligned_alloc</strong></p>
+
+</main>
+</body>
+</html>

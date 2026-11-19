@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liaison de langage — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/language.html">Langage C++</a></nav>
+<h1 id="liaison-de-langage">Liaison de langage</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/language/language_linkage">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Permet la liaison entre des unités de programme écrites dans différents langages de programmation.</p>
+<blockquote>
+<p>Cela peut aussi servir à détacher une déclaration de son module. Voir <a href="modules.html#Module_ownership">Propriété des modules</a>.</p>
+<p><em>(depuis C++20)</em></p>
+</blockquote>
+<p>|
+| |
+| <code>extern</code> <code>string-literal</code> <code>{</code> <code>declaration-seq</code> ﻿*(facultatif)* <code>}</code> | (1) | |
+|
+| <code>extern</code> <code>string-literal</code> <code>declaration</code> | (2) | |
+|</p>
+<ol>
+<li>
+<p>Applique la spécification de langage <code>string-literal</code> à tous les types de fonctions, aux noms de fonctions à liaison externe et aux variables à liaison externe déclarés dans <code>declaration-seq</code>.</p>
+</li>
+<li>
+<p>Applique la spécification de langage <code>string-literal</code> à une seule déclaration ou définition.</p>
+</li>
+</ol>
+<ul>
+<li><code>string-literal</code> — une <a href="string_literal.html#Unevaluated_strings">chaîne littérale non évaluée</a> qui nomme la liaison de langage requise</li>
+<li><code>declaration-seq</code> — une suite de déclarations, pouvant inclure des spécifications de liaison imbriquées</li>
+<li><code>declaration</code> — une déclaration</li>
+</ul>
+<h2 id="Explanation">Explication</h2>
+<p>Chaque type de fonction, chaque nom de fonction à <a href="storage_duration.html">liaison externe</a> et chaque nom de variable à <a href="storage_duration.html">liaison externe</a> possède une propriété appelée <em>liaison de langage</em>. La liaison de langage encapsule l'ensemble des exigences nécessaires pour se lier à une unité de programme écrite dans un autre langage de programmation : <a href="https://en.wikipedia.org/wiki/calling_convention">convention d'appel</a>, algorithme de <a href="https://en.wikipedia.org/wiki/name_mangling">décoration de noms</a> (name decoration), etc.</p>
+<p>Seules deux liaisons de langage sont garanties comme prises en charge :</p>
+<ol>
+<li><code>&quot;C++&quot;</code>, la liaison de langage par défaut.</li>
+<li><code>&quot;C&quot;</code>, qui permet de se lier à des fonctions écrites en langage C, et de définir, dans un programme C++, des fonctions pouvant être appelées depuis des unités écrites en C.</li>
+</ol>
+<pre><code class="language-cpp">extern &quot;C&quot;
+{
+    int open(const char *path_name, int flags); // Déclaration de fonction C
+}
+
+int main()
+{
+    int fd = open(&quot;test.txt&quot;, 0); // appelle une fonction C depuis un programme C++
+}
+
+// Cette fonction C++ peut être appelée depuis du code C
+extern &quot;C&quot; void handler(int)
+{
+    std::cout &lt;&lt; &quot;Callback invoked\n&quot;; // Elle peut utiliser C++
+}
+</code></pre>
+<p>La liaison de langage faisant partie de chaque type de fonction, les pointeurs vers des fonctions conservent également cette liaison de langage. La liaison de langage des types de fonctions (qui représente la convention d'appel) et celle des noms de fonctions (qui représente la décoration de noms) sont indépendantes l'une de l'autre :</p>
+<pre><code class="language-cpp">extern &quot;C&quot; void f1(void(*pf)()); // déclare une fonction f1 à liaison C,
+                             // qui renvoie void et prend un pointeur vers une fonction C
+                             // qui renvoie void et ne prend aucun paramètre
+
+extern &quot;C&quot; typedef void FUNC(); // déclare FUNC comme un type de fonction C renvoyant void
+                                // et ne prenant aucun paramètre
+
+FUNC f2;            // le nom f2 a une liaison C++, mais son type est une fonction C
+extern &quot;C&quot; FUNC f3; // le nom f3 a une liaison C et son type est la fonction C void()
+void (*pf2)(FUNC*); // le nom pf2 a une liaison C++, et son type est
+                    // « pointeur vers une fonction C++ renvoyant void et prenant un
+                    // argument de type 'pointeur vers la fonction C renvoyant void
+                    // et ne prenant aucun paramètre' »
+
+extern &quot;C&quot;
+{
+    static void f4(); // le nom de la fonction f4 a une liaison interne (pas de langage)
+                      // mais le type de la fonction a une liaison de langage C
+}
+</code></pre>
+<p>Si <a href="conflicting_declarations.html#Multiple_declarations_of_the_same_entity">deux déclarations d'une même entité</a> lui donnent des liaisons de langage différentes, le programme est mal formé ; aucun diagnostic n'est requis si aucune des deux déclarations n'est accessible depuis l'autre. Une redéclaration d'une entité sans spécification de liaison hérite de la liaison de langage de l'entité et de son type (s'il existe).</p>
+<pre><code class="language-cpp">extern &quot;C&quot; int f();
+extern &quot;C++&quot; int f(); // Erreur : liaisons de langage différentes
+
+extern &quot;C&quot; int g();
+int g(); // OK, a une liaison de langage C
+
+int h(); // a une liaison de langage C++ par défaut
+extern &quot;C&quot; int h(); // Erreur : liaisons de langage différentes
+</code></pre>
+<h3 id="Special_rules_for_.22C.22_linkage">Règles particulières pour la liaison <code>&quot;C&quot;</code></h3>
+<p>Lorsque des membres de classe, des fonctions amies avec une clause finale <a href="constraints.html#Requires_clauses"><code>requires</code></a>, <em>(depuis C++20)</em> ou des fonctions membres non statiques apparaissent dans un bloc de liaison <code>&quot;C&quot;</code>, la liaison de leurs types reste <code>&quot;C++&quot;</code> (mais les types des paramètres, s'il y en a, restent <code>&quot;C&quot;</code>) :</p>
+<pre><code class="language-cpp">extern &quot;C&quot;
+{
+    class X
+    {
+        void mf();           // la fonction mf et son type ont une liaison de langage C++
+        void mf2(void(*)()); // la fonction mf2 a une liaison de langage C++ ;
+                             // le paramètre a pour type « pointeur vers fonction C »
+    };
+}
+
+template&lt;typename T&gt;
+struct A { struct B; };
+
+extern &quot;C&quot;
+{
+    template&lt;typename T&gt;
+    struct A&lt;T&gt;::B
+    {
+        friend void f(B*) requires true {} // liaison de langage C ignorée
+    };
+}
+
+namespace Q
+{
+    extern &quot;C&quot; void f(); // non mal formé
+}
+</code></pre>
+<p>Soit <code>C</code> une déclaration qui déclare une fonction ou une variable avec une liaison de langage <code>&quot;C&quot;</code>. Si une autre déclaration <code>D</code> déclare une entité portant le même nom, et qu'elle satisfait l'une des conditions suivantes, <code>C</code> et <code>D</code> déclarent la même entité :</p>
+<ul>
+<li><code>D</code> déclare une variable appartenant à la portée globale.</li>
+<li>Si <code>C</code> déclare une variable, <code>D</code> déclare aussi une variable.</li>
+<li>Si <code>C</code> déclare une fonction, <code>D</code> déclare aussi une fonction.</li>
+</ul>
+<p>Contrairement aux <a href="conflicting_declarations.html#Multiple_declarations_of_the_same_entity">redéclarations ordinaires</a>, <code>C</code> et <code>D</code> peuvent avoir des <a href="scope.html">portées cibles</a> différentes :</p>
+<pre><code class="language-cpp">extern &quot;C&quot;
+{
+    int x;
+    int f();
+    int g() { return 1; }
+}
+
+namespace A
+{
+    int x;                // Erreur : redéfinit « x »
+    int f();              // OK, redéclare « f »
+    int g() { return 1; } // Erreur : redéfinit « g »
+}
+</code></pre>
+<p>Toutefois, les <a href="conflicting_declarations.html#Restrictions">restrictions</a> applicables à de telles déclarations s'appliquent toujours, ce qui signifie qu'elles doivent soit déclarer toutes deux des fonctions, soit déclarer toutes deux des variables, et que les entités déclarées doivent avoir le même type :</p>
+<pre><code class="language-cpp">namespace A
+{
+    extern &quot;C&quot; int x();
+    extern &quot;C&quot; int y();
+}
+
+int x; // Erreur : redéclare « x » comme une entité d'un autre genre
+
+namespace B
+{
+    void y(); // Erreur : redéclare « y » avec un type différent
+}
+</code></pre>
+<h2 id="Notes">Notes</h2>
+<p>Les spécifications de langage ne peuvent apparaître que dans la <a href="scope.html#Namespace_scope">portée de l'espace de noms</a>.</p>
+<p>Les accolades de la spécification de langage n'établissent pas de portée.</p>
+<p>Lorsque des spécifications de langage sont imbriquées, c'est la spécification la plus interne qui est en vigueur.</p>
+<p>Une déclaration directement contenue dans une spécification de liaison de langage est traitée comme si elle contenait le spécificateur <a href="storage_duration.html"><code>extern</code></a> pour déterminer la <a href="storage_duration.html#Linkage">liaison</a> du nom déclaré et si elle est une <a href="definition.html">définition</a>.</p>
+<pre><code class="language-cpp">extern &quot;C&quot; int x; // une déclaration et non une définition
+// La ligne ci-dessus est équivalente à extern &quot;C&quot; { extern int x; }
+
+extern &quot;C&quot; { int x; } // une déclaration et une définition
+
+extern &quot;C&quot; double f();
+static double f(); // erreur : conflit de liaison
+
+extern &quot;C&quot; static void g(); // erreur : conflit de liaison
+</code></pre>
+<p><code>extern &quot;C&quot;</code> permet d'inclure dans un programme C++ des fichiers d'en-tête contenant des déclarations de fonctions de la bibliothèque C, mais si ce même fichier d'en-tête est partagé avec un programme C, <code>extern &quot;C&quot;</code> (ce qui n'est pas permis en C) doit être masqué à l'aide d'un <a href="../preprocessor/conditional.html"><code>#ifdef</code></a> approprié, généralement <a href="../preprocessor/replace.html#Predefined_macros"><code>__cplusplus</code></a> :</p>
+<pre><code class="language-cpp">#ifdef __cplusplus
+extern &quot;C&quot; int foo(int, int); // Le compilateur C++ voit ceci
+#else
+int foo(int, int);            // Le compilateur C voit ceci
+#endif
+</code></pre>
+<p>Le seul compilateur moderne qui différencie les types de fonctions avec les liaisons de langage <code>&quot;C&quot;</code> et <code>&quot;C++&quot;</code> est Oracle Studio ; les autres ne permettent pas les surcharges qui ne diffèrent que par la liaison de langage, y compris les ensembles de surcharges requis par la norme C++ (<a href="../algorithm/qsort.html"><code>std::qsort</code></a>, <a href="../algorithm/bsearch.html"><code>std::bsearch</code></a>, <a href="../utility/program/signal.html"><code>std::signal</code></a>, <a href="../utility/program/atexit.html"><code>std::atexit</code></a> et <a href="../utility/program/at_quick_exit.html"><code>std::at_quick_exit</code></a>) : <a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=2316">GCC bug 2316</a>, <a href="https://bugs.llvm.org/show_bug.cgi?id=6277">Clang bug 6277</a>, <a href="https://cplusplus.github.io/CWG/issues/1555.html">CWG issue 1555</a>.</p>
+<pre><code class="language-cpp">extern &quot;C&quot;   using c_predfun   = int(const void*, const void*);
+extern &quot;C++&quot; using cpp_predfun = int(const void*, const void*);
+
+// mal formé, mais accepté par la plupart des compilateurs
+static_assert(std::is_same&lt;c_predfun, cpp_predfun&gt;::value,
+              &quot;C and C++ language linkages shall not differentiate function types.&quot;);
+
+// les déclarations suivantes ne déclarent pas de surcharges dans la plupart des compilateurs
+// car c_predfun et cpp_predfun sont considérés comme étant le même type
+void qsort(void* base, std::size_t nmemb, std::size_t size, c_predfun*   compar);
+void qsort(void* base, std::size_t nmemb, std::size_t size, cpp_predfun* compar);
+</code></pre>
+<h2 id="Keywords">Mots-clés</h2>
+<p><a href="../keyword/extern.html"><code>extern</code></a></p>
+<h2 id="Defect_reports">Rapports de défauts</h2>
+<p>Les rapports de défauts suivants modifiant le comportement ont été appliqués rétroactivement aux normes C++ publiées précédemment.</p>
+<table>
+<thead>
+<tr>
+<th>DR</th>
+<th>Appliqué à</th>
+<th>Comportement publié</th>
+<th>Comportement correct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/4.html">CWG 4</a></td>
+<td>C++98</td>
+<td>les noms à liaison interne peuvent avoir des liaisons de langage</td>
+<td>limité aux noms à liaison externe</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/341.html">CWG 341</a></td>
+<td>C++98</td>
+<td>une fonction à liaison de langage <code>&quot;C&quot;</code> peut avoir le même nom qu'une variable globale</td>
+<td>le programme est mal formé dans ce cas (aucun diagnostic requis si elles apparaissent dans des unités de traduction différentes)</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/564.html">CWG 564</a></td>
+<td>C++98</td>
+<td>le programme était mal formé si deux déclarations ne différaient que par les spécifications de liaison de langage (c.-à-d. des chaînes littérales différentes après 'extern')</td>
+<td>ce sont plutôt les liaisons de langage effectives données par les déclarations qui sont comparées</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2460.html">CWG 2460</a></td>
+<td>C++20</td>
+<td>les fonctions amies avec une clause finale <code>requires</code> et une liaison de langage <code>&quot;C&quot;</code> présentaient des comportements conflictuels</td>
+<td><code>&quot;C&quot;</code> liaison de langage est ignorée dans ce cas</td>
+</tr>
+<tr>
+<td><a href="https://cplusplus.github.io/CWG/issues/2483.html">CWG 2483</a></td>
+<td>C++98</td>
+<td>la liaison des types des fonctions membres statiques apparaissant dans des blocs de liaison <code>&quot;C&quot;</code> était <code>&quot;C++&quot;</code></td>
+<td>la liaison est <code>&quot;C&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C++23 (ISO/IEC 14882:2024) :</p>
+<ul>
+<li>9.11 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++20 (ISO/IEC 14882:2020) :</p>
+<ul>
+<li>9.11 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++17 (ISO/IEC 14882:2017) :</p>
+<ul>
+<li>10.5 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++14 (ISO/IEC 14882:2014) :</p>
+<ul>
+<li>7.5 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++11 (ISO/IEC 14882:2011) :</p>
+<ul>
+<li>7.5 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++03 (ISO/IEC 14882:2003) :</p>
+<ul>
+<li>7.5 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+<li>
+<p>Norme C++98 (ISO/IEC 14882:1998) :</p>
+<ul>
+<li>7.5 Spécifications de liaison [dcl.link]</li>
+</ul>
+</li>
+</ul>
+
+</main>
+</body>
+</html>

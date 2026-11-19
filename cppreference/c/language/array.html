@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déclaration de tableau — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../c.html">Référence C</a> › <a href="../../c/language.html">Langage C</a></nav>
+<h1 id="déclaration-de-tableau">Déclaration de tableau</h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/c/language/array">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p>Un tableau est un type constitué d'une séquence non vide d'objets allouée de manière contiguë, dont le <em>type d'élément</em> est donné. Le nombre de ces objets (la taille du tableau) ne change jamais pendant la durée de vie du tableau.</p>
+<h2 id="Syntax">Syntaxe</h2>
+<p>Dans la <a href="declarations.html">grammaire des déclarations</a> d'une déclaration de tableau, la séquence de <em>spécificateurs de type</em> désigne le <em>type d'élément</em> (qui doit être un type objet complet), et le <em>déclarateur</em> a la forme :</p>
+<p>|
+| |
+| <code>[</code> <code>static</code><em>(facultatif)</em> <code>qualifiers</code> ﻿*(facultatif)* <code>expression</code> ﻿*(facultatif)* <code>]</code> <code>attr-spec-seq</code> ﻿*(facultatif)* | (1) | |
+|
+| <code>[</code> <code>qualifiers</code> ﻿*(facultatif)* <code>static</code><em>(facultatif)</em> <code>expression</code> ﻿*(facultatif)* <code>]</code> <code>attr-spec-seq</code> ﻿*(facultatif)* | (2) | |
+|
+| <code>[</code> <code>qualifiers</code> ﻿*(facultatif)* <code>*</code> <code>]</code> <code>attr-spec-seq</code> ﻿*(facultatif)* | (3) | |
+|</p>
+<p>1,2) Syntaxe générale du déclarateur de tableau</p>
+<ol start="3">
+<li>Déclarateur de VLA de taille non spécifiée (ne peut apparaître que dans la portée du prototype de fonction) où</li>
+</ol>
+<ul>
+<li><code>expression</code> — toute expression autre que l'<a href="operator_other.html#Comma_operator">opérateur virgule</a> désigne le nombre d'éléments du tableau</li>
+<li><code>qualifiers</code> — toute combinaison des qualificateurs <a href="const.html"><code>const</code></a>, <a href="restrict.html"><code>restrict</code></a> ou <a href="volatile.html"><code>volatile</code></a>, autorisée uniquement dans les listes de paramètres de fonction ; ils qualifient le type de pointeur vers lequel ce paramètre tableau est transformé</li>
+<li><code>attr-spec-seq</code> — (C23) liste facultative d'<a href="attributes.html">attributs</a>, appliquée au tableau déclaré</li>
+</ul>
+<pre><code class="language-c">float fa[11], *afp[17]; // fa est un tableau de 11 float
+                        // afp est un tableau de 17 pointeurs vers des float
+</code></pre>
+<h2 id="Explanation">Explication</h2>
+<p>Il existe plusieurs variantes de types tableaux : les tableaux de taille constante connue, les tableaux de longueur variable et les tableaux de taille inconnue.</p>
+<h3 id="Arrays_of_constant_known_size">Tableaux de taille constante connue</h3>
+<p>Si <code>expression</code> dans un déclarateur de tableau est une <a href="constant_expression.html#Integer_constant_expression">expression constante entière</a> de valeur strictement positive et que le type d'élément est un type de taille constante connue (c'est-à-dire que les éléments ne sont pas des VLA) <em>(depuis C99)</em>, alors le déclarateur déclare un tableau de taille constante connue :</p>
+<pre><code class="language-c">int n[10]; // les constantes entières sont des expressions constantes
+char o[sizeof(double)]; // sizeof est une expression constante
+enum { MAX_SZ=100 };
+int n[MAX_SZ]; // les constantes énumérées sont des expressions constantes
+</code></pre>
+<p>Les tableaux de taille constante connue peuvent utiliser des <a href="array_initialization.html">initialisateurs de tableau</a> pour fournir leurs valeurs initiales :</p>
+<pre><code class="language-c">int a[5] = {1,2,3}; // déclare int[5] initialisé à 1,2,3,0,0
+char str[] = &quot;abc&quot;; // déclare char[4] initialisé à 'a','b','c','\0'
+</code></pre>
+<blockquote>
+<p>Dans les listes de paramètres de fonction, des éléments de syntaxe supplémentaires sont autorisés dans les déclarateurs de tableau : le mot-clé <code>static</code> et <code>qualifiers</code>, qui peuvent apparaître dans n'importe quel ordre avant l'expression de taille (ils peuvent aussi apparaître même lorsque l'expression de taille est omise).</p>
+<p>À chaque <a href="operator_other.html#Function_call">appel de fonction</a> d'une fonction dont un paramètre tableau utilise le mot-clé <code>static</code> entre <code>[</code> et <code>]</code>, la valeur du paramètre effectif doit être un pointeur valide vers le premier élément d'un tableau comportant au moins autant d'éléments que ne l'indique <code>expression</code> :</p>
+<pre><code class="language-c">void fadd(double a[static 10], const double b[static 10])
+{
+    for (int i = 0; i &lt; 10; i++)
+    {
+        if (a[i] &lt; 0.0) return;
+        a[i] += b[i];
+    }
+}
+// un appel à fadd peut effectuer une vérification des bornes à la compilation
+// et permet aussi des optimisations telles que le préchargement de 10 double
+int main(void)
+{
+    double a[10] = {0}, b[20] = {0};
+    fadd(a, b); // OK
+    double x[5] = {0};
+    fadd(x, b); // comportement indéfini : l'argument tableau est trop petit
+}
+</code></pre>
+<p>Si <code>qualifiers</code> sont présents, ils qualifient le type de pointeur vers lequel le type du paramètre tableau est transformé :</p>
+<pre><code class="language-c">int f(const int a[20])
+{
+    // dans cette fonction, a a le type const int* (pointeur vers const int)
+}
+int g(const int a[const 20])
+{
+    // dans cette fonction, a a le type const int* const (pointeur const vers const int)
+}
+</code></pre>
+<p>Ceci est couramment utilisé avec le qualificateur de type <a href="restrict.html"><code>restrict</code></a> :</p>
+<pre><code class="language-c">void fadd(double a[static restrict 10],
+          const double b[static restrict 10])
+{
+    for (int i = 0; i &lt; 10; i++) // la boucle peut être déroulée et réordonnée
+    {
+        if (a[i] &lt; 0.0)
+            break;
+        a[i] += b[i];
+    }
+}
+</code></pre>
+<h4 id="Variable-length_arrays">Tableaux de longueur variable</h4>
+<p>Si <code>expression</code> n'est pas une <a href="constant_expression.html#Integer_constant_expression">expression constante entière</a>, le déclarateur est celui d'un tableau de taille variable.</p>
+<p>Chaque fois que le flux de contrôle passe par la déclaration, <code>expression</code> est évaluée (et elle doit toujours avoir une valeur strictement positive), puis le tableau est alloué (en conséquence, la <a href="lifetime.html">durée de vie</a> d'un VLA se termine lorsque la déclaration sort de sa portée). La taille de chaque instance de VLA ne change pas pendant sa durée de vie, mais lors d'un nouveau passage par le même code, il peut être alloué avec une taille différente.</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(void)
+{
+   int n = 1;
+label:;
+   int a[n]; // réalloué 10 fois, chacune avec une taille différente
+   printf(&quot;The array has %zu elements\n&quot;, sizeof a / sizeof *a);
+   if (n++ &lt; 10)
+       goto label; // quitter la portée d'un VLA met fin à sa durée de vie
+}
+</code></pre>
+<p>Si la taille est <code>*</code>, la déclaration concerne un VLA de taille non spécifiée. Une telle déclaration ne peut apparaître que dans la portée d'un prototype de fonction et déclare un tableau d'un type complet. En fait, tous les déclarateurs VLA dans la portée d'un prototype de fonction sont traités comme si <code>expression</code> était remplacé par <code>*</code>.</p>
+<pre><code class="language-c">void foo(size_t x, int a[*]);
+void foo(size_t x, int a[x])
+{
+    printf(&quot;%zu\n&quot;, sizeof a); // identique à sizeof(int*)
+}
+</code></pre>
+<p>Les tableaux de longueur variable et les types qui en dérivent (pointeurs vers eux, etc.) sont communément appelés « types à modification variable » (VM). Les objets d'un type à modification variable ne peuvent être déclarés que dans une portée de bloc ou dans la portée d'un prototype de fonction.</p>
+<pre><code class="language-c">extern int n;
+int A[n];            // Erreur : VLA de portée fichier
+extern int (*p2)[n]; // Erreur : VM de portée fichier
+int B[100];          // OK : tableau de portée fichier de taille constante connue
+void fvla(int m, int C[m][m]); // OK : VLA de portée prototype
+</code></pre>
+<p>Un VLA doit avoir une durée de stockage automatique ou allouée. Les pointeurs vers un VLA, mais pas le VLA lui-même, peuvent aussi avoir une durée de stockage statique. Aucun type VM ne peut avoir de liaison.</p>
+<pre><code class="language-c">void fvla(int m, int C[m][m]) // OK : pointeur de portée bloc/durée auto vers un VLA
+{
+    typedef int VLA[m][m]; // OK : VLA de portée bloc
+    int D[m];              // OK : VLA de portée bloc/durée auto
+//  static int E[m]; // Erreur : VLA à durée statique
+//  extern int F[m]; // Erreur : VLA avec liaison
+    int (*s)[m];     // OK : VM de portée bloc/durée auto
+    s = malloc(m * sizeof(int)); // OK : s pointe vers un VLA en stockage alloué
+//  extern int (*r)[m]; // Erreur : VM avec liaison
+    static int (*q)[m] = &amp;B; // OK : VM de portée bloc/durée statique}
+}
+</code></pre>
+<p>Les types à modification variable ne peuvent pas être membres de structures ou d'unions.</p>
+<pre><code class="language-c">struct tag
+{
+    int z[n]; // Erreur : membre de struct VLA
+    int (*y)[n]; // Erreur : membre de struct VM
+};
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<blockquote>
+<p>Si le compilateur définit la constante de macro <code>__STDC_NO_VLA__</code> avec la constante entière <code>1</code>, alors les VLA et les types VM ne sont pas pris en charge.</p>
+<p><em>(depuis C11) (jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>Si le compilateur définit la constante de macro <code>__STDC_NO_VLA__</code> avec la constante entière <code>1</code>, alors les objets VLA à durée de stockage automatique ne sont pas pris en charge.</p>
+<p>La prise en charge des types VM et des VLA à durées de stockage allouées est obligatoire.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<h3 id="Arrays_of_unknown_size">Tableaux de taille inconnue</h3>
+<p>Si <code>expression</code> dans un déclarateur de tableau est omis, il déclare un tableau de taille inconnue. Sauf dans les listes de paramètres de fonction (où ces tableaux sont transformés en pointeurs) et lorsqu'un <a href="array_initialization.html">initialisateur</a> est disponible, ce type est un <a href="compatible_type.html#Incomplete_types">type incomplet</a>(notez qu'un VLA de taille non spécifiée, déclaré avec <code>*</code> comme taille, est un type complet) <em>(depuis C99)</em> :</p>
+<pre><code class="language-c">extern int x[]; // le type de x est « tableau de borne inconnue de int »
+int a[] = {1,2,3}; // le type de a est « tableau de 3 int »
+</code></pre>
+<blockquote>
+<p>Dans une définition de <a href="struct.html">struct</a>, un tableau de taille inconnue peut apparaître comme dernier membre (à condition qu'il y ait au moins un autre membre nommé), auquel cas il s'agit d'un cas particulier appelé <em>membre tableau flexible</em>. Voir <a href="struct.html">struct</a> pour plus de détails :</p>
+<pre><code class="language-c">struct s { int n; double d[]; }; // s.d est un membre tableau flexible
+struct s *s1 = malloc(sizeof (struct s) + (sizeof (double) * 8)); // comme si d était double d[8]
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h3 id="Qualifiers">Qualificateurs</h3>
+<blockquote>
+<p>Si un type tableau est déclaré avec un qualificateur <a href="const.html"><code>const</code></a>, <a href="volatile.html"><code>volatile</code></a>, ou <a href="restrict.html"><code>restrict</code></a> <em>(depuis C99)</em> (ce qui est possible grâce à l'utilisation de <a href="typedef.html">typedef</a>), le type tableau n'est pas qualifié, mais son type d'élément l'est :</p>
+<p><em>(jusqu'à C23)</em></p>
+</blockquote>
+<blockquote>
+<p>Un type tableau et son type d'élément sont toujours considérés comme ayant les mêmes qualificateurs, sauf qu'un type tableau n'est jamais considéré comme qualifié <a href="atomic.html"><code>_Atomic</code></a>.</p>
+<p><em>(depuis C23)</em></p>
+</blockquote>
+<pre><code class="language-c">typedef int A[2][3];
+const A a = {{4, 5, 6}, {7, 8, 9}}; // tableau de tableaux de const int
+int* pi = a[0]; // Erreur : a[0] a le type const int*
+void* unqual_ptr = a; // OK jusqu'à C23 ; erreur depuis C23
+// Notes : clang applique la règle en C++/C23 même en modes C89-C17
+</code></pre>
+<blockquote>
+<p><a href="atomic.html"><code>_Atomic</code></a> n'est pas autorisé sur un type tableau, bien qu'un tableau d'un type atomique soit autorisé.</p>
+<pre><code class="language-c">typedef int A[2];
+// _Atomic A a0 = {0};    // Erreur
+// _Atomic(A) a1 = {0};   // Erreur
+_Atomic int a2[2] = {0};  // OK
+_Atomic(int) a3[2] = {0}; // OK
+</code></pre>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<h3 id="Assignment">Affectation</h3>
+<p>Les objets de type tableau ne sont pas des <a href="value_category.html">lvalues modifiables</a> et, bien que leur adresse puisse être prise, ils ne peuvent pas figurer à gauche d'un opérateur d'affectation. En revanche, les structures possédant des membres tableaux sont des lvalues modifiables et peuvent être affectées :</p>
+<pre><code class="language-c">int a[3] = {1,2,3}, b[3] = {4,5,6};
+int (*p)[3] = &amp;a; // OK, l'adresse de a peut être prise
+// a = b;            // erreur, a est un tableau
+struct { int c[3]; } s1, s2 = {3,4,5};
+s1 = s2; // OK : on peut affecter des structs contenant des membres tableaux
+</code></pre>
+<h3 id="Array_to_pointer_conversion">Conversion tableau vers pointeur</h3>
+<p>Toute <a href="value_category.html">expression lvalue</a> de type tableau, lorsqu'elle est utilisée dans un contexte autre que</p>
+<ul>
+<li>comme opérande de l'<a href="operator_member_access.html">opérateur d'adresse</a></li>
+<li>comme opérande de <a href="sizeof.html"><code>sizeof</code></a></li>
+<li>comme opérande de <a href="typeof_unqual.html"><code>typeof</code></a> et <a href="typeof_unqual.html"><code>typeof_unqual</code></a> (depuis C23)</li>
+<li>comme littéral de chaîne utilisé pour l'<a href="array_initialization.html">initialisation de tableau</a></li>
+</ul>
+<blockquote>
+<ul>
+<li>comme opérande de [<a href="alignof.html"><code>_Alignof</code></a> <em>(depuis C11)</em> <em>(jusqu'à C23)</em> | <a href="alignof.html"><code>alignof</code></a> <em>(depuis C23)</em>]</li>
+</ul>
+<p><em>(depuis C11)</em></p>
+</blockquote>
+<p>subit une <a href="conversion.html">conversion implicite</a> vers le pointeur vers son premier élément. Le résultat n'est pas une lvalue.</p>
+<p>Si le tableau a été déclaré <a href="storage_duration.html"><code>register</code></a>, le comportement du programme qui tente cette conversion est indéfini.</p>
+<pre><code class="language-c">int a[3] = {1,2,3};
+int* p = a;
+printf(&quot;%zu\n&quot;, sizeof a); // affiche la taille du tableau
+printf(&quot;%zu\n&quot;, sizeof p); // affiche la taille d'un pointeur
+</code></pre>
+<p>Lorsqu'un type tableau est utilisé dans une liste de paramètres de fonction, il est transformé en le type pointeur correspondant : <code>int f(int a[2])</code> et <code>int f(int* a)</code> déclarent la même fonction. Comme le type réel du paramètre de la fonction est un type pointeur, un appel de fonction avec un argument tableau effectue une conversion tableau vers pointeur ; la taille du tableau argument n'est pas disponible pour la fonction appelée et doit être transmise explicitement :</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+void f(int a[], int sz) // déclare en fait void f(int* a, int sz)
+{
+    for (int i = 0; i &lt; sz; ++i)
+        printf(&quot;%d\n&quot;, a[i]);
+}
+
+void g(int (*a)[10]) // le pointeur vers un paramètre tableau n'est pas transformé
+{
+    for (int i = 0; i &lt; 10; ++i)
+        printf(&quot;%d\n&quot;, (*a)[i]);
+}
+
+int main(void)
+{
+    int a[10] = {0};
+    f(a, 10); // convertit a en int*, passe le pointeur
+    g(&amp;a);    // passe un pointeur vers le tableau (pas besoin de passer la taille)
+}
+</code></pre>
+<h3 id="Multidimensional_arrays">Tableaux multidimensionnels</h3>
+<p>Lorsque le type d'élément d'un tableau est lui-même un tableau, on dit que le tableau est multidimensionnel :</p>
+<pre><code class="language-c">// tableau de 2 tableaux de 3 int chacun
+int a[2][3] = {{1,2,3},  // peut être vu comme une matrice 2x3
+               {4,5,6}}; // avec disposition par lignes (row-major)
+</code></pre>
+<p>Notez que, lorsque la conversion tableau vers pointeur est appliquée, un tableau multidimensionnel est converti en un pointeur vers son premier élément, par exemple un pointeur vers la première ligne :</p>
+<pre><code class="language-c">int a[2][3]; // matrice 2x3
+int (*p1)[3] = a; // pointeur vers la première ligne de 3 éléments
+int b[3][3][3]; // cube 3x3x3
+int (*p2)[3][3] = b; // pointeur vers le premier plan 3x3
+</code></pre>
+<blockquote>
+<p>Les tableaux multidimensionnels peuvent être à modification variable dans toutes leurs dimensionssi les VLA sont pris en charge <em>(depuis C11)</em> :</p>
+<pre><code class="language-c">int n = 10;
+int a[n][2*n];
+</code></pre>
+<p><em>(depuis C99)</em></p>
+</blockquote>
+<h2 id="Notes">Notes</h2>
+<p>Les déclarations de tableaux de longueur nulle ne sont pas autorisées, même si certains compilateurs les proposent comme extensions (généralement comme implémentation pré-C99 des <a href="struct.html">membres tableaux flexibles</a>).</p>
+<p>Si la taille <code>expression</code> d'un VLA a des effets de bord, ils sont garantis d'être produits, sauf lorsqu'elle fait partie d'une expression sizeof dont le résultat n'en dépend pas :</p>
+<pre><code class="language-c">int n = 5, m = 5;
+size_t sz = sizeof(int (*[n++])[m++]); // n est incrémenté, m peut ou non être incrémenté
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>
+<p>Norme C23 (ISO/IEC 9899:2024) :</p>
+<ul>
+<li>6.7.6.2 Déclarateurs de tableaux (p : TBD)</li>
+</ul>
+</li>
+<li>
+<p>Norme C17 (ISO/IEC 9899:2018) :</p>
+<ul>
+<li>6.7.6.2 Déclarateurs de tableaux (p : 94-96)</li>
+</ul>
+</li>
+<li>
+<p>Norme C11 (ISO/IEC 9899:2011) :</p>
+<ul>
+<li>6.7.6.2 Déclarateurs de tableaux (p : 130-132)</li>
+</ul>
+</li>
+<li>
+<p>Norme C99 (ISO/IEC 9899:1999) :</p>
+<ul>
+<li>6.7.5.2 Déclarateurs de tableaux (p : 116-118)</li>
+</ul>
+</li>
+<li>
+<p>Norme C89/C90 (ISO/IEC 9899:1990) :</p>
+<ul>
+<li>3.5.4.2 Déclarateurs de tableaux</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<p><strong><a href="../../cpp/language/array.html">Documentation C++</a> pour Déclaration de tableau</strong></p>
+
+</main>
+</body>
+</html>

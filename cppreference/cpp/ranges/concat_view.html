@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std::ranges::views::concat, std::ranges::concat_view — cppreference (fr)</title>
+<link rel="stylesheet" href="../../../assets/style.css">
+<script src="../../../assets/composants.js" defer></script>
+</head>
+<body class="cppref">
+<main>
+<nav class="ariane" aria-label="Fil d'Ariane"><a href="../../cpp.html">Référence C++</a> › <a href="../../cpp/ranges.html">Bibliothèque des plages (depuis C++20)</a></nav>
+<h1 id="std-ranges-views-concat-std-ranges-concat_view"><code>std::ranges::views::concat, std::ranges::concat_view</code></h1>
+<p class="ref-source">Traduction automatique (Claude Haiku 5.5) de <a href="https://en.cppreference.com/w/cpp/ranges/concat_view">cppreference.com</a>, sous licence CC-BY-SA 3.0.</p>
+<p><strong>Défini dans l'en-tête &lt;ranges&gt;</strong></p>
+<pre><code class="language-cpp">template&lt; ranges::input_range... Views &gt;
+    requires (ranges::view&lt;Views&gt; &amp;&amp; ...) &amp;&amp; (sizeof...(Views) &gt; 0) &amp;&amp;
+              /*concatable*/&lt;Views...&gt;
+class concat_view
+    : public ranges::view_interface&lt;concat_view&lt;Views...&gt;&gt;  // (1) (depuis C++26)
+
+namespace views {
+    inline constexpr /* unspecified */ concat = /* unspecified */;
+}  // (2) (depuis C++26)
+</code></pre>
+<p><strong>Signature d'appel</strong></p>
+<pre><code class="language-cpp">template&lt; ranges::viewable_range... Rs &gt;
+    requires /* voir ci-dessous */
+constexpr ranges::view auto concat( Rs&amp;&amp;... rs );  // (depuis C++26)
+</code></pre>
+<p><strong>Alias de types auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class... Rs &gt;
+using /*concat-reference-t*/ =
+    ranges::common_reference_t&lt;ranges::range_reference_t&lt;Rs&gt;...&gt;;  // (3) ( exposition uniquement* )
+
+template&lt; class... Rs &gt;
+using /*concat-value-t*/ = std::common_type_t&lt;ranges::range_value_t&lt;Rs&gt;...&gt;;  // (4) ( exposition uniquement* )
+
+template&lt; class... Rs &gt;
+using /*concat-rvalue-reference-t*/ =
+    ranges::common_reference_t&lt;ranges::range_rvalue_reference_t&lt;Rs&gt;...&gt;;  // (5) ( exposition uniquement* )
+</code></pre>
+<p><strong>Concepts auxiliaires</strong></p>
+<pre><code class="language-cpp">template&lt; class Ref, class RRef, class It &gt;
+concept /*concat-indirectly-readable-impl*/ = /* voir la description */;  // (6) ( exposition uniquement* )
+
+template&lt; class... Rs &gt;
+concept /*concatable*/ = /* voir la description */;  // (7) ( exposition uniquement* )
+</code></pre>
+<p><code>concat_view</code> présente une fabrique <a href="view.html"><code>view</code></a> qui prend en argument un nombre quelconque d'intervalles sous forme de liste d'arguments, et fournit une vue qui commence au premier élément du premier intervalle, se termine au dernier élément du dernier intervalle, tous les éléments des intervalles étant enchaînés entre eux dans l'ordre donné en arguments ; elle concatène effectivement, ou chaîne, les intervalles passés en arguments.</p>
+<ol>
+<li>
+<p>Le modèle de classe dont le paramètre de modèle est un paquet non vide de <a href="view.html"><code>view</code>s</a>, chacun modélisant au moins <a href="input_range.html"><code>input_range</code></a> et étant <code>concatable</code> <code>(7)</code>.</p>
+</li>
+<li>
+<p><code>views::concat</code> est un objet point de personnalisation.</p>
+</li>
+</ol>
+<p>Étant donné un paquet de sous-expressions <code>exprs</code>, l'expression <code>views::concat(exprs...)</code> est <a href="../language/expressions.html#Expression-equivalence">équivalente à une expression</a> égale à</p>
+<ul>
+<li><code>views::all(exprs...)</code> si <code>exprs</code> est un paquet ne contenant qu'un seul élément dont le type modélise <a href="input_range.html"><code>input_range</code></a>,</li>
+<li><code>concat_view(exprs...)</code> sinon.</li>
+</ul>
+<ol start="3">
+<li>
+<p>Représente le type référence. Une contrainte supplémentaire est nécessaire pour s'assurer que chaque <code>ranges::range_reference_t</code> des intervalles sous-jacents est convertible en <code>ranges::common_reference_t</code>.</p>
+</li>
+<li>
+<p>Le <a href="concat_view/iterator.html#Nested_types"><code>iterator::value_type</code></a> qui respecte en plus les <code>value_type</code> des intervalles sous-jacents afin de prendre en charge les cas où ceux-ci possèdent des itérateurs mandataires.</p>
+</li>
+<li>
+<p>La référence rvalue qui prend également correctement en charge les cas où les itérateurs sous-jacents personnalisent <code>iter_move</code>.</p>
+</li>
+<li>
+<p>Définit le concept <code>indirectly-readable</code> pour le <a href="concat_view/iterator.html"><code>iterator</code></a> afin que <code>concat_view</code> puisse modéliser <a href="input_range.html"><code>input_range</code></a>.</p>
+</li>
+</ol>
+<p>Équivalent à :</p>
+<pre><code class="language-cpp">template&lt; class... Rs &gt;
+concept /*concat-indirectly-readable*/ = // exposition uniquement
+    std::common_reference_with&lt;/*concat-reference-t*/&lt;Rs...&gt;&amp;&amp;,
+                               /*concat-value-t*/&lt;Rs...&gt;&amp;&gt; &amp;&amp;
+    std::common_reference_with&lt;/*concat-reference-t*/&lt;Rs...&gt;&amp;&amp;,
+                               /*concat-rvalue-reference-t*/&lt;Rs...&gt;&amp;&amp;&gt; &amp;&amp;
+    std::common_reference_with&lt;/*concat-rvalue-reference-t*/&lt;Rs...&gt;&amp;&amp;,
+                               /*concat-value-t*/&lt;Rs...&gt; const&amp;&gt; &amp;&amp;
+    (/*concat-indirectly-readable-impl*/&lt;/*concat-reference-t*/&lt;Rs...&gt;,
+                                         /*concat-rvalue-reference-t*/&lt;Rs...&gt;,
+                                         ranges::iterator_t&lt;Rs&gt;&gt; &amp;&amp; ...);
+</code></pre>
+<p>où le concept exposé uniquement <code>/*concat-indirectly-readable-impl*/</code> est</p>
+<pre><code class="language-cpp">template&lt; class Ref, class RRef, class It &gt;
+concept /*concat-indirectly-readable-impl*/ = // exposition uniquement
+    requires(const It it) {
+        { *it } -&gt; std::convertible_to&lt;Ref&gt;;
+        { ranges::iter_move(it)} -&gt; std::convertible_to&lt;RRef&gt;;
+    };
+</code></pre>
+<ol start="7">
+<li>Détermine si deux intervalles différents ou plus peuvent être adaptés en une séquence qui modélise elle-même un intervalle. Équivalent à :</li>
+</ol>
+<pre><code class="language-cpp">template&lt; class... Rs &gt;
+concept /*concatable*/ = requires { // exposition uniquement
+        typename /*concat-reference-t*/&lt;Rs...&gt;;
+        typename /*concat-value-t*/&lt;Rs...&gt;;
+        typename /*concat-rvalue-reference-t*/&lt;Rs...&gt;;
+    } &amp;&amp; /*concat-indirectly-readable*/&lt;Rs...&gt;;
+</code></pre>
+<p><code>concat_view</code> modélise toujours <a href="input_range.html"><code>input_range</code></a>, et modélise <a href="forward_range.html"><code>forward_range</code></a>, <a href="bidirectional_range.html"><code>bidirectional_range</code></a>, <a href="random_access_range.html"><code>random_access_range</code></a>, ou <a href="sized_range.html"><code>sized_range</code></a> si chaque type <a href="view.html"><code>view</code></a> adapté modélise le concept correspondant.</p>
+<p><code>concat_view</code> peut être <a href="common_range.html"><code>common_range</code></a> si le dernier intervalle sous-jacent modélise <a href="common_range.html"><code>common_range</code></a>.</p>
+<h2 id="Customization_point_objects">Objets de point de personnalisation</h2>
+<p>Le nom <code>views::concat</code> désigne un <em>objet de point de personnalisation</em>, qui est un <a href="../named_req/FunctionObject.html">objet fonction</a> const d'un type de classe <a href="../named_req/LiteralType.html">littéral</a> <a href="../concepts/semiregular.html"><code>semiregular</code></a>. À des fins d'exposition, la version sans qualificateurs cv de son type est désignée par <code>__concat_fn</code>.</p>
+<p>Toutes les instances de <code>__concat_fn</code> sont égales. Les effets de l'invocation de différentes instances du type <code>__concat_fn</code> sur les mêmes arguments sont équivalents, qu'il s'agisse ou non d'une lvalue ou d'une rvalue, et que l'expression désignant l'instance soit qualifiée const ou non (toutefois, une instance qualifiée volatile n'est pas tenue d'être invocable). Ainsi, <code>views::concat</code> peut être copié librement et ses copies peuvent être utilisées de manière interchangeable.</p>
+<p>Étant donné un ensemble de types <code>Args...</code>, si <code>std::declval&lt;Args&gt;()...</code> satisfont aux exigences relatives aux arguments de <code>views::concat</code> ci-dessus, alors <code>__concat_fn</code> modélise</p>
+<ul>
+<li><code>std::invocable&lt;__concat_fn, Args...&gt;</code>,</li>
+<li><code>std::invocable&lt;const __concat_fn, Args...&gt;</code>,</li>
+<li><code>std::invocable&lt;__concat_fn&amp;, Args...&gt;</code>, and</li>
+<li><code>std::invocable&lt;const __concat_fn&amp;, Args...&gt;</code>.</li>
+</ul>
+<p>Sinon, aucun opérateur d'appel de fonction de <code>__concat_fn</code> ne participe à la résolution de surcharge.</p>
+<h2 id="Data_members">Membres de données</h2>
+<p><strong>Membre Description</strong></p>
+<ul>
+<li><strong><code>std::tuple&lt;Views...&gt;</code> <code>views_</code></strong> — tous les objets de vue adaptés <em>(membre objet exposé uniquement</em>)*</li>
+</ul>
+<h2 id="Member_functions">Fonctions membres</h2>
+<ul>
+<li><strong><a href="concat_view/concat_view.html">(constructeur)</a></strong> — construit un <code>concat_view</code> <em>(fonction membre publique)</em></li>
+<li><strong><a href="concat_view/begin.html">begin</a></strong> — renvoie un itérateur vers le début <em>(fonction membre publique)</em></li>
+<li><strong><a href="concat_view/end.html">end</a></strong> — renvoie un itérateur ou une sentinelle vers la fin <em>(fonction membre publique)</em></li>
+<li><strong><a href="concat_view/size.html">size</a></strong> — renvoie le nombre d'éléments. Fourni uniquement si l'intervalle sous-jacent (adapté) satisfait <a href="sized_range.html"><code>sized_range</code></a>. <em>(fonction membre publique)</em></li>
+</ul>
+<p><strong>##### Hérité de <a href="view_interface.html"><code>std::ranges::view_interface</code></a> {#Inherited_from_std::ranges::view_interface}</strong></p>
+<ul>
+<li><strong><a href="view_interface/empty.html">empty</a></strong> — renvoie si la vue dérivée est vide. Fourni si elle satisfait <a href="sized_range.html"><code>sized_range</code></a> ou <a href="forward_range.html"><code>forward_range</code></a>. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="view_interface/cbegin.html">cbegin</a> (C++23)</strong> — renvoie un itérateur constant vers le début de l'intervalle. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="view_interface/cend.html">cend</a> (C++23)</strong> — renvoie une sentinelle pour l'itérateur constant de l'intervalle. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="view_interface/operator_bool.html">operator bool</a></strong> — renvoie si la vue dérivée n'est pas vide. Fourni si <a href="empty.html"><code>ranges::empty</code></a> lui est applicable. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="view_interface/front.html">front</a></strong> — renvoie le premier élément de la vue dérivée. Fourni si elle satisfait <a href="forward_range.html"><code>forward_range</code></a>. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="view_interface/back.html">back</a></strong> — renvoie le dernier élément de la vue dérivée. Fourni si elle satisfait <a href="bidirectional_range.html"><code>bidirectional_range</code></a> et <a href="common_range.html"><code>common_range</code></a>. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+<li><strong><a href="view_interface/operator_at.html">operator[]</a></strong> — renvoie le <code>n</code>e élément de la vue dérivée. Fourni si elle satisfait <a href="random_access_range.html"><code>random_access_range</code></a>. <em>(fonction membre publique de <code>std::ranges::view_interface&lt;D&gt;</code>)</em></li>
+</ul>
+<h2 id="Deduction_guides"><a href="concat_view/deduction_guides.html">Guides de déduction</a></h2>
+<h2 id="Nested_classes">Classes imbriquées</h2>
+<p><strong>Nom de classe Définition</strong></p>
+<ul>
+<li><strong><a href="concat_view/iterator.html"><em>iterator</em></a></strong> — le type d'itérateur <em>(modèle de classe exposé uniquement</em>)*</li>
+</ul>
+<h2 id="Helper_templates">Modèles auxiliaires</h2>
+<p>Il n'existe aucune spécialisation de <code>ranges::enable_borrowed_range</code> pour <code>concat_view</code>, car cela exigerait que l'implémentation de l'itérateur contienne en permanence une copie de tous les itérateurs et sentinelles de tous les intervalles sous-jacents.</p>
+<h2 id="Notes">Notes</h2>
+<p>Aucun argument <code>views::concat()</code> est mal formé, car il n'existe pas de moyen raisonnable de déterminer un type d'élément <code>T</code>. Un argument unique <code>views::concat(r)</code> est expression-équivalent à <code>views::all(r)</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Macro de <a href="../utility/feature_test.html">test de fonctionnalité</a></th>
+<th>Valeur</th>
+<th>Std</th>
+<th>Fonctionnalité</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../feature_test.html#cpp_lib_ranges_concat"><code>__cpp_lib_ranges_concat</code></a></td>
+<td><a href="../compiler_support/26.html#cpp_lib_ranges_concat_202403L"><code>202403L</code></a></td>
+<td><em>(C++26)</em></td>
+<td><code>std::ranges::concat_view</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="Example">Exemple</h2>
+<p>La version préliminaire peut être essayée sur <a href="https://godbolt.org/z/o84hc69o9">Compiler Explorer</a>.</p>
+<pre><code class="language-cpp">#include &lt;cassert&gt;
+#include &lt;list&gt;
+#include &lt;print&gt;
+#include &lt;ranges&gt;
+#include &lt;vector&gt;
+
+int main()
+{
+    std::vector&lt;int&gt; v0{1, 2, 3}, v1{4, 5};
+    int a[]{6, 7};
+    int i{8};
+    auto ie{std::views::single(i)};
+
+    auto con = std::views::concat(v0, v1, a, ie);
+    assert(con.size() == v0.size() + v1.size() + std::size(a) + ie.size());
+    std::println(&quot;con.size(): {}&quot;, con.size());
+    std::println(&quot;con: {}&quot;, con);
+    con[6] = 42; // si con est random_access_range, operator[] renvoie une référence
+    assert(a[1] == 42); // a[1] a été modifié via con[6]
+    std::println(&quot;con: {}&quot;, con);
+
+    std::list&lt;int&gt; l{7, 8}; // list est un intervalle bidirectionnel
+    auto cat = std::views::concat(v0, l);
+    std::println(&quot;cat: {}&quot;, cat);
+    // cat[0] = 13; // erreur de compilation : cat est bidirectionnel =&gt; pas d'operator[]
+}
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">con.size(): 8
+con: [1, 2, 3, 4, 5, 6, 7, 8]
+con: [1, 2, 3, 4, 5, 6, 42, 8]
+cat: [1, 2, 3, 7, 8]
+</code></pre>
+<h2 id="References">Références</h2>
+<ul>
+<li>Norme C++26 (ISO/IEC 14882:2026) :
+<ul>
+<li>26.7.18 Vue de concaténation [range.concat]</li>
+</ul>
+</li>
+</ul>
+<h2 id="See_also">Voir aussi</h2>
+<ul>
+<li><strong><a href="join_view.html">ranges::join_viewviews::join</a> (C++20)</strong> — une <a href="view.html"><code>view</code></a> constituée de la séquence obtenue en aplatissant un <a href="view.html"><code>view</code></a> de <a href="range.html"><code>range</code>s</a> <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+<li><strong><a href="join_with_view.html">ranges::join_with_viewviews::join_with</a> (C++23)</strong> — une <a href="view.html"><code>view</code></a> constituée de la séquence obtenue en aplatissant une vue d'intervalles, avec le délimiteur entre les éléments <em>(modèle de classe)</em> <em>(objet adaptateur d'intervalle)</em></li>
+<li><strong><a href="zip_view.html">ranges::zip_viewviews::zip</a> (C++23)</strong> — une <a href="view.html"><code>view</code></a> constituée de tuples de références vers les éléments correspondants des vues adaptées <em>(modèle de classe)</em> <em>(objet point de personnalisation)</em></li>
+<li><strong><a href="cartesian_product_view.html">ranges::cartesian_product_viewviews::cartesian_product</a> (C++23)</strong> — une <a href="view.html"><code>view</code></a> constituée de tuples de résultats calculés par le produit cartésien n-aire des vues adaptées <em>(modèle de classe)</em> <em>(objet point de personnalisation)</em></li>
+</ul>
+
+</main>
+</body>
+</html>
