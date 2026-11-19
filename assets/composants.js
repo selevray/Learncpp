@@ -9,7 +9,8 @@
  *   - un bouton pour changer de thème clair / sombre ;
  *   - le composant <conseil-claude titre="Piège classique"> … </conseil-claude>,
  *     qui affiche un bouton « 💡 Conseil Claude » ouvrant une fenêtre pop-up ;
- *   - la coloration syntaxique du code C++.
+ *   - la coloration syntaxique du code C++ ;
+ *   - un bouton « Copier » sur chaque bloc de code.
  */
 (function () {
   const script = document.currentScript;
@@ -112,6 +113,7 @@
 
       this.append(bouton, dlg);
       colorer(dlg);
+      ajouterBoutonsCopier(dlg);
     }
   }
   if (!customElements.get("conseil-claude")) customElements.define("conseil-claude", ConseilClaude);
@@ -174,6 +176,55 @@
     });
   }
 
+  /* Bouton « Copier » sur chaque bloc de code.
+   * Le <pre> est placé dans un conteneur : le bouton reste dans le coin
+   * même quand on fait défiler horizontalement un code trop large. */
+  function copierTexte(texte) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(texte);
+    }
+    // repli (anciens navigateurs, contexte non sécurisé)
+    return new Promise((ok, echec) => {
+      const zone = document.createElement("textarea");
+      zone.value = texte;
+      zone.setAttribute("readonly", "");
+      zone.style.position = "fixed";
+      zone.style.opacity = "0";
+      document.body.append(zone);
+      zone.select();
+      try { document.execCommand("copy") ? ok() : echec(); } catch (e) { echec(e); }
+      zone.remove();
+    });
+  }
+
+  function ajouterBoutonsCopier(racineDom) {
+    (racineDom || document).querySelectorAll("pre > code").forEach((code) => {
+      const pre = code.parentElement;
+      if (pre.parentElement && pre.parentElement.classList.contains("code-bloc")) return;
+      const bloc = document.createElement("div");
+      bloc.className = "code-bloc";
+      pre.replaceWith(bloc);
+      bloc.append(pre);
+
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.className = "copier-btn";
+      bouton.textContent = "Copier";
+      bouton.setAttribute("aria-label", "Copier le code");
+      let minuteur = null;
+      bouton.addEventListener("click", () => {
+        copierTexte(code.textContent.replace(/\n$/, "")).then(
+          () => { bouton.textContent = "Copié ✓"; bouton.classList.add("ok"); },
+          () => { bouton.textContent = "Échec"; }
+        ).finally(() => {
+          clearTimeout(minuteur);
+          minuteur = setTimeout(() => { bouton.textContent = "Copier"; bouton.classList.remove("ok"); }, 1500);
+        });
+      });
+      bloc.append(bouton);
+    });
+  }
+
   /* Pour les pages qui gèrent leur propre barre (recherche.html). */
   window.ApprendreCpp = { basculerTheme, lienAvecTheme };
 
@@ -184,6 +235,7 @@
       raccourciRecherche();
     }
     colorer(document);
+    ajouterBoutonsCopier(document);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
